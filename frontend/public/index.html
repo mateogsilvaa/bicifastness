@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiciFastness - Ranking de Tiempos BiciMAD</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bicimad-green: #00A651;
+            --bicimad-green-dark: #008C45;
+            --bicimad-green-light: #4CD964;
+            --asphalt-dark: #1A1D23;
+            --asphalt-medium: #2D3139;
+            --asphalt-light: #3D424D;
+            --white: #FFFFFF;
+            --gray-100: #F5F5F7;
+            --gray-200: #E5E5E7;
+            --gray-400: #9CA3AF;
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: linear-gradient(135deg, var(--asphalt-dark) 0%, var(--asphalt-medium) 100%);
+            min-height: 100vh;
+            color: var(--white);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            position: relative;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--bicimad-green);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 32px rgba(0, 166, 81, 0.4);
+        }
+
+        .logo-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: var(--white);
+        }
+
+        h1 {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            background: linear-gradient(135deg, var(--bicimad-green-light) 0%, var(--bicimad-green) 50%, var(--bicimad-green-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 1.1rem;
+            color: var(--gray-400);
+            margin-top: 8px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        nav a {
+            color: var(--white);
+            text-decoration: none;
+            padding: 12px 28px;
+            border-radius: 50px;
+            background: var(--asphalt-light);
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        nav a:hover, nav a.active {
+            background: var(--bicimad-green);
+            box-shadow: 0 4px 20px rgba(0, 166, 81, 0.4);
+        }
+
+        nav a.active {
+            border-color: var(--bicimad-green-light);
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background: var(--asphalt-medium);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            border: 1px solid var(--asphalt-light);
+        }
+
+        .filter-section label {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--gray-200);
+        }
+
+        .filter-section select {
+            padding: 12px 24px;
+            border-radius: 50px;
+            border: 2px solid var(--asphalt-light);
+            background: var(--asphalt-dark);
+            color: var(--white);
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 250px;
+        }
+
+        .filter-section select:hover, .filter-section select:focus {
+            border-color: var(--bicimad-green);
+            outline: none;
+        }
+
+        /* Ranking Table */
+        .ranking-container {
+            background: var(--asphalt-medium);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--asphalt-light);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 80px 1fr 1.2fr 140px 100px;
+            padding: 20px 24px;
+            background: var(--asphalt-dark);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.85rem;
+            color: var(--gray-400);
+            border-bottom: 2px solid var(--bicimad-green);
+        }
+
+        .ranking-row {
+            display: grid;
+            grid-template-columns: 80px 1fr 1.2fr 140px 100px;
+            padding: 20px 24px;
+            align-items: center;
+            border-bottom: 1px solid var(--asphalt-light);
+            transition: all 0.3s ease;
+        }
+
+        .ranking-row:hover {
+            background: var(--asphalt-light);
+        }
+
+        .ranking-row:last-child {
+            border-bottom: none;
+        }
+
+        .position {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: var(--asphalt-dark);
+        }
+
+        .position.gold {
+            background: linear-gradient(135deg, var(--gold) 0%, #FFA500 100%);
+            color: var(--asphalt-dark);
+            box-shadow: 0 4px 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .position.silver {
+            background: linear-gradient(135deg, var(--silver) 0%, #A0A0A0 100%);
+            color: var(--asphalt-dark);
+            box-shadow: 0 4px 20px rgba(192, 192, 192, 0.4);
+        }
+
+        .position.bronze {
+            background: linear-gradient(135deg, var(--bronze) 0%, #B8860B 100%);
+            color: var(--asphalt-dark);
+            box-shadow: 0 4px 20px rgba(205, 127, 50, 0.4);
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .route {
+            color: var(--gray-400);
+            font-size: 0.95rem;
+        }
+
+        .time {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--bicimad-green-light);
+        }
+
+        .view-photo {
+            padding: 8px 16px;
+            background: transparent;
+            border: 2px solid var(--bicimad-green);
+            color: var(--bicimad-green);
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .view-photo:hover {
+            background: var(--bicimad-green);
+            color: var(--white);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray-400);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--asphalt-medium);
+            border-radius: 20px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            border: 1px solid var(--asphalt-light);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--asphalt-light);
+        }
+
+        .modal-header h3 {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 1.3rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--gray-400);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: var(--white);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-body img {
+            width: 100%;
+            border-radius: 12px;
+            max-height: 60vh;
+            object-fit: contain;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--asphalt-light);
+            border-top-color: var(--bicimad-green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.2rem;
+            }
+
+            .table-header, .ranking-row {
+                grid-template-columns: 60px 1fr 100px;
+            }
+
+            .table-header > *:nth-child(3),
+            .ranking-row > *:nth-child(3) {
+                display: none;
+            }
+
+            .table-header > *:nth-child(5),
+            .ranking-row > *:nth-child(5) {
+                display: none;
+            }
+
+            .filter-section {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .filter-section select {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
+                <h1>BiciFastness</h1>
+            </div>
+            <p class="tagline">Ranking Oficial de Tiempos BiciMAD</p>
+        </header>
+
+        <nav>
+            <a href="index.html" class="active">Ranking</a>
+            <a href="subir.html">Subir Tiempo</a>
+            <a href="admin.html">Admin</a>
+        </nav>
+
+        <section class="filter-section">
+            <label for="route-filter">Filtrar por ruta:</label>
+            <select id="route-filter">
+                <option value="todas">Todas las rutas</option>
+                <option value="Legazpi - Casa">Legazpi - Casa</option>
+                <option value="Mendez Álvaro - Casa">Méndez Álvaro - Casa</option>
+            </select>
+        </section>
+
+        <div class="ranking-container">
+            <div class="table-header">
+                <span>Pos.</span>
+                <span>Usuario</span>
+                <span>Ruta</span>
+                <span>Tiempo</span>
+                <span>Foto</span>
+            </div>
+            <div id="ranking-list">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando ranking...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para ver foto -->
+    <div class="modal-overlay" id="photo-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Captura de tiempo</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <img id="modal-image" src="" alt="Captura de tiempo">
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
+            authDomain: "bicifastness.firebaseapp.com",
+            databaseURL: "https://bicifastness-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "bicifastness",
+            storageBucket: "bicifastness.firebasestorage.app",
+            messagingSenderId: "656116731421",
+            appId: "1:656116731421:web:a4154d028fe9721c5800f4",
+            measurementId: "G-CSFX8EX71S"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const rankingList = document.getElementById('ranking-list');
+        const routeFilter = document.getElementById('route-filter');
+        let currentFilter = 'todas';
+
+        // Escuchar cambios en el filtro
+        routeFilter.addEventListener('change', (e) => {
+            currentFilter = e.target.value;
+            loadRanking();
+        });
+
+        function loadRanking() {
+            rankingList.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando ranking...</p>
+                </div>
+            `;
+
+            let q;
+            const tiemposRef = collection(db, 'tiempos_viaje');
+
+            if (currentFilter === 'todas') {
+                q = query(
+                    tiemposRef,
+                    where('verificado', '==', true),
+                    orderBy('tiempo_segundos', 'asc')
+                );
+            } else {
+                q = query(
+                    tiemposRef,
+                    where('verificado', '==', true),
+                    where('ruta', '==', currentFilter),
+                    orderBy('tiempo_segundos', 'asc')
+                );
+            }
+
+            onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) {
+                    rankingList.innerHTML = `
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            <p>No hay tiempos verificados aún.</p>
+                            <p>¡Sé el primero en subir tu tiempo!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                let position = 1;
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    let positionClass = '';
+                    
+                    if (position === 1) positionClass = 'gold';
+                    else if (position === 2) positionClass = 'silver';
+                    else if (position === 3) positionClass = 'bronze';
+
+                    html += `
+                        <div class="ranking-row">
+                            <div class="position ${positionClass}">${position}</div>
+                            <div class="user-name">${escapeHtml(data.usuario)}</div>
+                            <div class="route">${escapeHtml(data.ruta)}</div>
+                            <div class="time">${escapeHtml(data.tiempo_formateado)}</div>
+                            <button class="view-photo" onclick="openModal('${escapeHtml(data.usuario)}', '${data.foto_url}')">
+                                Ver
+                            </button>
+                        </div>
+                    `;
+                    position++;
+                });
+
+                rankingList.innerHTML = html;
+            }, (error) => {
+                console.error('Error al cargar ranking:', error);
+                rankingList.innerHTML = `
+                    <div class="empty-state">
+                        <p>Error al cargar el ranking. Por favor, recarga la página.</p>
+                    </div>
+                `;
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Funciones globales para el modal
+        window.openModal = function(usuario, fotoUrl) {
+            document.getElementById('modal-title').textContent = `Captura de ${usuario}`;
+            document.getElementById('modal-image').src = fotoUrl;
+            document.getElementById('photo-modal').classList.add('active');
+        };
+
+        window.closeModal = function() {
+            document.getElementById('photo-modal').classList.remove('active');
+        };
+
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('photo-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'photo-modal') {
+                closeModal();
+            }
+        });
+
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Cargar ranking inicial
+        loadRanking();
+    </script>
+</body>
+</html>

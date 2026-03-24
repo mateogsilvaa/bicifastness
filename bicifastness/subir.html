@@ -6,21 +6,20 @@
     <title>Subir Tiempo - BiciFastness</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bicimad-green: #00A651;
-            --bicimad-green-dark: #008C45;
-            --bicimad-green-light: #4CD964;
-            --asphalt-dark: #1A1D23;
-            --asphalt-medium: #2D3139;
-            --asphalt-light: #3D424D;
-            --white: #FFFFFF;
-            --gray-100: #F5F5F7;
-            --gray-200: #E5E5E7;
-            --gray-400: #9CA3AF;
-            --red: #EF4444;
-            --red-dark: #DC2626;
+            --primary-blue: #0071c3;
+            --primary-dark: #005a9e;
+            --primary-light: #4a90e2;
+            --white: #ffffff;
+            --black: #000000;
+            --cream: #f1efeb;
+            --gray-100: #f8f9fa;
+            --gray-200: #e9ecef;
+            --gray-400: #6c757d;
+            --red: #dc3545;
+            --red-dark: #c82333;
         }
 
         * {
@@ -30,10 +29,10 @@
         }
 
         body {
-            font-family: 'Space Grotesk', sans-serif;
-            background: linear-gradient(135deg, var(--asphalt-dark) 0%, var(--asphalt-medium) 100%);
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--white) 0%, var(--cream) 100%);
             min-height: 100vh;
-            color: var(--white);
+            color: var(--black);
         }
 
         .container {
@@ -59,12 +58,12 @@
         .logo-icon {
             width: 64px;
             height: 64px;
-            background: var(--bicimad-green);
+            background: var(--primary-blue);
             border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 32px rgba(0, 166, 81, 0.4);
+            box-shadow: 0 8px 32px rgba(0, 113, 195, 0.3);
         }
 
         .logo-icon svg {
@@ -74,11 +73,11 @@
         }
 
         h1 {
-            font-family: 'Exo 2', sans-serif;
+            font-family: 'Poppins', sans-serif;
             font-size: 3rem;
             font-weight: 800;
-            letter-spacing: -2px;
-            background: linear-gradient(135deg, var(--bicimad-green-light) 0%, var(--bicimad-green) 50%, var(--bicimad-green-dark) 100%);
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-blue) 50%, var(--primary-dark) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -102,40 +101,42 @@
         }
 
         nav a {
-            color: var(--white);
+            color: var(--black);
             text-decoration: none;
             padding: 12px 28px;
             border-radius: 50px;
-            background: var(--asphalt-light);
+            background: var(--gray-200);
             font-weight: 500;
             transition: all 0.3s ease;
             border: 2px solid transparent;
         }
 
         nav a:hover, nav a.active {
-            background: var(--bicimad-green);
-            box-shadow: 0 4px 20px rgba(0, 166, 81, 0.4);
+            background: var(--primary-blue);
+            color: var(--white);
+            box-shadow: 0 4px 20px rgba(0, 113, 195, 0.3);
         }
 
         nav a.active {
-            border-color: var(--bicimad-green-light);
+            border-color: var(--primary-light);
         }
 
         /* Form Container */
         .form-container {
-            background: var(--asphalt-medium);
+            background: var(--white);
             border-radius: 24px;
             padding: 40px;
-            border: 1px solid var(--asphalt-light);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
         }
 
         .form-title {
-            font-family: 'Exo 2', sans-serif;
+            font-family: 'Poppins', sans-serif;
             font-size: 1.5rem;
             font-weight: 700;
             margin-bottom: 8px;
             text-align: center;
+            color: var(--black);
         }
 
         .form-subtitle {
@@ -152,7 +153,7 @@
             display: block;
             font-weight: 600;
             margin-bottom: 8px;
-            color: var(--gray-200);
+            color: var(--black);
         }
 
         .form-group input,
@@ -160,9 +161,9 @@
             width: 100%;
             padding: 14px 20px;
             border-radius: 12px;
-            border: 2px solid var(--asphalt-light);
-            background: var(--asphalt-dark);
-            color: var(--white);
+            border: 2px solid var(--gray-200);
+            background: var(--white);
+            color: var(--black);
             font-family: inherit;
             font-size: 1rem;
             transition: all 0.3s ease;
@@ -170,9 +171,9 @@
 
         .form-group input:focus,
         .form-group select:focus {
-            border-color: var(--bicimad-green);
+            border-color: var(--primary-blue);
             outline: none;
-            box-shadow: 0 0 0 4px rgba(0, 166, 81, 0.2);
+            box-shadow: 0 0 0 4px rgba(0, 113, 195, 0.2);
         }
 
         .form-group input::placeholder {
@@ -206,22 +207,22 @@
 
         /* File upload */
         .file-upload-area {
-            border: 2px dashed var(--asphalt-light);
+            border: 2px dashed var(--gray-200);
             border-radius: 16px;
             padding: 40px 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            background: var(--asphalt-dark);
+            background: var(--white);
         }
 
         .file-upload-area:hover {
-            border-color: var(--bicimad-green);
-            background: rgba(0, 166, 81, 0.05);
+            border-color: var(--primary-blue);
+            background: rgba(0, 113, 195, 0.05);
         }
 
         .file-upload-area.has-file {
-            border-color: var(--bicimad-green);
+            border-color: var(--primary-blue);
             border-style: solid;
         }
 
@@ -238,7 +239,7 @@
         }
 
         .file-upload-area .file-name {
-            color: var(--bicimad-green-light);
+            color: var(--primary-blue);
             font-weight: 600;
             word-break: break-all;
         }
@@ -251,7 +252,7 @@
         .submit-btn {
             width: 100%;
             padding: 16px;
-            background: linear-gradient(135deg, var(--bicimad-green) 0%, var(--bicimad-green-dark) 100%);
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
             border: none;
             border-radius: 12px;
             color: var(--white);
@@ -265,7 +266,7 @@
 
         .submit-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(0, 166, 81, 0.4);
+            box-shadow: 0 8px 30px rgba(0, 113, 195, 0.3);
         }
 
         .submit-btn:disabled {
@@ -288,13 +289,13 @@
         }
 
         .message.success {
-            background: rgba(0, 166, 81, 0.15);
-            border: 1px solid var(--bicimad-green);
-            color: var(--bicimad-green-light);
+            background: rgba(0, 113, 195, 0.1);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
         }
 
         .message.error {
-            background: rgba(239, 68, 68, 0.15);
+            background: rgba(220, 53, 69, 0.1);
             border: 1px solid var(--red);
             color: var(--red);
         }
@@ -310,7 +311,7 @@
         .progress-bar {
             width: 100%;
             height: 6px;
-            background: var(--asphalt-dark);
+            background: var(--gray-200);
             border-radius: 3px;
             margin-top: 16px;
             overflow: hidden;
@@ -323,7 +324,7 @@
 
         .progress-bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, var(--bicimad-green-light), var(--bicimad-green));
+            background: linear-gradient(90deg, var(--primary-light), var(--primary-blue));
             border-radius: 3px;
             width: 0%;
             transition: width 0.3s ease;
@@ -513,6 +514,11 @@
             // Validation
             if (!usuario || !ruta || !foto) {
                 showError('Por favor, completa todos los campos.');
+                return;
+            }
+
+            if (minutos < 0 || minutos > 59 || segundos < 0 || segundos > 59) {
+                showError('Los minutos y segundos deben estar entre 0 y 59.');
                 return;
             }
 

@@ -7,151 +7,36 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         
-        body { 
-            margin: 0; padding: 0; 
-            background-color: #121212; 
-            color: #f1efeb; 
-            font-family: 'Poppins', sans-serif; 
-        }
-        
-        /* Navbar */
-        nav {
-            background: #0a0a0a;
-            border-bottom: 1px solid #333;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        nav .brand {
-            color: #0071c3;
-            font-weight: 800;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        nav .links a {
-            color: #888;
-            text-decoration: none;
-            margin-left: 20px;
-            font-size: 0.9rem;
-            transition: color 0.3s;
-        }
+        body { margin: 0; padding: 0; background-color: #121212; color: #f1efeb; font-family: 'Poppins', sans-serif; }
+        nav { background: #0a0a0a; border-bottom: 1px solid #333; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        nav .brand { color: #0071c3; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+        nav .links a { color: #888; text-decoration: none; margin-left: 20px; font-size: 0.9rem; transition: color 0.3s; }
         nav .links a:hover, nav .links a.active { color: #f1efeb; font-weight: 600; }
-        
-        /* Layout del Perfil */
-        .container {
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 0 20px;
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 25px;
-        }
-        
-        @media (max-width: 768px) {
-            .container { grid-template-columns: 1fr; }
-        }
-
-        .card { 
-            background: #1a1a1a; 
-            padding: 2rem; 
-            border-radius: 12px; 
-            border: 1px solid #333; 
-        }
-        
-        h2 { 
-            margin-top: 0; 
-            color: #f1efeb;
-            font-weight: 700;
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        /* Stats Card (Izquierda) */
+        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 2fr; gap: 25px; }
+        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+        .card { background: #1a1a1a; padding: 2rem; border-radius: 12px; border: 1px solid #333; }
+        h2 { margin-top: 0; color: #f1efeb; font-weight: 700; font-size: 1.5rem; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
         .user-email { color: #888; font-size: 0.9rem; margin-bottom: 25px; word-break: break-all; }
-        
-        .stat-box {
-            background: #222;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 15px;
-            transition: border-color 0.3s;
-        }
+        .stat-box { background: #222; border: 1px solid #444; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px; transition: border-color 0.3s; }
         .stat-box:hover { border-color: #0071c3; }
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: #0071c3;
-            line-height: 1;
-            margin-bottom: 5px;
-        }
+        .stat-number { font-size: 2.5rem; font-weight: 800; color: #0071c3; line-height: 1; margin-bottom: 5px; }
         .stat-label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .rating-box {
-            background: linear-gradient(135deg, #1a2a3a 0%, #111 100%);
-            border: 1px solid #0071c3;
-        }
+        .rating-box { background: linear-gradient(135deg, #1a2a3a 0%, #111 100%); border: 1px solid #0071c3; }
         .rating-box .stat-number { color: #f1efeb; font-size: 1.8rem; }
-        .badge-soon {
-            display: inline-block;
-            background: #0071c3; color: white;
-            font-size: 0.65rem; padding: 2px 6px;
-            border-radius: 4px; font-weight: 700;
-            margin-top: 5px; text-transform: uppercase;
-        }
-
-        /* Historial de viajes (Derecha) */
-        .trip-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .trip-item {
-            background: #222;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: transform 0.2s, border-color 0.2s;
-        }
-        .trip-item:hover {
-            transform: translateX(5px);
-            border-color: #555;
-        }
-        
+        .badge-soon { display: inline-block; background: #0071c3; color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-top: 5px; text-transform: uppercase; }
+        .trip-list { display: flex; flex-direction: column; gap: 12px; }
+        .trip-item { background: #222; border: 1px solid #333; border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s, border-color 0.2s; }
+        .trip-item:hover { transform: translateX(5px); border-color: #555; }
         .trip-info { display: flex; flex-direction: column; gap: 4px; }
         .trip-route { font-weight: 700; font-size: 1.1rem; color: #f1efeb; }
         .trip-date { font-size: 0.8rem; color: #888; }
-        
         .trip-stats { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
         .trip-time { font-weight: 700; color: #0071c3; font-size: 1.1rem; }
-        
-        .status-badge {
-            font-size: 0.7rem; padding: 4px 8px;
-            border-radius: 4px; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
+        .status-badge { font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         .status-pending { background: #332b00; color: #ffbb33; border: 1px solid #665000; }
         .status-verified { background: #003311; color: #00C851; border: 1px solid #006622; }
-
-        .btn-view-all {
-            width: 100%; padding: 12px; margin-top: 20px;
-            background: transparent; color: #f1efeb; 
-            border: 1px solid #444; border-radius: 6px; 
-            font-weight: 600; font-size: 0.9rem;
-            cursor: pointer; transition: all 0.3s;
-            font-family: inherit;
-        }
+        .btn-view-all { width: 100%; padding: 12px; margin-top: 20px; background: transparent; color: #f1efeb; border: 1px solid #444; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.3s; font-family: inherit; }
         .btn-view-all:hover { background: #222; border-color: #888; }
-        
         #loading-msg { color: #888; font-size: 0.9rem; text-align: center; padding: 20px; }
     </style>
 </head>
@@ -160,6 +45,7 @@
     <nav>
         <div class="brand">BiciFastness</div>
         <div class="links">
+            <a href="home.html">Inicio</a>
             <a href="ranking.html">Rankings</a>
             <a href="subir.html">Subir Tiempo</a>
             <a href="profile.html" class="active">Mi Perfil</a>
@@ -171,12 +57,10 @@
         <div class="card">
             <h2>Piloto</h2>
             <div class="user-email" id="display-email">Cargando perfil...</div>
-            
             <div class="stat-box">
                 <div class="stat-number" id="total-trips">0</div>
                 <div class="stat-label">Viajes Subidos</div>
             </div>
-
             <div class="stat-box rating-box">
                 <div class="stat-number">--</div>
                 <div class="stat-label">Rating BiciMAD</div>
@@ -187,10 +71,7 @@
         <div class="card">
             <h2>Últimos Viajes</h2>
             <div id="loading-msg">Cargando tu historial...</div>
-            
-            <div class="trip-list" id="trips-container">
-                </div>
-
+            <div class="trip-list" id="trips-container"></div>
             <button class="btn-view-all" id="btn-view-all" style="display: none;">Ver historial completo</button>
         </div>
     </div>
@@ -204,7 +85,7 @@
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.firebasestorage.app",
+            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -214,19 +95,13 @@
         const db = getFirestore(app);
 
         let isShowingAll = false;
-        let allUserTrips = []; // Guardaremos los viajes en memoria
+        let allUserTrips = [];
 
-        // Proteger ruta y cargar datos
         onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                window.location.href = "index.html";
-            } else {
-                document.getElementById('display-email').innerText = user.email;
-                await loadUserTrips(user.email);
-            }
+            if (!user) window.location.href = "index.html";
+            else { document.getElementById('display-email').innerText = user.email; await loadUserTrips(user.email); }
         });
 
-        // Logout
         document.getElementById('logout-btn').addEventListener('click', () => {
             signOut(auth).then(() => window.location.href = "index.html");
         });
@@ -238,35 +113,24 @@
             const btnViewAll = document.getElementById('btn-view-all');
 
             try {
-                // Buscamos todos los viajes del usuario actual
                 const q = query(collection(db, "tiempos_viaje"), where("usuario", "==", email));
                 const querySnapshot = await getDocs(q);
                 
                 allUserTrips = [];
-                querySnapshot.forEach((doc) => {
-                    allUserTrips.push({ id: doc.id, ...doc.data() });
-                });
-
-                // Ordenamos por fecha en JavaScript (de más reciente a más antiguo)
-                // Evitamos así tener que crear índices compuestos en Firebase por ahora.
+                querySnapshot.forEach((doc) => allUserTrips.push({ id: doc.id, ...doc.data() }));
                 allUserTrips.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
                 loadingMsg.style.display = 'none';
                 totalTripsEl.innerText = allUserTrips.length;
 
                 if (allUserTrips.length === 0) {
-                    container.innerHTML = `<div style="color:#888; text-align:center; padding: 20px 0;">Aún no has registrado ningún viaje. ¡Anímate y ve a "Subir Tiempo"!</div>`;
+                    container.innerHTML = `<div style="color:#888; text-align:center; padding: 20px 0;">Aún no has registrado ningún viaje.</div>`;
                     return;
                 }
-
-                if (allUserTrips.length > 5) {
-                    btnViewAll.style.display = 'block';
-                }
-
-                renderTrips(5); // Renderizamos los 5 primeros por defecto
-
+                if (allUserTrips.length > 5) btnViewAll.style.display = 'block';
+                renderTrips(5);
             } catch (error) {
-                console.error("Error cargando viajes:", error);
+                console.error(error);
                 loadingMsg.innerText = "Error al cargar el historial.";
                 loadingMsg.style.color = "#ff4444";
             }
@@ -274,45 +138,27 @@
 
         function renderTrips(limit) {
             const container = document.getElementById('trips-container');
-            container.innerHTML = ''; // Limpiar
-
+            container.innerHTML = '';
             const tripsToShow = allUserTrips.slice(0, limit);
 
             tripsToShow.forEach(trip => {
-                // Formatear la fecha para que se vea bonita (Ej: 24 Mar 2026)
-                const dateObj = new Date(trip.fecha);
-                const dateString = dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-
-                // Determinar el estilo de la etiqueta de verificación
+                const dateString = new Date(trip.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
                 const statusClass = trip.verificado ? 'status-verified' : 'status-pending';
                 const statusText = trip.verificado ? 'Verificado' : 'En revisión';
 
                 const tripHtml = `
                     <div class="trip-item">
-                        <div class="trip-info">
-                            <div class="trip-route">Ruta ${trip.ruta}</div>
-                            <div class="trip-date">${dateString}</div>
-                        </div>
-                        <div class="trip-stats">
-                            <div class="trip-time">${trip.tiempo_formateado}</div>
-                            <div class="status-badge ${statusClass}">${statusText}</div>
-                        </div>
-                    </div>
-                `;
+                        <div class="trip-info"><div class="trip-route">Ruta ${trip.ruta}</div><div class="trip-date">${dateString}</div></div>
+                        <div class="trip-stats"><div class="trip-time">${trip.tiempo_formateado}</div><div class="status-badge ${statusClass}">${statusText}</div></div>
+                    </div>`;
                 container.insertAdjacentHTML('beforeend', tripHtml);
             });
         }
 
-        // Lógica del botón "Ver todos"
         document.getElementById('btn-view-all').addEventListener('click', (e) => {
             isShowingAll = !isShowingAll;
-            if (isShowingAll) {
-                renderTrips(allUserTrips.length);
-                e.target.innerText = "Mostrar menos";
-            } else {
-                renderTrips(5);
-                e.target.innerText = "Ver historial completo";
-            }
+            if (isShowingAll) { renderTrips(allUserTrips.length); e.target.innerText = "Mostrar menos"; }
+            else { renderTrips(5); e.target.innerText = "Ver historial completo"; }
         });
     </script>
 </body>

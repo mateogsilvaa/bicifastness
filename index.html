@@ -7,60 +7,19 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
         
-        body { 
-            margin: 0; padding: 0; 
-            background-color: #121212; /* Fondo oscuro urbano */
-            color: #f1efeb; /* Texto crema */
-            font-family: 'Poppins', sans-serif; 
-            display: flex; justify-content: center; align-items: center; 
-            height: 100vh; 
-            background-image: radial-gradient(circle at 50% 0%, #1a2a3a 0%, #121212 60%);
-        }
-        .card { 
-            background: #1a1a1a; 
-            padding: 2.5rem 2rem; 
-            border-radius: 12px; 
-            border: 1px solid #333; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
-            width: 100%; max-width: 350px; 
-            text-align: center; 
-        }
-        h1 { 
-            color: #0071c3; /* Azul BiciMAD */
-            margin-top: 0; margin-bottom: 5px;
-            text-transform: uppercase; letter-spacing: 2px; font-weight: 700;
-        }
+        body { margin: 0; padding: 0; background-color: #121212; color: #f1efeb; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-image: radial-gradient(circle at 50% 0%, #1a2a3a 0%, #121212 60%); }
+        .card { background: #1a1a1a; padding: 2.5rem 2rem; border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.8); width: 100%; max-width: 350px; text-align: center; }
+        h1 { color: #0071c3; margin-top: 0; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
         h3 { margin-top: 0; color: #888; font-weight: 400; font-size: 0.9rem; margin-bottom: 25px; }
-        
-        input { 
-            width: 100%; padding: 12px; margin: 10px 0; 
-            background: #222; border: 1px solid #444; color: white; 
-            border-radius: 6px; box-sizing: border-box; 
-            font-family: inherit; transition: border 0.3s;
-        }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: white; border-radius: 6px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
         input:focus { border-color: #0071c3; outline: none; }
-        
-        button { 
-            width: 100%; padding: 14px; margin-top: 15px;
-            background: #0071c3; color: white; 
-            border: none; border-radius: 6px; 
-            font-weight: 700; font-size: 1rem;
-            cursor: pointer; transition: background 0.3s;
-        }
+        button { width: 100%; padding: 14px; margin-top: 15px; background: #0071c3; color: white; border: none; border-radius: 6px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.3s; }
         button:hover { background: #005a9e; }
         button:disabled { background: #444; color: #888; cursor: not-allowed; }
-        
-        .toggle { 
-            margin-top: 20px; font-size: 0.85em;
-        }
-        .toggle a {
-            color: #888; text-decoration: none; transition: color 0.3s;
-        }
+        .toggle { margin-top: 20px; font-size: 0.85em; }
+        .toggle a { color: #888; text-decoration: none; transition: color 0.3s; }
         .toggle a:hover { color: #f1efeb; }
-        
-        #error-msg { 
-            color: #ff4444; font-size: 0.85em; margin-top: 10px; min-height: 20px; 
-        }
+        #error-msg { color: #ff4444; font-size: 0.85em; margin-top: 10px; min-height: 20px; }
     </style>
 </head>
 <body>
@@ -88,7 +47,7 @@
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.firebasestorage.app",
+            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -96,17 +55,13 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        // Si ya hay sesión iniciada, pa' dentro
         onAuthStateChanged(auth, (user) => {
-            if (user) {
-                window.location.href = "home.html";
-            }
+            if (user) window.location.href = "home.html";
         });
 
         const btn = document.getElementById('action-btn');
         const errorMsg = document.getElementById('error-msg');
 
-        // Lógica exclusiva del botón de Login
         btn.addEventListener('click', async () => {
             const email = document.getElementById('email').value.trim();
             const pass = document.getElementById('password').value;
@@ -118,29 +73,18 @@
             }
 
             try {
-                // Deshabilitar botón mientras carga
                 btn.innerText = "Cargando...";
                 btn.disabled = true;
-
                 await signInWithEmailAndPassword(auth, email, pass);
-                // Si funciona, el onAuthStateChanged de arriba te redirige a home.html automáticamente
-                
             } catch (error) {
                 btn.disabled = false;
                 btn.innerText = "Entrar";
-                
-                // Mensajes de error en español
-                if(error.code === 'auth/invalid-credential') {
-                    errorMsg.innerText = "Correo o contraseña incorrectos.";
-                } else if(error.code === 'auth/invalid-email') {
-                    errorMsg.innerText = "El formato del correo no es válido.";
-                } else {
-                    errorMsg.innerText = "Error: " + error.message;
-                }
+                if(error.code === 'auth/invalid-credential') errorMsg.innerText = "Correo o contraseña incorrectos.";
+                else if(error.code === 'auth/invalid-email') errorMsg.innerText = "El formato del correo no es válido.";
+                else errorMsg.innerText = "Error: " + error.message;
             }
         });
     </script>
 </body>
 </html>
-
                                                 

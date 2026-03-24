@@ -7,90 +7,37 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         
-        body { 
-            margin: 0; padding: 0; 
-            background-color: #121212; 
-            color: #f1efeb; 
-            font-family: 'Poppins', sans-serif; 
-        }
-        
-        /* Navbar */
-        nav {
-            background: #0a0a0a;
-            border-bottom: 1px solid #333;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky; top: 0; z-index: 100;
-        }
+        body { margin: 0; padding: 0; background-color: #121212; color: #f1efeb; font-family: 'Poppins', sans-serif; }
+        nav { background: #0a0a0a; border-bottom: 1px solid #333; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         nav .brand { color: #0071c3; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
         nav .links a { color: #888; text-decoration: none; margin-left: 20px; font-size: 0.9rem; transition: color 0.3s; }
         nav .links a:hover, nav .links a.active { color: #f1efeb; font-weight: 600; }
-        
         .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-        
-        /* Buscador */
-        .search-section {
-            background: #1a1a1a; padding: 25px; border-radius: 12px; border: 1px solid #333; margin-bottom: 30px;
-        }
+        .search-section { background: #1a1a1a; padding: 25px; border-radius: 12px; border: 1px solid #333; margin-bottom: 30px; }
         .search-section h2 { margin-top: 0; color: #0071c3; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
-        .search-input {
-            width: 100%; padding: 15px; background: #222; border: 1px solid #444; color: white; 
-            border-radius: 8px; font-size: 1.1rem; font-family: inherit; transition: border 0.3s; box-sizing: border-box;
-        }
+        .search-input { width: 100%; padding: 15px; background: #222; border: 1px solid #444; color: white; border-radius: 8px; font-size: 1.1rem; font-family: inherit; transition: border 0.3s; box-sizing: border-box; }
         .search-input:focus { border-color: #0071c3; outline: none; }
-        
-        /* Rutas (Tags) */
         .routes-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
-        .route-btn {
-            background: #222; border: 1px solid #444; color: #888; padding: 10px 20px; 
-            border-radius: 30px; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.3s;
-        }
+        .route-btn { background: #222; border: 1px solid #444; color: #888; padding: 10px 20px; border-radius: 30px; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.3s; }
         .route-btn:hover { border-color: #0071c3; color: #f1efeb; background: #1a2a3a; }
         .route-btn.active { background: #0071c3; border-color: #0071c3; color: white; }
-        
-        /* Ranking Table */
         .ranking-section { background: #1a1a1a; padding: 25px; border-radius: 12px; border: 1px solid #333; display: none; }
         .ranking-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 15px; }
         .ranking-header h2 { margin: 0; font-size: 1.5rem; }
-        
-        .rank-row {
-            display: grid; grid-template-columns: 60px 1fr 100px 80px; align-items: center;
-            background: #222; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #333; transition: transform 0.2s;
-        }
+        .rank-row { display: grid; grid-template-columns: 60px 1fr 100px 80px; align-items: center; background: #222; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #333; transition: transform 0.2s; }
         .rank-row:hover { transform: scale(1.01); border-color: #555; }
-        
         .rank-pos { font-size: 1.5rem; font-weight: 800; color: #555; text-align: center; }
         .rank-user { font-weight: 600; font-size: 0.95rem; color: #f1efeb; word-break: break-all; }
         .rank-date { font-size: 0.75rem; color: #888; display: block; margin-top: 3px; font-weight: 400; }
         .rank-time { font-weight: 800; color: #0071c3; font-size: 1.1rem; text-align: right; }
-        
-        .btn-photo {
-            background: transparent; border: 1px solid #444; color: #888; padding: 8px; border-radius: 6px;
-            cursor: pointer; transition: all 0.3s; margin-left: auto; display: block;
-        }
+        .btn-photo { background: transparent; border: 1px solid #444; color: #888; padding: 8px; border-radius: 6px; cursor: pointer; transition: all 0.3s; margin-left: auto; display: block; }
         .btn-photo:hover { background: #333; color: white; border-color: #888; }
-        
-        /* Medallas */
-        .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); }
-        .rank-1 .rank-pos { color: #FFD700; }
-        .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); }
-        .rank-2 .rank-pos { color: #C0C0C0; }
-        .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); }
-        .rank-3 .rank-pos { color: #CD7F32; }
-
-        /* Modal Foto */
-        .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center;
-        }
+        .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); } .rank-1 .rank-pos { color: #FFD700; }
+        .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .rank-pos { color: #C0C0C0; }
+        .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .rank-pos { color: #CD7F32; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
         .modal img { max-width: 90%; max-height: 80vh; border-radius: 8px; border: 2px solid #333; }
-        .close-modal {
-            position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem;
-            cursor: pointer; font-weight: 800;
-        }
-        
+        .close-modal { position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem; cursor: pointer; font-weight: 800; }
         #loading-global { text-align: center; color: #0071c3; font-weight: 700; margin-top: 50px; }
         #no-data-msg { color: #888; font-style: italic; display: none; margin-top: 15px;}
     </style>
@@ -100,6 +47,7 @@
     <nav>
         <div class="brand">BiciFastness</div>
         <div class="links">
+            <a href="home.html">Inicio</a>
             <a href="ranking.html" class="active">Rankings</a>
             <a href="subir.html">Subir Tiempo</a>
             <a href="profile.html">Mi Perfil</a>
@@ -109,28 +57,19 @@
 
     <div class="container">
         <div id="loading-global">Sincronizando con la base de datos...</div>
-
         <div class="search-section" id="search-section" style="display: none;">
             <h2>Buscar Trayecto</h2>
             <input type="text" id="search-input" class="search-input" placeholder="Ej: 180, 235 o 180-235">
             <div id="no-data-msg">No hay viajes verificados que coincidan con esta búsqueda.</div>
-            <div class="routes-container" id="routes-container">
-                </div>
+            <div class="routes-container" id="routes-container"></div>
         </div>
-
         <div class="ranking-section" id="ranking-section">
-            <div class="ranking-header">
-                <h2 id="ranking-title">Ruta --</h2>
-            </div>
-            <div id="ranking-list">
-                </div>
+            <div class="ranking-header"><h2 id="ranking-title">Ruta --</h2></div>
+            <div id="ranking-list"></div>
         </div>
     </div>
 
-    <div class="modal" id="photo-modal">
-        <span class="close-modal" id="close-modal">&times;</span>
-        <img id="modal-img" src="" alt="Captura del viaje">
-    </div>
+    <div class="modal" id="photo-modal"><span class="close-modal" id="close-modal">&times;</span><img id="modal-img" src="" alt="Captura del viaje"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
@@ -141,7 +80,7 @@
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.firebasestorage.app",
+            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -153,150 +92,94 @@
         let allVerifiedTrips = [];
         let uniqueRoutes = [];
 
-        // Autenticación
         onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                window.location.href = "index.html";
-            } else {
-                await loadAllVerifiedData();
-            }
+            if (!user) window.location.href = "index.html";
+            else await loadAllVerifiedData();
         });
 
         document.getElementById('logout-btn').addEventListener('click', () => {
             signOut(auth).then(() => window.location.href = "index.html");
         });
 
-        // Cargar TODOS los viajes verificados de golpe (es más rápido y permite el buscador)
         async function loadAllVerifiedData() {
             try {
                 const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
                 const querySnapshot = await getDocs(q);
-                
                 allVerifiedTrips = [];
                 const routesSet = new Set();
-
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
                     allVerifiedTrips.push(data);
                     routesSet.add(data.ruta);
                 });
-
                 uniqueRoutes = Array.from(routesSet).sort();
-
                 document.getElementById('loading-global').style.display = 'none';
                 document.getElementById('search-section').style.display = 'block';
-
                 renderRouteButtons(uniqueRoutes);
-
             } catch (error) {
-                console.error("Error obteniendo rankings:", error);
+                console.error(error);
                 document.getElementById('loading-global').innerText = "Error cargando los datos.";
             }
         }
 
-        // Pintar botones de ruta
         function renderRouteButtons(routesToRender) {
             const container = document.getElementById('routes-container');
             const noDataMsg = document.getElementById('no-data-msg');
             container.innerHTML = '';
-
-            if (routesToRender.length === 0) {
-                noDataMsg.style.display = 'block';
-                return;
-            }
+            if (routesToRender.length === 0) { noDataMsg.style.display = 'block'; return; }
             noDataMsg.style.display = 'none';
-
             routesToRender.forEach(ruta => {
                 const btn = document.createElement('button');
-                btn.className = 'route-btn';
-                btn.innerText = `Ruta ${ruta}`;
+                btn.className = 'route-btn'; btn.innerText = `Ruta ${ruta}`;
                 btn.onclick = () => selectRoute(ruta, btn);
                 container.appendChild(btn);
             });
         }
 
-        // Buscador en tiempo real
         document.getElementById('search-input').addEventListener('input', (e) => {
             const term = e.target.value.trim().toLowerCase();
-            if (!term) {
-                renderRouteButtons(uniqueRoutes);
-                return;
-            }
-            // Filtrar rutas que contengan el número
+            if (!term) { renderRouteButtons(uniqueRoutes); return; }
             const filtered = uniqueRoutes.filter(r => r.includes(term));
             renderRouteButtons(filtered);
         });
 
-        // Seleccionar una ruta y mostrar su ranking
         function selectRoute(rutaId, buttonElement) {
-            // Estilos de botones
             document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active'));
             buttonElement.classList.add('active');
-
-            // Mostrar sección ranking
             document.getElementById('ranking-section').style.display = 'block';
             document.getElementById('ranking-title').innerText = `Ranking Ruta ${rutaId}`;
-
-            // Filtrar y ordenar viajes de ESTA ruta
-            let tripsInRoute = allVerifiedTrips.filter(t => t.ruta === rutaId);
             
-            // Ordenar de menor tiempo a mayor
+            let tripsInRoute = allVerifiedTrips.filter(t => t.ruta === rutaId);
             tripsInRoute.sort((a, b) => a.tiempo_segundos - b.tiempo_segundos);
-
+            
             const listContainer = document.getElementById('ranking-list');
             listContainer.innerHTML = '';
-
             tripsInRoute.forEach((trip, index) => {
                 const position = index + 1;
-                // Clases de medalla
                 let rankClass = '';
-                if (position === 1) rankClass = 'rank-1';
-                else if (position === 2) rankClass = 'rank-2';
-                else if (position === 3) rankClass = 'rank-3';
-
-                const dateObj = new Date(trip.fecha);
-                const dateString = dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-
-                // Cortar el correo para que no ocupe todo (Ej: mateo@... -> mateo)
+                if (position === 1) rankClass = 'rank-1'; else if (position === 2) rankClass = 'rank-2'; else if (position === 3) rankClass = 'rank-3';
+                const dateString = new Date(trip.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
                 const username = trip.usuario.split('@')[0];
-
                 const rowHtml = `
                     <div class="rank-row ${rankClass}">
                         <div class="rank-pos">#${position}</div>
-                        <div>
-                            <div class="rank-user">@${username}</div>
-                            <span class="rank-date">${dateString}</span>
-                        </div>
+                        <div><div class="rank-user">@${username}</div><span class="rank-date">${dateString}</span></div>
                         <div class="rank-time">${trip.tiempo_formateado}</div>
                         <button class="btn-photo view-photo-btn" data-url="${trip.foto_url}">📷 Ver</button>
-                    </div>
-                `;
+                    </div>`;
                 listContainer.insertAdjacentHTML('beforeend', rowHtml);
             });
 
-            // Asignar eventos a los botones de foto (Forma segura contra errores JS)
             document.querySelectorAll('.view-photo-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const url = e.currentTarget.getAttribute('data-url');
-                    document.getElementById('modal-img').src = url;
+                    document.getElementById('modal-img').src = e.currentTarget.getAttribute('data-url');
                     document.getElementById('photo-modal').style.display = 'flex';
                 });
             });
         }
 
-        // Lógica del Modal
-        document.getElementById('close-modal').addEventListener('click', () => {
-            document.getElementById('photo-modal').style.display = 'none';
-            document.getElementById('modal-img').src = '';
-        });
-        
-        // Cerrar modal al hacer click fuera de la imagen
-        document.getElementById('photo-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'photo-modal') {
-                document.getElementById('photo-modal').style.display = 'none';
-                document.getElementById('modal-img').src = '';
-            }
-        });
+        document.getElementById('close-modal').addEventListener('click', () => document.getElementById('photo-modal').style.display = 'none');
+        document.getElementById('photo-modal').addEventListener('click', (e) => { if (e.target.id === 'photo-modal') document.getElementById('photo-modal').style.display = 'none'; });
     </script>
 </body>
 </html>

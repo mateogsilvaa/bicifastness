@@ -7,128 +7,27 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         
-        body { 
-            margin: 0; padding: 0; 
-            background-color: #121212; 
-            color: #f1efeb; 
-            font-family: 'Poppins', sans-serif; 
-        }
-        
-        /* Navbar de estilo urbano */
-        nav {
-            background: #0a0a0a;
-            border-bottom: 1px solid #333;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        nav .brand {
-            color: #0071c3;
-            font-weight: 700;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        nav .links a {
-            color: #888;
-            text-decoration: none;
-            margin-left: 20px;
-            font-size: 0.9rem;
-            transition: color 0.3s;
-        }
-        nav .links a:hover, nav .links a.active {
-            color: #f1efeb;
-        }
-        
-        /* Contenedor principal */
-        .container {
-            max-width: 500px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
-        
-        .card { 
-            background: #1a1a1a; 
-            padding: 2.5rem; 
-            border-radius: 12px; 
-            border: 1px solid #333; 
-        }
-        h2 { 
-            margin-top: 0; 
-            color: #f1efeb;
-            font-weight: 700;
-            border-bottom: 2px solid #0071c3;
-            padding-bottom: 10px;
-            display: inline-block;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            font-size: 0.85rem;
-            color: #888;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-        
-        .row {
-            display: flex;
-            gap: 15px;
-        }
+        body { margin: 0; padding: 0; background-color: #121212; color: #f1efeb; font-family: 'Poppins', sans-serif; }
+        nav { background: #0a0a0a; border-bottom: 1px solid #333; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        nav .brand { color: #0071c3; font-weight: 700; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+        nav .links a { color: #888; text-decoration: none; margin-left: 20px; font-size: 0.9rem; transition: color 0.3s; }
+        nav .links a:hover, nav .links a.active { color: #f1efeb; }
+        .container { max-width: 500px; margin: 40px auto; padding: 0 20px; }
+        .card { background: #1a1a1a; padding: 2.5rem; border-radius: 12px; border: 1px solid #333; }
+        h2 { margin-top: 0; color: #f1efeb; font-weight: 700; border-bottom: 2px solid #0071c3; padding-bottom: 10px; display: inline-block; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 0.85rem; color: #888; margin-bottom: 5px; text-transform: uppercase; }
+        .row { display: flex; gap: 15px; }
         .row > div { flex: 1; }
-
-        input[type="number"], input[type="date"] { 
-            width: 100%; padding: 12px; 
-            background: #222; border: 1px solid #444; color: white; 
-            border-radius: 6px; box-sizing: border-box; 
-            font-family: inherit; transition: border 0.3s;
-        }
+        input[type="number"], input[type="date"] { width: 100%; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 6px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
         input:focus { border-color: #0071c3; outline: none; }
-        
-        /* Zona de drag & drop para la foto */
-        .file-drop-area {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            max-width: 100%;
-            padding: 25px;
-            border: 2px dashed #444;
-            border-radius: 6px;
-            background: #222;
-            transition: 0.3s;
-            box-sizing: border-box;
-            cursor: pointer;
-            text-align: center;
-        }
-        .file-drop-area:hover, .file-drop-area.dragover {
-            border-color: #0071c3;
-            background: #1c2833;
-        }
-        .file-msg {
-            color: #888;
-            font-size: 0.9rem;
-        }
-        .file-input {
-            position: absolute;
-            left: 0; top: 0; height: 100%; width: 100%;
-            cursor: pointer; opacity: 0;
-        }
-
-        button { 
-            width: 100%; padding: 14px; margin-top: 10px;
-            background: #0071c3; color: white; 
-            border: none; border-radius: 6px; 
-            font-weight: 700; font-size: 1rem;
-            cursor: pointer; transition: background 0.3s;
-        }
+        .file-drop-area { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; max-width: 100%; padding: 25px; border: 2px dashed #444; border-radius: 6px; background: #222; transition: 0.3s; box-sizing: border-box; cursor: pointer; text-align: center; }
+        .file-drop-area:hover, .file-drop-area.dragover { border-color: #0071c3; background: #1c2833; }
+        .file-msg { color: #888; font-size: 0.9rem; }
+        .file-input { position: absolute; left: 0; top: 0; height: 100%; width: 100%; cursor: pointer; opacity: 0; }
+        button { width: 100%; padding: 14px; margin-top: 10px; background: #0071c3; color: white; border: none; border-radius: 6px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.3s; }
         button:hover:not(:disabled) { background: #005a9e; }
         button:disabled { background: #444; cursor: not-allowed; color: #888; }
-        
         #status-msg { margin-top: 15px; font-size: 0.9rem; text-align: center; font-weight: 600; }
         .error { color: #ff4444; }
         .success { color: #00C851; }
@@ -140,6 +39,7 @@
     <nav>
         <div class="brand">BiciFastness</div>
         <div class="links">
+            <a href="home.html">Inicio</a>
             <a href="ranking.html">Rankings</a>
             <a href="subir.html" class="active">Subir Tiempo</a>
             <a href="profile.html">Mi Perfil</a>
@@ -201,7 +101,7 @@
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.firebasestorage.app",
+            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -213,21 +113,15 @@
 
         let currentUserEmail = null;
 
-        // Proteger la ruta: Si no hay usuario, de vuelta al login
         onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                window.location.href = "index.html";
-            } else {
-                currentUserEmail = user.email; // Usaremos su email como identificador (o puedes usar user.uid)
-            }
+            if (!user) window.location.href = "index.html";
+            else currentUserEmail = user.email;
         });
 
-        // Lógica de cerrar sesión
         document.getElementById('logout-btn').addEventListener('click', () => {
             signOut(auth).then(() => window.location.href = "index.html");
         });
 
-        // UI del Drag & Drop
         const dropArea = document.getElementById('drop-area');
         const fileInput = document.getElementById('foto');
         const fileMsg = document.getElementById('file-msg');
@@ -242,12 +136,10 @@
             }
         });
 
-        // Lógica de subir viaje
         const btn = document.getElementById('submit-btn');
         const statusMsg = document.getElementById('status-msg');
 
         btn.addEventListener('click', async () => {
-            // Recoger valores
             const origen = document.getElementById('estacion-origen').value;
             const destino = document.getElementById('estacion-destino').value;
             const min = parseInt(document.getElementById('minutos').value);
@@ -255,42 +147,26 @@
             const dateVal = document.getElementById('fecha').value;
             const file = fileInput.files[0];
 
-            // Validaciones
             statusMsg.className = "error";
-            if(!origen || !destino || isNaN(min) || isNaN(sec) || !dateVal || !file) {
-                statusMsg.innerText = "Por favor, rellena todos los campos y sube una foto.";
-                return;
-            }
-            if(min < 0 || min > 59 || sec < 0 || sec > 59) {
-                statusMsg.innerText = "Los minutos y segundos deben estar entre 0 y 59.";
-                return;
-            }
-            if(file.size > 10 * 1024 * 1024) { // Limite 10MB para tus reglas de Storage
-                statusMsg.innerText = "La imagen es demasiado grande (Máx 10MB).";
-                return;
-            }
+            if(!origen || !destino || isNaN(min) || isNaN(sec) || !dateVal || !file) { statusMsg.innerText = "Por favor, rellena todos los campos y sube una foto."; return; }
+            if(min < 0 || min > 59 || sec < 0 || sec > 59) { statusMsg.innerText = "Los minutos y segundos deben estar entre 0 y 59."; return; }
+            if(file.size > 10 * 1024 * 1024) { statusMsg.innerText = "La imagen es demasiado grande (Máx 10MB)."; return; }
 
             try {
                 btn.disabled = true;
                 statusMsg.className = "loading";
                 statusMsg.innerText = "Subiendo imagen... no cierres la ventana.";
 
-                // 1. Crear el nombre de la ruta (Ej: "180-235")
                 const rutaString = `${origen}-${destino}`;
-                
-                // 2. Calcular tiempos
                 const tiempoTotalSegundos = (min * 60) + sec;
                 const tiempoFormateado = `${min.toString().padStart(2, '0')}m. ${sec.toString().padStart(2, '0')}s.`;
-
-                // 3. Subir imagen a Storage
                 const fileName = `${Date.now()}_${file.name}`;
+                
                 const storageRef = ref(storage, `capturas/${fileName}`);
                 await uploadBytes(storageRef, file);
                 
                 statusMsg.innerText = "Imagen subida. Guardando viaje...";
                 const fotoUrl = await getDownloadURL(storageRef);
-
-                // 4. Guardar en Firestore con fecha arreglada
                 const fechaGuardar = new Date(dateVal + 'T00:00:00').toISOString();
 
                 await addDoc(collection(db, "tiempos_viaje"), {
@@ -300,22 +176,16 @@
                     tiempo_formateado: tiempoFormateado,
                     fecha: fechaGuardar,
                     foto_url: fotoUrl,
-                    verificado: false // Obligatorio por tus reglas de seguridad
+                    verificado: false 
                 });
 
-                // Éxito
                 statusMsg.className = "success";
                 statusMsg.innerText = "¡Viaje subido con éxito! Pendiente de verificación.";
                 
-                // Limpiar formulario
-                document.getElementById('estacion-origen').value = '';
-                document.getElementById('estacion-destino').value = '';
-                document.getElementById('minutos').value = '';
-                document.getElementById('segundos').value = '';
-                document.getElementById('fecha').value = '';
-                fileInput.value = '';
-                fileMsg.innerText = "Arrastra tu foto aquí o haz clic";
-                dropArea.style.borderColor = "#444";
+                document.getElementById('estacion-origen').value = ''; document.getElementById('estacion-destino').value = '';
+                document.getElementById('minutos').value = ''; document.getElementById('segundos').value = '';
+                document.getElementById('fecha').value = ''; fileInput.value = '';
+                fileMsg.innerText = "Arrastra tu foto aquí o haz clic"; dropArea.style.borderColor = "#444";
 
             } catch (error) {
                 console.error(error);

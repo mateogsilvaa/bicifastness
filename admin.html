@@ -7,83 +7,36 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         
-        body { 
-            margin: 0; padding: 0; 
-            background-color: #0d0d0d; /* Fondo un poco más oscuro para el admin */
-            color: #f1efeb; 
-            font-family: 'Poppins', sans-serif; 
-        }
-        
-        /* Navbar */
-        nav {
-            background: #000;
-            border-bottom: 1px solid #333;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        body { margin: 0; padding: 0; background-color: #0d0d0d; color: #f1efeb; font-family: 'Poppins', sans-serif; }
+        nav { background: #000; border-bottom: 1px solid #333; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
         nav .brand { color: #ffbb33; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
         nav .links a { color: #888; text-decoration: none; margin-left: 20px; font-size: 0.9rem; transition: color 0.3s; }
         nav .links a:hover { color: #f1efeb; font-weight: 600; }
-        
         .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
-        
-        .header-panel {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;
-        }
+        .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
         .header-panel h2 { margin: 0; color: #f1efeb; font-size: 1.8rem; }
         .badge-count { background: #0071c3; color: white; padding: 4px 10px; border-radius: 20px; font-size: 1rem; font-weight: 700; }
-
-        /* Grid de pendientes */
-        .pending-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;
-        }
-        
-        .admin-card {
-            background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
-            padding: 20px; display: flex; flex-direction: column; gap: 15px;
-            transition: border-color 0.3s;
-        }
+        .pending-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .admin-card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 15px; transition: border-color 0.3s; }
         .admin-card:hover { border-color: #555; }
-        
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
         .route-tag { background: #222; border: 1px solid #444; padding: 4px 10px; border-radius: 6px; font-weight: 700; color: #0071c3; }
         .time-tag { font-size: 1.2rem; font-weight: 800; color: #f1efeb; }
-        
         .user-info { font-size: 0.85rem; color: #888; }
         .user-info span { color: #ccc; font-weight: 600; display: block; margin-top: 2px; }
-
-        /* Botones de acción */
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; }
-        button {
-            padding: 10px; border: none; border-radius: 6px; font-weight: 700; font-family: inherit;
-            cursor: pointer; transition: background 0.2s, transform 0.1s; font-size: 0.9rem;
-        }
+        button { padding: 10px; border: none; border-radius: 6px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background 0.2s, transform 0.1s; font-size: 0.9rem; }
         button:active { transform: scale(0.95); }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
-        
         .btn-view { grid-column: 1 / -1; background: #222; color: #f1efeb; border: 1px solid #444; }
         .btn-view:hover { background: #333; }
-        
         .btn-approve { background: #00C851; color: #003311; }
         .btn-approve:hover { background: #00e65c; }
-        
         .btn-reject { background: #ff4444; color: #4d0000; }
         .btn-reject:hover { background: #ff6666; }
-
-        /* Modal Foto */
-        .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center;
-        }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
         .modal img { max-width: 90%; max-height: 80vh; border-radius: 8px; border: 2px solid #333; }
-        .close-modal {
-            position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem;
-            cursor: pointer; font-weight: 800;
-        }
-        
+        .close-modal { position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem; cursor: pointer; font-weight: 800; }
         #empty-msg { color: #888; font-size: 1.1rem; text-align: center; padding: 40px; grid-column: 1 / -1; display: none; }
         #loading-msg { color: #0071c3; font-weight: 700; text-align: center; padding: 40px; }
     </style>
@@ -93,7 +46,7 @@
     <nav>
         <div class="brand">Admin Panel</div>
         <div class="links">
-            <a href="ranking.html">Volver a Rankings</a>
+            <a href="home.html">Volver a Inicio</a>
             <a href="#" id="logout-btn">Salir</a>
         </div>
     </nav>
@@ -103,18 +56,13 @@
             <h2>Tiempos Pendientes</h2>
             <div class="badge-count" id="pending-count">0</div>
         </div>
-
         <div id="loading-msg">Cargando base de datos...</div>
-        
         <div class="pending-grid" id="pending-grid">
             <div id="empty-msg">No hay viajes pendientes de revisión. ¡Todo al día!</div>
-            </div>
+        </div>
     </div>
 
-    <div class="modal" id="photo-modal">
-        <span class="close-modal" id="close-modal">&times;</span>
-        <img id="modal-img" src="" alt="Captura del viaje">
-    </div>
+    <div class="modal" id="photo-modal"><span class="close-modal" id="close-modal">&times;</span><img id="modal-img" src="" alt="Captura del viaje"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
@@ -126,7 +74,7 @@
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.firebasestorage.app",
+            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -136,13 +84,9 @@
         const db = getFirestore(app);
         const storage = getStorage(app);
 
-        // Seguridad básica UI
         onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                window.location.href = "index.html";
-            } else {
-                loadPendingTrips();
-            }
+            if (!user) window.location.href = "index.html";
+            else loadPendingTrips();
         });
 
         document.getElementById('logout-btn').addEventListener('click', () => {
@@ -156,36 +100,25 @@
             const countBadge = document.getElementById('pending-count');
 
             try {
-                // Buscar solo los que tienen verificado: false
                 const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", false));
                 const querySnapshot = await getDocs(q);
                 
-                // Limpiar grilla (manteniendo el mensaje de vacío oculto)
                 grid.innerHTML = '';
                 grid.appendChild(emptyMsg);
                 emptyMsg.style.display = 'none';
 
                 let count = 0;
-
                 querySnapshot.forEach((docSnapshot) => {
                     count++;
                     const data = docSnapshot.data();
                     const docId = docSnapshot.id;
-                    
-                    const dateObj = new Date(data.fecha);
-                    const dateString = dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+                    const dateString = new Date(data.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 
                     const card = document.createElement('div');
                     card.className = 'admin-card';
                     card.innerHTML = `
-                        <div class="card-header">
-                            <div class="route-tag">Ruta ${data.ruta}</div>
-                            <div class="time-tag">${data.tiempo_formateado}</div>
-                        </div>
-                        <div class="user-info">
-                            Piloto: <span>${data.usuario}</span>
-                            Fecha: <span>${dateString}</span>
-                        </div>
+                        <div class="card-header"><div class="route-tag">Ruta ${data.ruta}</div><div class="time-tag">${data.tiempo_formateado}</div></div>
+                        <div class="user-info">Piloto: <span>${data.usuario}</span>Fecha: <span>${dateString}</span></div>
                         <button class="btn-view view-photo" data-url="${data.foto_url}">📷 Ver Captura</button>
                         <div class="actions">
                             <button class="btn-reject reject-btn" data-id="${docId}" data-url="${data.foto_url}">Rechazar</button>
@@ -197,93 +130,54 @@
 
                 loading.style.display = 'none';
                 countBadge.innerText = count;
-
-                if (count === 0) {
-                    emptyMsg.style.display = 'block';
-                } else {
-                    attachEventListeners();
-                }
+                if (count === 0) emptyMsg.style.display = 'block';
+                else attachEventListeners();
 
             } catch (error) {
-                console.error("Error cargando pendientes:", error);
+                console.error(error);
                 loading.innerText = "Error cargando datos. Revisa si tienes permisos de Admin.";
                 loading.style.color = "#ff4444";
             }
         }
 
         function attachEventListeners() {
-            // Ver Foto
             document.querySelectorAll('.view-photo').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const url = e.currentTarget.getAttribute('data-url');
-                    document.getElementById('modal-img').src = url;
+                    document.getElementById('modal-img').src = e.currentTarget.getAttribute('data-url');
                     document.getElementById('photo-modal').style.display = 'flex';
                 });
             });
 
-            // Aprobar
             document.querySelectorAll('.approve-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const docId = e.currentTarget.getAttribute('data-id');
-                    e.currentTarget.disabled = true;
-                    e.currentTarget.innerText = "...";
-                    
-                    try {
-                        const tripRef = doc(db, "tiempos_viaje", docId);
-                        await updateDoc(tripRef, { verificado: true });
-                        loadPendingTrips(); // Recargar lista
-                    } catch (err) {
-                        alert("Error al aprobar: " + err.message);
-                        e.currentTarget.disabled = false;
-                        e.currentTarget.innerText = "Aprobar";
-                    }
+                    e.currentTarget.disabled = true; e.currentTarget.innerText = "...";
+                    try { await updateDoc(doc(db, "tiempos_viaje", docId), { verificado: true }); loadPendingTrips(); }
+                    catch (err) { alert("Error al aprobar: " + err.message); e.currentTarget.disabled = false; e.currentTarget.innerText = "Aprobar"; }
                 });
             });
 
-            // Rechazar
             document.querySelectorAll('.reject-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     if(!confirm("¿Seguro que quieres borrar este tiempo para siempre?")) return;
-
                     const docId = e.currentTarget.getAttribute('data-id');
                     const photoUrl = e.currentTarget.getAttribute('data-url');
-                    e.currentTarget.disabled = true;
-                    e.currentTarget.innerText = "...";
-
+                    e.currentTarget.disabled = true; e.currentTarget.innerText = "...";
                     try {
-                        // 1. Intentar borrar la imagen de Storage para no dejar basura
                         try {
                             const decodedUrl = decodeURIComponent(photoUrl);
-                            // Extraer el path de la URL (lo que hay después de /o/ y antes del ?)
                             const pathMatch = decodedUrl.match(/o\/(.+?)\?/);
-                            if (pathMatch && pathMatch[1]) {
-                                const imageRef = ref(storage, pathMatch[1]);
-                                await deleteObject(imageRef);
-                            }
-                        } catch (storageErr) {
-                            console.warn("La imagen ya no existía en Storage o no se pudo borrar.", storageErr);
-                        }
-
-                        // 2. Borrar el documento de Firestore
+                            if (pathMatch && pathMatch[1]) await deleteObject(ref(storage, pathMatch[1]));
+                        } catch (storageErr) { console.warn("La imagen no existía en Storage.", storageErr); }
                         await deleteDoc(doc(db, "tiempos_viaje", docId));
-                        
-                        loadPendingTrips(); // Recargar lista
-                    } catch (err) {
-                        alert("Error al rechazar: " + err.message);
-                        e.currentTarget.disabled = false;
-                        e.currentTarget.innerText = "Rechazar";
-                    }
+                        loadPendingTrips();
+                    } catch (err) { alert("Error al rechazar: " + err.message); e.currentTarget.disabled = false; e.currentTarget.innerText = "Rechazar"; }
                 });
             });
         }
 
-        // Lógica del Modal
-        document.getElementById('close-modal').addEventListener('click', () => {
-            document.getElementById('photo-modal').style.display = 'none';
-        });
-        document.getElementById('photo-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'photo-modal') document.getElementById('photo-modal').style.display = 'none';
-        });
+        document.getElementById('close-modal').addEventListener('click', () => document.getElementById('photo-modal').style.display = 'none');
+        document.getElementById('photo-modal').addEventListener('click', (e) => { if (e.target.id === 'photo-modal') document.getElementById('photo-modal').style.display = 'none'; });
     </script>
 </body>
 </html>

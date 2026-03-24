@@ -3,810 +3,317 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BiciFastness - Mi Perfil</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Mi Perfil | BiciFastness</title>
     <style>
-        :root {
-            --bg-primary: #121212;
-            --bg-secondary: #000000;
-            --accent-blue: #0071c3;
-            --accent-cream: #f1efeb;
-            --text-primary: #ffffff;
-            --text-secondary: #f1efeb;
-            --border-color: #333333;
-            --card-bg: #1a1a1a;
-            --hover-bg: #2a2a2a;
-            --success: #28a745;
-            --warning: #ffc107;
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+        
+        body { 
+            margin: 0; padding: 0; 
+            background-color: #121212; 
+            color: #f1efeb; 
+            font-family: 'Poppins', sans-serif; 
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
-        }
-
-        /* Navigation */
+        
+        /* Navbar */
         nav {
-            background: var(--card-bg);
-            border-bottom: 1px solid var(--border-color);
-            padding: 1rem 2rem;
+            background: #0a0a0a;
+            border-bottom: 1px solid #333;
+            padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--accent-blue);
-        }
-
-        .nav-logo {
-            width: 40px;
-            height: 40px;
-            background: var(--accent-blue);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-primary);
+        nav .brand {
+            color: #0071c3;
             font-weight: 800;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-        }
-
-        .nav-links a {
-            color: var(--text-secondary);
+        nav .links a {
+            color: #888;
             text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s ease;
+            margin-left: 20px;
+            font-size: 0.9rem;
+            transition: color 0.3s;
         }
-
-        .nav-links a:hover {
-            color: var(--accent-blue);
-        }
-
-        .logout-btn {
-            background: var(--accent-blue);
-            color: var(--text-primary);
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            background: #005a9e;
-            transform: translateY(-1px);
-        }
-
-        /* Main Content */
-        main {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .page-header {
-            margin-bottom: 2rem;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            color: var(--text-primary);
-        }
-
-        .page-subtitle {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-            font-weight: 400;
-        }
-
-        /* Profile Grid */
-        .profile-grid {
+        nav .links a:hover, nav .links a.active { color: #f1efeb; font-weight: 600; }
+        
+        /* Layout del Perfil */
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
             display: grid;
             grid-template-columns: 1fr 2fr;
-            gap: 2rem;
-            margin-bottom: 2rem;
+            gap: 25px;
         }
-
-        /* Profile Card */
-        .profile-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-        }
-
-        .profile-avatar {
-            width: 120px;
-            height: 120px;
-            background: var(--accent-blue);
-            border-radius: 50%;
-            margin: 0 auto 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            font-weight: 800;
-            color: var(--text-primary);
-        }
-
-        .profile-name {
-            font-size: 1.8rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            color: var(--text-primary);
-        }
-
-        .profile-email {
-            color: var(--text-secondary);
-            margin-bottom: 1.5rem;
-        }
-
-        .profile-stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .stat-item {
-            background: var(--bg-primary);
-            padding: 1rem;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--accent-blue);
-            margin-bottom: 0.25rem;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        /* Stats Cards */
-        .stats-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 1.5rem;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .stat-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1rem;
-        }
-
-        .stat-card-icon {
-            width: 50px;
-            height: 50px;
-            background: rgba(0, 113, 195, 0.1);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-        }
-
-        .stat-card-title {
-            color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .stat-card-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-card-change {
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .stat-card-change.positive {
-            color: var(--success);
-        }
-
-        .stat-card-change.negative {
-            color: var(--error);
-        }
-
-        /* Recent Trips */
-        .recent-trips-section {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            overflow: hidden;
-        }
-
-        .section-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-
-        .view-all-btn {
-            background: transparent;
-            border: 1px solid var(--accent-blue);
-            color: var(--accent-blue);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .view-all-btn:hover {
-            background: var(--accent-blue);
-            color: var(--text-primary);
-        }
-
-        .trips-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .trip-item {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: background 0.3s ease;
-        }
-
-        .trip-item:last-child {
-            border-bottom: none;
-        }
-
-        .trip-item:hover {
-            background: var(--hover-bg);
-        }
-
-        .trip-info {
-            flex: 1;
-        }
-
-        .trip-route {
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
-        }
-
-        .trip-date {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .trip-time {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--accent-blue);
-            margin-right: 1rem;
-        }
-
-        .trip-status {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .trip-status.verified {
-            background: rgba(40, 167, 69, 0.1);
-            color: var(--success);
-            border: 1px solid var(--success);
-        }
-
-        .trip-status.pending {
-            background: rgba(255, 193, 7, 0.1);
-            color: var(--warning);
-            border: 1px solid var(--warning);
-        }
-
-        /* BiciMAD Rating */
-        .rating-section {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-        }
-
-        .rating-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            color: var(--text-primary);
-        }
-
-        .rating-stars {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-
-        .rating-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--accent-blue);
-            margin-bottom: 0.5rem;
-        }
-
-        .rating-description {
-            color: var(--text-secondary);
-        }
-
-        /* Loading State */
-        .loading-state {
-            text-align: center;
-            padding: 3rem;
-            color: var(--text-secondary);
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--border-color);
-            border-top-color: var(--accent-blue);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: var(--text-secondary);
-        }
-
-        .empty-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-
-        /* Responsive */
+        
         @media (max-width: 768px) {
-            .nav-links {
-                gap: 1rem;
-            }
-
-            .nav-links a:not(.logout-btn) {
-                display: none;
-            }
-
-            main {
-                padding: 1rem;
-            }
-
-            h1 {
-                font-size: 2rem;
-            }
-
-            .profile-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-section {
-                grid-template-columns: 1fr;
-            }
-
-            .trip-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-            }
-
-            .trip-time {
-                margin-right: 0;
-            }
+            .container { grid-template-columns: 1fr; }
         }
+
+        .card { 
+            background: #1a1a1a; 
+            padding: 2rem; 
+            border-radius: 12px; 
+            border: 1px solid #333; 
+        }
+        
+        h2 { 
+            margin-top: 0; 
+            color: #f1efeb;
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Stats Card (Izquierda) */
+        .user-email { color: #888; font-size: 0.9rem; margin-bottom: 25px; word-break: break-all; }
+        
+        .stat-box {
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+        .stat-box:hover { border-color: #0071c3; }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #0071c3;
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+        .stat-label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .rating-box {
+            background: linear-gradient(135deg, #1a2a3a 0%, #111 100%);
+            border: 1px solid #0071c3;
+        }
+        .rating-box .stat-number { color: #f1efeb; font-size: 1.8rem; }
+        .badge-soon {
+            display: inline-block;
+            background: #0071c3; color: white;
+            font-size: 0.65rem; padding: 2px 6px;
+            border-radius: 4px; font-weight: 700;
+            margin-top: 5px; text-transform: uppercase;
+        }
+
+        /* Historial de viajes (Derecha) */
+        .trip-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .trip-item {
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .trip-item:hover {
+            transform: translateX(5px);
+            border-color: #555;
+        }
+        
+        .trip-info { display: flex; flex-direction: column; gap: 4px; }
+        .trip-route { font-weight: 700; font-size: 1.1rem; color: #f1efeb; }
+        .trip-date { font-size: 0.8rem; color: #888; }
+        
+        .trip-stats { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .trip-time { font-weight: 700; color: #0071c3; font-size: 1.1rem; }
+        
+        .status-badge {
+            font-size: 0.7rem; padding: 4px 8px;
+            border-radius: 4px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .status-pending { background: #332b00; color: #ffbb33; border: 1px solid #665000; }
+        .status-verified { background: #003311; color: #00C851; border: 1px solid #006622; }
+
+        .btn-view-all {
+            width: 100%; padding: 12px; margin-top: 20px;
+            background: transparent; color: #f1efeb; 
+            border: 1px solid #444; border-radius: 6px; 
+            font-weight: 600; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.3s;
+            font-family: inherit;
+        }
+        .btn-view-all:hover { background: #222; border-color: #888; }
+        
+        #loading-msg { color: #888; font-size: 0.9rem; text-align: center; padding: 20px; }
     </style>
 </head>
 <body>
+
     <nav>
-        <div class="nav-brand">
-            <div class="nav-logo">🚴</div>
-            <span>BiciFastness</span>
-        </div>
-        <div class="nav-links">
+        <div class="brand">BiciFastness</div>
+        <div class="links">
             <a href="ranking.html">Rankings</a>
             <a href="subir.html">Subir Tiempo</a>
-            <a href="profile.html">Mi Perfil</a>
-            <a href="admin.html">Admin</a>
-            <button class="logout-btn" id="logoutBtn">Cerrar Sesión</button>
+            <a href="profile.html" class="active">Mi Perfil</a>
+            <a href="#" id="logout-btn">Salir</a>
         </div>
     </nav>
 
-    <main>
-        <div class="page-header">
-            <h1>Mi Perfil</h1>
-            <p class="page-subtitle">Tus estadísticas y rendimiento en BiciFastness</p>
-        </div>
-
-        <div class="profile-grid">
-            <div class="profile-card">
-                <div class="profile-avatar">👤</div>
-                <h2 class="profile-name" id="profileName">Cargando...</h2>
-                <p class="profile-email" id="profileEmail">-</p>
-                
-                <div class="profile-stats">
-                    <div class="stat-item">
-                        <div class="stat-value" id="totalTrips">0</div>
-                        <div class="stat-label">Viajes Totales</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="verifiedTrips">0</div>
-                        <div class="stat-label">Viajes Verificados</div>
-                    </div>
-                </div>
+    <div class="container">
+        <div class="card">
+            <h2>Piloto</h2>
+            <div class="user-email" id="display-email">Cargando perfil...</div>
+            
+            <div class="stat-box">
+                <div class="stat-number" id="total-trips">0</div>
+                <div class="stat-label">Viajes Subidos</div>
             </div>
 
-            <div class="rating-section">
-                <h3 class="rating-title">BiciMAD Rating</h3>
-                <div class="rating-stars">⭐⭐⭐⭐⭐</div>
-                <div class="rating-value">Próximamente</div>
-                <p class="rating-description">Tu rating personal basado en tus tiempos y consistencia</p>
+            <div class="stat-box rating-box">
+                <div class="stat-number">--</div>
+                <div class="stat-label">Rating BiciMAD</div>
+                <div class="badge-soon">Próximamente</div>
             </div>
         </div>
 
-        <div class="stats-section">
-            <div class="stat-card">
-                <div class="stat-card-header">
-                    <div class="stat-card-icon">🏆</div>
-                    <div class="stat-card-title">Mejor Tiempo</div>
+        <div class="card">
+            <h2>Últimos Viajes</h2>
+            <div id="loading-msg">Cargando tu historial...</div>
+            
+            <div class="trip-list" id="trips-container">
                 </div>
-                <div class="stat-card-value" id="bestTime">-</div>
-                <div class="stat-card-change positive" id="bestTimeRoute">-</div>
-            </div>
 
-            <div class="stat-card">
-                <div class="stat-card-header">
-                    <div class="stat-card-icon">📈</div>
-                    <div class="stat-card-title">Tiempo Promedio</div>
-                </div>
-                <div class="stat-card-value" id="avgTime">-</div>
-                <div class="stat-card-change" id="avgChange">Sin datos suficientes</div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-card-header">
-                    <div class="stat-card-icon">🎯</div>
-                    <div class="stat-card-title">Rutas Dominadas</div>
-                </div>
-                <div class="stat-card-value" id="dominatedRoutes">0</div>
-                <div class="stat-card-change positive">Top 3 en rutas</div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-card-header">
-                    <div class="stat-card-icon">🔥</div>
-                    <div class="stat-card-title">Racha Actual</div>
-                </div>
-                <div class="stat-card-value" id="currentStreak">0</div>
-                <div class="stat-card-change positive" id="streakType">Días consecutivos</div>
-            </div>
+            <button class="btn-view-all" id="btn-view-all" style="display: none;">Ver historial completo</button>
         </div>
-
-        <div class="recent-trips-section">
-            <div class="section-header">
-                <h3 class="section-title">Viajes Recientes</h3>
-                <button class="view-all-btn" id="viewAllBtn">Ver Todos</button>
-            </div>
-            <div class="trips-list" id="tripsList">
-                <div class="loading-state">
-                    <div class="spinner"></div>
-                    <p>Cargando tus viajes...</p>
-                </div>
-            </div>
-        </div>
-    </main>
+    </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
-            databaseURL: "https://bicifastness-default-rtdb.europe-west1.firebasedatabase.app",
             projectId: "bicifastness",
             storageBucket: "bicifastness.firebasestorage.app",
             messagingSenderId: "656116731421",
-            appId: "1:656116731421:web:a4154d028fe9721c5800f4",
-            measurementId: "G-CSFX8EX71S"
+            appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Check authentication
-        onAuthStateChanged(auth, (user) => {
+        let isShowingAll = false;
+        let allUserTrips = []; // Guardaremos los viajes en memoria
+
+        // Proteger ruta y cargar datos
+        onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                window.location.href = 'index.html';
-                return;
+                window.location.href = "index.html";
+            } else {
+                document.getElementById('display-email').innerText = user.email;
+                await loadUserTrips(user.email);
             }
-            initializeApp();
         });
 
-        // DOM Elements
-        const logoutBtn = document.getElementById('logoutBtn');
-        const profileName = document.getElementById('profileName');
-        const profileEmail = document.getElementById('profileEmail');
-        const totalTrips = document.getElementById('totalTrips');
-        const verifiedTrips = document.getElementById('verifiedTrips');
-        const bestTime = document.getElementById('bestTime');
-        const bestTimeRoute = document.getElementById('bestTimeRoute');
-        const avgTime = document.getElementById('avgTime');
-        const avgChange = document.getElementById('avgChange');
-        const dominatedRoutes = document.getElementById('dominatedRoutes');
-        const currentStreak = document.getElementById('currentStreak');
-        const streakType = document.getElementById('streakType');
-        const tripsList = document.getElementById('tripsList');
-        const viewAllBtn = document.getElementById('viewAllBtn');
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            signOut(auth).then(() => window.location.href = "index.html");
+        });
 
-        let currentUser = null;
-        let userTrips = [];
-        let showAllTrips = false;
+        async function loadUserTrips(email) {
+            const container = document.getElementById('trips-container');
+            const loadingMsg = document.getElementById('loading-msg');
+            const totalTripsEl = document.getElementById('total-trips');
+            const btnViewAll = document.getElementById('btn-view-all');
 
-        function initializeApp() {
-            setupEventListeners();
-            loadUserProfile();
-            loadUserTrips();
-        }
-
-        function setupEventListeners() {
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', async () => {
-                    await signOut(auth);
-                    window.location.href = 'index.html';
-                });
-            }
-
-            if (viewAllBtn) {
-                viewAllBtn.addEventListener('click', () => {
-                    showAllTrips = !showAllTrips;
-                    viewAllBtn.textContent = showAllTrips ? 'Ver Menos' : 'Ver Todos';
-                    displayTrips();
-                });
-            }
-        }
-
-        async function loadUserProfile() {
             try {
-                const userQuery = query(
-                    collection(db, 'usuarios'),
-                    where('uid', '==', auth.currentUser.uid)
-                );
-                const userSnapshot = await getDocs(userQuery);
+                // Buscamos todos los viajes del usuario actual
+                const q = query(collection(db, "tiempos_viaje"), where("usuario", "==", email));
+                const querySnapshot = await getDocs(q);
                 
-                if (!userSnapshot.empty) {
-                    const userData = userSnapshot.docs[0].data();
-                    profileName.textContent = userData.nombre || 'Usuario';
-                    profileEmail.textContent = userData.email || auth.currentUser.email;
-                } else {
-                    profileName.textContent = 'Usuario';
-                    profileEmail.textContent = auth.currentUser.email;
-                }
-            } catch (error) {
-                console.error('Error loading user profile:', error);
-                profileName.textContent = 'Usuario';
-                profileEmail.textContent = auth.currentUser.email;
-            }
-        }
-
-        function loadUserTrips() {
-            const tripsQuery = query(
-                collection(db, 'tiempos_viaje'),
-                where('uid_usuario', '==', auth.currentUser.uid),
-                orderBy('fecha', 'desc')
-            );
-
-            onSnapshot(tripsQuery, (snapshot) => {
-                userTrips = [];
-                snapshot.forEach(doc => {
-                    userTrips.push({
-                        id: doc.id,
-                        ...doc.data()
-                    });
+                allUserTrips = [];
+                querySnapshot.forEach((doc) => {
+                    allUserTrips.push({ id: doc.id, ...doc.data() });
                 });
 
-                updateStats();
-                displayTrips();
-            }, (error) => {
-                console.error('Error loading trips:', error);
-                tripsList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">❌</div>
-                        <p>Error al cargar tus viajes</p>
-                    </div>
-                `;
-            });
+                // Ordenamos por fecha en JavaScript (de más reciente a más antiguo)
+                // Evitamos así tener que crear índices compuestos en Firebase por ahora.
+                allUserTrips.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+                loadingMsg.style.display = 'none';
+                totalTripsEl.innerText = allUserTrips.length;
+
+                if (allUserTrips.length === 0) {
+                    container.innerHTML = `<div style="color:#888; text-align:center; padding: 20px 0;">Aún no has registrado ningún viaje. ¡Anímate y ve a "Subir Tiempo"!</div>`;
+                    return;
+                }
+
+                if (allUserTrips.length > 5) {
+                    btnViewAll.style.display = 'block';
+                }
+
+                renderTrips(5); // Renderizamos los 5 primeros por defecto
+
+            } catch (error) {
+                console.error("Error cargando viajes:", error);
+                loadingMsg.innerText = "Error al cargar el historial.";
+                loadingMsg.style.color = "#ff4444";
+            }
         }
 
-        function updateStats() {
-            const total = userTrips.length;
-            const verified = userTrips.filter(trip => trip.verificado).length;
-            
-            totalTrips.textContent = total;
-            verifiedTrips.textContent = verified;
+        function renderTrips(limit) {
+            const container = document.getElementById('trips-container');
+            container.innerHTML = ''; // Limpiar
 
-            // Best time
-            const verifiedTripsOnly = userTrips.filter(trip => trip.verificado);
-            if (verifiedTripsOnly.length > 0) {
-                const bestTrip = verifiedTripsOnly.reduce((best, trip) => 
-                    trip.tiempo_segundos < best.tiempo_segundos ? trip : best
-                );
-                bestTime.textContent = bestTrip.tiempo_formateado;
-                bestTimeRoute.textContent = `Ruta: ${bestTrip.ruta}`;
-            } else {
-                bestTime.textContent = '-';
-                bestTimeRoute.textContent = 'Sin tiempos verificados';
-            }
+            const tripsToShow = allUserTrips.slice(0, limit);
 
-            // Average time
-            if (verifiedTripsOnly.length > 0) {
-                const avgSeconds = verifiedTripsOnly.reduce((sum, trip) => 
-                    sum + trip.tiempo_segundos, 0) / verifiedTripsOnly.length;
-                const avgMinutes = Math.floor(avgSeconds / 60);
-                const avgSecs = Math.round(avgSeconds % 60);
-                avgTime.textContent = `${avgMinutes}:${avgSecs.toString().padStart(2, '0')}`;
-                avgChange.textContent = 'Basado en tiempos verificados';
-            } else {
-                avgTime.textContent = '-';
-                avgChange.textContent = 'Sin datos suficientes';
-            }
-
-            // Dominated routes (top 3 positions)
-            const routePositions = {};
-            verifiedTripsOnly.forEach(trip => {
-                if (!routePositions[trip.ruta]) {
-                    routePositions[trip.ruta] = [];
-                }
-                routePositions[trip.ruta].push(trip);
-            });
-
-            let dominatedCount = 0;
-            Object.keys(routePositions).forEach(route => {
-                const sortedTrips = routePositions[route].sort((a, b) => a.tiempo_segundos - b.tiempo_segundos);
-                const userPosition = sortedTrips.findIndex(trip => trip.uid_usuario === auth.currentUser.uid);
-                if (userPosition < 3) {
-                    dominatedCount++;
-                }
-            });
-
-            dominatedRoutes.textContent = dominatedCount;
-
-            // Current streak (simplified - days with trips)
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            let streak = 0;
-            const tripDates = new Set();
-            userTrips.forEach(trip => {
-                if (trip.fecha) {
-                    const tripDate = trip.fecha.toDate();
-                    tripDate.setHours(0, 0, 0, 0);
-                    tripDates.add(tripDate.getTime());
-                }
-            });
-
-            const sortedDates = Array.from(tripDates).sort((a, b) => b - a);
-            for (let i = 0; i < sortedDates.length; i++) {
-                const expectedDate = new Date(today);
-                expectedDate.setDate(today.getDate() - i);
-                expectedDate.setHours(0, 0, 0, 0);
-                
-                if (sortedDates.includes(expectedDate.getTime())) {
-                    streak++;
-                } else {
-                    break;
-                }
-            }
-
-            currentStreak.textContent = streak;
-            streakType.textContent = streak === 1 ? 'Día consecutivo' : 'Días consecutivos';
-        }
-
-        function displayTrips() {
-            if (userTrips.length === 0) {
-                tripsList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">🚴</div>
-                        <p>Aún no tienes viajes registrados</p>
-                        <p><a href="subir.html" style="color: var(--accent-blue);">Sube tu primer tiempo</a></p>
-                    </div>
-                `;
-                return;
-            }
-
-            const tripsToShow = showAllTrips ? userTrips : userTrips.slice(0, 5);
-            
-            let html = '';
             tripsToShow.forEach(trip => {
-                const date = trip.fecha ? trip.fecha.toDate().toLocaleDateString('es-ES') : 'Fecha no disponible';
-                const statusClass = trip.verificado ? 'verified' : 'pending';
-                const statusText = trip.verificado ? 'Verificado' : 'Pendiente';
-                
-                html += `
+                // Formatear la fecha para que se vea bonita (Ej: 24 Mar 2026)
+                const dateObj = new Date(trip.fecha);
+                const dateString = dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                // Determinar el estilo de la etiqueta de verificación
+                const statusClass = trip.verificado ? 'status-verified' : 'status-pending';
+                const statusText = trip.verificado ? 'Verificado' : 'En revisión';
+
+                const tripHtml = `
                     <div class="trip-item">
                         <div class="trip-info">
-                            <div class="trip-route">${trip.ruta}</div>
-                            <div class="trip-date">${date}</div>
+                            <div class="trip-route">Ruta ${trip.ruta}</div>
+                            <div class="trip-date">${dateString}</div>
                         </div>
-                        <div class="trip-time">${trip.tiempo_formateado}</div>
-                        <div class="trip-status ${statusClass}">${statusText}</div>
+                        <div class="trip-stats">
+                            <div class="trip-time">${trip.tiempo_formateado}</div>
+                            <div class="status-badge ${statusClass}">${statusText}</div>
+                        </div>
                     </div>
                 `;
+                container.insertAdjacentHTML('beforeend', tripHtml);
             });
-
-            tripsList.innerHTML = html;
         }
+
+        // Lógica del botón "Ver todos"
+        document.getElementById('btn-view-all').addEventListener('click', (e) => {
+            isShowingAll = !isShowingAll;
+            if (isShowingAll) {
+                renderTrips(allUserTrips.length);
+                e.target.innerText = "Mostrar menos";
+            } else {
+                renderTrips(5);
+                e.target.innerText = "Ver historial completo";
+            }
+        });
     </script>
 </body>
 </html>

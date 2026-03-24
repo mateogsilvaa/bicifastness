@@ -3,706 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BiciFastness - Inicio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>BiciFastness - Login</title>
     <style>
-        :root {
-            --bg-primary: #121212;
-            --bg-secondary: #000000;
-            --accent-blue: #0071c3;
-            --accent-cream: #f1efeb;
-            --text-primary: #ffffff;
-            --text-secondary: #f1efeb;
-            --border-color: #333333;
-            --card-bg: #1a1a1a;
-            --hover-bg: #2a2a2a;
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+        
+        body { 
+            margin: 0; padding: 0; 
+            background-color: #121212; /* Fondo oscuro urbano */
+            color: #f1efeb; /* Texto crema */
+            font-family: 'Poppins', sans-serif; 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; 
+            background-image: radial-gradient(circle at 50% 0%, #1a2a3a 0%, #121212 60%);
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        .card { 
+            background: #1a1a1a; 
+            padding: 2.5rem 2rem; 
+            border-radius: 12px; 
+            border: 1px solid #333; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
+            width: 100%; max-width: 350px; 
+            text-align: center; 
         }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
+        h1 { 
+            color: #0071c3; /* Azul BiciMAD */
+            margin-top: 0; margin-bottom: 5px;
+            text-transform: uppercase; letter-spacing: 2px; font-weight: 700;
         }
-
-        /* Navigation */
-        nav {
-            background: var(--card-bg);
-            border-bottom: 1px solid var(--border-color);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        h3 { margin-top: 0; color: #888; font-weight: 400; font-size: 0.9rem; margin-bottom: 25px; }
+        
+        input { 
+            width: 100%; padding: 12px; margin: 10px 0; 
+            background: #222; border: 1px solid #444; color: white; 
+            border-radius: 6px; box-sizing: border-box; 
+            font-family: inherit; transition: border 0.3s;
         }
-
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--accent-blue);
-            text-decoration: none;
+        input:focus { border-color: #0071c3; outline: none; }
+        
+        button { 
+            width: 100%; padding: 14px; margin-top: 15px;
+            background: #0071c3; color: white; 
+            border: none; border-radius: 6px; 
+            font-weight: 700; font-size: 1rem;
+            cursor: pointer; transition: background 0.3s;
         }
-
-        .nav-logo {
-            width: 40px;
-            height: 40px;
-            background: var(--accent-blue);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-primary);
-            font-weight: 800;
+        button:hover { background: #005a9e; }
+        button:disabled { background: #444; color: #888; cursor: not-allowed; }
+        
+        .toggle { 
+            margin-top: 20px; font-size: 0.85em;
         }
-
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            align-items: center;
+        .toggle a {
+            color: #888; text-decoration: none; transition: color 0.3s;
         }
-
-        .nav-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s ease;
-        }
-
-        .nav-links a:hover {
-            color: var(--accent-blue);
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            background: var(--accent-blue);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-primary);
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-
-        .logout-btn {
-            background: var(--accent-blue);
-            color: var(--text-primary);
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            background: #005a9e;
-            transform: translateY(-1px);
-        }
-
-        /* Main Content */
-        main {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .hero-section {
-            text-align: center;
-            padding: 4rem 0;
-            margin-bottom: 3rem;
-        }
-
-        .hero-title {
-            font-size: 4rem;
-            font-weight: 800;
-            margin-bottom: 1rem;
-            background: linear-gradient(135deg, var(--accent-blue) 0%, #00a8ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero-subtitle {
-            font-size: 1.5rem;
-            color: var(--text-secondary);
-            margin-bottom: 2rem;
-            font-weight: 400;
-        }
-
-        .cta-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn-primary {
-            background: var(--accent-blue);
-            color: var(--text-primary);
-            border: none;
-            padding: 1rem 2rem;
-            border-radius: 12px;
-            font-family: inherit;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-primary:hover {
-            background: #005a9e;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0, 113, 195, 0.3);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: var(--accent-blue);
-            border: 2px solid var(--accent-blue);
-            padding: 1rem 2rem;
-            border-radius: 12px;
-            font-family: inherit;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-secondary:hover {
-            background: var(--accent-blue);
-            color: var(--text-primary);
-            transform: translateY(-2px);
-        }
-
-        /* Stats Section */
-        .stats-section {
-            margin-bottom: 3rem;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .stat-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: var(--accent-blue);
-        }
-
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            color: var(--text-primary);
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 1rem;
-        }
-
-        /* Features Section */
-        .features-section {
-            margin-bottom: 3rem;
-        }
-
-        .section-title {
-            text-align: center;
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 3rem;
-            color: var(--text-primary);
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
-
-        .feature-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 2rem;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            color: var(--accent-blue);
-        }
-
-        .feature-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: var(--text-primary);
-        }
-
-        .feature-description {
-            color: var(--text-secondary);
-            line-height: 1.6;
-        }
-
-        /* Recent Activity */
-        .activity-section {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 3rem;
-        }
-
-        .activity-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .activity-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .view-all-btn {
-            background: transparent;
-            border: 1px solid var(--accent-blue);
-            color: var(--accent-blue);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .view-all-btn:hover {
-            background: var(--accent-blue);
-            color: var(--text-primary);
-        }
-
-        .activity-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .activity-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            background: var(--bg-primary);
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            transition: background 0.3s ease;
-        }
-
-        .activity-item:hover {
-            background: var(--hover-bg);
-        }
-
-        .activity-avatar {
-            width: 40px;
-            height: 40px;
-            background: var(--accent-blue);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        .activity-details {
-            flex: 1;
-        }
-
-        .activity-user {
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-        }
-
-        .activity-description {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .activity-time {
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .nav-links {
-                gap: 1rem;
-            }
-
-            .nav-links a:not(.logout-btn) {
-                display: none;
-            }
-
-            main {
-                padding: 1rem;
-            }
-
-            .hero-title {
-                font-size: 2.5rem;
-            }
-
-            .hero-subtitle {
-                font-size: 1.2rem;
-            }
-
-            .cta-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .btn-primary,
-            .btn-secondary {
-                width: 100%;
-                max-width: 300px;
-            }
-
-            .stats-grid,
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .activity-header {
-                flex-direction: column;
-                gap: 1rem;
-                align-items: flex-start;
-            }
+        .toggle a:hover { color: #f1efeb; }
+        
+        #error-msg { 
+            color: #ff4444; font-size: 0.85em; margin-top: 10px; min-height: 20px; 
         }
     </style>
 </head>
 <body>
-    <nav>
-        <a href="index.html" class="nav-brand">
-            <div class="nav-logo">🚴</div>
-            <span>BiciFastness</span>
-        </a>
-        <div class="nav-links">
-            <a href="ranking.html">Rankings</a>
-            <a href="subir.html">Subir Tiempo</a>
-            <a href="profile.html">Mi Perfil</a>
-            <a href="admin.html">Admin</a>
-            <div class="user-info" id="userInfo" style="display: none;">
-                <div class="user-avatar" id="userAvatar">U</div>
-                <span id="userName">Usuario</span>
-            </div>
-            <a href="register.html" class="logout-btn" id="loginBtn">Iniciar Sesión</a>
+
+    <div class="card">
+        <h1>BiciFastness</h1>
+        <h3>Iniciar Sesión</h3>
+        
+        <input type="email" id="email" placeholder="Correo electrónico">
+        <input type="password" id="password" placeholder="Contraseña">
+        
+        <button id="action-btn">Entrar</button>
+        <div id="error-msg"></div>
+        
+        <div class="toggle">
+            <a href="register.html">¿No tienes cuenta? Regístrate aquí</a>
         </div>
-    </nav>
-
-    <main>
-        <section class="hero-section">
-            <h1 class="hero-title">BiciFastness</h1>
-            <p class="hero-subtitle">Compite, mejora y domina las rutas en bicicleta</p>
-            <div class="cta-buttons">
-                <a href="ranking.html" class="btn-primary">Ver Rankings</a>
-                <a href="subir.html" class="btn-secondary">Subir Tiempo</a>
-            </div>
-        </section>
-
-        <section class="stats-section">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">👥</div>
-                    <div class="stat-value" id="totalUsers">0</div>
-                    <div class="stat-label">Ciclistas Activos</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🏁</div>
-                    <div class="stat-value" id="totalRoutes">0</div>
-                    <div class="stat-label">Rutas Disponibles</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">⏱️</div>
-                    <div class="stat-value" id="totalTimes">0</div>
-                    <div class="stat-label">Tiempos Registrados</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🏆</div>
-                    <div class="stat-value" id="verifiedTimes">0</div>
-                    <div class="stat-label">Tiempos Verificados</div>
-                </div>
-            </div>
-        </section>
-
-        <section class="features-section">
-            <h2 class="section-title">Características Principales</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🏆</div>
-                    <h3 class="feature-title">Rankings Competitivos</h3>
-                    <p class="feature-description">Compite con otros ciclistas y sube en el podio de cada ruta. Demuestra quién es el más rápido.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3 class="feature-title">Estadísticas Detalladas</h3>
-                    <p class="feature-description">Analiza tu rendimiento con estadísticas completas de tus tiempos y progresión.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🛡️</div>
-                    <h3 class="feature-title">Verificación Segura</h3>
-                    <p class="feature-description">Todos los tiempos son verificados con fotos para garantizar la honestidad en la competencia.</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="activity-section">
-            <div class="activity-header">
-                <h2 class="activity-title">Actividad Reciente</h2>
-                <a href="ranking.html" class="view-all-btn">Ver Todos</a>
-            </div>
-            <div class="activity-list" id="activityList">
-                <div class="activity-item">
-                    <div class="activity-avatar">C</div>
-                    <div class="activity-details">
-                        <div class="activity-user">Cargando actividad...</div>
-                        <div class="activity-description">Obteniendo los tiempos más recientes</div>
-                    </div>
-                    <div class="activity-time">Ahora</div>
-                </div>
-            </div>
-        </section>
-    </main>
+    </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
-            databaseURL: "https://bicifastness-default-rtdb.europe-west1.firebasedatabase.app",
             projectId: "bicifastness",
             storageBucket: "bicifastness.firebasestorage.app",
             messagingSenderId: "656116731421",
-            appId: "1:656116731421:web:a4154d028fe9721c5800f4",
-            measurementId: "G-CSFX8EX71S"
+            appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
 
-        // DOM Elements
-        const loginBtn = document.getElementById('loginBtn');
-        const userInfo = document.getElementById('userInfo');
-        const userName = document.getElementById('userName');
-        const userAvatar = document.getElementById('userAvatar');
-
-        // Check authentication state
+        // Si ya hay sesión iniciada, pa' dentro
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // User is logged in
-                loginBtn.textContent = 'Cerrar Sesión';
-                loginBtn.onclick = logout;
-                userInfo.style.display = 'flex';
-                
-                // Get user data from Firestore
-                getUserData(user.uid);
-            } else {
-                // User is not logged in
-                loginBtn.textContent = 'Iniciar Sesión';
-                loginBtn.onclick = () => window.location.href = 'register.html';
-                userInfo.style.display = 'none';
+                window.location.href = "home.html";
             }
         });
 
-        async function getUserData(uid) {
+        const btn = document.getElementById('action-btn');
+        const errorMsg = document.getElementById('error-msg');
+
+        // Lógica exclusiva del botón de Login
+        btn.addEventListener('click', async () => {
+            const email = document.getElementById('email').value.trim();
+            const pass = document.getElementById('password').value;
+            errorMsg.innerText = "";
+
+            if(!email || !pass) {
+                errorMsg.innerText = "Rellena todos los campos, por favor.";
+                return;
+            }
+
             try {
-                const usersRef = collection(db, 'usuarios');
-                const q = query(usersRef, where('uid', '==', uid));
-                const querySnapshot = await getDocs(q);
+                // Deshabilitar botón mientras carga
+                btn.innerText = "Cargando...";
+                btn.disabled = true;
+
+                await signInWithEmailAndPassword(auth, email, pass);
+                // Si funciona, el onAuthStateChanged de arriba te redirige a home.html automáticamente
                 
-                if (!querySnapshot.empty) {
-                    const userData = querySnapshot.docs[0].data();
-                    userName.textContent = userData.nombre || 'Usuario';
-                    userAvatar.textContent = userData.nombre ? userData.nombre.substring(0, 2).toUpperCase() : 'U';
+            } catch (error) {
+                btn.disabled = false;
+                btn.innerText = "Entrar";
+                
+                // Mensajes de error en español
+                if(error.code === 'auth/invalid-credential') {
+                    errorMsg.innerText = "Correo o contraseña incorrectos.";
+                } else if(error.code === 'auth/invalid-email') {
+                    errorMsg.innerText = "El formato del correo no es válido.";
+                } else {
+                    errorMsg.innerText = "Error: " + error.message;
                 }
-            } catch (error) {
-                console.error('Error getting user data:', error);
             }
-        }
-
-        async function logout() {
-            try {
-                await signOut(auth);
-                window.location.href = 'index.html';
-            } catch (error) {
-                console.error('Error logging out:', error);
-            }
-        }
-
-        // Load statistics
-        async function loadStats() {
-            try {
-                // Load users count
-                const usersSnapshot = await getDocs(collection(db, 'usuarios'));
-                document.getElementById('totalUsers').textContent = usersSnapshot.size;
-
-                // Load all times
-                const timesSnapshot = await getDocs(collection(db, 'tiempos_viaje'));
-                document.getElementById('totalTimes').textContent = timesSnapshot.size;
-
-                // Load verified times
-                const verifiedQuery = query(collection(db, 'tiempos_viaje'), where('verificado', '==', true));
-                const verifiedSnapshot = await getDocs(verifiedQuery);
-                document.getElementById('verifiedTimes').textContent = verifiedSnapshot.size;
-
-                // Count unique routes
-                const routes = new Set();
-                timesSnapshot.forEach(doc => {
-                    if (doc.data().ruta) {
-                        routes.add(doc.data().ruta);
-                    }
-                });
-                document.getElementById('totalRoutes').textContent = routes.size;
-
-            } catch (error) {
-                console.error('Error loading stats:', error);
-            }
-        }
-
-        // Load recent activity
-        async function loadRecentActivity() {
-            try {
-                const recentQuery = query(
-                    collection(db, 'tiempos_viaje'),
-                    where('verificado', '==', true),
-                    orderBy('fecha', 'desc'),
-                    limit(5)
-                );
-                
-                const querySnapshot = await getDocs(recentQuery);
-                const activityList = document.getElementById('activityList');
-                
-                if (querySnapshot.empty) {
-                    activityList.innerHTML = `
-                        <div class="activity-item">
-                            <div class="activity-avatar">📭</div>
-                            <div class="activity-details">
-                                <div class="activity-user">No hay actividad reciente</div>
-                                <div class="activity-description">Sé el primero en subir un tiempo verificado</div>
-                            </div>
-                            <div class="activity-time">-</div>
-                        </div>
-                    `;
-                    return;
-                }
-
-                let html = '';
-                querySnapshot.forEach(doc => {
-                    const data = doc.data();
-                    const date = data.fecha ? data.fecha.toDate() : new Date();
-                    const timeAgo = getTimeAgo(date);
-                    const initials = data.usuario ? data.usuario.substring(0, 2).toUpperCase() : '??';
-                    
-                    html += `
-                        <div class="activity-item">
-                            <div class="activity-avatar">${initials}</div>
-                            <div class="activity-details">
-                                <div class="activity-user">${escapeHtml(data.usuario || 'Usuario')}</div>
-                                <div class="activity-description">
-                                    Completó <strong>${escapeHtml(data.ruta || 'ruta')}</strong> en <strong>${escapeHtml(data.tiempo_formateado || 'N/A')}</strong>
-                                </div>
-                            </div>
-                            <div class="activity-time">${timeAgo}</div>
-                        </div>
-                    `;
-                });
-
-                activityList.innerHTML = html;
-            } catch (error) {
-                console.error('Error loading recent activity:', error);
-            }
-        }
-
-        function getTimeAgo(date) {
-            const now = new Date();
-            const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-            
-            if (diffInMinutes < 60) {
-                return `hace ${diffInMinutes} min`;
-            } else if (diffInMinutes < 1440) {
-                const hours = Math.floor(diffInMinutes / 60);
-                return `hace ${hours} h`;
-            } else {
-                const days = Math.floor(diffInMinutes / 1440);
-                return `hace ${days} día${days > 1 ? 's' : ''}`;
-            }
-        }
-
-        function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return text ? text.replace(/[&<>"']/g, m => map[m]) : '';
-        }
-
-        // Initialize
-        loadStats();
-        loadRecentActivity();
+        });
     </script>
 </body>
 </html>

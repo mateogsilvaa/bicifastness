@@ -18,9 +18,9 @@
             --gray-100: #f8f9fa;
             --gray-200: #e9ecef;
             --gray-400: #6c757d;
-            --gold: #ffd700;
-            --silver: #c0c0c0;
-            --bronze: #cd7f32;
+            --red: #dc3545;
+            --red-dark: #c82333;
+            --success: #28a745;
         }
 
         * {
@@ -34,19 +34,32 @@
             background: linear-gradient(135deg, var(--white) 0%, var(--cream) 100%);
             min-height: 100vh;
             color: var(--black);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
+        .auth-container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
             padding: 20px;
         }
 
-        /* Header */
-        header {
+        .auth-card {
+            background: var(--white);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--gray-200);
+        }
+
+        .logo-section {
+            grid-column: 1 / -1;
             text-align: center;
-            padding: 40px 20px;
-            position: relative;
+            margin-bottom: 20px;
         }
 
         .logo-container {
@@ -76,7 +89,7 @@
 
         h1 {
             font-family: 'Poppins', sans-serif;
-            font-size: 3.5rem;
+            font-size: 3rem;
             font-weight: 800;
             letter-spacing: -1px;
             background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-blue) 50%, var(--primary-dark) 100%);
@@ -93,315 +106,209 @@
             text-transform: uppercase;
         }
 
-        /* Navigation */
-        nav {
-            display: flex;
-            justify-content: center;
-            gap: 16px;
-            margin: 30px 0;
-            flex-wrap: wrap;
-        }
-
-        nav a {
+        .auth-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-align: center;
             color: var(--black);
-            text-decoration: none;
-            padding: 12px 28px;
-            border-radius: 50px;
-            background: var(--gray-200);
-            font-weight: 500;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
         }
 
-        nav a:hover, nav a.active {
-            background: var(--primary-blue);
-            color: var(--white);
-            box-shadow: 0 4px 20px rgba(0, 113, 195, 0.3);
+        .auth-subtitle {
+            color: var(--gray-400);
+            text-align: center;
+            margin-bottom: 32px;
         }
 
-        nav a.active {
-            border-color: var(--primary-light);
+        .form-group {
+            margin-bottom: 20px;
         }
 
-        /* Filter Section */
-        .filter-section {
-            background: var(--white);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 16px;
-            border: 1px solid var(--gray-200);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .filter-section label {
+        .form-group label {
+            display: block;
             font-weight: 600;
-            font-size: 1rem;
+            margin-bottom: 8px;
             color: var(--black);
         }
 
-        .filter-section select {
-            padding: 12px 24px;
-            border-radius: 50px;
+        .form-group input {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 12px;
             border: 2px solid var(--gray-200);
             background: var(--white);
             color: var(--black);
             font-family: inherit;
             font-size: 1rem;
-            cursor: pointer;
             transition: all 0.3s ease;
-            min-width: 250px;
         }
 
-        .filter-section select:hover, .filter-section select:focus {
+        .form-group input:focus {
             border-color: var(--primary-blue);
             outline: none;
+            box-shadow: 0 0 0 4px rgba(0, 113, 195, 0.2);
         }
 
-        /* Ranking Table */
-        .ranking-container {
-            background: var(--white);
-            border-radius: 20px;
-            overflow: hidden;
-            border: 1px solid var(--gray-200);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-        }
-
-        .table-header {
-            display: grid;
-            grid-template-columns: 80px 1fr 1.2fr 140px 100px;
-            padding: 20px 24px;
-            background: var(--gray-100);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 0.85rem;
+        .form-group input::placeholder {
             color: var(--gray-400);
-            border-bottom: 2px solid var(--primary-blue);
         }
 
-        .ranking-row {
-            display: grid;
-            grid-template-columns: 80px 1fr 1.2fr 140px 100px;
-            padding: 20px 24px;
-            align-items: center;
-            border-bottom: 1px solid var(--gray-200);
-            transition: all 0.3s ease;
-        }
-
-        .ranking-row:hover {
-            background: var(--gray-100);
-        }
-
-        .ranking-row:last-child {
-            border-bottom: none;
-        }
-
-        .position {
-            font-family: 'Poppins', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 800;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 50px;
-            height: 50px;
+        .auth-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+            border: none;
             border-radius: 12px;
-            background: var(--gray-200);
-            color: var(--black);
-        }
-
-        .position.gold {
-            background: linear-gradient(135deg, var(--gold) 0%, #FFA500 100%);
-            color: var(--black);
-            box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
-        }
-
-        .position.silver {
-            background: linear-gradient(135deg, var(--silver) 0%, #A0A0A0 100%);
-            color: var(--black);
-            box-shadow: 0 4px 20px rgba(192, 192, 192, 0.3);
-        }
-
-        .position.bronze {
-            background: linear-gradient(135deg, var(--bronze) 0%, #B8860B 100%);
-            color: var(--black);
-            box-shadow: 0 4px 20px rgba(205, 127, 50, 0.3);
-        }
-
-        .user-name {
-            font-weight: 600;
+            color: var(--white);
+            font-family: inherit;
             font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 8px;
         }
 
-        .route {
-            color: var(--gray-400);
-            font-size: 0.95rem;
+        .auth-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 113, 195, 0.3);
         }
 
-        .time {
-            font-family: 'Poppins', sans-serif;
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--primary-blue);
+        .auth-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
-        .view-photo {
-            padding: 8px 16px;
+        .auth-btn.secondary {
             background: transparent;
             border: 2px solid var(--primary-blue);
             color: var(--primary-blue);
-            border-radius: 50px;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: 500;
-            transition: all 0.3s ease;
         }
 
-        .view-photo:hover {
+        .auth-btn.secondary:hover:not(:disabled) {
             background: var(--primary-blue);
             color: var(--white);
         }
 
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--gray-400);
-        }
-
-        .empty-state svg {
-            width: 80px;
-            height: 80px;
+        .message {
+            padding: 16px 20px;
+            border-radius: 12px;
             margin-bottom: 20px;
-            opacity: 0.5;
-        }
-
-        /* Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
             display: none;
             align-items: center;
-            justify-content: center;
-            z-index: 1000;
+            gap: 12px;
+        }
+
+        .message.show {
+            display: flex;
+        }
+
+        .message.success {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .message.error {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid var(--red);
+            color: var(--red);
+        }
+
+        .message svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+            flex-shrink: 0;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--gray-200);
+        }
+
+        .divider span {
+            background: var(--white);
+            padding: 0 20px;
+            color: var(--gray-400);
+            font-size: 0.9rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .auth-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 10px;
+            }
+
+            .logo-section {
+                margin-bottom: 0;
+            }
+
+            h1 {
+                font-size: 2.2rem;
+            }
+
+            .auth-card {
+                padding: 24px;
+            }
+        }
+
+        /* Loading state */
+        .loading {
+            display: none;
+            text-align: center;
             padding: 20px;
         }
 
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--white);
-            border-radius: 20px;
-            max-width: 600px;
-            width: 100%;
-            max-height: 90vh;
-            overflow: hidden;
-            border: 1px solid var(--gray-200);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--gray-200);
-        }
-
-        .modal-header h3 {
-            font-family: 'Poppins', sans-serif;
-            font-size: 1.3rem;
-            color: var(--black);
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--gray-400);
-            font-size: 1.5rem;
-            cursor: pointer;
-            transition: color 0.3s ease;
-        }
-
-        .modal-close:hover {
-            color: var(--black);
-        }
-
-        .modal-body {
-            padding: 24px;
-        }
-
-        .modal-body img {
-            width: 100%;
-            border-radius: 12px;
-            max-height: 60vh;
-            object-fit: contain;
-        }
-
-        /* Loading */
-        .loading {
-            text-align: center;
-            padding: 60px 20px;
+        .loading.show {
+            display: block;
         }
 
         .spinner {
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             border: 4px solid var(--gray-200);
             border-top-color: var(--primary-blue);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto 16px;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2.2rem;
-            }
+        /* App hidden state */
+        .app-content {
+            display: none;
+        }
 
-            .table-header, .ranking-row {
-                grid-template-columns: 60px 1fr 100px;
-            }
+        .app-content.show {
+            display: block;
+        }
 
-            .table-header > *:nth-child(3),
-            .ranking-row > *:nth-child(3) {
-                display: none;
-            }
-
-            .table-header > *:nth-child(5),
-            .ranking-row > *:nth-child(5) {
-                display: none;
-            }
-
-            .filter-section {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .filter-section select {
-                width: 100%;
-            }
+        .auth-container.hide {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
+    <!-- Auth Container -->
+    <div class="auth-container" id="auth-container">
+        <div class="logo-section">
             <div class="logo-container">
                 <div class="logo-icon">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -411,56 +318,86 @@
                 <h1>BiciFastness</h1>
             </div>
             <p class="tagline">Ranking Oficial de Tiempos BiciMAD</p>
-        </header>
+        </div>
 
-        <nav>
-            <a href="index.html" class="active">Ranking</a>
-            <a href="subir.html">Subir Tiempo</a>
-            <a href="admin.html">Admin</a>
-        </nav>
+        <!-- Login Form -->
+        <div class="auth-card">
+            <h2 class="auth-title">Bienvenido de vuelta</h2>
+            <p class="auth-subtitle">Inicia sesión para ver los rankings</p>
 
-        <section class="filter-section">
-            <label for="route-filter">Filtrar por ruta:</label>
-            <select id="route-filter">
-                <option value="todas">Todas las rutas</option>
-                <option value="Legazpi - Casa">Legazpi - Casa</option>
-                <option value="Mendez Álvaro - Casa">Méndez Álvaro - Casa</option>
-            </select>
-        </section>
-
-        <div class="ranking-container">
-            <div class="table-header">
-                <span>Pos.</span>
-                <span>Usuario</span>
-                <span>Ruta</span>
-                <span>Tiempo</span>
-                <span>Foto</span>
+            <div id="login-error" class="message error">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                <span id="login-error-text">Error al iniciar sesión</span>
             </div>
-            <div id="ranking-list">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Cargando ranking...</p>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-email">Correo electrónico</label>
+                    <input type="email" id="login-email" placeholder="tu@email.com" required>
                 </div>
+
+                <div class="form-group">
+                    <label for="login-password">Contraseña</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="auth-btn" id="login-btn">Iniciar Sesión</button>
+            </form>
+
+            <div class="divider">
+                <span>¿No tienes cuenta?</span>
             </div>
+
+            <button class="auth-btn secondary" id="show-register-btn">Crear Cuenta</button>
+        </div>
+
+        <!-- Register Form -->
+        <div class="auth-card">
+            <h2 class="auth-title">Crear Cuenta</h2>
+            <p class="auth-subtitle">Únete a la comunidad BiciFastness</p>
+
+            <div id="register-error" class="message error">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                <span id="register-error-text">Error al crear cuenta</span>
+            </div>
+
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="register-name">Nombre de usuario</label>
+                    <input type="text" id="register-name" placeholder="BiciSpeedster" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="register-email">Correo electrónico</label>
+                    <input type="email" id="register-email" placeholder="tu@email.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="register-password">Contraseña</label>
+                    <input type="password" id="register-password" placeholder="Mínimo 6 caracteres" required>
+                </div>
+
+                <button type="submit" class="auth-btn" id="register-btn">Crear Cuenta</button>
+            </form>
+
+            <div class="divider">
+                <span>¿Ya tienes cuenta?</span>
+            </div>
+
+            <button class="auth-btn secondary" id="show-login-btn">Iniciar Sesión</button>
         </div>
     </div>
 
-    <!-- Modal para ver foto -->
-    <div class="modal-overlay" id="photo-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modal-title">Captura de tiempo</h3>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <img id="modal-image" src="" alt="Captura de tiempo">
-            </div>
-        </div>
+    <!-- App Content (hidden initially) -->
+    <div class="app-content" id="app-content">
+        <!-- Will be populated by JavaScript -->
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
@@ -475,18 +412,483 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const storage = getStorage(app);
+        const auth = getAuth(app);
 
-        const rankingList = document.getElementById('ranking-list');
-        const routeFilter = document.getElementById('route-filter');
-        let currentFilter = 'todas';
+        // DOM Elements
+        const authContainer = document.getElementById('auth-container');
+        const appContent = document.getElementById('app-content');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const showRegisterBtn = document.getElementById('show-register-btn');
+        const showLoginBtn = document.getElementById('show-login-btn');
 
-        // Escuchar cambios en el filtro
-        routeFilter.addEventListener('change', (e) => {
-            currentFilter = e.target.value;
-            loadRanking();
+        // Auth state observer
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                showApp(user);
+            } else {
+                showAuth();
+            }
         });
 
-        function loadRanking() {
+        // Show login/register forms
+        showRegisterBtn.addEventListener('click', () => {
+            registerForm.parentElement.style.display = 'block';
+            loginForm.parentElement.style.display = 'none';
+        });
+
+        showLoginBtn.addEventListener('click', () => {
+            loginForm.parentElement.style.display = 'block';
+            registerForm.parentElement.style.display = 'none';
+        });
+
+        // Login form submission
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const loginBtn = document.getElementById('login-btn');
+            const loginError = document.getElementById('login-error');
+            const loginErrorText = document.getElementById('login-error-text');
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Iniciando sesión...';
+            loginError.classList.remove('show');
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                console.error('Login error:', error);
+                let errorMessage = 'Error al iniciar sesión.';
+                
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                        errorMessage = 'Usuario no encontrado.';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage = 'Contraseña incorrecta.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Email inválido.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Demasiados intentos. Espera unos minutos.';
+                        break;
+                    case 'auth/invalid-credential':
+                        errorMessage = 'Credenciales inválidas.';
+                        break;
+                }
+
+                loginErrorText.textContent = errorMessage;
+                loginError.classList.add('show');
+            }
+
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Iniciar Sesión';
+        });
+
+        // Register form submission
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('register-name').value.trim();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const registerBtn = document.getElementById('register-btn');
+            const registerError = document.getElementById('register-error');
+            const registerErrorText = document.getElementById('register-error-text');
+
+            if (password.length < 6) {
+                registerErrorText.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+                registerError.classList.add('show');
+                return;
+            }
+
+            registerBtn.disabled = true;
+            registerBtn.textContent = 'Creando cuenta...';
+            registerError.classList.remove('show');
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                
+                // Save user profile to Firestore
+                await addDoc(collection(db, 'usuarios'), {
+                    uid: userCredential.user.uid,
+                    nombre: name,
+                    email: email,
+                    fecha_registro: serverTimestamp(),
+                    viajes_count: 0
+                });
+
+            } catch (error) {
+                console.error('Register error:', error);
+                let errorMessage = 'Error al crear cuenta.';
+                
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'Este email ya está registrado.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'La contraseña es muy débil.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Email inválido.';
+                        break;
+                }
+
+                registerErrorText.textContent = errorMessage;
+                registerError.classList.add('show');
+            }
+
+            registerBtn.disabled = false;
+            registerBtn.textContent = 'Crear Cuenta';
+        });
+
+        function showAuth() {
+            authContainer.classList.remove('hide');
+            appContent.classList.remove('show');
+            loginForm.parentElement.style.display = 'block';
+            registerForm.parentElement.style.display = 'none';
+        }
+
+        function showApp(user) {
+            authContainer.classList.add('hide');
+            appContent.classList.add('show');
+            
+            // Load the main app
+            loadMainApp(user);
+        }
+
+        function loadMainApp(user) {
+            appContent.innerHTML = `
+                <div class="app-container">
+                    <nav>
+                        <div class="nav-brand">
+                            <div class="logo-icon">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                </svg>
+                            </div>
+                            <span>BiciFastness</span>
+                        </div>
+                        <div class="nav-menu">
+                            <a href="#" class="nav-link active" data-page="rankings">Rankings</a>
+                            <a href="#" class="nav-link" data-page="upload">Subir Tiempo</a>
+                            <a href="#" class="nav-link" data-page="profile">Mi Perfil</a>
+                            <button class="logout-btn" id="logout-btn">Cerrar Sesión</button>
+                        </div>
+                    </nav>
+                    <main id="main-content">
+                        <!-- Content will be loaded here -->
+                    </main>
+                </div>
+            `;
+
+            // Add app styles
+            const style = document.createElement('style');
+            style.textContent = `
+                .app-container {
+                    min-height: 100vh;
+                    background: linear-gradient(135deg, var(--white) 0%, var(--cream) 100%);
+                }
+
+                nav {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 20px 40px;
+                    background: var(--white);
+                    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+                    border-bottom: 1px solid var(--gray-200);
+                }
+
+                .nav-brand {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    color: var(--primary-blue);
+                }
+
+                .nav-menu {
+                    display: flex;
+                    align-items: center;
+                    gap: 20px;
+                }
+
+                .nav-link {
+                    color: var(--black);
+                    text-decoration: none;
+                    font-weight: 500;
+                    padding: 10px 20px;
+                    border-radius: 50px;
+                    transition: all 0.3s ease;
+                }
+
+                .nav-link:hover, .nav-link.active {
+                    background: var(--primary-blue);
+                    color: var(--white);
+                }
+
+                .logout-btn {
+                    background: var(--red);
+                    color: var(--white);
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 50px;
+                    font-family: inherit;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+
+                .logout-btn:hover {
+                    background: var(--red-dark);
+                }
+
+                main {
+                    padding: 40px;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Setup navigation
+            setupNavigation(user);
+
+            // Load rankings by default
+            loadRankings(user);
+
+            // Setup logout
+            document.getElementById('logout-btn').addEventListener('click', async () => {
+                await signOut(auth);
+            });
+        }
+
+        function setupNavigation(user) {
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    
+                    // Update active state
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+                    
+                    // Load content
+                    const page = link.dataset.page;
+                    switch (page) {
+                        case 'rankings':
+                            loadRankings(user);
+                            break;
+                        case 'upload':
+                            loadUpload(user);
+                            break;
+                        case 'profile':
+                            loadProfile(user);
+                            break;
+                    }
+                });
+            });
+        }
+
+        function loadRankings(user) {
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `
+                <div class="rankings-container">
+                    <h2>Rankings por Ruta</h2>
+                    <div class="route-selector">
+                        <label for="route-select">Seleccionar ruta:</label>
+                        <select id="route-select">
+                            <option value="180-235">180 → 235</option>
+                            <option value="235-180">235 → 180</option>
+                            <option value="150-200">150 → 200</option>
+                            <option value="200-150">200 → 150</option>
+                            <option value="100-120">100 → 120</option>
+                            <option value="120-100">120 → 100</option>
+                        </select>
+                    </div>
+                    <div class="ranking-table">
+                        <div class="table-header">
+                            <span>Pos.</span>
+                            <span>Usuario</span>
+                            <span>Tiempo</span>
+                            <span>Fecha</span>
+                            <span>Foto</span>
+                        </div>
+                        <div id="ranking-list">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <p>Cargando ranking...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add rankings styles
+            const style = document.createElement('style');
+            style.textContent = `
+                .rankings-container h2 {
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 2rem;
+                    margin-bottom: 30px;
+                    color: var(--black);
+                }
+
+                .route-selector {
+                    margin-bottom: 30px;
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                }
+
+                .route-selector label {
+                    font-weight: 600;
+                    color: var(--black);
+                }
+
+                .route-selector select {
+                    padding: 12px 20px;
+                    border-radius: 12px;
+                    border: 2px solid var(--gray-200);
+                    background: var(--white);
+                    color: var(--black);
+                    font-family: inherit;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    min-width: 200px;
+                }
+
+                .ranking-table {
+                    background: var(--white);
+                    border-radius: 20px;
+                    overflow: hidden;
+                    border: 1px solid var(--gray-200);
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+                }
+
+                .table-header {
+                    display: grid;
+                    grid-template-columns: 80px 1fr 120px 140px 100px;
+                    padding: 20px 24px;
+                    background: var(--gray-100);
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    font-size: 0.85rem;
+                    color: var(--gray-400);
+                    border-bottom: 2px solid var(--primary-blue);
+                }
+
+                .ranking-row {
+                    display: grid;
+                    grid-template-columns: 80px 1fr 120px 140px 100px;
+                    padding: 20px 24px;
+                    align-items: center;
+                    border-bottom: 1px solid var(--gray-200);
+                    transition: all 0.3s ease;
+                }
+
+                .ranking-row:hover {
+                    background: var(--gray-100);
+                }
+
+                .position {
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 1.5rem;
+                    font-weight: 800;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 12px;
+                    background: var(--gray-200);
+                    color: var(--black);
+                }
+
+                .position.gold {
+                    background: linear-gradient(135deg, #ffd700 0%, #FFA500 100%);
+                    color: var(--black);
+                    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+                }
+
+                .position.silver {
+                    background: linear-gradient(135deg, #c0c0c0 0%, #A0A0A0 100%);
+                    color: var(--black);
+                    box-shadow: 0 4px 20px rgba(192, 192, 192, 0.3);
+                }
+
+                .position.bronze {
+                    background: linear-gradient(135deg, #cd7f32 0%, #B8860B 100%);
+                    color: var(--black);
+                    box-shadow: 0 4px 20px rgba(205, 127, 50, 0.3);
+                }
+
+                .time {
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 1.2rem;
+                    font-weight: 700;
+                    color: var(--primary-blue);
+                }
+
+                .view-photo {
+                    padding: 6px 12px;
+                    background: transparent;
+                    border: 2px solid var(--primary-blue);
+                    color: var(--primary-blue);
+                    border-radius: 50px;
+                    cursor: pointer;
+                    font-family: inherit;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                    font-size: 0.9rem;
+                }
+
+                .view-photo:hover {
+                    background: var(--primary-blue);
+                    color: var(--white);
+                }
+
+                .loading {
+                    text-align: center;
+                    padding: 60px 20px;
+                    color: var(--gray-400);
+                }
+
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 4px solid var(--gray-200);
+                    border-top-color: var(--primary-blue);
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 20px;
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Load ranking data
+            loadRankingData();
+        }
+
+        function loadRankingData() {
+            const routeSelect = document.getElementById('route-select');
+            const rankingList = document.getElementById('ranking-list');
+            let currentRoute = routeSelect.value;
+
+            routeSelect.addEventListener('change', () => {
+                currentRoute = routeSelect.value;
+                loadRankingData();
+            });
+
             rankingList.innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
@@ -494,32 +896,18 @@
                 </div>
             `;
 
-            let q;
-            const tiemposRef = collection(db, 'tiempos_viaje');
-
-            if (currentFilter === 'todas') {
-                q = query(
-                    tiemposRef,
-                    where('verificado', '==', true),
-                    orderBy('tiempo_segundos', 'asc')
-                );
-            } else {
-                q = query(
-                    tiemposRef,
-                    where('verificado', '==', true),
-                    where('ruta', '==', currentFilter),
-                    orderBy('tiempo_segundos', 'asc')
-                );
-            }
+            const q = query(
+                collection(db, 'tiempos_viaje'),
+                where('verificado', '==', true),
+                where('ruta', '==', currentRoute),
+                orderBy('tiempo_segundos', 'asc')
+            );
 
             onSnapshot(q, (snapshot) => {
                 if (snapshot.empty) {
                     rankingList.innerHTML = `
                         <div class="empty-state">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                            </svg>
-                            <p>No hay tiempos verificados aún.</p>
+                            <p>No hay tiempos verificados para esta ruta.</p>
                             <p>¡Sé el primero en subir tu tiempo!</p>
                         </div>
                     `;
@@ -537,12 +925,14 @@
                     else if (position === 2) positionClass = 'silver';
                     else if (position === 3) positionClass = 'bronze';
 
+                    const fecha = data.fecha ? data.fecha.toDate().toLocaleDateString('es-ES') : 'Fecha no disponible';
+
                     html += `
                         <div class="ranking-row">
                             <div class="position ${positionClass}">${position}</div>
                             <div class="user-name">${escapeHtml(data.usuario)}</div>
-                            <div class="route">${escapeHtml(data.ruta)}</div>
                             <div class="time">${escapeHtml(data.tiempo_formateado)}</div>
+                            <div class="date">${fecha}</div>
                             <button class="view-photo" onclick="openModal('${escapeHtml(data.usuario)}', '${data.foto_url.replace(/'/g, "\\'")}')">
                                 Ver
                             </button>
@@ -553,7 +943,7 @@
 
                 rankingList.innerHTML = html;
             }, (error) => {
-                console.error('Error al cargar ranking:', error);
+                console.error('Error loading ranking:', error);
                 rankingList.innerHTML = `
                     <div class="empty-state">
                         <p>Error al cargar el ranking. Por favor, recarga la página.</p>
@@ -568,33 +958,702 @@
             return div.innerHTML;
         }
 
-        // Funciones globales para el modal
+        // Global modal function
         window.openModal = function(usuario, fotoUrl) {
-            document.getElementById('modal-title').textContent = `Captura de ${usuario}`;
-            document.getElementById('modal-image').src = fotoUrl;
-            document.getElementById('photo-modal').classList.add('active');
+            // Modal implementation would go here
+            console.log('Opening modal for:', usuario, fotoUrl);
         };
 
-        window.closeModal = function() {
-            document.getElementById('photo-modal').classList.remove('active');
-        };
+        // Placeholder functions for other pages
+        function loadUpload(user) {
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `
+                <div class="upload-container">
+                    <h2>Subir Nuevo Tiempo</h2>
+                    <div class="upload-form">
+                        <form id="time-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="start-station">Estación de Salida</label>
+                                    <input type="number" id="start-station" min="1" max="500" placeholder="180" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="end-station">Estación de Meta</label>
+                                    <input type="number" id="end-station" min="1" max="500" placeholder="235" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="minutes">Minutos</label>
+                                    <input type="number" id="minutes" min="0" max="59" placeholder="00" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="seconds">Segundos</label>
+                                    <input type="number" id="seconds" min="0" max="59" placeholder="00" required>
+                                </div>
+                            </div>
 
-        // Cerrar modal al hacer clic fuera
-        document.getElementById('photo-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'photo-modal') {
-                closeModal();
+                            <div class="form-group">
+                                <label for="date">Fecha del Viaje</label>
+                                <input type="date" id="date" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="photo">Captura de Pantalla</label>
+                                <div class="file-upload-area" id="file-upload-area">
+                                    <input type="file" id="photo" accept="image/*" required>
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                    </svg>
+                                    <p>Arrastra tu captura aquí o haz clic para seleccionar</p>
+                                    <p class="file-name"></p>
+                                </div>
+                            </div>
+
+                            <div id="upload-error" class="message error">
+                                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                                <span id="upload-error-text">Error al subir tiempo</span>
+                            </div>
+
+                            <div id="upload-success" class="message success">
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                <span>¡Tiempo enviado correctamente! Esperando verificación.</span>
+                            </div>
+
+                            <button type="submit" class="submit-btn" id="submit-btn">Enviar Tiempo</button>
+                        </form>
+
+                        <div class="progress-bar" id="progress-bar">
+                            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add upload styles
+            const style = document.createElement('style');
+            style.textContent = `
+                .upload-container h2 {
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 2rem;
+                    margin-bottom: 30px;
+                    color: var(--black);
+                }
+
+                .upload-form {
+                    background: var(--white);
+                    border-radius: 24px;
+                    padding: 40px;
+                    border: 1px solid var(--gray-200);
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+                }
+
+                .form-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 20px;
+                }
+
+                .form-group {
+                    margin-bottom: 24px;
+                }
+
+                .form-group label {
+                    display: block;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    color: var(--black);
+                }
+
+                .form-group input[type="number"],
+                .form-group input[type="date"] {
+                    width: 100%;
+                    padding: 14px 20px;
+                    border-radius: 12px;
+                    border: 2px solid var(--gray-200);
+                    background: var(--white);
+                    color: var(--black);
+                    font-family: inherit;
+                    font-size: 1rem;
+                    transition: all 0.3s ease;
+                }
+
+                .form-group input:focus {
+                    border-color: var(--primary-blue);
+                    outline: none;
+                    box-shadow: 0 0 0 4px rgba(0, 113, 195, 0.2);
+                }
+
+                .file-upload-area {
+                    border: 2px dashed var(--gray-200);
+                    border-radius: 16px;
+                    padding: 40px 20px;
+                    text-align: center;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    background: var(--white);
+                }
+
+                .file-upload-area:hover {
+                    border-color: var(--primary-blue);
+                    background: rgba(0, 113, 195, 0.05);
+                }
+
+                .file-upload-area.has-file {
+                    border-color: var(--primary-blue);
+                    border-style: solid;
+                }
+
+                .file-upload-area svg {
+                    width: 48px;
+                    height: 48px;
+                    fill: var(--gray-400);
+                    margin-bottom: 12px;
+                }
+
+                .file-upload-area p {
+                    color: var(--gray-400);
+                    margin-bottom: 8px;
+                }
+
+                .file-upload-area .file-name {
+                    color: var(--primary-blue);
+                    font-weight: 600;
+                    word-break: break-all;
+                }
+
+                .file-upload-area input {
+                    display: none;
+                }
+
+                .submit-btn {
+                    width: 100%;
+                    padding: 16px;
+                    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+                    border: none;
+                    border-radius: 12px;
+                    color: var(--white);
+                    font-family: inherit;
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    margin-top: 8px;
+                }
+
+                .submit-btn:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 30px rgba(0, 113, 195, 0.3);
+                }
+
+                .submit-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                .message {
+                    padding: 16px 20px;
+                    border-radius: 12px;
+                    margin-bottom: 20px;
+                    display: none;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .message.show {
+                    display: flex;
+                }
+
+                .message.success {
+                    background: rgba(40, 167, 69, 0.1);
+                    border: 1px solid var(--success);
+                    color: var(--success);
+                }
+
+                .message.error {
+                    background: rgba(220, 53, 69, 0.1);
+                    border: 1px solid var(--red);
+                    color: var(--red);
+                }
+
+                .message svg {
+                    width: 24px;
+                    height: 24px;
+                    fill: currentColor;
+                    flex-shrink: 0;
+                }
+
+                .progress-bar {
+                    width: 100%;
+                    height: 6px;
+                    background: var(--gray-200);
+                    border-radius: 3px;
+                    margin-top: 16px;
+                    overflow: hidden;
+                    display: none;
+                }
+
+                .progress-bar.show {
+                    display: block;
+                }
+
+                .progress-bar-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, var(--primary-light), var(--primary-blue));
+                    border-radius: 3px;
+                    width: 0%;
+                    transition: width 0.3s ease;
+                }
+
+                @media (max-width: 768px) {
+                    .form-row {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .upload-form {
+                        padding: 24px;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Setup form handlers
+            setupUploadForm(user);
+        }
+
+        function setupUploadForm(user) {
+            const form = document.getElementById('time-form');
+            const fileInput = document.getElementById('photo');
+            const fileUploadArea = document.getElementById('file-upload-area');
+            const progressBar = document.getElementById('progress-bar');
+            const progressBarFill = document.getElementById('progress-bar-fill');
+            const submitBtn = document.getElementById('submit-btn');
+            const uploadError = document.getElementById('upload-error');
+            const uploadErrorText = document.getElementById('upload-error-text');
+            const uploadSuccess = document.getElementById('upload-success');
+
+            // File upload handlers
+            fileUploadArea.addEventListener('click', () => fileInput.click());
+            
+            fileUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileUploadArea.style.borderColor = 'var(--primary-blue)';
+                fileUploadArea.style.background = 'rgba(0, 113, 195, 0.05)';
+            });
+
+            fileUploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                fileUploadArea.style.borderColor = 'var(--gray-200)';
+                fileUploadArea.style.background = 'var(--white)';
+            });
+
+            fileUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileUploadArea.style.borderColor = 'var(--gray-200)';
+                fileUploadArea.style.background = 'var(--white)';
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    updateFileDisplay(files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    updateFileDisplay(e.target.files[0]);
+                }
+            });
+
+            function updateFileDisplay(file) {
+                const fileName = fileUploadArea.querySelector('.file-name');
+                fileName.textContent = file.name;
+                fileUploadArea.classList.add('has-file');
             }
-        });
 
-        // Cerrar modal con Escape
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                closeModal();
+            // Form submission
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const startStation = document.getElementById('start-station').value.trim();
+                const endStation = document.getElementById('end-station').value.trim();
+                const minutes = parseInt(document.getElementById('minutes').value);
+                const seconds = parseInt(document.getElementById('seconds').value);
+                const date = document.getElementById('date').value;
+                const photo = fileInput.files[0];
+
+                // Validation
+                if (!startStation || !endStation || !photo || !date) {
+                    uploadErrorText.textContent = 'Por favor, completa todos los campos.';
+                    uploadError.classList.add('show');
+                    uploadSuccess.classList.remove('show');
+                    return;
+                }
+
+                if (minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+                    uploadErrorText.textContent = 'Los minutos y segundos deben estar entre 0 y 59.';
+                    uploadError.classList.add('show');
+                    uploadSuccess.classList.remove('show');
+                    return;
+                }
+
+                if (minutes === 0 && seconds === 0) {
+                    uploadErrorText.textContent = 'El tiempo no puede ser 0.';
+                    uploadError.classList.add('show');
+                    uploadSuccess.classList.remove('show');
+                    return;
+                }
+
+                // Get user name from Firestore
+                const userQuery = query(
+                    collection(db, 'usuarios'),
+                    where('uid', '==', user.uid)
+                );
+
+                const userSnapshot = await getDocs(userQuery);
+                let userName = 'Usuario';
+                
+                if (!userSnapshot.empty) {
+                    userName = userSnapshot.docs[0].data().nombre;
+                }
+
+                // Calculate total seconds
+                const totalSeconds = (minutes * 60) + seconds;
+                const formattedTime = `${minutes.toString().padStart(2, '0')}m. ${seconds.toString().padStart(2, '0')}s.`;
+                const route = `${startStation}-${endStation}`;
+
+                // Disable form
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Enviando...';
+                uploadError.classList.remove('show');
+                uploadSuccess.classList.remove('show');
+                progressBar.classList.add('show');
+
+                try {
+                    // Upload photo
+                    const storageRef = ref(storage, `capturas/${Date.now()}_${photo.name}`);
+                    const uploadTask = uploadBytesResumable(storageRef, photo);
+
+                    uploadTask.on('state_changed', (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        progressBarFill.style.width = progress + '%';
+                    });
+
+                    await uploadTask;
+                    const photoUrl = await getDownloadURL(storageRef);
+
+                    // Save to Firestore
+                    await addDoc(collection(db, 'tiempos_viaje'), {
+                        usuario: userName,
+                        ruta: route,
+                        tiempo_segundos: totalSeconds,
+                        tiempo_formateado: formattedTime,
+                        foto_url: photoUrl,
+                        verificado: false,
+                        fecha: new Date(date),
+                        uid_usuario: user.uid
+                    });
+
+                    // Success
+                    uploadSuccess.classList.add('show');
+                    form.reset();
+                    fileUploadArea.classList.remove('has-file');
+                    fileUploadArea.querySelector('.file-name').textContent = '';
+                    progressBar.classList.remove('show');
+                    progressBarFill.style.width = '0%';
+
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    uploadErrorText.textContent = 'Error al subir el tiempo. Por favor, inténtalo de nuevo.';
+                    uploadError.classList.add('show');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Enviar Tiempo';
+                }
+            });
+        }
+
+        function loadProfile(user) {
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `
+                <div class="profile-container">
+                    <h2>Mi Perfil</h2>
+                    <div class="profile-content">
+                        <div class="profile-stats">
+                            <div class="stat-card">
+                                <h3>Total de Viajes</h3>
+                                <div class="stat-number" id="total-trips">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Rating BiciMAD</h3>
+                                <div class="stat-number rating-placeholder">Próximamente</div>
+                            </div>
+                        </div>
+                        
+                        <div class="recent-trips">
+                            <h3>Últimos Viajes</h3>
+                            <div id="recent-trips-list">
+                                <div class="loading">
+                                    <div class="spinner"></div>
+                                    <p>Cargando viajes...</p>
+                                </div>
+                            </div>
+                            <button class="view-all-btn" id="view-all-btn">Ver Todos</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add profile styles
+            const style = document.createElement('style');
+            style.textContent = `
+                .profile-container h2 {
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 2rem;
+                    margin-bottom: 30px;
+                    color: var(--black);
+                }
+
+                .profile-content {
+                    display: grid;
+                    grid-template-columns: 1fr 2fr;
+                    gap: 30px;
+                }
+
+                .profile-stats {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 20px;
+                }
+
+                .stat-card {
+                    background: var(--white);
+                    border-radius: 16px;
+                    padding: 24px;
+                    text-align: center;
+                    border: 1px solid var(--gray-200);
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                }
+
+                .stat-card h3 {
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 1.1rem;
+                    margin-bottom: 12px;
+                    color: var(--gray-400);
+                    font-weight: 600;
+                }
+
+                .stat-number {
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 2.5rem;
+                    font-weight: 800;
+                    color: var(--primary-blue);
+                }
+
+                .rating-placeholder {
+                    font-size: 1.2rem;
+                    color: var(--gray-400);
+                    font-weight: 500;
+                }
+
+                .recent-trips {
+                    background: var(--white);
+                    border-radius: 16px;
+                    padding: 24px;
+                    border: 1px solid var(--gray-200);
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                }
+
+                .recent-trips h3 {
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 1.3rem;
+                    margin-bottom: 20px;
+                    color: var(--black);
+                }
+
+                .recent-trips-list {
+                    margin-bottom: 20px;
+                }
+
+                .trip-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 16px;
+                    border-bottom: 1px solid var(--gray-200);
+                    transition: all 0.3s ease;
+                }
+
+                .trip-item:hover {
+                    background: var(--gray-100);
+                }
+
+                .trip-item:last-child {
+                    border-bottom: none;
+                }
+
+                .trip-info {
+                    flex: 1;
+                }
+
+                .trip-route {
+                    font-weight: 600;
+                    color: var(--black);
+                    margin-bottom: 4px;
+                }
+
+                .trip-time {
+                    color: var(--primary-blue);
+                    font-weight: 700;
+                    font-size: 1.1rem;
+                }
+
+                .trip-date {
+                    color: var(--gray-400);
+                    font-size: 0.9rem;
+                }
+
+                .trip-status {
+                    padding: 6px 12px;
+                    border-radius: 50px;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                }
+
+                .trip-status.verified {
+                    background: rgba(40, 167, 69, 0.1);
+                    color: var(--success);
+                }
+
+                .trip-status.pending {
+                    background: rgba(255, 193, 7, 0.1);
+                    color: #ffc107;
+                }
+
+                .view-all-btn {
+                    width: 100%;
+                    padding: 12px;
+                    background: var(--primary-blue);
+                    color: var(--white);
+                    border: none;
+                    border-radius: 12px;
+                    font-family: inherit;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+
+                .view-all-btn:hover {
+                    background: var(--primary-dark);
+                }
+
+                .loading {
+                    text-align: center;
+                    padding: 40px 20px;
+                    color: var(--gray-400);
+                }
+
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 4px solid var(--gray-200);
+                    border-top-color: var(--primary-blue);
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 16px;
+                }
+
+                @media (max-width: 768px) {
+                    .profile-content {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .profile-stats {
+                        flex-direction: row;
+                        justify-content: space-between;
+                    }
+
+                    .stat-card {
+                        flex: 1;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Load profile data
+            loadProfileData(user);
+        }
+
+        async function loadProfileData(user) {
+            const totalTripsElement = document.getElementById('total-trips');
+            const recentTripsList = document.getElementById('recent-trips-list');
+            const viewAllBtn = document.getElementById('view-all-btn');
+
+            try {
+                // Get user's trips
+                const tripsQuery = query(
+                    collection(db, 'tiempos_viaje'),
+                    where('uid_usuario', '==', user.uid),
+                    orderBy('fecha', 'desc')
+                );
+
+                const tripsSnapshot = await getDocs(tripsQuery);
+                const trips = tripsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Update total trips count
+                totalTripsElement.textContent = trips.length;
+
+                // Show recent trips (last 5)
+                const recentTrips = trips.slice(0, 5);
+                
+                if (recentTrips.length === 0) {
+                    recentTripsList.innerHTML = `
+                        <div class="empty-state">
+                            <p>Aún no has subido ningún tiempo.</p>
+                            <p>¡Sé el primero en participar!</p>
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+                    recentTrips.forEach(trip => {
+                        const tripDate = trip.fecha ? trip.fecha.toDate().toLocaleDateString('es-ES') : 'Fecha no disponible';
+                        const statusClass = trip.verificado ? 'verified' : 'pending';
+                        const statusText = trip.verificado ? 'Verificado' : 'Pendiente';
+                        
+                        html += `
+                            <div class="trip-item">
+                                <div class="trip-info">
+                                    <div class="trip-route">${trip.ruta}</div>
+                                    <div class="trip-time">${trip.tiempo_formateado}</div>
+                                    <div class="trip-date">${tripDate}</div>
+                                </div>
+                                <div class="trip-status ${statusClass}">${statusText}</div>
+                            </div>
+                        `;
+                    });
+                    
+                    recentTripsList.innerHTML = html;
+                }
+
+                // View all button handler
+                viewAllBtn.addEventListener('click', () => {
+                    // TODO: Implement view all trips modal or page
+                    alert('Ver todos los viajes - Función en desarrollo');
+                });
+
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                recentTripsList.innerHTML = `
+                    <div class="empty-state">
+                        <p>Error al cargar los datos del perfil.</p>
+                    </div>
+                `;
             }
-        });
-
-        // Cargar ranking inicial
-        loadRanking();
+        }
     </script>
 </body>
 </html>

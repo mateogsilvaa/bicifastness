@@ -6,7 +6,6 @@
     <title>Home | BiciFastness</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap');
-        
         body { margin: 0; padding: 0; background-color: #121212; color: #f1efeb; font-family: 'Poppins', sans-serif; background-image: radial-gradient(circle at 50% -20%, #1a2a3a 0%, #121212 80%); min-height: 100vh; display: flex; flex-direction: column; }
         nav { background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid #333; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         nav .brand { color: #0071c3; font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; }
@@ -31,7 +30,6 @@
     </style>
 </head>
 <body>
-
     <nav>
         <div class="brand">BiciFastness</div>
         <div class="links">
@@ -42,29 +40,15 @@
             <a href="#" id="logout-btn">Salir</a>
         </div>
     </nav>
-
     <div class="container">
         <div class="hero">
             <h1>EL CIRCUITO <br><span>URBANO</span> DEFINITIVO</h1>
             <p>Compite contra la ciudad. Registra tus tiempos entre estaciones de BiciMAD y domina el asfalto.</p>
         </div>
-
         <div class="dashboard-grid">
-            <a href="ranking.html" class="dash-card">
-                <div class="card-icon">🏆</div>
-                <h2>Ver Rankings</h2>
-                <p>Explora las rutas más rápidas, descubre los récords actuales y mira quién lidera el podio.</p>
-            </a>
-            <a href="subir.html" class="dash-card">
-                <div class="card-icon">⏱️</div>
-                <h2>Subir Tiempo</h2>
-                <p>¿Acabas de destrozar el cronómetro? Sube tu captura y reclama tu posición en la tabla.</p>
-            </a>
-            <a href="profile.html" class="dash-card">
-                <div class="card-icon">👤</div>
-                <h2>Mi Perfil</h2>
-                <p>Revisa tu historial de viajes, comprueba el estado de tus verificaciones y analiza tu rendimiento.</p>
-            </a>
+            <a href="ranking.html" class="dash-card"><div class="card-icon">🏆</div><h2>Ver Rankings</h2><p>Explora las rutas más rápidas, descubre los récords actuales y mira quién lidera el podio.</p></a>
+            <a href="subir.html" class="dash-card"><div class="card-icon">⏱️</div><h2>Subir Tiempo</h2><p>¿Acabas de destrozar el cronómetro? Sube tu captura y reclama tu posición en la tabla.</p></a>
+            <a href="profile.html" class="dash-card"><div class="card-icon">👤</div><h2>Mi Perfil</h2><p>Revisa tu historial de viajes, comprueba el estado de tus verificaciones y analiza tu rendimiento.</p></a>
         </div>
     </div>
 
@@ -76,7 +60,6 @@
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -84,13 +67,10 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        onAuthStateChanged(auth, (user) => {
-            if (!user) window.location.href = "index.html";
-        });
+        onAuthStateChanged(auth, (user) => { if (!user) window.location.href = "index.html"; });
 
         document.getElementById('logout-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            signOut(auth).then(() => window.location.href = "index.html");
+            e.preventDefault(); signOut(auth).then(() => window.location.href = "index.html");
         });
     </script>
 </body>

@@ -68,13 +68,11 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        import { getStorage, ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -82,7 +80,6 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
 
         onAuthStateChanged(auth, (user) => {
             if (!user) window.location.href = "index.html";
@@ -116,12 +113,13 @@
 
                     const card = document.createElement('div');
                     card.className = 'admin-card';
+                    // Nota: data.foto_url ahora es un texto Base64 gigante, pero HTML lo lee igual de bien
                     card.innerHTML = `
                         <div class="card-header"><div class="route-tag">Ruta ${data.ruta}</div><div class="time-tag">${data.tiempo_formateado}</div></div>
                         <div class="user-info">Piloto: <span>${data.usuario}</span>Fecha: <span>${dateString}</span></div>
                         <button class="btn-view view-photo" data-url="${data.foto_url}">📷 Ver Captura</button>
                         <div class="actions">
-                            <button class="btn-reject reject-btn" data-id="${docId}" data-url="${data.foto_url}">Rechazar</button>
+                            <button class="btn-reject reject-btn" data-id="${docId}">Rechazar</button>
                             <button class="btn-approve approve-btn" data-id="${docId}">Aprobar</button>
                         </div>
                     `;
@@ -161,14 +159,9 @@
                 btn.addEventListener('click', async (e) => {
                     if(!confirm("¿Seguro que quieres borrar este tiempo para siempre?")) return;
                     const docId = e.currentTarget.getAttribute('data-id');
-                    const photoUrl = e.currentTarget.getAttribute('data-url');
                     e.currentTarget.disabled = true; e.currentTarget.innerText = "...";
                     try {
-                        try {
-                            const decodedUrl = decodeURIComponent(photoUrl);
-                            const pathMatch = decodedUrl.match(/o\/(.+?)\?/);
-                            if (pathMatch && pathMatch[1]) await deleteObject(ref(storage, pathMatch[1]));
-                        } catch (storageErr) { console.warn("La imagen no existía en Storage.", storageErr); }
+                        // Magia: Solo borramos el doc de Firestore. Al borrarlo, la imagen (Base64) muere con él.
                         await deleteDoc(doc(db, "tiempos_viaje", docId));
                         loadPendingTrips();
                     } catch (err) { alert("Error al rechazar: " + err.message); e.currentTarget.disabled = false; e.currentTarget.innerText = "Rechazar"; }

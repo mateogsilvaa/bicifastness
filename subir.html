@@ -95,13 +95,11 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -109,7 +107,6 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
 
         let currentUserEmail = null;
 
@@ -136,6 +133,33 @@
             }
         });
 
+        // FUNCIÓN MÁGICA: Aplasta la imagen para que quepa en Firestore
+        function procesarImagenBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 600; // Reducimos el ancho a 600px
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        // Guardamos con compresión JPG brutal (calidad 50%)
+                        resolve(canvas.toDataURL('image/jpeg', 0.5));
+                    };
+                    img.onerror = (error) => reject(error);
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
         const btn = document.getElementById('submit-btn');
         const statusMsg = document.getElementById('status-msg');
 
@@ -150,32 +174,28 @@
             statusMsg.className = "error";
             if(!origen || !destino || isNaN(min) || isNaN(sec) || !dateVal || !file) { statusMsg.innerText = "Por favor, rellena todos los campos y sube una foto."; return; }
             if(min < 0 || min > 59 || sec < 0 || sec > 59) { statusMsg.innerText = "Los minutos y segundos deben estar entre 0 y 59."; return; }
-            if(file.size > 10 * 1024 * 1024) { statusMsg.innerText = "La imagen es demasiado grande (Máx 10MB)."; return; }
 
             try {
                 btn.disabled = true;
                 statusMsg.className = "loading";
-                statusMsg.innerText = "Subiendo imagen... no cierres la ventana.";
+                statusMsg.innerText = "Procesando imagen y guardando datos...";
 
                 const rutaString = `${origen}-${destino}`;
                 const tiempoTotalSegundos = (min * 60) + sec;
                 const tiempoFormateado = `${min.toString().padStart(2, '0')}m. ${sec.toString().padStart(2, '0')}s.`;
-                const fileName = `${Date.now()}_${file.name}`;
-                
-                const storageRef = ref(storage, `capturas/${fileName}`);
-                await uploadBytes(storageRef, file);
-                
-                statusMsg.innerText = "Imagen subida. Guardando viaje...";
-                const fotoUrl = await getDownloadURL(storageRef);
                 const fechaGuardar = new Date(dateVal + 'T00:00:00').toISOString();
 
+                // Convertimos la imagen a texto
+                const fotoBase64 = await procesarImagenBase64(file);
+
+                // Lo enviamos a Firestore
                 await addDoc(collection(db, "tiempos_viaje"), {
                     usuario: currentUserEmail,
                     ruta: rutaString,
                     tiempo_segundos: tiempoTotalSegundos,
                     tiempo_formateado: tiempoFormateado,
                     fecha: fechaGuardar,
-                    foto_url: fotoUrl,
+                    foto_url: fotoBase64, // Aquí va el chorizo de texto de la imagen
                     verificado: false 
                 });
 
@@ -190,7 +210,11 @@
             } catch (error) {
                 console.error(error);
                 statusMsg.className = "error";
-                statusMsg.innerText = "Error: " + error.message;
+                if(error.message.includes("payload is too large")) {
+                    statusMsg.innerText = "Error: La imagen sigue siendo demasiado grande para Firestore.";
+                } else {
+                    statusMsg.innerText = "Error: " + error.message;
+                }
             } finally {
                 btn.disabled = false;
             }

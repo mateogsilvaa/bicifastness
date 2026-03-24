@@ -6,7 +6,6 @@
     <title>BiciFastness - Login</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
-        
         body { margin: 0; padding: 0; background-color: #121212; color: #f1efeb; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-image: radial-gradient(circle at 50% 0%, #1a2a3a 0%, #121212 60%); }
         .card { background: #1a1a1a; padding: 2.5rem 2rem; border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.8); width: 100%; max-width: 350px; text-align: center; }
         h1 { color: #0071c3; margin-top: 0; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
@@ -23,20 +22,14 @@
     </style>
 </head>
 <body>
-
     <div class="card">
         <h1>BiciFastness</h1>
         <h3>Iniciar Sesión</h3>
-        
         <input type="email" id="email" placeholder="Correo electrónico">
         <input type="password" id="password" placeholder="Contraseña">
-        
         <button id="action-btn">Entrar</button>
         <div id="error-msg"></div>
-        
-        <div class="toggle">
-            <a href="register.html">¿No tienes cuenta? Regístrate aquí</a>
-        </div>
+        <div class="toggle"><a href="register.html">¿No tienes cuenta? Regístrate aquí</a></div>
     </div>
 
     <script type="module">
@@ -47,7 +40,6 @@
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -55,9 +47,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) window.location.href = "home.html";
-        });
+        onAuthStateChanged(auth, (user) => { if (user) window.location.href = "home.html"; });
 
         const btn = document.getElementById('action-btn');
         const errorMsg = document.getElementById('error-msg');
@@ -66,19 +56,12 @@
             const email = document.getElementById('email').value.trim();
             const pass = document.getElementById('password').value;
             errorMsg.innerText = "";
-
-            if(!email || !pass) {
-                errorMsg.innerText = "Rellena todos los campos, por favor.";
-                return;
-            }
-
+            if(!email || !pass) { errorMsg.innerText = "Rellena todos los campos, por favor."; return; }
             try {
-                btn.innerText = "Cargando...";
-                btn.disabled = true;
+                btn.innerText = "Cargando..."; btn.disabled = true;
                 await signInWithEmailAndPassword(auth, email, pass);
             } catch (error) {
-                btn.disabled = false;
-                btn.innerText = "Entrar";
+                btn.disabled = false; btn.innerText = "Entrar";
                 if(error.code === 'auth/invalid-credential') errorMsg.innerText = "Correo o contraseña incorrectos.";
                 else if(error.code === 'auth/invalid-email') errorMsg.innerText = "El formato del correo no es válido.";
                 else errorMsg.innerText = "Error: " + error.message;

@@ -6,7 +6,6 @@
     <title>Registro | BiciFastness</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
-        
         body { margin: 0; padding: 0; background-color: #121212; color: #f1efeb; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-image: radial-gradient(circle at 50% 0%, #1a2a3a 0%, #121212 60%); }
         .card { background: #1a1a1a; padding: 2.5rem 2rem; border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.8); width: 100%; max-width: 350px; text-align: center; animation: fadeIn 0.5s ease-out; }
         h1 { color: #0071c3; margin-top: 0; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
@@ -24,21 +23,15 @@
     </style>
 </head>
 <body>
-
     <div class="card">
         <h1>BiciFastness</h1>
         <h3>Nuevo Piloto</h3>
-        
         <input type="email" id="email" placeholder="Correo electrónico">
         <input type="password" id="password" placeholder="Contraseña (mín. 6 caracteres)">
         <input type="password" id="confirm-password" placeholder="Repite la contraseña">
-        
         <button id="register-btn">Empezar a competir</button>
         <div id="error-msg"></div>
-        
-        <div class="toggle">
-            <a href="index.html">¿Ya tienes cuenta? Inicia sesión aquí</a>
-        </div>
+        <div class="toggle"><a href="index.html">¿Ya tienes cuenta? Inicia sesión aquí</a></div>
     </div>
 
     <script type="module">
@@ -49,7 +42,6 @@
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -57,9 +49,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) window.location.href = "home.html";
-        });
+        onAuthStateChanged(auth, (user) => { if (user) window.location.href = "home.html"; });
 
         const btn = document.getElementById('register-btn');
         const errorMsg = document.getElementById('error-msg');
@@ -69,18 +59,14 @@
             const pass = document.getElementById('password').value;
             const confirmPass = document.getElementById('confirm-password').value;
             errorMsg.innerText = "";
-
             if(!email || !pass || !confirmPass) { errorMsg.innerText = "Por favor, rellena todos los campos."; return; }
             if(pass !== confirmPass) { errorMsg.innerText = "Las contraseñas no coinciden."; return; }
             if(pass.length < 6) { errorMsg.innerText = "La contraseña debe tener al menos 6 caracteres."; return; }
-
             try {
-                btn.innerText = "Creando cuenta...";
-                btn.disabled = true;
+                btn.innerText = "Creando cuenta..."; btn.disabled = true;
                 await createUserWithEmailAndPassword(auth, email, pass);
             } catch (error) {
-                btn.disabled = false;
-                btn.innerText = "Empezar a competir";
+                btn.disabled = false; btn.innerText = "Empezar a competir";
                 if(error.code === 'auth/email-already-in-use') errorMsg.innerText = "Este correo ya está registrado.";
                 else if(error.code === 'auth/invalid-email') errorMsg.innerText = "El formato del correo no es válido.";
                 else errorMsg.innerText = "Error: " + error.message;

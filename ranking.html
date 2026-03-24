@@ -6,7 +6,6 @@
     <title>Rankings | BiciFastness</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        
         body { margin: 0; padding: 0; background-color: #121212; color: #f1efeb; font-family: 'Poppins', sans-serif; }
         nav { background: #0a0a0a; border-bottom: 1px solid #333; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         nav .brand { color: #0071c3; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
@@ -43,7 +42,6 @@
     </style>
 </head>
 <body>
-
     <nav>
         <div class="brand">BiciFastness</div>
         <div class="links">
@@ -54,7 +52,6 @@
             <a href="#" id="logout-btn">Salir</a>
         </div>
     </nav>
-
     <div class="container">
         <div id="loading-global">Sincronizando con la base de datos...</div>
         <div class="search-section" id="search-section" style="display: none;">
@@ -68,7 +65,6 @@
             <div id="ranking-list"></div>
         </div>
     </div>
-
     <div class="modal" id="photo-modal"><span class="close-modal" id="close-modal">&times;</span><img id="modal-img" src="" alt="Captura del viaje"></div>
 
     <script type="module">
@@ -80,7 +76,6 @@
             apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
             authDomain: "bicifastness.firebaseapp.com",
             projectId: "bicifastness",
-            storageBucket: "bicifastness.appspot.com",
             messagingSenderId: "656116731421",
             appId: "1:656116731421:web:a4154d028fe9721c5800f4"
         };
@@ -117,8 +112,7 @@
                 document.getElementById('search-section').style.display = 'block';
                 renderRouteButtons(uniqueRoutes);
             } catch (error) {
-                console.error(error);
-                document.getElementById('loading-global').innerText = "Error cargando los datos.";
+                console.error(error); document.getElementById('loading-global').innerText = "Error cargando los datos.";
             }
         }
 

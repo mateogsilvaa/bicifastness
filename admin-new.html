@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiciFastness - Panel Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #000000;
+            --accent-blue: #0071c3;
+            --accent-cream: #f1efeb;
+            --text-primary: #ffffff;
+            --text-secondary: #f1efeb;
+            --border-color: #333333;
+            --card-bg: #1a1a1a;
+            --hover-bg: #2a2a2a;
+            --success: #28a745;
+            --error: #dc3545;
+            --warning: #ffc107;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+        }
+
+        /* Navigation */
+        nav {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .nav-logo {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-blue);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            font-weight: 800;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-blue);
+        }
+
+        .logout-btn {
+            background: var(--accent-blue);
+            color: var(--text-primary);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #005a9e;
+            transform: translateY(-1px);
+        }
+
+        /* Main Content */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 113, 195, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-card-title {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .stat-card-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card-change {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .stat-card-change.positive {
+            color: var(--success);
+        }
+
+        .stat-card-change.negative {
+            color: var(--error);
+        }
+
+        /* Filter Tabs */
+        .filter-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .filter-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 1rem 1.5rem;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+
+        .filter-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .filter-tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        /* Pending Trips Table */
+        .trips-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .refresh-btn {
+            background: var(--accent-blue);
+            color: var(--text-primary);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #005a9e;
+            transform: translateY(-1px);
+        }
+
+        .trips-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .trips-table th {
+            background: var(--bg-primary);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .trips-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .trips-table tr:hover {
+            background: var(--hover-bg);
+        }
+
+        .trip-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .trip-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .trip-details {
+            flex: 1;
+        }
+
+        .trip-user {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .trip-route {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .trip-time {
+            font-weight: 600;
+            color: var(--accent-blue);
+            font-size: 1.1rem;
+        }
+
+        .trip-date {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .trip-photo {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .trip-photo:hover {
+            transform: scale(1.05);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-approve {
+            background: var(--success);
+            color: var(--text-primary);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-approve:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .btn-reject {
+            background: var(--error);
+            color: var(--text-primary);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-reject:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .btn-view {
+            background: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-view:hover {
+            background: var(--accent-blue);
+            color: var(--text-primary);
+        }
+
+        /* Loading State */
+        .loading-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-body img {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .modal-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .modal-info-item {
+            background: var(--bg-primary);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-info-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .modal-info-value {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .nav-links a:not(.logout-btn) {
+                display: none;
+            }
+
+            main {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-tabs {
+                flex-wrap: wrap;
+            }
+
+            .trips-table {
+                font-size: 0.9rem;
+            }
+
+            .trips-table th,
+            .trips-table td {
+                padding: 0.75rem 0.5rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .modal-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">
+            <div class="nav-logo">🚴</div>
+            <span>BiciFastness Admin</span>
+        </div>
+        <div class="nav-links">
+            <a href="ranking.html">Rankings</a>
+            <a href="subir.html">Subir Tiempo</a>
+            <a href="profile.html">Mi Perfil</a>
+            <a href="admin.html">Admin</a>
+            <button class="logout-btn" id="logoutBtn">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <main>
+        <div class="page-header">
+            <h1>Panel de Administración</h1>
+            <p class="page-subtitle">Gestiona la aprobación de tiempos y monitorea la actividad</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-card-icon">⏱️</div>
+                    <div class="stat-card-title">Tiempos Pendientes</div>
+                </div>
+                <div class="stat-card-value" id="pendingCount">0</div>
+                <div class="stat-card-change negative">Esperando aprobación</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-card-icon">✅</div>
+                    <div class="stat-card-title">Tiempos Verificados</div>
+                </div>
+                <div class="stat-card-value" id="verifiedCount">0</div>
+                <div class="stat-card-change positive">Aprobados y publicados</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-card-icon">👥</div>
+                    <div class="stat-card-title">Usuarios Activos</div>
+                </div>
+                <div class="stat-card-value" id="usersCount">0</div>
+                <div class="stat-card-change positive">Registrados en la plataforma</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <div class="stat-card-icon">📊</div>
+                    <div class="stat-card-title">Tasa de Aprobación</div>
+                </div>
+                <div class="stat-card-value" id="approvalRate">0%</div>
+                <div class="stat-card-change positive" id="approvalTrend">Sin datos</div>
+            </div>
+        </div>
+
+        <div class="filter-tabs">
+            <button class="filter-tab active" data-status="pending">Pendientes</button>
+            <button class="filter-tab" data-status="verified">Verificados</button>
+            <button class="filter-tab" data-status="rejected">Rechazados</button>
+            <button class="filter-tab" data-status="all">Todos</button>
+        </div>
+
+        <div class="trips-section">
+            <div class="section-header">
+                <h2 class="section-title">Tiempos por Verificar</h2>
+                <button class="refresh-btn" id="refreshBtn">Actualizar</button>
+            </div>
+            <div id="tripsContainer">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Cargando tiempos...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Photo Modal -->
+    <div id="photoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Detalles del Viaje</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <img id="modalImage" src="" alt="Foto del viaje">
+                <div class="modal-info">
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">Usuario</div>
+                        <div class="modal-info-value" id="modalUser">-</div>
+                    </div>
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">Ruta</div>
+                        <div class="modal-info-value" id="modalRoute">-</div>
+                    </div>
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">Tiempo</div>
+                        <div class="modal-info-value" id="modalTime">-</div>
+                    </div>
+                    <div class="modal-info-item">
+                        <div class="modal-info-label">Fecha</div>
+                        <div class="modal-info-value" id="modalDate">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
+            authDomain: "bicifastness.firebaseapp.com",
+            databaseURL: "https://bicifastness-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "bicifastness",
+            storageBucket: "bicifastness.firebasestorage.app",
+            messagingSenderId: "656116731421",
+            appId: "1:656116731421:web:a4154d028fe9721c5800f4",
+            measurementId: "G-CSFX8EX71S"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Check authentication
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            initializeApp();
+        });
+
+        // DOM Elements
+        const logoutBtn = document.getElementById('logoutBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const tripsContainer = document.getElementById('tripsContainer');
+        const photoModal = document.getElementById('photoModal');
+        const modalClose = document.getElementById('modalClose');
+        const filterTabs = document.querySelectorAll('.filter-tab');
+
+        let currentFilter = 'pending';
+        let allTrips = [];
+
+        function initializeApp() {
+            setupEventListeners();
+            loadStats();
+            loadTrips();
+        }
+
+        function setupEventListeners() {
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    await signOut(auth);
+                    window.location.href = 'index.html';
+                });
+            }
+
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    loadStats();
+                    loadTrips();
+                });
+            }
+
+            if (modalClose) {
+                modalClose.addEventListener('click', closeModal);
+            }
+
+            photoModal.addEventListener('click', (e) => {
+                if (e.target === photoModal) {
+                    closeModal();
+                }
+            });
+
+            filterTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    filterTabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentFilter = tab.dataset.status;
+                    displayTrips();
+                });
+            });
+        }
+
+        async function loadStats() {
+            try {
+                // Load pending trips
+                const pendingQuery = query(
+                    collection(db, 'tiempos_viaje'),
+                    where('verificado', '==', false)
+                );
+                const pendingSnapshot = await getDocs(pendingQuery);
+                document.getElementById('pendingCount').textContent = pendingSnapshot.size;
+
+                // Load verified trips
+                const verifiedQuery = query(
+                    collection(db, 'tiempos_viaje'),
+                    where('verificado', '==', true)
+                );
+                const verifiedSnapshot = await getDocs(verifiedQuery);
+                document.getElementById('verifiedCount').textContent = verifiedSnapshot.size;
+
+                // Calculate approval rate
+                const totalTrips = pendingSnapshot.size + verifiedSnapshot.size;
+                const approvalRate = totalTrips > 0 ? Math.round((verifiedSnapshot.size / totalTrips) * 100) : 0;
+                document.getElementById('approvalRate').textContent = approvalRate + '%';
+
+                const approvalTrend = document.getElementById('approvalTrend');
+                if (approvalRate >= 80) {
+                    approvalTrend.textContent = 'Excelente';
+                    approvalTrend.className = 'stat-card-change positive';
+                } else if (approvalRate >= 60) {
+                    approvalTrend.textContent = 'Buena';
+                    approvalTrend.className = 'stat-card-change positive';
+                } else {
+                    approvalTrend.textContent = 'Mejorable';
+                    approvalTrend.className = 'stat-card-change negative';
+                }
+
+                // Load users count
+                const usersSnapshot = await getDocs(collection(db, 'usuarios'));
+                document.getElementById('usersCount').textContent = usersSnapshot.size;
+
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        function loadTrips() {
+            const tripsQuery = query(
+                collection(db, 'tiempos_viaje'),
+                orderBy('fecha', 'desc')
+            );
+
+            onSnapshot(tripsQuery, (snapshot) => {
+                allTrips = [];
+                snapshot.forEach(doc => {
+                    allTrips.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                displayTrips();
+            }, (error) => {
+                console.error('Error loading trips:', error);
+                tripsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <p>Error al cargar los tiempos</p>
+                    </div>
+                `;
+            });
+        }
+
+        function displayTrips() {
+            let filteredTrips = allTrips;
+
+            if (currentFilter !== 'all') {
+                if (currentFilter === 'pending') {
+                    filteredTrips = allTrips.filter(trip => !trip.verificado);
+                } else if (currentFilter === 'verified') {
+                    filteredTrips = allTrips.filter(trip => trip.verificado);
+                } else if (currentFilter === 'rejected') {
+                    // For now, we don't have rejected status, but we can add it later
+                    filteredTrips = [];
+                }
+            }
+
+            if (filteredTrips.length === 0) {
+                tripsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <p>No hay tiempos ${currentFilter === 'all' ? '' : currentFilter === 'pending' ? 'pendientes' : currentFilter === 'verified' ? 'verificados' : 'rechazados'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <table class="trips-table">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Ruta</th>
+                            <th>Tiempo</th>
+                            <th>Fecha</th>
+                            <th>Foto</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            filteredTrips.forEach(trip => {
+                const date = trip.fecha ? trip.fecha.toDate().toLocaleDateString('es-ES') : 'Fecha no disponible';
+                const initials = trip.usuario ? trip.usuario.substring(0, 2).toUpperCase() : '??';
+                
+                html += `
+                    <tr>
+                        <td>
+                            <div class="trip-info">
+                                <div class="trip-avatar">${initials}</div>
+                                <div class="trip-details">
+                                    <div class="trip-user">${escapeHtml(trip.usuario || 'Usuario')}</div>
+                                    <div class="trip-route">UID: ${trip.uid_usuario ? trip.uid_usuario.substring(0, 8) : 'N/A'}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${escapeHtml(trip.ruta || 'N/A')}</td>
+                        <td><span class="trip-time">${escapeHtml(trip.tiempo_formateado || 'N/A')}</span></td>
+                        <td>${date}</td>
+                        <td>
+                            ${trip.foto_url ? 
+                                `<img src="${trip.foto_url}" alt="Foto" class="trip-photo" onclick="openPhotoModal('${escapeHtml(trip.usuario)}', '${trip.foto_url}', '${escapeHtml(trip.ruta)}', '${escapeHtml(trip.tiempo_formateado)}', '${date}')">` : 
+                                'Sin foto'
+                            }
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                ${!trip.verificado ? 
+                                    `<button class="btn-approve" onclick="approveTrip('${trip.id}')">Aprobar</button>
+                                    <button class="btn-reject" onclick="rejectTrip('${trip.id}')">Rechazar</button>` :
+                                    `<span style="color: var(--success); font-weight: 600;">✅ Verificado</span>`
+                                }
+                                <button class="btn-view" onclick="openPhotoModal('${escapeHtml(trip.usuario)}', '${trip.foto_url}', '${escapeHtml(trip.ruta)}', '${escapeHtml(trip.tiempo_formateado)}', '${date}')">
+                                    Ver
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            tripsContainer.innerHTML = html;
+        }
+
+        async function approveTrip(tripId) {
+            try {
+                const tripRef = doc(db, 'tiempos_viaje', tripId);
+                await updateDoc(tripRef, {
+                    verificado: true
+                });
+
+                // Reload stats
+                loadStats();
+
+                console.log('Trip approved successfully');
+            } catch (error) {
+                console.error('Error approving trip:', error);
+                alert('Error al aprobar el tiempo. Por favor, inténtalo de nuevo.');
+            }
+        }
+
+        async function rejectTrip(tripId) {
+            if (!confirm('¿Estás seguro de que quieres rechazar este tiempo? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            try {
+                const tripRef = doc(db, 'tiempos_viaje', tripId);
+                await deleteDoc(tripRef);
+
+                // Reload stats
+                loadStats();
+
+                console.log('Trip rejected successfully');
+            } catch (error) {
+                console.error('Error rejecting trip:', error);
+                alert('Error al rechazar el tiempo. Por favor, inténtalo de nuevo.');
+            }
+        }
+
+        function openPhotoModal(usuario, fotoUrl, ruta, tiempo, fecha) {
+            if (!fotoUrl || fotoUrl === 'undefined') return;
+            
+            document.getElementById('modalTitle').textContent = 'Detalles del Viaje';
+            document.getElementById('modalImage').src = fotoUrl;
+            document.getElementById('modalUser').textContent = usuario || 'Usuario';
+            document.getElementById('modalRoute').textContent = ruta || 'N/A';
+            document.getElementById('modalTime').textContent = tiempo || 'N/A';
+            document.getElementById('modalDate').textContent = fecha || 'N/A';
+            photoModal.classList.add('show');
+        }
+
+        function closeModal() {
+            photoModal.classList.remove('show');
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text ? text.replace(/[&<>"']/g, m => map[m]) : '';
+        }
+
+        // Make functions global for onclick handlers
+        window.approveTrip = approveTrip;
+        window.rejectTrip = rejectTrip;
+        window.openPhotoModal = openPhotoModal;
+    </script>
+</body>
+</html>

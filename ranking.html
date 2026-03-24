@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiciFastness - Rankings</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #000000;
+            --accent-blue: #0071c3;
+            --accent-cream: #f1efeb;
+            --text-primary: #ffffff;
+            --text-secondary: #f1efeb;
+            --border-color: #333333;
+            --card-bg: #1a1a1a;
+            --hover-bg: #2a2a2a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+        }
+
+        /* Navigation */
+        nav {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .nav-logo {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-blue);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            font-weight: 800;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-blue);
+        }
+
+        .logout-btn {
+            background: var(--accent-blue);
+            color: var(--text-primary);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #005a9e;
+            transform: translateY(-1px);
+        }
+
+        /* Main Content */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        /* Route Search */
+        .search-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-container {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(0, 113, 195, 0.2);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-top: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .search-results.show {
+            display: block;
+        }
+
+        .route-item {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .route-item:last-child {
+            border-bottom: none;
+        }
+
+        .route-item:hover {
+            background: var(--hover-bg);
+        }
+
+        .route-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .route-count {
+            background: var(--accent-blue);
+            color: var(--text-primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .selected-route {
+            background: rgba(0, 113, 195, 0.1);
+            border: 1px solid var(--accent-blue);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .selected-route h3 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .selected-route p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Ranking Table */
+        .ranking-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .ranking-section.show {
+            display: block;
+        }
+
+        .ranking-header {
+            background: rgba(0, 113, 195, 0.1);
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ranking-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .ranking-table th {
+            background: var(--bg-primary);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ranking-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .ranking-table tr:hover {
+            background: var(--hover-bg);
+        }
+
+        .position {
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--bg-primary);
+        }
+
+        .position.gold {
+            background: linear-gradient(135deg, #ffd700, #FFA500);
+            color: var(--bg-primary);
+        }
+
+        .position.silver {
+            background: linear-gradient(135deg, #c0c0c0, #A0A0A0);
+            color: var(--bg-primary);
+        }
+
+        .position.bronze {
+            background: linear-gradient(135deg, #cd7f32, #B8860B);
+            color: var(--text-primary);
+        }
+
+        .time {
+            font-weight: 600;
+            color: var(--accent-blue);
+            font-size: 1.1rem;
+        }
+
+        .view-photo-btn {
+            background: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .view-photo-btn:hover {
+            background: var(--accent-blue);
+            color: var(--text-primary);
+        }
+
+        /* Loading and Empty States */
+        .loading-state, .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-body img {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .nav-links a:not(.logout-btn) {
+                display: none;
+            }
+
+            main {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .ranking-table {
+                font-size: 0.9rem;
+            }
+
+            .ranking-table th,
+            .ranking-table td {
+                padding: 0.75rem 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">
+            <div class="nav-logo">🚴</div>
+            <span>BiciFastness</span>
+        </div>
+        <div class="nav-links">
+            <a href="ranking.html">Rankings</a>
+            <a href="subir.html">Subir Tiempo</a>
+            <a href="profile.html">Mi Perfil</a>
+            <a href="admin.html">Admin</a>
+            <button class="logout-btn" id="logoutBtn">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <main>
+        <div class="page-header">
+            <h1>Rankings de Rutas</h1>
+            <p class="page-subtitle">Busca tu ruta y compite con los mejores tiempos</p>
+        </div>
+
+        <div class="search-section">
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="routeSearch" 
+                    class="search-input" 
+                    placeholder="Buscar estación (ej: 180, Plaza Castilla...)"
+                    autocomplete="off"
+                >
+                <div id="searchResults" class="search-results"></div>
+            </div>
+
+            <div id="selectedRoute" class="selected-route" style="display: none;">
+                <h3>Ruta Seleccionada</h3>
+                <p id="selectedRouteName">-</p>
+            </div>
+        </div>
+
+        <div id="rankingSection" class="ranking-section">
+            <div class="ranking-header">
+                <h2>Podio de la Ruta</h2>
+            </div>
+            <div id="rankingContent">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Cargando ranking...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Photo Modal -->
+    <div id="photoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Foto del Viaje</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <img id="modalImage" src="" alt="Foto del viaje">
+                <p id="modalDescription"></p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
+            authDomain: "bicifastness.firebaseapp.com",
+            databaseURL: "https://bicifastness-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "bicifastness",
+            storageBucket: "bicifastness.firebasestorage.app",
+            messagingSenderId: "656116731421",
+            appId: "1:656116731421:web:a4154d028fe9721c5800f4",
+            measurementId: "G-CSFX8EX71S"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Check authentication
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            initializeApp();
+        });
+
+        // DOM Elements
+        const routeSearch = document.getElementById('routeSearch');
+        const searchResults = document.getElementById('searchResults');
+        const selectedRoute = document.getElementById('selectedRoute');
+        const selectedRouteName = document.getElementById('selectedRouteName');
+        const rankingSection = document.getElementById('rankingSection');
+        const rankingContent = document.getElementById('rankingContent');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const photoModal = document.getElementById('photoModal');
+        const modalClose = document.getElementById('modalClose');
+
+        let availableRoutes = [];
+        let currentRoute = null;
+
+        function initializeApp() {
+            loadAvailableRoutes();
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            if (routeSearch) {
+                routeSearch.addEventListener('input', handleSearch);
+                routeSearch.addEventListener('focus', () => searchResults.classList.add('show'));
+            }
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-container')) {
+                    searchResults.classList.remove('show');
+                }
+            });
+
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    await signOut(auth);
+                    window.location.href = 'index.html';
+                });
+            }
+
+            if (modalClose) {
+                modalClose.addEventListener('click', closeModal);
+            }
+
+            photoModal.addEventListener('click', (e) => {
+                if (e.target === photoModal) {
+                    closeModal();
+                }
+            });
+        }
+
+        async function loadAvailableRoutes() {
+            try {
+                const routesQuery = query(
+                    collection(db, 'tiempos_viaje'),
+                    where('verificado', '==', true)
+                );
+
+                const routesSnapshot = await getDocs(routesQuery);
+                const routeCounts = {};
+
+                routesSnapshot.docs.forEach(doc => {
+                    const route = doc.data().ruta;
+                    if (route) {
+                        routeCounts[route] = (routeCounts[route] || 0) + 1;
+                    }
+                });
+
+                availableRoutes = Object.entries(routeCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([route, count]) => ({ route, count }));
+
+                displayRoutes(availableRoutes);
+
+            } catch (error) {
+                console.error('Error loading routes:', error);
+                searchResults.innerHTML = '<div class="empty-state">Error al cargar rutas</div>';
+            }
+        }
+
+        function displayRoutes(routes) {
+            if (routes.length === 0) {
+                searchResults.innerHTML = '<div class="empty-state">No hay rutas con tiempos verificados</div>';
+                return;
+            }
+
+            let html = '';
+            routes.forEach(({ route, count }) => {
+                html += `
+                    <div class="route-item" data-route="${route}">
+                        <span class="route-name">${route}</span>
+                        <span class="route-count">${count} ${count === 1 ? 'tiempo' : 'tiempos'}</span>
+                    </div>
+                `;
+            });
+
+            searchResults.innerHTML = html;
+
+            searchResults.querySelectorAll('.route-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const route = item.dataset.route;
+                    selectRoute(route);
+                });
+            });
+        }
+
+        function handleSearch(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredRoutes = availableRoutes.filter(route => 
+                route.route.toLowerCase().includes(searchTerm)
+            );
+            displayRoutes(filteredRoutes);
+        }
+
+        function selectRoute(route) {
+            currentRoute = route;
+            selectedRouteName.textContent = route;
+            selectedRoute.style.display = 'block';
+            rankingSection.classList.add('show');
+            searchResults.classList.remove('show');
+            routeSearch.value = route;
+            loadRankingData(route);
+        }
+
+        function loadRankingData(route) {
+            rankingContent.innerHTML = `
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Cargando ranking...</p>
+                </div>
+            `;
+
+            const q = query(
+                collection(db, 'tiempos_viaje'),
+                where('verificado', '==', true),
+                where('ruta', '==', route),
+                orderBy('tiempo_segundos', 'asc')
+            );
+
+            onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) {
+                    rankingContent.innerHTML = `
+                        <div class="empty-state">
+                            <p>No hay tiempos verificados para esta ruta.</p>
+                            <p>¡Sé el primero en subir tu tiempo!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `
+                    <table class="ranking-table">
+                        <thead>
+                            <tr>
+                                <th>Pos.</th>
+                                <th>Usuario</th>
+                                <th>Tiempo</th>
+                                <th>Fecha</th>
+                                <th>Foto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                let position = 1;
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    let positionClass = '';
+                    
+                    if (position === 1) positionClass = 'gold';
+                    else if (position === 2) positionClass = 'silver';
+                    else if (position === 3) positionClass = 'bronze';
+
+                    const fecha = data.fecha ? data.fecha.toDate().toLocaleDateString('es-ES') : 'Fecha no disponible';
+
+                    html += `
+                        <tr>
+                            <td><div class="position ${positionClass}">${position}</div></td>
+                            <td>${escapeHtml(data.usuario)}</td>
+                            <td><span class="time">${escapeHtml(data.tiempo_formateado)}</span></td>
+                            <td>${fecha}</td>
+                            <td>
+                                <button class="view-photo-btn" onclick="openPhotoModal('${escapeHtml(data.usuario)}', '${data.foto_url}')">
+                                    Ver
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    position++;
+                });
+
+                html += `
+                        </tbody>
+                    </table>
+                `;
+
+                rankingContent.innerHTML = html;
+
+            }, (error) => {
+                console.error('Error loading ranking:', error);
+                rankingContent.innerHTML = `
+                    <div class="empty-state">
+                        <p>Error al cargar el ranking. Por favor, recarga la página.</p>
+                    </div>
+                `;
+            });
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function openPhotoModal(usuario, fotoUrl) {
+            if (!fotoUrl || fotoUrl === 'undefined') return;
+            
+            document.getElementById('modalTitle').textContent = `Foto de ${usuario}`;
+            document.getElementById('modalImage').src = fotoUrl;
+            document.getElementById('modalDescription').textContent = `Foto del viaje de ${usuario}`;
+            photoModal.classList.add('show');
+        }
+
+        function closeModal() {
+            photoModal.classList.remove('show');
+        }
+
+        // Make function global for onclick handlers
+        window.openPhotoModal = openPhotoModal;
+    </script>
+</body>
+</html>

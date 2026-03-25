@@ -1,179 +1,139 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rankings | BiciFastness</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        body { margin: 0; padding: 0; background-color: #121212; color: #f1efeb; font-family: 'Poppins', sans-serif; }
-        nav { background: #0a0a0a; border-bottom: 1px solid #333; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: #0071c3; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
-        nav .links a { color: #888; text-decoration: none; margin-left: 20px; font-size: 0.9rem; transition: color 0.3s; }
-        nav .links a:hover, nav .links a.active { color: #f1efeb; font-weight: 600; }
-        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-        .search-section { background: #1a1a1a; padding: 25px; border-radius: 12px; border: 1px solid #333; margin-bottom: 30px; }
-        .search-section h2 { margin-top: 0; color: #0071c3; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
-        .search-input { width: 100%; padding: 15px; background: #222; border: 1px solid #444; color: white; border-radius: 8px; font-size: 1.1rem; font-family: inherit; transition: border 0.3s; box-sizing: border-box; }
-        .search-input:focus { border-color: #0071c3; outline: none; }
-        .routes-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
-        .route-btn { background: #222; border: 1px solid #444; color: #888; padding: 10px 20px; border-radius: 30px; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.3s; }
-        .route-btn:hover { border-color: #0071c3; color: #f1efeb; background: #1a2a3a; }
-        .route-btn.active { background: #0071c3; border-color: #0071c3; color: white; }
-        .ranking-section { background: #1a1a1a; padding: 25px; border-radius: 12px; border: 1px solid #333; display: none; }
-        .ranking-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 15px; }
-        .ranking-header h2 { margin: 0; font-size: 1.5rem; }
-        .rank-row { display: grid; grid-template-columns: 60px 1fr 100px 80px; align-items: center; background: #222; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #333; transition: transform 0.2s; }
-        .rank-row:hover { transform: scale(1.01); border-color: #555; }
-        .rank-pos { font-size: 1.5rem; font-weight: 800; color: #555; text-align: center; }
-        .rank-user { font-weight: 600; font-size: 0.95rem; color: #f1efeb; word-break: break-all; }
-        .rank-date { font-size: 0.75rem; color: #888; display: block; margin-top: 3px; font-weight: 400; }
-        .rank-time { font-weight: 800; color: #0071c3; font-size: 1.1rem; text-align: right; }
-        .btn-photo { background: transparent; border: 1px solid #444; color: #888; padding: 8px; border-radius: 6px; cursor: pointer; transition: all 0.3s; margin-left: auto; display: block; }
-        .btn-photo:hover { background: #333; color: white; border-color: #888; }
+        :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
+        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --bg-input: #f0f0f0; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
+        
+        body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+        nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; }
+        nav .links a.active { color: var(--text-main); }
+        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+        
+        .search-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; }
+        .search-input { width: 100%; padding: 15px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; }
+        .search-input:focus { border-color: var(--primary); }
+        .routes-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .route-btn { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-muted); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; }
+        .route-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        .ranking-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); display: none; }
+        .rank-row { display: grid; grid-template-columns: 50px 45px 1fr 120px; align-items: center; background: var(--bg-input); padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); }
+        .rank-pos { font-size: 1.3rem; font-weight: 800; color: var(--text-muted); text-align: center; }
+        .rank-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
+        .rank-user { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 10px;}
+        .rank-date { font-size: 0.75rem; color: var(--text-muted); display: block; font-weight: 400; }
+        .rank-stats { text-align: right; }
+        .rank-time { font-weight: 800; color: var(--primary); font-size: 1.1rem; }
+        .rank-delta { font-size: 0.8rem; font-weight: 700; color: #ff4444; } /* Rojo para diferencia de tiempo */
+        .delta-leader { color: #00C851; font-size: 0.8rem; font-weight: 700; } /* Verde para el líder */
+
         .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); } .rank-1 .rank-pos { color: #FFD700; }
         .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .rank-pos { color: #C0C0C0; }
         .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .rank-pos { color: #CD7F32; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
-        .modal img { max-width: 90%; max-height: 80vh; border-radius: 8px; border: 2px solid #333; }
-        .close-modal { position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem; cursor: pointer; font-weight: 800; }
-        #loading-global { text-align: center; color: #0071c3; font-weight: 700; margin-top: 50px; }
-        #no-data-msg { color: #888; font-style: italic; display: none; margin-top: 15px;}
+
+        .bottom-nav { display: none; }
+        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a .icon { font-size: 1.3rem; } }
     </style>
 </head>
 <body>
     <nav>
         <div class="brand">BiciFastness</div>
-        <div class="links">
-            <a href="home.html">Inicio</a>
-            <a href="ranking.html" class="active">Rankings</a>
-            <a href="subir.html">Subir Tiempo</a>
-            <a href="profile.html">Mi Perfil</a>
-            <a href="#" id="logout-btn">Salir</a>
-        </div>
+        <div class="links"><a href="home.html">Inicio</a><a href="ranking.html" class="active">Rankings</a><a href="subir.html">Subir Tiempo</a><a href="profile.html">Perfil</a></div>
     </nav>
     <div class="container">
-        <div id="loading-global">Sincronizando con la base de datos...</div>
-        <div class="search-section" id="search-section" style="display: none;">
-            <h2>Buscar Trayecto</h2>
-            <input type="text" id="search-input" class="search-input" placeholder="Ej: 180, 235 o 180-235">
-            <div id="no-data-msg">No hay viajes verificados que coincidan con esta búsqueda.</div>
-            <div class="routes-container" id="routes-container"></div>
+        <div class="search-section" id="search-section">
+            <h2 style="margin:0 0 10px 0; color:var(--text-main);">Buscar Trayecto</h2>
+            <input type="text" id="search-input" class="search-input" placeholder="Buscar estación (Ej: 180)">
+            <div class="routes-container" id="routes-container">Cargando datos...</div>
         </div>
         <div class="ranking-section" id="ranking-section">
-            <div class="ranking-header"><h2 id="ranking-title">Ruta --</h2></div>
+            <h2 id="ranking-title" style="margin-top:0;">Ruta --</h2>
             <div id="ranking-list"></div>
         </div>
     </div>
-    <div class="modal" id="photo-modal"><span class="close-modal" id="close-modal">&times;</span><img id="modal-img" src="" alt="Captura del viaje"></div>
+    <div class="bottom-nav"><a href="home.html"><span class="icon">🏠</span>Inicio</a><a href="ranking.html" class="active"><span class="icon">🏆</span>Rankings</a><a href="subir.html"><span class="icon">➕</span>Subir</a><a href="profile.html"><span class="icon">👤</span>Perfil</a></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk",
-            authDomain: "bicifastness.firebaseapp.com",
-            projectId: "bicifastness",
-            messagingSenderId: "656116731421",
-            appId: "1:656116731421:web:a4154d028fe9721c5800f4"
-        };
+        const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
+        const app = initializeApp(firebaseConfig); const db = getFirestore(app);
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
 
-        let allVerifiedTrips = [];
-        let uniqueRoutes = [];
+        let allTrips = [], uniqueRoutes = [];
 
-        onAuthStateChanged(auth, async (user) => {
-            if (!user) window.location.href = "index.html";
-            else await loadAllVerifiedData();
+        async function load() {
+            const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
+            const snap = await getDocs(q);
+            const rSet = new Set();
+            snap.forEach(d => { allTrips.push(d.data()); rSet.add(d.data().ruta); });
+            uniqueRoutes = Array.from(rSet).sort();
+            renderBtns(uniqueRoutes);
+        }
+        
+        function renderBtns(routes) {
+            const c = document.getElementById('routes-container'); c.innerHTML = '';
+            if(!routes.length) { c.innerHTML = "<span style='color:var(--text-muted)'>No hay rutas.</span>"; return; }
+            routes.forEach(r => {
+                const b = document.createElement('button'); b.className = 'route-btn'; b.innerText = r;
+                b.onclick = () => select(r, b); c.appendChild(b);
+            });
+        }
+
+        document.getElementById('search-input').addEventListener('input', e => {
+            const term = e.target.value.trim().toLowerCase();
+            renderBtns(term ? uniqueRoutes.filter(r => r.includes(term)) : uniqueRoutes);
         });
 
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            signOut(auth).then(() => window.location.href = "index.html");
-        });
-
-        async function loadAllVerifiedData() {
-            try {
-                const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
-                const querySnapshot = await getDocs(q);
-                allVerifiedTrips = [];
-                const routesSet = new Set();
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    allVerifiedTrips.push(data);
-                    routesSet.add(data.ruta);
+        function select(ruta, btn) {
+            document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+            document.getElementById('ranking-section').style.display = 'block'; document.getElementById('ranking-title').innerText = `Ruta ${ruta}`;
+            
+            let trips = allTrips.filter(t => t.ruta === ruta).sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
+            const list = document.getElementById('ranking-list'); list.innerHTML = '';
+            
+            if(trips.length > 0) {
+                const best = trips[0].tiempo_segundos;
+                trips.forEach((t, i) => {
+                    const pos = i + 1;
+                    const rClass = pos === 1 ? 'rank-1' : pos === 2 ? 'rank-2' : pos === 3 ? 'rank-3' : '';
+                    
+                    // Cálculo del DELTA (Diferencia de tiempo)
+                    let deltaHtml = "";
+                    if(pos === 1) deltaHtml = `<div class="delta-leader">Líder 👑</div>`;
+                    else {
+                        let diff = t.tiempo_segundos - best;
+                        let dm = Math.floor(diff / 60); let ds = diff % 60;
+                        let text = dm > 0 ? `+${dm}m ${ds}s` : `+${ds}s`;
+                        deltaHtml = `<div class="rank-delta">${text}</div>`;
+                    }
+                    
+                    const avatar = t.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${t.usuario}&backgroundColor=0071c3`;
+                    
+                    list.innerHTML += `
+                        <div class="rank-row ${rClass}">
+                            <div class="rank-pos">#${pos}</div>
+                            <img src="${avatar}" class="rank-avatar">
+                            <div><div class="rank-user">${t.usuario}</div><span class="rank-date">${new Date(t.fecha).toLocaleDateString()}</span></div>
+                            <div class="rank-stats">
+                                <div class="rank-time">${t.tiempo_formateado}</div>
+                                ${deltaHtml}
+                            </div>
+                        </div>`;
                 });
-                uniqueRoutes = Array.from(routesSet).sort();
-                document.getElementById('loading-global').style.display = 'none';
-                document.getElementById('search-section').style.display = 'block';
-                renderRouteButtons(uniqueRoutes);
-            } catch (error) {
-                console.error(error); document.getElementById('loading-global').innerText = "Error cargando los datos.";
             }
         }
-
-        function renderRouteButtons(routesToRender) {
-            const container = document.getElementById('routes-container');
-            const noDataMsg = document.getElementById('no-data-msg');
-            container.innerHTML = '';
-            if (routesToRender.length === 0) { noDataMsg.style.display = 'block'; return; }
-            noDataMsg.style.display = 'none';
-            routesToRender.forEach(ruta => {
-                const btn = document.createElement('button');
-                btn.className = 'route-btn'; btn.innerText = `Ruta ${ruta}`;
-                btn.onclick = () => selectRoute(ruta, btn);
-                container.appendChild(btn);
-            });
-        }
-
-        document.getElementById('search-input').addEventListener('input', (e) => {
-            const term = e.target.value.trim().toLowerCase();
-            if (!term) { renderRouteButtons(uniqueRoutes); return; }
-            const filtered = uniqueRoutes.filter(r => r.includes(term));
-            renderRouteButtons(filtered);
-        });
-
-        function selectRoute(rutaId, buttonElement) {
-            document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active'));
-            buttonElement.classList.add('active');
-            document.getElementById('ranking-section').style.display = 'block';
-            document.getElementById('ranking-title').innerText = `Ranking Ruta ${rutaId}`;
-            
-            let tripsInRoute = allVerifiedTrips.filter(t => t.ruta === rutaId);
-            tripsInRoute.sort((a, b) => a.tiempo_segundos - b.tiempo_segundos);
-            
-            const listContainer = document.getElementById('ranking-list');
-            listContainer.innerHTML = '';
-            tripsInRoute.forEach((trip, index) => {
-                const position = index + 1;
-                let rankClass = '';
-                if (position === 1) rankClass = 'rank-1'; else if (position === 2) rankClass = 'rank-2'; else if (position === 3) rankClass = 'rank-3';
-                const dateString = new Date(trip.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-                const username = trip.usuario.split('@')[0];
-                const rowHtml = `
-                    <div class="rank-row ${rankClass}">
-                        <div class="rank-pos">#${position}</div>
-                        <div><div class="rank-user">@${username}</div><span class="rank-date">${dateString}</span></div>
-                        <div class="rank-time">${trip.tiempo_formateado}</div>
-                        <button class="btn-photo view-photo-btn" data-url="${trip.foto_url}">📷 Ver</button>
-                    </div>`;
-                listContainer.insertAdjacentHTML('beforeend', rowHtml);
-            });
-
-            document.querySelectorAll('.view-photo-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.getElementById('modal-img').src = e.currentTarget.getAttribute('data-url');
-                    document.getElementById('photo-modal').style.display = 'flex';
-                });
-            });
-        }
-
-        document.getElementById('close-modal').addEventListener('click', () => document.getElementById('photo-modal').style.display = 'none');
-        document.getElementById('photo-modal').addEventListener('click', (e) => { if (e.target.id === 'photo-modal') document.getElementById('photo-modal').style.display = 'none'; });
+        load();
     </script>
 </body>
 </html>

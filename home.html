@@ -14,7 +14,6 @@
         nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; }
         nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; transition: color 0.3s; }
         nav .links a:hover, nav .links a.active { color: var(--text-main); }
-        .theme-btn { background: none; border: 1px solid var(--border); color: var(--text-main); padding: 6px 12px; border-radius: 20px; cursor: pointer; margin-left: 20px;}
         
         .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; flex-grow: 1; }
         .hero { text-align: center; margin-bottom: 50px; animation: fadeInDown 0.6s ease-out; }
@@ -31,10 +30,9 @@
         .dash-card h2 { margin: 0 0 10px 0; font-weight: 800; font-size: 1.3rem; text-transform: uppercase; }
         .dash-card p { color: var(--text-muted); margin: 0; font-size: 0.9rem; }
 
-        /* Barra de Navegación Inferior (Móviles) */
         .bottom-nav { display: none; }
         @media (max-width: 768px) {
-            nav .links { display: none; } /* Oculta enlaces de arriba */
+            nav .links { display: none; }
             .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -5px 10px rgba(0,0,0,0.1); }
             .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: color 0.3s; }
             .bottom-nav a.active, .bottom-nav a:hover { color: var(--primary); }
@@ -47,62 +45,34 @@
 <body>
     <nav>
         <div class="brand">BiciFastness</div>
-        <div class="links">
-            <a href="home.html" class="active">Inicio</a>
-            <a href="ranking.html">Rankings</a>
-            <a href="subir.html">Subir Tiempo</a>
-            <a href="profile.html">Perfil</a>
-            <button class="theme-btn" id="theme-btn">🌓</button>
-        </div>
-        <button class="theme-btn" id="theme-btn-mobile" style="margin-left:auto; display:none;">🌓</button>
+        <div class="links"><a href="home.html" class="active">Inicio</a><a href="ranking.html">Rankings</a><a href="subir.html">Subir Tiempo</a><a href="profile.html">Perfil</a></div>
     </nav>
-
     <div class="container">
-        <div class="hero">
-            <h1 id="welcome-title">EL CIRCUITO <br><span>URBANO</span></h1>
-            <p>Compite contra la ciudad. Registra tus tiempos y domina el asfalto madrileño.</p>
-        </div>
+        <div class="hero"><h1 id="welcome-title">EL CIRCUITO <br><span>URBANO</span></h1><p>Compite contra la ciudad. Registra tus tiempos y domina el asfalto madrileño.</p></div>
         <div class="dashboard-grid">
             <a href="ranking.html" class="dash-card"><span class="card-icon">🏆</span><h2>Rankings</h2><p>Descubre los récords actuales y mira quién lidera el podio.</p></a>
             <a href="subir.html" class="dash-card"><span class="card-icon">⏱️</span><h2>Subir Tiempo</h2><p>¿Acabas de destrozar el cronómetro? Reclama tu posición.</p></a>
             <a href="profile.html" class="dash-card"><span class="card-icon">👤</span><h2>Mi Perfil</h2><p>Revisa tu historial, verifica tu estado y edita tu avatar.</p></a>
         </div>
     </div>
-
-    <div class="bottom-nav">
-        <a href="home.html" class="active"><span class="icon">🏠</span>Inicio</a>
-        <a href="ranking.html"><span class="icon">🏆</span>Rankings</a>
-        <a href="subir.html"><span class="icon">➕</span>Subir</a>
-        <a href="profile.html"><span class="icon">👤</span>Perfil</a>
-    </div>
+    <div class="bottom-nav"><a href="home.html" class="active"><span class="icon">🏠</span>Inicio</a><a href="ranking.html"><span class="icon">🏆</span>Rankings</a><a href="subir.html"><span class="icon">➕</span>Subir</a><a href="profile.html"><span class="icon">👤</span>Perfil</a></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
+        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-        // Tema
-        const initTheme = () => {
-            const currentTheme = localStorage.getItem('theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', currentTheme);
-            if(window.innerWidth <= 768) document.getElementById('theme-btn-mobile').style.display = 'block';
-        };
-        initTheme();
-        const toggleTheme = () => {
-            let theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-        };
-        document.getElementById('theme-btn').addEventListener('click', toggleTheme);
-        document.getElementById('theme-btn-mobile').addEventListener('click', toggleTheme);
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (!user) window.location.href = "index.html";
             else {
-                document.getElementById('welcome-title').innerHTML = `HOLA, <br><span>${user.displayName ? user.displayName.toUpperCase() : 'PILOTO'}</span>`;
+                const userDoc = await getDoc(doc(db, "usuarios", user.email));
+                const name = userDoc.exists() ? userDoc.data().username : 'PILOTO';
+                document.getElementById('welcome-title').innerHTML = `HOLA, <br><span>${name.toUpperCase()}</span>`;
             }
         });
     </script>

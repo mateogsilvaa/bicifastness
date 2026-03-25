@@ -17,22 +17,27 @@
         .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
         
         .search-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; }
-        .search-input { width: 100%; padding: 15px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; }
+        .search-input { width: 100%; padding: 15px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; box-sizing: border-box; }
         .search-input:focus { border-color: var(--primary); }
         .routes-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
         .route-btn { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-muted); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; }
         .route-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         
         .ranking-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); display: none; }
-        .rank-row { display: grid; grid-template-columns: 50px 45px 1fr 120px; align-items: center; background: var(--bg-input); padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); }
-        .rank-pos { font-size: 1.3rem; font-weight: 800; color: var(--text-muted); text-align: center; }
-        .rank-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
-        .rank-user { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 10px;}
+        
+        /* CORRECCIÓN PARA QUE NO SE SALGA DE LA PANTALLA */
+        .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; }
+        
+        .rank-pos { font-size: 1.2rem; font-weight: 800; color: var(--text-muted); text-align: center; }
+        .rank-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
+        .rank-user-container { overflow: hidden; }
+        .rank-user { font-weight: 700; font-size: 1rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
         .rank-date { font-size: 0.75rem; color: var(--text-muted); display: block; font-weight: 400; }
-        .rank-stats { text-align: right; }
+        
+        .rank-stats { text-align: right; min-width: 65px; }
         .rank-time { font-weight: 800; color: var(--primary); font-size: 1.1rem; }
-        .rank-delta { font-size: 0.8rem; font-weight: 700; color: #ff4444; } /* Rojo para diferencia de tiempo */
-        .delta-leader { color: #00C851; font-size: 0.8rem; font-weight: 700; } /* Verde para el líder */
+        .rank-delta { font-size: 0.8rem; font-weight: 700; color: #ff4444; } 
+        .delta-leader { color: #00C851; font-size: 0.8rem; font-weight: 700; } 
 
         .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); } .rank-1 .rank-pos { color: #FFD700; }
         .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .rank-pos { color: #C0C0C0; }
@@ -70,9 +75,14 @@
 
         document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
 
-        let allTrips = [], uniqueRoutes = [];
+        let allTrips = [], uniqueRoutes = [], usersMap = {};
 
         async function load() {
+            // Cargar usuarios para tener siempre el Avatar actual
+            const uSnap = await getDocs(collection(db, "usuarios"));
+            uSnap.forEach(d => usersMap[d.id] = d.data());
+
+            // Cargar viajes verificados
             const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
             const snap = await getDocs(q);
             const rSet = new Set();
@@ -108,7 +118,6 @@
                     const pos = i + 1;
                     const rClass = pos === 1 ? 'rank-1' : pos === 2 ? 'rank-2' : pos === 3 ? 'rank-3' : '';
                     
-                    // Cálculo del DELTA (Diferencia de tiempo)
                     let deltaHtml = "";
                     if(pos === 1) deltaHtml = `<div class="delta-leader">Líder 👑</div>`;
                     else {
@@ -118,13 +127,20 @@
                         deltaHtml = `<div class="rank-delta">${text}</div>`;
                     }
                     
-                    const avatar = t.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${t.usuario}&backgroundColor=0071c3`;
+                    // Buscar los datos en el Map de usuarios
+                    const userData = usersMap[t.email_real] || {};
+                    const avatar = userData.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${t.email_real}&backgroundColor=0071c3`;
+                    const username = userData.username || "Piloto";
                     
+                    // Nota: ¡Ya NO hay botón de foto! Todo limpio y centrado en los tiempos
                     list.innerHTML += `
                         <div class="rank-row ${rClass}">
                             <div class="rank-pos">#${pos}</div>
                             <img src="${avatar}" class="rank-avatar">
-                            <div><div class="rank-user">${t.usuario}</div><span class="rank-date">${new Date(t.fecha).toLocaleDateString()}</span></div>
+                            <div class="rank-user-container">
+                                <div class="rank-user">${username}</div>
+                                <span class="rank-date">${new Date(t.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short'})}</span>
+                            </div>
                             <div class="rank-stats">
                                 <div class="rank-time">${t.tiempo_formateado}</div>
                                 ${deltaHtml}
@@ -136,4 +152,4 @@
         load();
     </script>
 </body>
-</html>
+</html> 

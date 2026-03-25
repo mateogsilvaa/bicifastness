@@ -43,8 +43,8 @@
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // ⚠️ IMPORTANTE: PON AQUÍ TU CORREO PARA QUE SOLO TÚ PUEDAS ENTRAR
-        const ADMIN_EMAILS = ['mateo@gmail.com', 'tu_correo_real@gmail.com']; 
+        // ⚠️ IMPORTANTE: AÑADE TU CORREO DE ADMIN AQUÍ PARA QUE TE DEJE ENTRAR
+        const ADMIN_EMAILS = ['mateo@gmail.com', 'TU_CORREO_AQUÍ@gmail.com']; 
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
@@ -70,7 +70,7 @@
                 grid.innerHTML += `
                     <div class="admin-card">
                         <div class="card-header"><span>Ruta ${data.ruta}</span><span>${data.tiempo_formateado}</span></div>
-                        <div style="font-size:0.8rem; color:#888;">Piloto: ${data.usuario}<br>Email: ${data.email_real}</div>
+                        <div style="font-size:0.8rem; color:#888;">Email: ${data.email_real}</div>
                         <button class="btn-view view-photo" data-url="${data.foto_url}">Ver Captura</button>
                         <div class="actions">
                             <button class="btn-reject reject-btn" data-id="${docId}">Rechazar</button>

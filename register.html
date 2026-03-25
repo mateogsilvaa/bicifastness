@@ -10,24 +10,21 @@
         [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --primary-hover: #005a9e; }
         
         body { margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: background 0.3s, color 0.3s; }
-        .card { background: var(--bg-card); padding: 2.5rem 2rem; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 100%; max-width: 350px; text-align: center; }
+        .card { background: var(--bg-card); padding: 2.5rem 2rem; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 100%; max-width: 350px; text-align: center; box-sizing: border-box;}
         h1 { color: var(--primary); margin-top: 0; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
         h3 { margin-top: 0; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; margin-bottom: 20px; }
         input { width: 100%; padding: 12px; margin: 8px 0; background: var(--bg-main); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
         input:focus { border-color: var(--primary); outline: none; }
         button { width: 100%; padding: 14px; margin-top: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.3s, transform 0.1s; }
         button:active { transform: scale(0.98); }
-        button:hover { background: var(--primary-hover); }
         button:disabled { opacity: 0.6; cursor: not-allowed; }
         .toggle { margin-top: 20px; font-size: 0.85em; }
         .toggle a { color: var(--text-muted); text-decoration: none; font-weight: 600; transition: color 0.3s; }
         .toggle a:hover { color: var(--primary); }
         #error-msg { color: #ff4444; font-size: 0.85em; margin-top: 10px; min-height: 20px; font-weight: 600; }
-        .theme-switch { position: absolute; top: 20px; right: 20px; background: none; border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px; border-radius: 20px; cursor: pointer; width: auto;}
     </style>
 </head>
 <body>
-    <button class="theme-switch" id="theme-btn">🌓 Tema</button>
     <div class="card">
         <h1>BiciFastness</h1>
         <h3>Crear Cuenta</h3>
@@ -42,20 +39,13 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
+        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-        const currentTheme = localStorage.getItem('theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', currentTheme);
-        document.getElementById('theme-btn').addEventListener('click', () => {
-            let theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-        });
-
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
         onAuthStateChanged(auth, (user) => { if (user) window.location.href = "home.html"; });
 
         const btn = document.getElementById('register-btn');
@@ -75,10 +65,10 @@
                 btn.innerText = "Creando..."; btn.disabled = true;
                 const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
                 
-                // Le asignamos el nombre y un avatar por defecto usando una API gratuita
-                await updateProfile(userCredential.user, { 
-                    displayName: username,
-                    photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=0071c3`
+                // GUARDAMOS EL PERFIL EN FIRESTORE
+                await setDoc(doc(db, "usuarios", email), {
+                    username: username,
+                    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=0071c3`
                 });
                 
                 window.location.href = "home.html";

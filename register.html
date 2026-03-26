@@ -46,7 +46,14 @@
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
         document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
-        onAuthStateChanged(auth, (user) => { if (user) window.location.href = "home.html"; });
+        
+        // EL FRENO: Variable para saber si estamos en medio de un registro
+        let isRegistering = false;
+
+        onAuthStateChanged(auth, (user) => { 
+            // Si hay usuario Y NO estamos registrando, nos vamos al inicio (ej. si recargas la página estando logueado)
+            if (user && !isRegistering) window.location.href = "home.html"; 
+        });
 
         const btn = document.getElementById('register-btn');
         const errorMsg = document.getElementById('error-msg');
@@ -63,9 +70,14 @@
 
             try {
                 btn.innerText = "Creando..."; btn.disabled = true;
+                
+                // ACTIVAMOS EL FRENO para que onAuthStateChanged no nos eche de la página
+                isRegistering = true; 
+                
+                // 1. Creamos la cuenta en Firebase Auth
                 const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
                 
-                // Estructura BD actualizada con isAdmin
+                // 2. Guardamos el perfil en Firestore de forma segura
                 await setDoc(doc(db, "usuarios", email), {
                     username: username,
                     email: email,
@@ -73,8 +85,10 @@
                     avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=0071c3`
                 });
                 
+                // 3. Una vez guardado todo correctamente, NOSOTROS hacemos la redirección
                 window.location.href = "home.html";
             } catch (error) {
+                isRegistering = false; // Quitamos el freno si da error
                 btn.disabled = false; btn.innerText = "Empezar a competir";
                 if(error.code === 'auth/email-already-in-use') errorMsg.innerText = "Correo ya registrado.";
                 else errorMsg.innerText = "Error: " + error.message;

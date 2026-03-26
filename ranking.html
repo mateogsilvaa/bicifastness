@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rankings | BiciFastness</title>
+    <title>Rankings</title>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
@@ -25,7 +25,6 @@
         .route-btn { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-muted); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; }
         .route-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         
-        /* Efecto Destacado */
         .glowing-btn { border-color: #FFD700 !important; color: #FFD700 !important; font-weight: 800; box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); animation: pulse 2s infinite; }
         .glowing-btn.active { background: #FFD700 !important; color: #111 !important; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(255, 215, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); } }
@@ -69,7 +68,7 @@
     </div>
     
     <div class="bottom-nav">
-        <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="home.html"><i class="fi fi-sr-ranking-star"></i>Inicio</a>
         <a href="ranking.html" class="active"><i class="fi fi-sr-ranking-podium-empty"></i>Rankings</a>
         <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
         <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
@@ -88,22 +87,24 @@
         let highlightedRoute = null;
 
         async function load() {
-            // Cargar usuarios
             const uSnap = await getDocs(collection(db, "usuarios"));
             uSnap.forEach(d => usersMap[d.id] = d.data());
 
-            // Cargar Ruta Destacada
             try {
                 const confDoc = await getDoc(doc(db, "config", "general"));
                 if(confDoc.exists()) highlightedRoute = confDoc.data().ruta_destacada;
             } catch(e) {}
 
-            // Cargar Viajes
             const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
             const snap = await getDocs(q);
             const rSet = new Set();
             snap.forEach(d => { allTrips.push(d.data()); rSet.add(d.data().ruta); });
             uniqueRoutes = Array.from(rSet).sort();
+            
+            // MAGIA: Añadimos la ruta destacada aunque tenga 0 viajes
+            if (highlightedRoute && !uniqueRoutes.includes(highlightedRoute)) {
+                uniqueRoutes.push(highlightedRoute);
+            }
             
             renderDefaultBtns();
         }
@@ -112,14 +113,11 @@
             const c = document.getElementById('routes-container'); c.innerHTML = '';
             if(!uniqueRoutes.length) { c.innerHTML = "<span style='color:var(--text-muted)'>No hay rutas.</span>"; return; }
 
-            // Calcular Frecuencias (Cuántos viajes hay por ruta)
             const counts = {};
             allTrips.forEach(t => counts[t.ruta] = (counts[t.ruta] || 0) + 1);
 
-            // Ordenar rutas por popularidad
-            const sortedRoutes = [...uniqueRoutes].sort((a,b) => counts[b] - counts[a]);
+            const sortedRoutes = [...uniqueRoutes].sort((a,b) => (counts[b]||0) - (counts[a]||0));
 
-            // Seleccionar Destacada + Top 5
             let displayRoutes = [];
             if (highlightedRoute && sortedRoutes.includes(highlightedRoute)) {
                 displayRoutes.push(highlightedRoute);
@@ -127,23 +125,18 @@
             } else {
                 displayRoutes = sortedRoutes.slice(0, 5);
             }
-            displayRoutes = [...new Set(displayRoutes)]; // Eliminar duplicados por si acaso
+            displayRoutes = [...new Set(displayRoutes)]; 
 
             displayRoutes.forEach(r => {
                 const b = document.createElement('button');
                 b.className = 'route-btn';
-                if (r === highlightedRoute) {
-                    b.classList.add('glowing-btn');
-                    b.innerHTML = `🔥 Ruta ${r}`;
-                } else {
-                    b.innerText = `Ruta ${r}`;
-                }
+                if (r === highlightedRoute) { b.classList.add('glowing-btn'); b.innerHTML = `🔥 Ruta ${r}`; } 
+                else b.innerText = `Ruta ${r}`;
                 b.onclick = () => select(r, b);
                 c.appendChild(b);
             });
         }
 
-        // Si busca, le mostramos todo lo que coincida ignorando el Top 5
         document.getElementById('search-input').addEventListener('input', e => {
             const term = e.target.value.trim().toLowerCase();
             if (!term) { renderDefaultBtns(); return; }
@@ -151,11 +144,8 @@
             const filtered = uniqueRoutes.filter(r => r.includes(term));
             const c = document.getElementById('routes-container'); c.innerHTML = '';
             filtered.forEach(r => {
-                const b = document.createElement('button');
-                b.className = 'route-btn';
-                b.innerText = `Ruta ${r}`;
-                b.onclick = () => select(r, b);
-                c.appendChild(b);
+                const b = document.createElement('button'); b.className = 'route-btn'; b.innerText = `Ruta ${r}`;
+                b.onclick = () => select(r, b); c.appendChild(b);
             });
         });
 
@@ -166,44 +156,47 @@
             let trips = allTrips.filter(t => t.ruta === ruta).sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
             const list = document.getElementById('ranking-list'); list.innerHTML = '';
             
-            if(trips.length > 0) {
-                const best = trips[0].tiempo_segundos;
-                trips.forEach((t, i) => {
-                    const pos = i + 1;
-                    const rClass = pos === 1 ? 'rank-1' : pos === 2 ? 'rank-2' : pos === 3 ? 'rank-3' : '';
-                    
-                    let deltaHtml = "";
-                    if(pos === 1) deltaHtml = `<div class="delta-leader">Líder 👑</div>`;
-                    else {
-                        let diff = t.tiempo_segundos - best;
-                        let dm = Math.floor(diff / 60); let ds = diff % 60;
-                        let text = dm > 0 ? `+${dm}m ${ds}s` : `+${ds}s`;
-                        deltaHtml = `<div class="rank-delta">${text}</div>`;
-                    }
-                    
-                    const userData = usersMap[t.email_real] || {};
-                    const avatar = userData.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${t.email_real}&backgroundColor=0071c3`;
-                    const username = userData.username || "Piloto";
-                    
-                    const d = new Date(t.fecha);
-                    const month = d.toLocaleString('es-ES', { month: 'long' });
-                    const dateString = `${d.getDate()} de ${month.charAt(0).toUpperCase() + month.slice(1)} ${d.getFullYear()}`;
-                    
-                    list.innerHTML += `
-                        <div class="rank-row ${rClass}">
-                            <div class="rank-pos">#${pos}</div>
-                            <img src="${avatar}" class="rank-avatar">
-                            <div class="rank-user-container">
-                                <div class="rank-user">${username}</div>
-                                <span class="rank-date">${dateString}</span>
-                            </div>
-                            <div class="rank-stats">
-                                <div class="rank-time">${t.tiempo_formateado}</div>
-                                ${deltaHtml}
-                            </div>
-                        </div>`;
-                });
+            if(trips.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-weight:600;">Aún no hay tiempos para esta ruta. ¡Sé el primero en dominarla! 🚴💨</div>`;
+                return;
             }
+
+            const best = trips[0].tiempo_segundos;
+            trips.forEach((t, i) => {
+                const pos = i + 1;
+                const rClass = pos === 1 ? 'rank-1' : pos === 2 ? 'rank-2' : pos === 3 ? 'rank-3' : '';
+                
+                let deltaHtml = "";
+                if(pos === 1) deltaHtml = `<div class="delta-leader">Líder 👑</div>`;
+                else {
+                    let diff = t.tiempo_segundos - best;
+                    let dm = Math.floor(diff / 60); let ds = diff % 60;
+                    let text = dm > 0 ? `+${dm}m ${ds}s` : `+${ds}s`;
+                    deltaHtml = `<div class="rank-delta">${text}</div>`;
+                }
+                
+                const userData = usersMap[t.email_real] || {};
+                const avatar = userData.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${t.email_real}&backgroundColor=0071c3`;
+                const username = userData.username || "Piloto";
+                
+                const d = new Date(t.fecha);
+                const month = d.toLocaleString('es-ES', { month: 'long' });
+                const dateString = `${d.getDate()} de ${month.charAt(0).toUpperCase() + month.slice(1)} ${d.getFullYear()}`;
+                
+                list.innerHTML += `
+                    <div class="rank-row ${rClass}">
+                        <div class="rank-pos">#${pos}</div>
+                        <img src="${avatar}" class="rank-avatar">
+                        <div class="rank-user-container">
+                            <div class="rank-user">${username}</div>
+                            <span class="rank-date">${dateString}</span>
+                        </div>
+                        <div class="rank-stats">
+                            <div class="rank-time">${t.tiempo_formateado}</div>
+                            ${deltaHtml}
+                        </div>
+                    </div>`;
+            });
         }
         load();
     </script>

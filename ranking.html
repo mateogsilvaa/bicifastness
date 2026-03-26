@@ -16,9 +16,9 @@
         body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
         
         /* NAVBAR ACTUALIZADO CON LOGO Y CENTRADO DE INFO */
-        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { display: flex; align-items: center; text-decoration: none; }
-        nav .brand img { height: 35px; width: auto; vertical-align: middle; }
+        /* NAVBAR UNIFICADO */
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }   
         
         .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
         
@@ -78,7 +78,7 @@
         .bottom-nav { display: none; }
         @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 6px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a i { font-size: 1.4rem; line-height:1;} }
     </style>
-<link rel="icon" href="logo.png" type="image/png">
+<link rel="icon" href="logo.png?v=2" type="image/png">
 </head>
 <body>
     <nav>

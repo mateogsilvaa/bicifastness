@@ -17,11 +17,9 @@
         body { margin: 0; padding: 0; padding-bottom: 100px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
         
         /* NAVBAR CON LOGO Y CENTRADO DE INFO ARREGLADO */
-        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        
-        /* Estilos del Logo Clickable */
-        nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
-        nav .brand img { height: 35px; width: auto; display: block; }
+        /* NAVBAR UNIFICADO */
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
         
         .nav-right { display: flex; align-items: center; gap: 20px; }
         nav .links { display: flex; align-items: center; }
@@ -92,7 +90,7 @@
         /* Oculta el botón flotante de BMC */
         #bmc-wbtn { display: none !important; }
     </style>
-<link rel="icon" href="logo.png" type="image/png">
+<link rel="icon" href="logo.png?v=2" type="image/png">
 </head>
 <body>
     <nav>

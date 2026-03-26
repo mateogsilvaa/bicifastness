@@ -14,8 +14,9 @@
         body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s; min-height: 100vh; display: flex; flex-direction: column; }
         
         /* NAVBAR MODIFICADO */
+        /* NAVBAR UNIFICADO */
         nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
         .nav-right { display: flex; align-items: center; gap: 20px; }
         nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 15px; font-weight: 600; transition: color 0.3s; }
         nav .links a:hover, nav .links a.active { color: var(--text-main); }
@@ -48,7 +49,7 @@
         @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
-<link rel="icon" href="logo.png" type="image/png">
+<link rel="icon" href="logo.png?v=2" type="image/png">
 </head>
 <body>
     <nav>

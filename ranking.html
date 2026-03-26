@@ -21,9 +21,22 @@
         .search-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; }
         .search-input { width: 100%; padding: 15px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; box-sizing: border-box; }
         .search-input:focus { border-color: var(--primary); }
-        .routes-container { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         
-        .route-btn { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; text-align: left; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        /* 🔥 NUEVO: SCROLL HORIZONTAL PARA LAS RUTAS 🔥 */
+        .routes-container { 
+            display: flex; 
+            flex-direction: row; 
+            gap: 10px; 
+            margin-top: 15px; 
+            overflow-x: auto; 
+            padding-bottom: 10px;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch; /* Scroll suave en móviles */
+            scrollbar-width: none; /* Firefox */
+        }
+        .routes-container::-webkit-scrollbar { display: none; } /* Ocultar barra en Chrome/Safari */
+        
+        .route-btn { flex: 0 0 auto; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
         .route-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         
         .glowing-btn { border-color: #FFD700 !important; color: #FFD700 !important; font-weight: 800; box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); animation: pulse 2s infinite; }
@@ -31,8 +44,15 @@
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(255, 215, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); } }
 
         .ranking-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); display: none; }
-        .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; }
         
+        /* Contenedor del título con el botón de estrella */
+        .ranking-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-bottom: 15px; }
+        .ranking-header h2 { margin: 0; font-size: 1.1rem; color: var(--primary); }
+        .pin-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; }
+        .pin-btn:hover { transform: scale(1.1); }
+        .pin-btn.pinned { color: #FFD700; }
+
+        .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; }
         .rank-pos { font-size: 1.2rem; font-weight: 800; color: var(--text-muted); text-align: center; }
         .rank-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
         .rank-user-container { overflow: hidden; }
@@ -63,7 +83,10 @@
             <div class="routes-container" id="routes-container">Cargando datos...</div>
         </div>
         <div class="ranking-section" id="ranking-section">
-            <h2 id="ranking-title" style="margin-top:0; font-size:1.1rem; color:var(--primary); text-align:center;">Ruta --</h2>
+            <div class="ranking-header">
+                <h2 id="ranking-title">Ruta --</h2>
+                <button id="pin-btn" class="pin-btn" title="Anclar como favorita"><i class="fi fi-rr-star"></i></button>
+            </div>
             <div id="ranking-list"></div>
         </div>
     </div>
@@ -77,10 +100,11 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
-        const app = initializeApp(firebaseConfig); const db = getFirestore(app);
+        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
         document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
 
@@ -95,7 +119,6 @@
             else { estacionesMap[rawNum] = name; }
         });
 
-        // Genera el nombre de la ruta con la flecha
         function getRouteName(rutaId) {
             const [o, d] = rutaId.split('-');
             const nameO = estacionesMap[o] || o;
@@ -105,6 +128,19 @@
 
         let allTrips = [], uniqueRoutes = [], usersMap = {};
         let highlightedRoute = null;
+        let currentU = null;
+        let userFavorites = [];
+        let selectedRouteId = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) window.location.href = "index.html";
+            else {
+                currentU = user;
+                const userDoc = await getDoc(doc(db, "usuarios", user.email));
+                if(userDoc.exists()) userFavorites = userDoc.data().favoriteRoutes || [];
+                load();
+            }
+        });
 
         async function load() {
             const uSnap = await getDocs(collection(db, "usuarios"));
@@ -121,22 +157,35 @@
             snap.forEach(d => { allTrips.push(d.data()); rSet.add(d.data().ruta); });
             uniqueRoutes = Array.from(rSet).sort();
             
+            if (highlightedRoute && !uniqueRoutes.includes(highlightedRoute)) uniqueRoutes.push(highlightedRoute);
             renderDefaultBtns();
         }
         
         function renderDefaultBtns() {
             const c = document.getElementById('routes-container'); c.innerHTML = '';
             
-            // Por defecto, SOLO mostramos la ruta destacada. Si no hay, mensaje invitando a buscar.
-            if (highlightedRoute && (uniqueRoutes.includes(highlightedRoute) || !uniqueRoutes.includes(highlightedRoute))) {
-                const b = document.createElement('button');
-                b.className = 'route-btn glowing-btn';
-                b.innerHTML = `🔥 ${getRouteName(highlightedRoute)}`;
-                b.onclick = () => select(highlightedRoute, b);
-                c.appendChild(b);
-            } else {
-                c.innerHTML = "<span style='color:var(--text-muted); font-size:0.9rem; padding: 10px 0;'>Busca una estación arriba para ver las rutas disponibles.</span>";
-            }
+            let displayRoutes = [];
+            if (highlightedRoute) displayRoutes.push(highlightedRoute);
+            userFavorites.forEach(r => { if(!displayRoutes.includes(r)) displayRoutes.push(r); });
+
+            const counts = {}; allTrips.forEach(t => counts[t.ruta] = (counts[t.ruta] || 0) + 1);
+            const sortedRoutes = [...uniqueRoutes].sort((a,b) => (counts[b]||0) - (counts[a]||0));
+
+            sortedRoutes.forEach(r => {
+                if(!displayRoutes.includes(r) && displayRoutes.length < 15) displayRoutes.push(r);
+            });
+
+            displayRoutes.forEach(r => {
+                const b = document.createElement('button'); b.className = 'route-btn';
+                if (r === highlightedRoute) { 
+                    b.classList.add('glowing-btn'); b.innerHTML = `🔥 ${getRouteName(r)}`; 
+                } else if (userFavorites.includes(r)) {
+                    b.innerHTML = `⭐ ${getRouteName(r)}`; b.style.borderColor = '#FFD700';
+                } else {
+                    b.innerHTML = getRouteName(r);
+                }
+                b.onclick = () => select(r, b); c.appendChild(b);
+            });
         }
 
         document.getElementById('search-input').addEventListener('input', e => {
@@ -152,10 +201,33 @@
             });
         });
 
+        // LÓGICA DE ANCLAR FAVORITO
+        document.getElementById('pin-btn').addEventListener('click', async () => {
+            if(!selectedRouteId) return;
+            const btn = document.getElementById('pin-btn');
+
+            if(userFavorites.includes(selectedRouteId)) {
+                userFavorites = userFavorites.filter(r => r !== selectedRouteId);
+                btn.classList.remove('pinned'); btn.innerHTML = '<i class="fi fi-rr-star"></i>';
+            } else {
+                if(userFavorites.length >= 3) { alert("Límite de 3 rutas favoritas alcanzado."); return; }
+                userFavorites.push(selectedRouteId);
+                btn.classList.add('pinned'); btn.innerHTML = '<i class="fi fi-sr-star"></i>';
+            }
+
+            await setDoc(doc(db, "usuarios", currentU.email), { favoriteRoutes: userFavorites }, { merge: true });
+            if(!document.getElementById('search-input').value.trim()) renderDefaultBtns();
+        });
+
         function select(ruta, btn) {
+            selectedRouteId = ruta;
             document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
             document.getElementById('ranking-section').style.display = 'block'; 
             document.getElementById('ranking-title').innerHTML = getRouteName(ruta);
+            
+            const pinBtn = document.getElementById('pin-btn');
+            if(userFavorites.includes(ruta)) { pinBtn.classList.add('pinned'); pinBtn.innerHTML = '<i class="fi fi-sr-star"></i>'; }
+            else { pinBtn.classList.remove('pinned'); pinBtn.innerHTML = '<i class="fi fi-rr-star"></i>'; }
             
             let trips = allTrips.filter(t => t.ruta === ruta).sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
             const list = document.getElementById('ranking-list'); list.innerHTML = '';
@@ -202,7 +274,6 @@
                     </div>`;
             });
         }
-        load();
     </script>
 </body>
 </html>

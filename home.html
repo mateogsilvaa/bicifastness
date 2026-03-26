@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home | BiciFastness</title>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap');
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
@@ -26,7 +27,7 @@
         .dash-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--primary); transform: scaleX(0); transition: transform 0.3s ease; transform-origin: left; }
         .dash-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 10px 25px rgba(0,113,195,0.1); }
         .dash-card:hover::before { transform: scaleX(1); }
-        .card-icon { font-size: 2.5rem; margin-bottom: 15px; display: block; }
+        .card-icon { font-size: 2.5rem; margin-bottom: 15px; display: block; color: var(--primary);}
         .dash-card h2 { margin: 0 0 10px 0; font-weight: 800; font-size: 1.3rem; text-transform: uppercase; }
         .dash-card p { color: var(--text-muted); margin: 0; font-size: 0.9rem; }
 
@@ -34,9 +35,9 @@
         @media (max-width: 768px) {
             nav .links { display: none; }
             .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -5px 10px rgba(0,0,0,0.1); }
-            .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: color 0.3s; }
+            .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: color 0.3s; }
             .bottom-nav a.active, .bottom-nav a:hover { color: var(--primary); }
-            .bottom-nav a .icon { font-size: 1.3rem; }
+            .bottom-nav a i { font-size: 1.4rem; line-height: 1;}
         }
         @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -50,12 +51,18 @@
     <div class="container">
         <div class="hero"><h1 id="welcome-title">EL CIRCUITO <br><span>URBANO</span></h1><p>Compite contra la ciudad. Registra tus tiempos y domina el asfalto madrileño.</p></div>
         <div class="dashboard-grid">
-            <a href="ranking.html" class="dash-card"><span class="card-icon">🏆</span><h2>Rankings</h2><p>Descubre los récords actuales y mira quién lidera el podio.</p></a>
-            <a href="subir.html" class="dash-card"><span class="card-icon">⏱️</span><h2>Subir Tiempo</h2><p>¿Acabas de destrozar el cronómetro? Reclama tu posición.</p></a>
-            <a href="profile.html" class="dash-card"><span class="card-icon">👤</span><h2>Mi Perfil</h2><p>Revisa tu historial, verifica tu estado y edita tu avatar.</p></a>
+            <a href="ranking.html" class="dash-card"><i class="fi fi-sr-ranking-podium-empty card-icon"></i><h2>Rankings</h2><p>Descubre los récords actuales y mira quién lidera el podio.</p></a>
+            <a href="subir.html" class="dash-card"><i class="fi fi-sr-add card-icon"></i><h2>Subir Tiempo</h2><p>¿Acabas de destrozar el cronómetro? Reclama tu posición.</p></a>
+            <a href="profile.html" class="dash-card"><i class="fi fi-sr-user card-icon"></i><h2>Mi Perfil</h2><p>Revisa tu historial, verifica tu estado y edita tu avatar.</p></a>
         </div>
     </div>
-    <div class="bottom-nav"><a href="home.html" class="active"><span class="icon">🏠</span>Inicio</a><a href="ranking.html"><span class="icon">🏆</span>Rankings</a><a href="subir.html"><span class="icon">➕</span>Subir</a><a href="profile.html"><span class="icon">👤</span>Perfil</a></div>
+    
+    <div class="bottom-nav">
+        <a href="home.html" class="active"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="ranking.html"><i class="fi fi-sr-ranking-podium-empty"></i>Rankings</a>
+        <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
+        <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";

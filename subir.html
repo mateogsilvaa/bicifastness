@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subir | BiciFastness</title>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
@@ -21,8 +22,6 @@
         
         .form-group { margin-bottom: 15px; width: 100%;}
         label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; font-weight: 600;}
-        
-        /* CORRECCIÓN PARA QUE NO SE SALGA DEL MÓVIL */
         .row { display: flex; gap: 15px; flex-wrap: wrap; }
         .row > div { flex: 1 1 calc(50% - 15px); min-width: 120px; box-sizing: border-box; }
         input { width: 100%; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
@@ -39,7 +38,7 @@
         #status-msg { margin-top: 15px; font-size: 0.9rem; text-align: center; font-weight: 600; }
         
         .bottom-nav { display: none; }
-        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px;} .bottom-nav a.active { color: var(--primary); } .bottom-nav a .icon { font-size: 1.3rem; } }
+        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 6px;} .bottom-nav a.active { color: var(--primary); } .bottom-nav a i { font-size: 1.4rem; line-height:1; } }
     </style>
 </head>
 <body>
@@ -67,7 +66,13 @@
             <div id="status-msg"></div>
         </div>
     </div>
-    <div class="bottom-nav"><a href="home.html"><span class="icon">🏠</span>Inicio</a><a href="ranking.html"><span class="icon">🏆</span>Rankings</a><a href="subir.html" class="active"><span class="icon">➕</span>Subir</a><a href="profile.html"><span class="icon">👤</span>Perfil</a></div>
+
+    <div class="bottom-nav">
+        <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="ranking.html"><i class="fi fi-sr-ranking-podium-empty"></i>Rankings</a>
+        <a href="subir.html" class="active"><i class="fi fi-sr-add"></i>Subir</a>
+        <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";

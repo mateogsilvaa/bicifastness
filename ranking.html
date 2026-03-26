@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rankings | BiciFastness</title>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
@@ -25,7 +26,6 @@
         
         .ranking-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); display: none; }
         
-        /* CORRECCIÓN PARA QUE NO SE SALGA DE LA PANTALLA */
         .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; }
         
         .rank-pos { font-size: 1.2rem; font-weight: 800; color: var(--text-muted); text-align: center; }
@@ -44,7 +44,7 @@
         .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .rank-pos { color: #CD7F32; }
 
         .bottom-nav { display: none; }
-        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a .icon { font-size: 1.3rem; } }
+        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 6px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a i { font-size: 1.4rem; line-height:1;} }
     </style>
 </head>
 <body>
@@ -63,7 +63,13 @@
             <div id="ranking-list"></div>
         </div>
     </div>
-    <div class="bottom-nav"><a href="home.html"><span class="icon">🏠</span>Inicio</a><a href="ranking.html" class="active"><span class="icon">🏆</span>Rankings</a><a href="subir.html"><span class="icon">➕</span>Subir</a><a href="profile.html"><span class="icon">👤</span>Perfil</a></div>
+    
+    <div class="bottom-nav">
+        <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="ranking.html" class="active"><i class="fi fi-sr-ranking-podium-empty"></i>Rankings</a>
+        <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
+        <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
@@ -78,11 +84,9 @@
         let allTrips = [], uniqueRoutes = [], usersMap = {};
 
         async function load() {
-            // Cargar usuarios para tener siempre el Avatar actual
             const uSnap = await getDocs(collection(db, "usuarios"));
             uSnap.forEach(d => usersMap[d.id] = d.data());
 
-            // Cargar viajes verificados
             const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
             const snap = await getDocs(q);
             const rSet = new Set();
@@ -127,19 +131,22 @@
                         deltaHtml = `<div class="rank-delta">${text}</div>`;
                     }
                     
-                    // Buscar los datos en el Map de usuarios
                     const userData = usersMap[t.email_real] || {};
                     const avatar = userData.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${t.email_real}&backgroundColor=0071c3`;
                     const username = userData.username || "Piloto";
                     
-                    // Nota: ¡Ya NO hay botón de foto! Todo limpio y centrado en los tiempos
+                    // Magia para la Fecha: "12 de Marzo 2025"
+                    const d = new Date(t.fecha);
+                    const month = d.toLocaleString('es-ES', { month: 'long' });
+                    const dateString = `${d.getDate()} de ${month.charAt(0).toUpperCase() + month.slice(1)} ${d.getFullYear()}`;
+                    
                     list.innerHTML += `
                         <div class="rank-row ${rClass}">
                             <div class="rank-pos">#${pos}</div>
                             <img src="${avatar}" class="rank-avatar">
                             <div class="rank-user-container">
                                 <div class="rank-user">${username}</div>
-                                <span class="rank-date">${new Date(t.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short'})}</span>
+                                <span class="rank-date">${dateString}</span>
                             </div>
                             <div class="rank-stats">
                                 <div class="rank-time">${t.tiempo_formateado}</div>
@@ -152,4 +159,4 @@
         load();
     </script>
 </body>
-</html> 
+</html>

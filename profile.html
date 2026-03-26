@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Perfil | BiciFastness</title>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
@@ -19,7 +21,6 @@
         .card { background: var(--bg-card); padding: 2rem; border-radius: 12px; border: 1px solid var(--border); }
         h2 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
         
-        /* Profile Header */
         .profile-header { text-align: center; margin-bottom: 20px; }
         .pfp { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--primary); object-fit: cover; margin-bottom: 10px; cursor: pointer; transition: 0.2s;}
         .pfp:hover { opacity: 0.8; }
@@ -31,9 +32,9 @@
         .stat-num { font-size: 2rem; font-weight: 800; color: var(--primary); }
         .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;}
         
-        /* Botón TEMA */
         .theme-box { cursor: pointer; display: flex; justify-content: space-between; align-items: center; text-align: left; transition: border-color 0.3s; }
         .theme-box:hover { border-color: var(--primary); }
+        #theme-icon { display: flex; align-items: center; color: var(--primary); } /* Color del icono estrella */
 
         .trip-item { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; }
         .trip-time { font-weight: 800; color: var(--primary); }
@@ -46,7 +47,7 @@
         .btn-logout:hover { background: #ff4444; color: white; }
 
         .bottom-nav { display: none; }
-        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a .icon { font-size: 1.3rem; } }
+        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 6px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a i { font-size: 1.4rem; line-height:1; } }
     </style>
 </head>
 <body>
@@ -68,7 +69,7 @@
             
             <div class="stat-box theme-box" id="theme-toggle-btn">
                 <div><div style="font-weight:700; color:var(--text-main);">Aspecto Visual</div><div id="theme-text" style="font-size:0.8rem; color:var(--text-muted);">Modo Oscuro</div></div>
-                <div style="font-size:1.5rem;">🌓</div>
+                <div style="font-size:1.5rem;" id="theme-icon"><i class="fi fi-sr-star"></i></div>
             </div>
 
             <div class="stat-box"><div class="stat-num" id="total-trips">0</div><div class="stat-label">Viajes Subidos</div></div>
@@ -79,7 +80,13 @@
             <div id="trips-container" style="color:var(--text-muted)">Cargando historial...</div>
         </div>
     </div>
-    <div class="bottom-nav"><a href="home.html"><span class="icon">🏠</span>Inicio</a><a href="ranking.html"><span class="icon">🏆</span>Rankings</a><a href="subir.html"><span class="icon">➕</span>Subir</a><a href="profile.html" class="active"><span class="icon">👤</span>Perfil</a></div>
+    
+    <div class="bottom-nav">
+        <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="ranking.html"><i class="fi fi-sr-ranking-podium-empty"></i>Rankings</a>
+        <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
+        <a href="profile.html" class="active"><i class="fi fi-sr-user"></i>Perfil</a>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
@@ -89,10 +96,11 @@
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-        // Lógica de tema en el perfil
+        // Lógica de tema en el perfil con la estrella
         const updateThemeUI = () => {
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             document.getElementById('theme-text').innerText = isDark ? 'Modo Oscuro' : 'Modo Claro';
+            document.getElementById('theme-icon').innerHTML = isDark ? '<i class="fi fi-sr-star"></i>' : '<i class="fi fi-rr-star"></i>';
         };
         document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
         updateThemeUI();
@@ -105,7 +113,6 @@
         });
 
         let currentU = null;
-        let currentUsername = "Piloto";
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) window.location.href = "index.html";
@@ -113,21 +120,17 @@
                 currentU = user;
                 document.getElementById('user-email').innerText = user.email;
                 
-                // Buscar perfil en Firestore
                 const userDoc = await getDoc(doc(db, "usuarios", user.email));
                 if(userDoc.exists()){
-                    currentUsername = userDoc.data().username;
-                    document.getElementById('user-name').innerText = currentUsername;
+                    document.getElementById('user-name').innerText = userDoc.data().username;
                     document.getElementById('user-pfp').src = userDoc.data().avatar;
                 }
-                
                 loadTrips(user.email);
             }
         });
 
         document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-        // Subir foto comprimida a FIRESTORE
         document.getElementById('pfp-upload').addEventListener('change', async (e) => {
             const file = e.target.files[0]; if(!file) return;
             const status = document.getElementById('upload-status');
@@ -143,10 +146,9 @@
                     const min = Math.min(img.width, img.height);
                     const sx = (img.width - min)/2, sy = (img.height - min)/2;
                     ctx.drawImage(img, sx, sy, min, min, 0, 0, 200, 200);
-                    const b64 = cvs.toDataURL('image/jpeg', 0.6); // Foto pequeña
+                    const b64 = cvs.toDataURL('image/jpeg', 0.6); 
                     
                     document.getElementById('user-pfp').src = b64;
-                    // Guardar en la base de datos
                     await setDoc(doc(db, "usuarios", currentU.email), { avatar: b64 }, { merge: true });
                     status.innerText = "¡Foto actualizada!"; status.style.color = "#00C851";
                 }
@@ -156,22 +158,32 @@
         async function loadTrips(email) {
             const c = document.getElementById('trips-container');
             const q = query(collection(db, "tiempos_viaje"), where("email_real", "==", email));
-            const snap = await getDocs(q);
-            let arr = []; snap.forEach(d => arr.push(d.data()));
-            arr.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
-            
-            document.getElementById('total-trips').innerText = arr.length;
-            c.innerHTML = arr.length ? '' : 'No has subido viajes.';
-            
-            arr.slice(0, 10).forEach(t => {
-                const sCls = t.verificado ? 'status-verified' : 'status-pending';
-                const sTxt = t.verificado ? 'Verificado' : 'Pendiente';
-                c.innerHTML += `
-                    <div class="trip-item">
-                        <div><div style="font-weight:700">Ruta ${t.ruta}</div><div style="font-size:0.75rem">${new Date(t.fecha).toLocaleDateString('es-ES')}</div></div>
-                        <div style="text-align:right"><div class="trip-time">${t.tiempo_formateado}</div><div class="status-badge ${sCls}">${sTxt}</div></div>
-                    </div>`;
-            });
+            try {
+                const snap = await getDocs(q);
+                let arr = []; snap.forEach(d => arr.push(d.data()));
+                arr.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+                
+                document.getElementById('total-trips').innerText = arr.length;
+                c.innerHTML = arr.length ? '' : 'No has subido viajes.';
+                
+                arr.slice(0, 10).forEach(t => {
+                    const sCls = t.verificado ? 'status-verified' : 'status-pending';
+                    const sTxt = t.verificado ? 'Verificado' : 'Pendiente';
+                    
+                    const d = new Date(t.fecha);
+                    const month = d.toLocaleString('es-ES', { month: 'long' });
+                    const dateString = `${d.getDate()} de ${month.charAt(0).toUpperCase() + month.slice(1)} ${d.getFullYear()}`;
+                    
+                    c.innerHTML += `
+                        <div class="trip-item">
+                            <div><div style="font-weight:700">Ruta ${t.ruta}</div><div style="font-size:0.75rem">${dateString}</div></div>
+                            <div style="text-align:right"><div class="trip-time">${t.tiempo_formateado}</div><div class="status-badge ${sCls}">${sTxt}</div></div>
+                        </div>`;
+                });
+            } catch (err) {
+                c.innerHTML = "Error al cargar. Revisa las reglas de Firebase.";
+                console.error(err);
+            }
         }
     </script>
 </body>

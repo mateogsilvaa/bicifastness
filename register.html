@@ -65,9 +65,11 @@
                 btn.innerText = "Creando..."; btn.disabled = true;
                 const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
                 
-                // GUARDAMOS EL PERFIL EN FIRESTORE
+                // Estructura BD actualizada con isAdmin
                 await setDoc(doc(db, "usuarios", email), {
                     username: username,
+                    email: email,
+                    isAdmin: false,
                     avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=0071c3`
                 });
                 

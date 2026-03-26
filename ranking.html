@@ -26,8 +26,9 @@
         .routes-wrapper { position: relative; display: flex; align-items: center; margin-top: 15px; }
         
         /* Botones de flecha para PC */
-        .scroll-btn { display: none; position: absolute; z-index: 10; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); border-radius: 50%; width: 40px; height: 40px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); align-items: center; justify-content: center; top: 50%; transform: translateY(-50%); transition: 0.2s;}
-        .scroll-btn:hover { color: var(--primary); border-color: var(--primary); }
+        /* Botones de flecha para PC (Semitransparentes) */
+        .scroll-btn { display: none; position: absolute; z-index: 10; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); border-radius: 50%; width: 40px; height: 40px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); align-items: center; justify-content: center; top: 50%; transform: translateY(-50%); transition: 0.2s; opacity: 0.6; backdrop-filter: blur(2px); }
+        .scroll-btn:hover { color: var(--primary); border-color: var(--primary); opacity: 1; }
         .scroll-btn.left { left: -15px; }
         .scroll-btn.right { right: -15px; }
         

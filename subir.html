@@ -24,7 +24,10 @@
         label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; font-weight: 600;}
         .row { display: flex; gap: 15px; flex-wrap: wrap; }
         .row > div { flex: 1 1 calc(50% - 15px); min-width: 120px; box-sizing: border-box; }
-        input { width: 100%; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
+        
+        /* Arreglo de Inputs para que no se salgan nunca */
+        input { width: 100%; max-width: 100%; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
+        input[type="date"] { appearance: none; -webkit-appearance: none; min-height: 45px; }
         input:focus { border-color: var(--primary); outline: none; }
         
         .file-drop-area { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; padding: 25px; border: 2px dashed var(--border); border-radius: 8px; background: var(--bg-input); transition: 0.3s; cursor: pointer; text-align: center; box-sizing: border-box;}
@@ -50,8 +53,8 @@
         <div class="card">
             <h2>Registrar Viaje</h2>
             <div class="row">
-                <div class="form-group"><label>Salida</label><input type="number" id="origen" placeholder="Ej: 180"></div>
-                <div class="form-group"><label>Meta</label><input type="number" id="destino" placeholder="Ej: 235"></div>
+                <div class="form-group"><label>Salida</label><input type="number" id="origen" placeholder="Ej: 003"></div>
+                <div class="form-group"><label>Meta</label><input type="number" id="destino" placeholder="Ej: 395"></div>
             </div>
             <div class="row">
                 <div class="form-group"><label>Minutos</label><input type="number" id="min" placeholder="00"></div>

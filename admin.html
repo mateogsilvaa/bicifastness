@@ -6,7 +6,7 @@
     <title>Admin | BiciFastness</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        :root { --bg-main: #0d0d0d; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #ffbb33; }
+        :root { --bg-main: #0d0d0d; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #ffbb33; }
         
         body { margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; }
         nav { background: #000; border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
@@ -14,9 +14,9 @@
         nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-size: 0.9rem; }
         .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
         .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 15px; }
-        .badge-count { background: #0071c3; padding: 4px 10px; border-radius: 20px; font-weight: 700; }
+        .badge-count { background: #0071c3; padding: 4px 10px; border-radius: 20px; font-weight: 700; color: white;}
         .pending-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .admin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .admin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;}
         .card-header { display: flex; justify-content: space-between; font-weight: 700; color: #0071c3; }
         button { padding: 10px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; transition: 0.2s; font-family: inherit; }
         .btn-view { background: #222; color: #fff; border: 1px solid #444; width: 100%; }
@@ -33,6 +33,15 @@
         <div class="links"><a href="home.html">Volver a Inicio</a></div>
     </nav>
     <div class="container">
+        <div class="admin-card">
+            <div class="card-header"><span style="color:#FFD700;">🔥 Destacar Ruta de la Semana</span></div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <input type="text" id="highlight-input" placeholder="Ej: 180-235" style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit;">
+                <button id="highlight-btn" style="background:#FFD700; color:#111;">Destacar</button>
+            </div>
+            <div style="font-size:0.8rem; color:#888; margin-top:5px;">Esta ruta aparecerá la primera brillando en los Rankings. (Déjalo en blanco para quitarla).</div>
+        </div>
+
         <div class="header-panel"><h2>Tiempos Pendientes</h2><div class="badge-count" id="pending-count">0</div></div>
         <div class="pending-grid" id="pending-grid"><div id="empty-msg" style="grid-column:1/-1; color:#888;">Verificando permisos...</div></div>
     </div>
@@ -41,30 +50,40 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = "home.html"; return; }
-            
             const userDoc = await getDoc(doc(db, "usuarios", user.email));
             if (userDoc.exists() && userDoc.data().isAdmin === true) {
                 loadPendingTrips();
+                loadCurrentHighlighted();
             } else {
-                alert("Acceso denegado. No eres administrador.");
-                window.location.href = "home.html";
+                alert("Acceso denegado. No eres administrador."); window.location.href = "home.html";
             }
+        });
+
+        // Cargar y guardar ruta destacada
+        async function loadCurrentHighlighted() {
+            const confDoc = await getDoc(doc(db, "config", "general"));
+            if(confDoc.exists() && confDoc.data().ruta_destacada) {
+                document.getElementById('highlight-input').value = confDoc.data().ruta_destacada;
+            }
+        }
+        document.getElementById('highlight-btn').addEventListener('click', async () => {
+            const val = document.getElementById('highlight-input').value.trim();
+            await setDoc(doc(db, "config", "general"), { ruta_destacada: val }, { merge: true });
+            alert("Ruta destacada actualizada en la app.");
         });
 
         async function loadPendingTrips() {
             const grid = document.getElementById('pending-grid');
             const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", false));
             const snap = await getDocs(q);
-            
-            grid.innerHTML = '';
-            let count = 0;
+            grid.innerHTML = ''; let count = 0;
             snap.forEach((docSnap) => {
                 count++; const data = docSnap.data(); const docId = docSnap.id;
                 grid.innerHTML += `

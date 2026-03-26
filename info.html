@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Info | BiciFastness</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+        :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
+        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
+        
+        body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s; }
+        
+        /* NAVBAR */
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+        nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; transition: color 0.3s; }
+        nav .links a:hover, nav .links a.active { color: var(--text-main); }
+        
+        .container { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        .card { background: var(--bg-card); padding: 2.5rem; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        
+        h2 { color: var(--primary); font-weight: 800; margin-top: 0; border-bottom: 2px solid var(--border); padding-bottom: 10px;}
+        h3 { color: var(--text-main); font-weight: 700; margin-top: 30px;}
+        p { color: var(--text-muted); line-height: 1.6; }
+        
+        .step-list { list-style: none; padding: 0; }
+        .step-list li { background: var(--bg-main); margin-bottom: 15px; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary); color: var(--text-main); font-weight: 600;}
+        .step-list li span { color: var(--primary); margin-right: 10px; font-size: 1.2rem;}
+
+        .bottom-nav { display: none; }
+        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a i { font-size: 1.4rem; line-height:1; } }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="brand">BiciFastness</div>
+        <div class="links">
+            <a href="home.html">Inicio</a>
+            <a href="ranking.html">Rankings</a>
+            <a href="subir.html">Subir Tiempo</a>
+            <a href="profile.html">Perfil</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="card">
+            <h2>🚴 Cómo funciona BiciFastness</h2>
+            <p>BiciFastness es la plataforma definitiva para los reyes del asfalto. Aquí registramos y verificamos los tiempos de viaje entre estaciones de BiciMAD para ver quién es el piloto más rápido de Madrid.</p>
+            
+            <h3>🔥 Pasos para competir</h3>
+            <ul class="step-list">
+                <li><span>1.</span> Haz tu viaje en BiciMAD de forma habitual.</li>
+                <li><span>2.</span> Al terminar, ve a la app oficial de BiciMAD, entra en tu historial y haz una captura de pantalla del viaje (donde se vea la estación de origen, la de destino, la fecha y el tiempo).</li>
+                <li><span>3.</span> Entra en BiciFastness > "Subir Tiempo".</li>
+                <li><span>4.</span> Introduce los datos exactos y adjunta tu captura de pantalla.</li>
+                <li><span>5.</span> ¡Paciencia! Un administrador revisará que los datos coinciden con la captura. Si todo está en orden, tu tiempo se publicará en los rankings globales.</li>
+            </ul>
+
+            <h3>📜 Reglas de la casa</h3>
+            <p><strong>1. Solo BiciMAD:</strong> No se admiten patinetes, bicis personales ni motos. Solo bicicletas del sistema público de Madrid.</p>
+            <p><strong>2. Respeta las normas:</strong> BiciFastness no se hace responsable de las multas. Respeta los semáforos, no vayas por la acera y usa el sentido común. Queremos pilotos rápidos, no kamikazes.</p>
+            <p><strong>3. Cero trampas:</strong> Cualquier captura de pantalla editada con Photoshop o alterada resultará en la expulsión inmediata y permanente (ban) de la plataforma.</p>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        </div>
+
+    <script>
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+    </script>
+</body>
+</html>

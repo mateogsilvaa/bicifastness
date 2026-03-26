@@ -6,6 +6,7 @@
     <title>Perfil | BiciFastness</title>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap');
@@ -13,10 +14,15 @@
         [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --bg-input: #f0f0f0; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
         
         body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
+        
         nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         nav .brand { color: var(--primary); font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
-        nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; }
+        .nav-right { display: flex; align-items: center; gap: 20px; }
+        nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 15px; }
         nav .links a.active { color: var(--text-main); }
+        .info-icon { color: var(--text-muted); font-size: 1.3rem; display: flex; align-items: center; transition: color 0.3s; text-decoration: none; }
+        .info-icon:hover { color: var(--primary); }
+
         .container { max-width: 900px; margin: 30px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
         @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
         .card { background: var(--bg-card); padding: 2rem; border-radius: 12px; border: 1px solid var(--border); }
@@ -74,14 +80,22 @@
         .btn-share:hover { background: var(--primary-hover); }
         .btn-share.transp { background: #222; border: 1px solid #444; }
         
-        /* Oculta el botón por defecto de BMC */
+        /* Oculta el botón flotante de BMC */
         #bmc-wbtn { display: none !important; }
     </style>
 </head>
 <body>
     <nav>
         <div class="brand">BiciFastness</div>
-        <div class="links"><a href="home.html">Inicio</a><a href="ranking.html">Rankings</a><a href="subir.html">Subir Tiempo</a><a href="profile.html" class="active">Perfil</a></div>
+        <div class="nav-right">
+            <div class="links">
+                <a href="home.html">Inicio</a>
+                <a href="ranking.html">Rankings</a>
+                <a href="subir.html">Subir Tiempo</a>
+                <a href="profile.html" class="active">Perfil</a>
+            </div>
+            <a href="info.html" class="info-icon" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
+        </div>
     </nav>
     <div class="container">
         <div class="card">
@@ -124,21 +138,23 @@
     <div class="modal" id="trip-modal">
         <span class="modal-close" onclick="document.getElementById('trip-modal').style.display='none'">&times;</span>
         <div class="modal-content">
+            
             <div class="share-card" id="share-card">
                 <h2 class="share-brand">BICIFASTNESS</h2>
                 <img src="" id="s-avatar" class="share-avatar">
                 <h3 class="share-user" id="s-user">@Piloto</h3>
                 <p class="share-date" id="s-date">12 de Marzo 2025</p>
                 <div class="share-route-box">
-                    <div class="share-stations" id="s-stations">Estación A <i class="fi fi-rr-arrow-right" style="margin: 0 5px;"></i> Estación B</div>
+                    <div class="share-stations" id="s-stations">Estación A <br>⬇<br> Estación B</div>
                     <div class="share-time" id="s-time">00m 00s</div>
                     <div class="share-rank" id="s-rank">🏆 Puesto #--</div>
                 </div>
                 <div class="share-domain">bicifastness.es</div>
             </div>
+            
             <div class="share-actions">
-                <button class="btn-share" onclick="exportImage(false)">Compartir (Fondo)</button>
-                <button class="btn-share transp" onclick="exportImage(true)">Compartir (Transparente)</button>
+                <button class="btn-share" onclick="exportImage(false)" id="share-btn-solid">Compartir</button>
+                <button class="btn-share transp" onclick="exportImage(true)" id="share-btn-transp">Sin Fondo</button>
             </div>
         </div>
     </div>
@@ -203,12 +219,16 @@
 
         document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-        // Click en el botón de Buy Me A Ride para disparar el script oficial
+        // Click en el botón de Buy Me A Ride para disparar el popup
         document.getElementById('custom-bmc-btn').addEventListener('click', (e) => {
             e.preventDefault();
-            const bmcBtn = document.getElementById('bmc-wbtn');
-            if(bmcBtn) bmcBtn.click();
-            else window.open('https://buymeacoffee.com/mateogsilvaa', '_blank');
+            // Buscar el iframe de Buy Me A Coffee que se genera dinámicamente y hacer click
+            const bmcFrame = document.querySelector('iframe[name="bmc-iframe"]');
+            if (bmcFrame) {
+                 window.postMessage('openBMCWindow', '*'); 
+            } else {
+                 window.open('https://buymeacoffee.com/mateogsilvaa', '_blank');
+            }
         });
 
         document.getElementById('pfp-upload').addEventListener('change', async (e) => {
@@ -281,19 +301,31 @@
             if(!trip.verificado) {
                 rankEl.innerText = "⏳ Pendiente de verificar";
                 rankEl.style.color = "#ffbb33"; rankEl.style.background = "rgba(255,187,51,0.1)";
+                document.getElementById('share-btn-solid').innerText = "Exportar a Galería"; 
+                document.getElementById('share-btn-transp').style.display = 'none';
             } else {
                 rankEl.innerText = "Calculando posición...";
+                rankEl.style.color = "#FFD700"; rankEl.style.background = "rgba(255, 215, 0, 0.1)";
+                document.getElementById('share-btn-solid').innerText = "Compartir Récord";
+                document.getElementById('share-btn-transp').style.display = 'block';
+                
                 const q = query(collection(db, "tiempos_viaje"), where("ruta", "==", trip.ruta), where("verificado", "==", true));
                 const snap = await getDocs(q);
                 let arr = []; snap.forEach(d => arr.push({id: d.id, t: d.data().tiempo_segundos}));
                 arr.sort((a,b) => a.t - b.t);
                 const pos = arr.findIndex(x => x.id === trip.id) + 1;
                 rankEl.innerText = `🏆 Puesto #${pos} de ${arr.length}`;
-                rankEl.style.color = "#FFD700"; rankEl.style.background = "rgba(255, 215, 0, 0.1)";
             }
         }
 
-        window.exportImage = function(transparent) {
+        // COMPARTIR NATIVO
+        window.exportImage = async function(transparent) {
+            const btn1 = document.getElementById('share-btn-solid');
+            const btn2 = document.getElementById('share-btn-transp');
+            const prevText1 = btn1.innerText;
+            btn1.innerText = "Procesando..."; btn1.disabled = true;
+            btn2.disabled = true;
+
             const card = document.getElementById('share-card');
             const originalBg = card.style.backgroundColor;
             const originalBoxShadow = card.style.boxShadow;
@@ -305,32 +337,38 @@
                 card.style.backgroundColor = "#121212";
             }
 
-            html2canvas(card, {
-                backgroundColor: transparent ? null : '#121212',
-                scale: 2
-            }).then(canvas => {
-                canvas.toBlob(function(blob) {
+            try {
+                const canvas = await html2canvas(card, {
+                    backgroundColor: transparent ? null : '#121212',
+                    scale: 2
+                });
+                
+                canvas.toBlob(async function(blob) {
                     const file = new File([blob], 'record_bicifastness.png', { type: 'image/png' });
                     
-                    // COMPARTIR NATIVO 1-CLIC (Para Móviles y navegadores modernos)
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        navigator.share({
-                            files: [file],
-                            title: 'Mi récord en BiciFastness',
-                            text: '¡Mira mi tiempo en el circuito urbano! 🚴💨 Únete a la competición en bicifastness.es'
-                        }).catch(err => console.log('Error al compartir:', err));
+                        try {
+                            await navigator.share({
+                                files: [file],
+                                title: 'Mi récord en BiciFastness',
+                                text: '¡Mira mi tiempo en el circuito urbano! 🚴💨 Únete a la competición en bicifastness.es'
+                            });
+                        } catch(e) { console.log('Cancelado o error:', e); }
                     } else {
-                        // PLAN B: Descarga automática si está en un PC que no soporta compartir
                         const link = document.createElement('a');
                         link.download = `Record_BiciFastness_${Date.now()}.png`;
                         link.href = URL.createObjectURL(blob);
                         link.click();
                     }
+                    
+                    card.style.backgroundColor = originalBg;
+                    card.style.boxShadow = originalBoxShadow;
+                    btn1.innerText = prevText1; btn1.disabled = false; btn2.disabled = false;
                 }, 'image/png');
-                
-                card.style.backgroundColor = originalBg;
-                card.style.boxShadow = originalBoxShadow;
-            });
+            } catch(e) {
+                alert("Hubo un error generando la imagen.");
+                btn1.innerText = prevText1; btn1.disabled = false; btn2.disabled = false;
+            }
         }
     </script>
 </body>

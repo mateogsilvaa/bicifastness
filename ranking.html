@@ -7,7 +7,7 @@
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-curved/css/uicons-solid-curved.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-rounded/css/uicons-bold-rounded.css'>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
@@ -15,13 +15,17 @@
         
         body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
         
-        /* NAVBAR ACTUALIZADO */
-        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: var(--primary); font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
-        .nav-right { display: flex; align-items: center; gap: 20px; }
+        /* NAVBAR ACTUALIZADO CON LOGO Y CENTRADO DE INFO */
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { display: flex; align-items: center; text-decoration: none; }
+        nav .brand img { height: 35px; width: auto; vertical-align: middle; }
+        
+        .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
+        
         nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 15px; }
         nav .links a.active { color: var(--text-main); }
-        .info-icon { color: var(--text-muted); font-size: 1.3rem; display: flex; align-items: center; transition: color 0.3s; text-decoration: none; }
+        
+        .info-icon { color: var(--text-muted); font-size: 1.3rem; display: flex; align-items: center; transition: color 0.3s; text-decoration: none; line-height: 1; }
         .info-icon:hover { color: var(--primary); }
 
         .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
@@ -30,6 +34,7 @@
         .search-input { width: 100%; padding: 15px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; box-sizing: border-box; }
         .search-input:focus { border-color: var(--primary); }
         
+        /* FLECHAS PC CON TRANSPARENCIA */
         .routes-wrapper { position: relative; display: flex; align-items: center; margin-top: 15px; }
         .scroll-btn { display: none; position: absolute; z-index: 10; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); border-radius: 50%; width: 40px; height: 40px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); align-items: center; justify-content: center; top: 50%; transform: translateY(-50%); transition: 0.2s; opacity: 0.6; backdrop-filter: blur(2px); }
         .scroll-btn:hover { color: var(--primary); border-color: var(--primary); opacity: 1; }
@@ -50,9 +55,9 @@
         
         .ranking-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-bottom: 15px; }
         .ranking-header h2 { margin: 0; font-size: 1.1rem; color: var(--primary); }
-        .pin-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; }
+        .pin-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; line-height: 1; }
         .pin-btn:hover { transform: scale(1.1); color: var(--primary); }
-        /* LA CHINCHETA AZUL */
+        /* BOOKMARKS AZULES */
         .pin-btn.pinned { color: var(--primary); }
 
         .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; }
@@ -76,7 +81,7 @@
 </head>
 <body>
     <nav>
-        <div class="brand">BiciFastness</div>
+        <a href="home.html" class="brand"><img src="images/logo.png" alt="BiciFastness Logo"></a>
         <div class="nav-right">
             <div class="links">
                 <a href="home.html">Inicio</a>
@@ -101,7 +106,7 @@
         <div class="ranking-section" id="ranking-section">
             <div class="ranking-header">
                 <h2 id="ranking-title">Ruta --</h2>
-                <button id="pin-btn" class="pin-btn" title="Anclar como favorita"><i class="fi fi-sc-thumbtack"></i></button>
+                <button id="pin-btn" class="pin-btn" title="Anclar como favorita"><i class="fi fi-sr-bookmark"></i></button>
             </div>
             <div id="ranking-list"></div>
         </div>
@@ -195,7 +200,6 @@
         function renderDefaultBtns() {
             const c = document.getElementById('routes-container'); c.innerHTML = '';
             
-            // Mostrar solo Destacada y Fijadas por defecto
             if (highlightedRoute) {
                 const b = document.createElement('button'); b.className = 'route-btn glowing-btn';
                 b.innerHTML = `🔥 ${getRouteName(highlightedRoute)}`;
@@ -205,7 +209,8 @@
             userFavorites.forEach(r => {
                 if (r !== highlightedRoute) {
                     const b = document.createElement('button'); b.className = 'route-btn';
-                    b.innerHTML = `<i class="fi fi-sc-thumbtack" style="font-size:0.9em; color:var(--primary);"></i> ${getRouteName(r)}`; 
+                    // BOOKMARK AZUL SÓLIDO EN LISTA
+                    b.innerHTML = `<i class="fi fi-sr-bookmark" style="font-size:0.9em; color:var(--primary);"></i> ${getRouteName(r)}`; 
                     b.style.borderColor = 'var(--primary)';
                     b.onclick = () => select(r, b); c.appendChild(b);
                 }
@@ -238,10 +243,14 @@
             if(userFavorites.includes(selectedRouteId)) {
                 userFavorites = userFavorites.filter(r => r !== selectedRouteId);
                 btn.classList.remove('pinned'); 
+                // BOOKMARK AZUL OUTLINE EN CABECERA
+                btn.innerHTML = '<i class="fi fi-br-bookmark"></i>';
             } else {
                 if(userFavorites.length >= 3) { alert("Límite de 3 rutas favoritas alcanzado."); return; }
                 userFavorites.push(selectedRouteId);
                 btn.classList.add('pinned'); 
+                // BOOKMARK AZUL SÓLIDO EN CABECERA
+                btn.innerHTML = '<i class="fi fi-sr-bookmark"></i>';
             }
 
             await setDoc(doc(db, "usuarios", currentU.email), { favoriteRoutes: userFavorites }, { merge: true });
@@ -255,8 +264,9 @@
             document.getElementById('ranking-title').innerHTML = getRouteName(ruta);
             
             const pinBtn = document.getElementById('pin-btn');
-            if(userFavorites.includes(ruta)) { pinBtn.classList.add('pinned'); }
-            else { pinBtn.classList.remove('pinned'); }
+            // ACTUALIZAR ICONO DE CABECERA AL SELECCIONAR
+            if(userFavorites.includes(ruta)) { pinBtn.classList.add('pinned'); pinBtn.innerHTML = '<i class="fi fi-sr-bookmark"></i>'; }
+            else { pinBtn.classList.remove('pinned'); pinBtn.innerHTML = '<i class="fi fi-br-bookmark"></i>'; }
             
             let trips = allTrips.filter(t => t.ruta === ruta).sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
             const list = document.getElementById('ranking-list'); list.innerHTML = '';

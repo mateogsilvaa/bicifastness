@@ -13,14 +13,23 @@
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
         [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --bg-input: #f0f0f0; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
         
-        body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
+        /* AUMENTADO EL PADDING BOTTOM A 100px PARA QUE SE VEA EL ÚLTIMO VIAJE */
+        body { margin: 0; padding: 0; padding-bottom: 100px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
         
-        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: var(--primary); font-weight: 800; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+        /* NAVBAR CON LOGO Y CENTRADO DE INFO ARREGLADO */
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        
+        /* Estilos del Logo Clickable */
+        nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
+        nav .brand img { height: 35px; width: auto; display: block; }
+        
         .nav-right { display: flex; align-items: center; gap: 20px; }
-        nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 15px; }
-        nav .links a.active { color: var(--text-main); }
-        .info-icon { color: var(--text-muted); font-size: 1.3rem; display: flex; align-items: center; transition: color 0.3s; text-decoration: none; }
+        nav .links { display: flex; align-items: center; }
+        nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; transition: color 0.3s; line-height: 1; }
+        nav .links a.active, nav .links a:hover { color: var(--text-main); }
+        
+        /* Ajuste óptico milimétrico para el icono Info */
+        .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
         .info-icon:hover { color: var(--primary); }
 
         .container { max-width: 900px; margin: 30px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
@@ -86,7 +95,9 @@
 </head>
 <body>
     <nav>
-        <div class="brand">BiciFastness</div>
+        <a href="home.html" class="brand">
+            <img src="images/logo.png" alt="BICIFASTNESS" onerror="this.outerHTML='BICIFASTNESS'">
+        </a>
         <div class="nav-right">
             <div class="links">
                 <a href="home.html">Inicio</a>
@@ -145,7 +156,7 @@
                 <h3 class="share-user" id="s-user">@Piloto</h3>
                 <p class="share-date" id="s-date">12 de Marzo 2025</p>
                 <div class="share-route-box">
-                    <div class="share-stations" id="s-stations">Estación A <br>⬇<br> Estación B</div>
+                    <div class="share-stations" id="s-stations">Estación A <i class="fi fi-rr-arrow-right" style="margin: 0 5px;"></i> Estación B</div>
                     <div class="share-time" id="s-time">00m 00s</div>
                     <div class="share-rank" id="s-rank">🏆 Puesto #--</div>
                 </div>

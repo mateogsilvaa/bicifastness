@@ -16,12 +16,10 @@
         nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-size: 0.9rem; }
         .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
         
-        /* Panel del Bot */
         .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 15px; flex-wrap: wrap; gap: 15px;}
         .title-group { display: flex; align-items: center; gap: 15px; }
         .badge-count { background: #0071c3; padding: 4px 10px; border-radius: 20px; font-weight: 700; color: white;}
         
-        /* Toggle Switch del Bot */
         .bot-toggle { display: flex; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 15px; border-radius: 30px; border: 1px solid var(--border); }
         .bot-toggle span { font-weight: 700; font-size: 0.9rem; color: #00C851; }
         .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
@@ -35,7 +33,6 @@
         .admin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;}
         .card-header { display: flex; justify-content: space-between; font-weight: 700; color: #0071c3; }
         
-        /* Estado del Bot OCR Avanzado */
         .bot-status { font-size: 0.85rem; font-weight: 700; padding: 8px; border-radius: 6px; background: var(--bg-input); border: 1px solid var(--border); display: none; margin-top: 5px; line-height: 1.4; }
         .bot-status.loading { color: #ffbb33; border-color: #ffbb33; }
         .bot-status.success { color: #00C851; border-color: #00C851; background: rgba(0, 200, 81, 0.1); }
@@ -95,7 +92,7 @@
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-        // LÓGICA DEL BOT OCR AVANZADO v2 (Basado en la Captura Real de BiciMAD)
+        // LÓGICA DEL BOT OCR (Tolerante a errores de Tesseract)
         let isBotActive = false;
         let botQueue = [];
         let isProcessingQueue = false;
@@ -122,64 +119,53 @@
             
             if(statusEl && isBotActive) {
                 statusEl.className = 'bot-status loading';
-                statusEl.innerHTML = '🤖 Escaneando imagen y metadatos estructurales de BiciMAD...';
+                statusEl.innerHTML = '🤖 Escaneando con IA tolerante a fallos...';
                 
                 try {
-                    // Magia de Tesseract OCR
                     const result = await Tesseract.recognize(trip.foto_url, 'spa');
                     const text = result.data.text.toLowerCase();
                     
-                    // 1. VERIFICACIÓN DE DATOS DE COMPETICIÓN (Ids de estación y Duración en segundos)
-                    const claimed_O = trip.ruta.split('-')[0];
-                    const claimed_D = trip.ruta.split('-')[1];
-                    const claimed_seconds = parseInt(trip.tiempo_segundos);
+                    // Si quieres ver qué lee exactamente el OCR, pulsa F12 en el navegador y mira la consola
+                    console.log(`OCR Lectura para el viaje ${trip.ruta}:`, text);
                     
-                    // Verificamos los IDs de estación (deben aparecer ambos)
-                    let verify_Ids = text.includes(claimed_O) && text.includes(claimed_D);
+                    // 1. VERIFICACIÓN DE ESTACIONES (Flexible)
+                    const [orig, dest] = trip.ruta.toLowerCase().split('-');
+                    const verify_Ids = text.includes(orig) && text.includes(dest);
 
-                    // Verificamos la duración. BiciMAD escribe "01m. 26s.". 
-                    // Tesseract es muy bueno reconociendo este formato exacto de ceros a la izquierda.
-                    let verify_Duration = false;
-                    const regexDuration = /(\d{1,2})m\. (\d{1,2})s\./;
-                    const matchDuration = text.match(regexDuration);
+                    // 2. VERIFICACIÓN DE TIEMPO (Flexible: buscamos "01" o "1" y "26")
+                    const claimed_m = Math.floor(trip.tiempo_segundos / 60);
+                    const m_pad = claimed_m.toString().padStart(2, '0');
+                    const m_nopad = claimed_m.toString();
+                    const s_pad = (trip.tiempo_segundos % 60).toString().padStart(2, '0');
                     
-                    if (matchDuration) {
-                        const min = parseInt(matchDuration[1]);
-                        const sec = parseInt(matchDuration[2]);
-                        const recognized_seconds = (min * 60) + sec;
-                        // Permitimos 1 segundo de margen óptico (a veces el OCR lee 26s como 2s si hay ruido)
-                        verify_Duration = Math.abs(recognized_seconds - claimed_seconds) <= 1;
-                    }
+                    const verify_Duration = (text.includes(m_pad) || text.includes(m_nopad)) && text.includes(s_pad);
 
-                    // 2. VERIFICACIÓN DE AUTENTICIDAD ESTRUCTURAL (Fingerprinting Anti-Word/Fake doc)
-                    // BiciMAD detail card tiene formatos de texto y símbolos ultra-específicos difíciles de falsificar por un usuario medio.
+                    // 3. FINGERPRINT ANTI-WORD (Busca al menos 1 rastro estructural válido)
+                    let fingerprintScore = 0;
                     
-                    // A. El Símbolo del Euro (€) o el formato exacto de coste (0.00 €)
-                    let fingerprint_Euro = text.includes('€') || text.includes('0.00');
+                    // A. Patrón de Hora (08:03:12) - Muy difícil que el OCR falle en los dos puntos
+                    if (/\d{2}:\d{2}:\d{2}/.test(text)) fingerprintScore++;
                     
-                    // B. El Patrón de Fecha Estructural (DD/MM/YY HH:MM:SS) que aparece dos veces.
-                    // Esto es lo más difícil de recrear para un falsificador en un Word falso.
-                    let fingerprint_Dates = false;
-                    const regexDateTime = /\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}/;
-                    if(text.match(regexDateTime)) fingerprint_Dates = true;
+                    // B. Patrón de Fecha con barras (28/02/26)
+                    if (/\d{2}\/\d{2}\/\d{2}/.test(text)) fingerprintScore++;
+                    
+                    // C. El Coste (Suele leer bien el 0.00 o 0,00 aunque falle el euro)
+                    if (/0[.,]00/.test(text) || text.includes('€')) fingerprintScore++;
+                    
+                    // D. El formato del tiempo (Ej: m. 26s.)
+                    if (/m\.?\s*\d{1,2}\s*s\.?/.test(text)) fingerprintScore++;
 
-                    // C. Verificación de Modo Claro (Opcional, pero BiciMAD no tiene Modo Oscuro)
-                    // (Implementar esto requiere análisis de canvas de imagen, no OCR, pero podemos simplificar: una imagen en Word suele tener mucho blanco. La app tiene mucho blanco. Modo oscuro tendrá mucho negro. OCR lee mejor sobre blanco, si el OCR leyó bien, probablemente sea la app real).
 
-                    // 3. VEREDICTO FINAL CON SEMÁFORO
-                    // Requiere que DATOS sean correctos Y que sea AUTÉNTICA estructuralmente.
-                    
-                    if(verify_Ids && verify_Duration && fingerprint_Euro && fingerprint_Dates) {
+                    // 4. VEREDICTO FINAL
+                    if(verify_Ids && verify_Duration && fingerprintScore >= 1) {
                         statusEl.className = 'bot-status success';
-                        statusEl.innerHTML = '🟢 <b>Validado.</b><br>Datos coinciden y la imagen tiene los formatos y símbolos auténticos de la detail card de BiciMAD.';
-                    } else if (!fingerprint_Euro || !fingerprint_Dates) {
-                        // El usuario ha escrito los números pero NO parece una captura de la App auténtica. TRAPA ANTI-WORD.
+                        statusEl.innerHTML = '🟢 <b>Validado.</b><br>Los datos cuadran y se detectan rastros de BiciMAD auténtica.';
+                    } else if (verify_Ids && verify_Duration && fingerprintScore === 0) {
                         statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>¡ALERTA FRAUDE!</b><br>Los números cuadran, pero NO parece una captura de la App auténtica. Faltan símbolos o formatos clave de BiciMAD (Ej: Euro, timestamps). Revisa a mano.`;
+                        statusEl.innerHTML = `🔴 <b>¡ALERTA FRAUDE!</b><br>Los números están, pero NO hay rastros del formato BiciMAD (Hora, coste). Revisa a mano.`;
                     } else if (!verify_Ids || !verify_Duration) {
-                        // Parece la app real, pero el usuario se ha inventado el tiempo o la ruta.
                         statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>Datos erróneos.</b><br>Parece la app auténtica, pero los tiempos o estaciones no coinciden con lo que ha escrito el usuario.`;
+                        statusEl.innerHTML = `🔴 <b>Datos erróneos.</b><br>El usuario ha puesto mal los tiempos o las estaciones.`;
                     } else {
                         statusEl.className = 'bot-status danger';
                         statusEl.innerHTML = '🔴 <b>Peligro:</b> Imagen ilegible o totalmente falsa.';
@@ -191,7 +177,7 @@
             }
 
             isProcessingQueue = false;
-            if(isBotActive) processBotQueue(); // Procesar el siguiente
+            if(isBotActive) processBotQueue(); 
         }
 
         onAuthStateChanged(auth, async (user) => {
@@ -223,12 +209,11 @@
             const snap = await getDocs(q);
             
             grid.innerHTML = ''; let count = 0;
-            botQueue = []; // Reiniciamos la cola del bot
+            botQueue = []; 
 
             snap.forEach((docSnap) => {
                 count++; const data = docSnap.data(); const docId = docSnap.id;
                 
-                // Añadimos el viaje a la cola del bot
                 botQueue.push({ id: docId, foto_url: data.foto_url, ruta: data.ruta, tiempo_segundos: data.tiempo_segundos });
 
                 grid.innerHTML += `
@@ -251,7 +236,7 @@
             if (count === 0) grid.innerHTML = `<div style="grid-column:1/-1; color:#888;">Todo al día.</div>`;
             else {
                 attachEvents();
-                if(isBotActive) processBotQueue(); // Arrancar bot si estaba encendido
+                if(isBotActive) processBotQueue();
             }
         }
 

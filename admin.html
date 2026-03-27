@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin</title>
+    <title>Admin | BiciFastness</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         :root { --bg-main: #0d0d0d; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #ffbb33; }
@@ -13,11 +14,32 @@
         nav .brand { color: var(--primary); font-weight: 800; font-size: 1.2rem; text-transform: uppercase; }
         nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-size: 0.9rem; }
         .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
-        .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 15px; }
+        
+        /* Panel del Bot */
+        .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 15px; flex-wrap: wrap; gap: 15px;}
+        .title-group { display: flex; align-items: center; gap: 15px; }
         .badge-count { background: #0071c3; padding: 4px 10px; border-radius: 20px; font-weight: 700; color: white;}
+        
+        /* Toggle Switch del Bot */
+        .bot-toggle { display: flex; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 15px; border-radius: 30px; border: 1px solid var(--border); }
+        .bot-toggle span { font-weight: 700; font-size: 0.9rem; color: #00C851; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #00C851; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
         .pending-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         .admin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;}
         .card-header { display: flex; justify-content: space-between; font-weight: 700; color: #0071c3; }
+        
+        /* Estado del Bot */
+        .bot-status { font-size: 0.85rem; font-weight: 700; padding: 8px; border-radius: 6px; background: var(--bg-input); border: 1px solid var(--border); display: none; margin-top: 5px; }
+        .bot-status.loading { color: #ffbb33; border-color: #ffbb33; }
+        .bot-status.success { color: #00C851; border-color: #00C851; background: rgba(0, 200, 81, 0.1); }
+        .bot-status.danger { color: #ff4444; border-color: #ff4444; background: rgba(255, 68, 68, 0.1); }
+
         button { padding: 10px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; transition: 0.2s; font-family: inherit; }
         .btn-view { background: #222; color: #fff; border: 1px solid #444; width: 100%; }
         .actions { display: flex; gap: 10px; margin-top: 10px;} .actions button {flex: 1;}
@@ -26,7 +48,6 @@
         .modal img { max-width: 90%; max-height: 80vh; border-radius: 8px; }
         .close-modal { position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem; cursor: pointer; font-weight: 800; }
     </style>
-<link rel="icon" href="./logo.png?v=3" type="image/png">
 </head>
 <body>
     <nav>
@@ -34,7 +55,8 @@
         <div class="links"><a href="home.html">Volver a Inicio</a></div>
     </nav>
     <div class="container">
-        <div class="admin-card">
+        
+        <div class="admin-card" style="margin-bottom: 30px;">
             <div class="card-header"><span style="color:#FFD700;">🔥 Destacar Ruta de la Semana</span></div>
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <input type="text" id="highlight-input" placeholder="Ej: 180-235" style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit;">
@@ -43,9 +65,25 @@
             <div style="font-size:0.8rem; color:#888; margin-top:5px;">Esta ruta aparecerá la primera brillando en los Rankings. (Déjalo en blanco para quitarla).</div>
         </div>
 
-        <div class="header-panel"><h2>Tiempos Pendientes</h2><div class="badge-count" id="pending-count">0</div></div>
-        <div class="pending-grid" id="pending-grid"><div id="empty-msg" style="grid-column:1/-1; color:#888;">Verificando permisos...</div></div>
+        <div class="header-panel">
+            <div class="title-group">
+                <h2 style="margin:0;">Pendientes</h2>
+                <div class="badge-count" id="pending-count">0</div>
+            </div>
+            <div class="bot-toggle">
+                <span>🤖 Bot Copiloto</span>
+                <label class="switch">
+                    <input type="checkbox" id="bot-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+        
+        <div class="pending-grid" id="pending-grid">
+            <div id="empty-msg" style="grid-column:1/-1; color:#888;">Verificando permisos...</div>
+        </div>
     </div>
+    
     <div class="modal" id="photo-modal"><span class="close-modal" id="close-modal">&times;</span><img id="modal-img"></div>
 
     <script type="module">
@@ -55,6 +93,74 @@
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
+
+        // LÓGICA DEL BOT OCR
+        let isBotActive = false;
+        let botQueue = [];
+        let isProcessingQueue = false;
+
+        document.getElementById('bot-switch').addEventListener('change', (e) => {
+            isBotActive = e.target.checked;
+            if(isBotActive) {
+                document.querySelectorAll('.bot-status').forEach(el => el.style.display = 'block');
+                processBotQueue();
+            } else {
+                document.querySelectorAll('.bot-status').forEach(el => {
+                    el.style.display = 'none';
+                    el.className = 'bot-status';
+                });
+            }
+        });
+
+        async function processBotQueue() {
+            if(isProcessingQueue || !isBotActive || botQueue.length === 0) return;
+            isProcessingQueue = true;
+
+            const trip = botQueue.shift(); // Cogemos el primero de la cola
+            const statusEl = document.getElementById(`bot-${trip.id}`);
+            
+            if(statusEl && isBotActive) {
+                statusEl.className = 'bot-status loading';
+                statusEl.innerHTML = '🤖 Extrayendo texto...';
+                
+                try {
+                    // Magia de Tesseract OCR
+                    const result = await Tesseract.recognize(trip.foto_url, 'spa');
+                    const text = result.data.text.toLowerCase();
+                    
+                    // Extraemos los datos a buscar
+                    const [orig, dest] = trip.ruta.toLowerCase().split('-');
+                    const minutes = Math.floor(trip.tiempo_segundos / 60).toString();
+                    const seconds = (trip.tiempo_segundos % 60).toString();
+
+                    // Sistema de puntuación
+                    let score = 0;
+                    if(text.includes(orig)) score++;
+                    if(text.includes(dest)) score++;
+                    if(text.includes(minutes)) score++;
+                    if(text.includes(seconds)) score++;
+
+                    // Semáforo
+                    if(score >= 3) {
+                        statusEl.className = 'bot-status success';
+                        statusEl.innerHTML = '🟢 <b>Todo cuadra.</b> Seguro para aprobar.';
+                    } else if (score > 0) {
+                        statusEl.className = 'bot-status danger';
+                        statusEl.innerHTML = `🔴 <b>Dudoso.</b> (Coincidencias: ${score}/4). Revisa foto.`;
+                    } else {
+                        statusEl.className = 'bot-status danger';
+                        statusEl.innerHTML = '🔴 <b>Peligro:</b> No encuentro los números en la foto.';
+                    }
+                } catch (error) {
+                    statusEl.className = 'bot-status danger';
+                    statusEl.innerHTML = '⚠️ Error al leer imagen.';
+                }
+            }
+
+            isProcessingQueue = false;
+            if(isBotActive) processBotQueue(); // Procesar el siguiente
+        }
+
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = "home.html"; return; }
@@ -67,7 +173,7 @@
             }
         });
 
-        // Cargar y guardar ruta destacada
+        // Destacar Ruta
         async function loadCurrentHighlighted() {
             const confDoc = await getDoc(doc(db, "config", "general"));
             if(confDoc.exists() && confDoc.data().ruta_destacada) {
@@ -80,18 +186,31 @@
             alert("Ruta destacada actualizada en la app.");
         });
 
+        // Cargar Tiempos Pendientes
         async function loadPendingTrips() {
             const grid = document.getElementById('pending-grid');
             const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", false));
             const snap = await getDocs(q);
+            
             grid.innerHTML = ''; let count = 0;
+            botQueue = []; // Reiniciamos la cola del bot
+
             snap.forEach((docSnap) => {
                 count++; const data = docSnap.data(); const docId = docSnap.id;
+                
+                // Añadimos el viaje a la cola del bot
+                botQueue.push({ id: docId, foto_url: data.foto_url, ruta: data.ruta, tiempo_segundos: data.tiempo_segundos });
+
                 grid.innerHTML += `
-                    <div class="admin-card">
+                    <div class="admin-card" id="card-${docId}">
                         <div class="card-header"><span>Ruta ${data.ruta}</span><span>${data.tiempo_formateado}</span></div>
                         <div style="font-size:0.8rem; color:#888;">Email: ${data.email_real}</div>
-                        <button class="btn-view view-photo" data-url="${data.foto_url}">Ver Captura</button>
+                        
+                        <div class="bot-status loading" id="bot-${docId}" style="${isBotActive ? 'display:block;' : 'display:none;'}">
+                            🤖 En cola de análisis...
+                        </div>
+
+                        <button class="btn-view view-photo" data-url="${data.foto_url}" style="margin-top:10px;">Ver Captura</button>
                         <div class="actions">
                             <button class="btn-reject reject-btn" data-id="${docId}">Rechazar</button>
                             <button class="btn-approve approve-btn" data-id="${docId}">Aprobar</button>
@@ -100,13 +219,28 @@
             });
             document.getElementById('pending-count').innerText = count;
             if (count === 0) grid.innerHTML = `<div style="grid-column:1/-1; color:#888;">Todo al día.</div>`;
-            else attachEvents();
+            else {
+                attachEvents();
+                if(isBotActive) processBotQueue(); // Arrancar bot si estaba encendido
+            }
         }
 
         function attachEvents() {
             document.querySelectorAll('.view-photo').forEach(b => b.onclick = e => { document.getElementById('modal-img').src = e.target.getAttribute('data-url'); document.getElementById('photo-modal').style.display = 'flex'; });
-            document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { e.target.disabled = true; await updateDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id')), { verificado: true }); loadPendingTrips(); });
-            document.querySelectorAll('.reject-btn').forEach(b => b.onclick = async e => { if(confirm("¿Borrar?")) { e.target.disabled = true; await deleteDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id'))); loadPendingTrips(); }});
+            
+            document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { 
+                e.target.disabled = true; e.target.innerText = "Aprobando...";
+                await updateDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id')), { verificado: true }); 
+                loadPendingTrips(); 
+            });
+            
+            document.querySelectorAll('.reject-btn').forEach(b => b.onclick = async e => { 
+                if(confirm("¿Seguro que quieres borrar este récord?")) { 
+                    e.target.disabled = true; e.target.innerText = "Borrando...";
+                    await deleteDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id'))); 
+                    loadPendingTrips(); 
+                }
+            });
         }
         document.getElementById('close-modal').onclick = () => document.getElementById('photo-modal').style.display = 'none';
     </script>

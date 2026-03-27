@@ -92,21 +92,12 @@
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-        let isBotActive = false;
-        let botQueue = [];
-        let isProcessingQueue = false;
+        let isBotActive = false; let botQueue = []; let isProcessingQueue = false;
 
         document.getElementById('bot-switch').addEventListener('change', (e) => {
             isBotActive = e.target.checked;
-            if(isBotActive) {
-                document.querySelectorAll('.bot-status').forEach(el => el.style.display = 'block');
-                processBotQueue();
-            } else {
-                document.querySelectorAll('.bot-status').forEach(el => {
-                    el.style.display = 'none';
-                    el.className = 'bot-status';
-                });
-            }
+            if(isBotActive) { document.querySelectorAll('.bot-status').forEach(el => el.style.display = 'block'); processBotQueue(); } 
+            else { document.querySelectorAll('.bot-status').forEach(el => { el.style.display = 'none'; el.className = 'bot-status'; }); }
         });
 
         async function processBotQueue() {
@@ -118,119 +109,104 @@
             
             if(statusEl && isBotActive) {
                 statusEl.className = 'bot-status loading';
-                statusEl.innerHTML = '🤖 Escaneando... (Aplicando matemáticas)';
+                statusEl.innerHTML = '🤖 Analizando imagen estrictamente...';
                 
                 try {
                     const result = await Tesseract.recognize(trip.foto_url, 'spa');
                     const text = result.data.text.toLowerCase();
-                    console.log(`OCR Data [${trip.ruta}]:`, text);
                     
                     const claimed_m = Math.floor(trip.tiempo_segundos / 60);
                     const claimed_s = trip.tiempo_segundos % 60;
 
-                    // 1. SANITY CHECK: Imposible tener más de 59 segundos
-                    if (claimed_s >= 60) {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>¡ALERTA FRAUDE!</b><br>Imposible tener ${claimed_s} segundos en BiciMAD.`;
-                        isProcessingQueue = false;
-                        if(isBotActive) processBotQueue();
-                        return;
+                    // 1. EXTRAER EL TEXTO IMPRESO LITERAL DE LA IMAGEN ("XXm. YYs.")
+                    const durationRegex = /(\d{1,3})\s*m\.\s*(\d{1,2})\s*s\./;
+                    const durationMatch = text.match(durationRegex);
+                    
+                    let image_m = -1, image_s = -1;
+                    if(durationMatch) {
+                        image_m = parseInt(durationMatch[1]);
+                        image_s = parseInt(durationMatch[2]);
                     }
 
-                    // 2. VERIFICACIÓN DE ESTACIONES
-                    const origRaw = trip.ruta.split('-')[0].toLowerCase();
-                    const destRaw = trip.ruta.split('-')[1].toLowerCase();
-                    const origSearch = origRaw.replace(/^0+/, '');
-                    const destSearch = destRaw.replace(/^0+/, '');
+                    // 2. CHECK: SANIDAD DE SEGUNDOS (LA TRAMPA DEL 61)
+                    if (image_s >= 60) {
+                        statusEl.className = 'bot-status danger';
+                        statusEl.innerHTML = `🔴 <b>¡FRAUDE ABSOLUTO!</b><br>La imagen muestra ${image_s}s. Es matemáticamente imposible en un reloj. Photoshop detectado.`;
+                        isProcessingQueue = false; if(isBotActive) processBotQueue(); return;
+                    }
 
-                    const verify_Ids = (text.includes(origSearch) || text.includes(origRaw)) && 
-                                       (text.includes(destSearch) || text.includes(destRaw));
+                    // 3. CHECK: ¿EL TEXTO DE LA IMAGEN COINCIDE CON LO QUE PUSO EN LA WEB?
+                    if (durationMatch) {
+                        const image_total_sec = (image_m * 60) + image_s;
+                        // Permitimos margen de 1 segundo por si el OCR confunde "2s" con "26s" por un garabato
+                        if (Math.abs(image_total_sec - trip.tiempo_segundos) > 1) {
+                            statusEl.className = 'bot-status danger';
+                            statusEl.innerHTML = `🔴 <b>¡DESFASE DE DATOS!</b><br>El usuario puso <b>${claimed_m}m ${claimed_s}s</b> pero la foto dice claramente <b>${image_m}m ${image_s}s</b>.`;
+                            isProcessingQueue = false; if(isBotActive) processBotQueue(); return;
+                        }
+                    } else {
+                        statusEl.className = 'bot-status danger';
+                        statusEl.innerHTML = `🔴 <b>Formato No Encontrado.</b><br>No se detecta el formato exacto 'XXm. YYs.' de BiciMAD. Imagen sospechosa.`;
+                        isProcessingQueue = false; if(isBotActive) processBotQueue(); return;
+                    }
 
-                    // 3. FINGERPRINT ANTI-WORD
-                    let fingerprintScore = 0;
-                    if (/0[.,]00/.test(text) || text.includes('€')) fingerprintScore++;
-                    if (/m\.?\s*\d{1,2}\s*s\.?/.test(text)) fingerprintScore++;
-
-                    // 4. 🔥 LA CALCULADORA MATEMÁTICA (El Cazador de Trampas) 🔥
-                    let mathCheck = true;
-                    let mathReason = "";
-                    
-                    // Busca todos los patrones de hora HH:MM:SS en el texto
+                    // 4. CHECK: MATEMÁTICAS DE LAS HORAS
+                    let mathCheck = true; let mathReason = "";
                     const timeRegex = /\d{2}:\d{2}:\d{2}/g;
                     const times = text.match(timeRegex);
 
                     if (times && times.length >= 2) {
-                        fingerprintScore++; // Le damos un punto extra por tener la estructura de BiciMAD
-                        
-                        // Convertimos a segundos absolutos para restar
-                        const t1 = times[0].split(':');
-                        const sec1 = (+t1[0]) * 3600 + (+t1[1]) * 60 + (+t1[2]);
-                        
-                        const t2 = times[1].split(':');
-                        const sec2 = (+t2[0]) * 3600 + (+t2[1]) * 60 + (+t2[2]);
-
+                        const t1 = times[0].split(':'); const sec1 = (+t1[0]) * 3600 + (+t1[1]) * 60 + (+t1[2]);
+                        const t2 = times[1].split(':'); const sec2 = (+t2[0]) * 3600 + (+t2[1]) * 60 + (+t2[2]);
                         let realDiff = Math.abs(sec2 - sec1);
                         
-                        // Comprobamos si la diferencia real coincide con lo que el usuario ha puesto
-                        // (Damos un margen de 60s por si BiciMAD redondea raro en los servidores)
-                        if (Math.abs(realDiff - trip.tiempo_segundos) > 60) {
+                        if (Math.abs(realDiff - trip.tiempo_segundos) > 10) {
                             mathCheck = false;
-                            const realMin = Math.floor(realDiff / 60);
-                            const realSec = realDiff % 60;
-                            mathReason = `La imagen dice que tardó <b>${realMin}m ${realSec}s</b> en base a las horas.<br>El usuario intenta subir <b>${claimed_m}m ${claimed_s}s</b>.`;
+                            const rM = Math.floor(realDiff / 60); const rS = realDiff % 60;
+                            mathReason = `La imagen dice que tardó <b>${image_m}m ${image_s}s</b>, pero las horas restan <b>${rM}m ${rS}s</b>. MENTIROSO PILLADO.`;
                         }
                     }
 
-                    // 5. VEREDICTO FINAL
+                    // 5. CHECK ESTACIONES
+                    const origRaw = trip.ruta.split('-')[0].toLowerCase();
+                    const destRaw = trip.ruta.split('-')[1].toLowerCase();
+                    const verify_Ids = text.includes(origRaw.replace(/^0+/, '')) && text.includes(destRaw.replace(/^0+/, ''));
+
+                    // VEREDICTO FINAL
                     if (!mathCheck) {
                         statusEl.className = 'bot-status danger';
                         statusEl.innerHTML = `🔴 <b>¡CAZADO POR MATEMÁTICAS!</b><br>${mathReason}`;
-                    } else if(verify_Ids && fingerprintScore >= 1) {
+                    } else if(verify_Ids) {
                         statusEl.className = 'bot-status success';
-                        statusEl.innerHTML = '🟢 <b>Validado.</b><br>Las horas cuadran, las matemáticas son correctas y tiene formato BiciMAD.';
-                    } else if (verify_Ids && fingerprintScore === 0) {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>Dudoso.</b><br>Faltan rastros de la interfaz de la app. Revisa a mano.`;
+                        statusEl.innerHTML = '🟢 <b>Validado.</b><br>Las estaciones, el texto impreso y las horas restadas cuadran perfectamente.';
                     } else {
                         statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = '🔴 <b>Peligro:</b> Datos erróneos o no encuentro las estaciones.';
+                        statusEl.innerHTML = '🔴 <b>Peligro:</b> No encuentro los números de las estaciones en la foto.';
                     }
                 } catch (error) {
                     statusEl.className = 'bot-status danger';
                     statusEl.innerHTML = '⚠️ Error al procesar imagen.';
                 }
             }
-
-            isProcessingQueue = false;
-            if(isBotActive) processBotQueue(); 
+            isProcessingQueue = false; if(isBotActive) processBotQueue(); 
         }
 
-        // ... (resto del código de carga e inicialización se mantiene igual)
+        // Resto del código igual
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = "home.html"; return; }
             const userDoc = await getDoc(doc(db, "usuarios", user.email));
             if (userDoc.exists() && userDoc.data().isAdmin === true) {
-                loadPendingTrips();
-                loadCurrentHighlighted();
-            } else {
-                alert("Acceso denegado."); window.location.href = "home.html";
-            }
+                loadPendingTrips(); loadCurrentHighlighted();
+            } else { alert("Acceso denegado."); window.location.href = "home.html"; }
         });
 
-        async function loadCurrentHighlighted() {
-            const confDoc = await getDoc(doc(db, "config", "general"));
-            if(confDoc.exists() && confDoc.data().ruta_destacada) document.getElementById('highlight-input').value = confDoc.data().ruta_destacada;
-        }
-        document.getElementById('highlight-btn').addEventListener('click', async () => {
-            await setDoc(doc(db, "config", "general"), { ruta_destacada: document.getElementById('highlight-input').value.trim() }, { merge: true });
-            alert("Ruta destacada actualizada.");
-        });
+        async function loadCurrentHighlighted() { const confDoc = await getDoc(doc(db, "config", "general")); if(confDoc.exists() && confDoc.data().ruta_destacada) document.getElementById('highlight-input').value = confDoc.data().ruta_destacada; }
+        document.getElementById('highlight-btn').addEventListener('click', async () => { await setDoc(doc(db, "config", "general"), { ruta_destacada: document.getElementById('highlight-input').value.trim() }, { merge: true }); alert("Ruta destacada actualizada."); });
 
         async function loadPendingTrips() {
             const grid = document.getElementById('pending-grid');
             const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", false));
             const snap = await getDocs(q);
-            
             grid.innerHTML = ''; let count = 0; botQueue = []; 
 
             snap.forEach((docSnap) => {

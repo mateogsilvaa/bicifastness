@@ -35,9 +35,9 @@
         .admin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;}
         .card-header { display: flex; justify-content: space-between; font-weight: 700; color: #0071c3; }
         
-        /* Estados del Bot OCR Avanzado (Incluido Naranja) */
+        /* Estado del Bot OCR Avanzado */
         .bot-status { font-size: 0.85rem; font-weight: 700; padding: 8px; border-radius: 6px; background: var(--bg-input); border: 1px solid var(--border); display: none; margin-top: 5px; line-height: 1.4; }
-        .bot-status.loading { color: #aaaaaa; border-color: #444; }
+        .bot-status.loading { color: #ffbb33; border-color: #ffbb33; }
         .bot-status.success { color: #00C851; border-color: #00C851; background: rgba(0, 200, 81, 0.1); }
         .bot-status.warning { color: #ffbb33; border-color: #ffbb33; background: rgba(255, 187, 51, 0.1); }
         .bot-status.danger { color: #ff4444; border-color: #ff4444; background: rgba(255, 68, 68, 0.1); }
@@ -64,6 +64,7 @@
                 <input type="text" id="highlight-input" placeholder="Ej: 045-162" style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit;">
                 <button id="highlight-btn" style="background:#FFD700; color:#111;">Destacar</button>
             </div>
+            <div style="font-size:0.8rem; color:#888; margin-top:5px;">Esta ruta aparecerá la primera brillando en los Rankings. (Déjalo en blanco para quitarla).</div>
         </div>
 
         <div class="header-panel">
@@ -72,7 +73,7 @@
                 <div class="badge-count" id="pending-count">0</div>
             </div>
             <div class="bot-toggle">
-                <span>🤖 Bot Detective v3</span>
+                <span>🤖 Bot Multitarea v4</span>
                 <label class="switch">
                     <input type="checkbox" id="bot-switch">
                     <span class="slider"></span>
@@ -80,7 +81,9 @@
             </div>
         </div>
         
-        <div class="pending-grid" id="pending-grid"></div>
+        <div class="pending-grid" id="pending-grid">
+            <div id="empty-msg" style="grid-column:1/-1; color:#888;">Verificando permisos...</div>
+        </div>
     </div>
     
     <div class="modal" id="photo-modal"><span class="close-modal" id="close-modal">&times;</span><img id="modal-img"></div>
@@ -93,12 +96,22 @@
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-        let isBotActive = false; let botQueue = []; let isProcessingQueue = false;
+        // LÓGICA DEL BOT OCR AVANZADO v4 (Soporta múltiples viajes en una captura)
+        let isBotActive = false;
+        let botQueue = [];
+        let isProcessingQueue = false;
 
         document.getElementById('bot-switch').addEventListener('change', (e) => {
             isBotActive = e.target.checked;
-            if(isBotActive) { document.querySelectorAll('.bot-status').forEach(el => el.style.display = 'block'); processBotQueue(); } 
-            else { document.querySelectorAll('.bot-status').forEach(el => { el.style.display = 'none'; el.className = 'bot-status'; }); }
+            if(isBotActive) {
+                document.querySelectorAll('.bot-status').forEach(el => el.style.display = 'block');
+                processBotQueue();
+            } else {
+                document.querySelectorAll('.bot-status').forEach(el => {
+                    el.style.display = 'none';
+                    el.className = 'bot-status';
+                });
+            }
         });
 
         async function processBotQueue() {
@@ -110,120 +123,150 @@
             
             if(statusEl && isBotActive) {
                 statusEl.className = 'bot-status loading';
-                statusEl.innerHTML = '🤖 Analizando imagen estrictamente...';
+                statusEl.innerHTML = '🤖 Escaneando historial múltiple...';
                 
                 try {
                     const result = await Tesseract.recognize(trip.foto_url, 'spa');
                     const text = result.data.text.toLowerCase();
+                    console.log(`OCR Data [${trip.ruta}]:`, text);
                     
                     const claimed_m = Math.floor(trip.tiempo_segundos / 60);
                     const claimed_s = trip.tiempo_segundos % 60;
 
-                    // 1. EXTRAER EL TEXTO IMPRESO DE LA BARRA AZUL ("XXm. YYs.")
-                    const durationRegex = /(\d{1,3})\s*m\.\s*(\d{1,2})\s*s\./;
-                    const durationMatch = text.match(durationRegex);
+                    // 1. SANITY CHECK: Imposible tener más de 59 segundos
+                    if (claimed_s >= 60) {
+                        statusEl.className = 'bot-status danger';
+                        statusEl.innerHTML = `🔴 <b>¡FRAUDE!</b><br>Imposible tener ${claimed_s} segundos en BiciMAD.`;
+                        isProcessingQueue = false; if(isBotActive) processBotQueue(); return;
+                    }
+
+                    // 2. VERIFICACIÓN DE ESTACIONES (Flexible con ceros)
+                    const origRaw = trip.ruta.split('-')[0].toLowerCase();
+                    const destRaw = trip.ruta.split('-')[1].toLowerCase();
+                    const origSearch = origRaw.replace(/^0+/, '');
+                    const destSearch = destRaw.replace(/^0+/, '');
+
+                    const verify_Ids = (text.includes(origSearch) || text.includes(origRaw)) && 
+                                       (text.includes(destSearch) || text.includes(destRaw));
+
+                    // 3. BUSCAR EL TIEMPO EN TODAS LAS BARRAS AZULES DE LA IMAGEN
+                    // Recogemos TODOS los formatos "XXm. YYs." que haya en la foto
+                    const durationRegex = /(\d{1,3})\s*m\.\s*(\d{1,2})\s*s\./g;
+                    const allDurations = [...text.matchAll(durationRegex)];
                     
-                    let image_m = -1, image_s = -1;
-                    if(durationMatch) {
-                        image_m = parseInt(durationMatch[1]);
-                        image_s = parseInt(durationMatch[2]);
-                    }
-
-                    // 2. CHECK: SANIDAD DE SEGUNDOS (LA TRAMPA DEL 61)
-                    if (image_s >= 60) {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>¡FRAUDE ABSOLUTO!</b><br>La imagen muestra ${image_s}s. Es matemáticamente imposible en un reloj. Photoshop detectado.`;
-                        isProcessingQueue = false; if(isBotActive) processBotQueue(); return;
-                    }
-
-                    // 3. CHECK: ¿EL TEXTO DE LA BARRA AZUL COINCIDE CON LO QUE PUSO EN LA WEB?
-                    if (durationMatch) {
-                        const image_total_sec = (image_m * 60) + image_s;
-                        if (Math.abs(image_total_sec - trip.tiempo_segundos) > 1) {
-                            statusEl.className = 'bot-status danger';
-                            statusEl.innerHTML = `🔴 <b>¡DESFASE DE DATOS!</b><br>El usuario puso <b>${claimed_m}m ${claimed_s}s</b> pero la foto dice claramente <b>${image_m}m ${image_s}s</b>.`;
-                            isProcessingQueue = false; if(isBotActive) processBotQueue(); return;
+                    let timeFoundInText = false;
+                    for(let match of allDurations) {
+                        let image_m = parseInt(match[1]);
+                        let image_s = parseInt(match[2]);
+                        let image_total = (image_m * 60) + image_s;
+                        
+                        // Si ALGUNO de los viajes de la foto coincide (margen 1s)
+                        if (Math.abs(image_total - trip.tiempo_segundos) <= 1) {
+                            timeFoundInText = true;
+                            break;
                         }
-                    } else {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>Formato No Encontrado.</b><br>No se detecta el formato exacto 'XXm. YYs.' de la barra azul. Imagen sospechosa.`;
-                        isProcessingQueue = false; if(isBotActive) processBotQueue(); return;
                     }
 
-                    // 4. CHECK: MATEMÁTICAS DE LAS HORAS GRISES (NUEVA LÓGICA PESIMISTA)
+                    // 4. FINGERPRINT ANTI-WORD (Huellas de interfaz)
+                    let fingerprintScore = 0;
+                    if (/0[.,]00/.test(text) || text.includes('€')) fingerprintScore++;
+                    if (allDurations.length > 0) fingerprintScore++; // Si hay al menos un "m. s.", es buena señal
+
+                    // 5. LA CALCULADORA MATEMÁTICA MULTITAREA
                     let mathStatus = "not_found"; 
-                    let mathReason = "";
+                    
+                    // Busca TODAS las horas HH:MM:SS en el texto
                     const timeRegex = /\d{2}:\d{2}:\d{2}/g;
                     const times = text.match(timeRegex);
 
                     if (times && times.length >= 2) {
-                        const t1 = times[0].split(':'); const sec1 = (+t1[0]) * 3600 + (+t1[1]) * 60 + (+t1[2]);
-                        const t2 = times[1].split(':'); const sec2 = (+t2[0]) * 3600 + (+t2[1]) * 60 + (+t2[2]);
-                        let realDiff = Math.abs(sec2 - sec1);
+                        fingerprintScore++;
+                        mathStatus = "failed"; // Asumimos que falla hasta que encontremos una pareja válida
                         
-                        // Margen muy estricto de 10 segundos
-                        if (Math.abs(realDiff - trip.tiempo_segundos) > 10) {
-                            mathStatus = "failed";
-                            const rM = Math.floor(realDiff / 60); const rS = realDiff % 60;
-                            mathReason = `La imagen dice que tardó <b>${image_m}m ${image_s}s</b>, pero las horas de arriba restan <b>${rM}m ${rS}s</b>. MENTIROSO PILLADO.`;
-                        } else {
-                            mathStatus = "passed";
+                        // Recorremos todas las horas buscando una pareja que al restarla nos dé el tiempo del usuario
+                        for(let i = 0; i < times.length - 1; i++) {
+                            const t1 = times[i].split(':'); const sec1 = (+t1[0]) * 3600 + (+t1[1]) * 60 + (+t1[2]);
+                            const t2 = times[i+1].split(':'); const sec2 = (+t2[0]) * 3600 + (+t2[1]) * 60 + (+t2[2]);
+                            
+                            let realDiff = Math.abs(sec2 - sec1);
+                            
+                            // Si ESTA pareja de horas cuadra con el tiempo del usuario (margen 10s)
+                            if (Math.abs(realDiff - trip.tiempo_segundos) <= 10) {
+                                mathStatus = "passed";
+                                break; // Ya hemos encontrado el viaje bueno, paramos de buscar
+                            }
                         }
                     }
 
-                    // 5. CHECK ESTACIONES
-                    const origRaw = trip.ruta.split('-')[0].toLowerCase();
-                    const destRaw = trip.ruta.split('-')[1].toLowerCase();
-                    const verify_Ids = text.includes(origRaw.replace(/^0+/, '')) && text.includes(destRaw.replace(/^0+/, ''));
-
-                    // 6. VEREDICTO FINAL BLINDADO
-                    if (mathStatus === "failed") {
+                    // 6. VEREDICTO FINAL
+                    if (mathStatus === "failed" && !timeFoundInText) {
                         statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>¡CAZADO POR MATEMÁTICAS!</b><br>${mathReason}`;
+                        statusEl.innerHTML = `🔴 <b>¡DESFASE DE DATOS!</b><br>Ni el texto azul ni la resta de las horas coinciden con <b>${claimed_m}m ${claimed_s}s</b>.`;
                     } else if (mathStatus === "passed" && verify_Ids) {
                         statusEl.className = 'bot-status success';
-                        statusEl.innerHTML = '🟢 <b>Validado 100%.</b><br>Las estaciones, el texto impreso y la resta de horas grises cuadran perfectamente.';
-                    } else if (mathStatus === "not_found" && verify_Ids) {
+                        statusEl.innerHTML = '🟢 <b>Validado 100%.</b><br>Se ha encontrado tu viaje dentro del historial y las matemáticas cuadran.';
+                    } else if (mathStatus === "not_found" && verify_Ids && timeFoundInText) {
                         statusEl.className = 'bot-status warning';
-                        statusEl.innerHTML = '🟠 <b>Revisión Manual:</b><br>Las estaciones y el texto azul cuadran, pero el bot no ha podido leer las horas en gris pálido para confirmar la resta. Revísala tú visualmente.';
+                        statusEl.innerHTML = '🟠 <b>Revisión Manual:</b><br>El texto azul cuadra, pero no pude leer bien las horas pequeñas grises para confirmar la resta.';
                     } else {
                         statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = '🔴 <b>Peligro:</b> No encuentro los números de las estaciones en la foto.';
+                        statusEl.innerHTML = '🔴 <b>Peligro:</b> Datos erróneos o no encuentro las estaciones en la captura.';
                     }
                 } catch (error) {
                     statusEl.className = 'bot-status danger';
                     statusEl.innerHTML = '⚠️ Error al procesar imagen.';
                 }
             }
-            isProcessingQueue = false; if(isBotActive) processBotQueue(); 
+
+            isProcessingQueue = false;
+            if(isBotActive) processBotQueue(); 
         }
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = "home.html"; return; }
             const userDoc = await getDoc(doc(db, "usuarios", user.email));
             if (userDoc.exists() && userDoc.data().isAdmin === true) {
-                loadPendingTrips(); loadCurrentHighlighted();
-            } else { alert("Acceso denegado."); window.location.href = "home.html"; }
+                loadPendingTrips();
+                loadCurrentHighlighted();
+            } else {
+                alert("Acceso denegado. No eres administrador."); window.location.href = "home.html";
+            }
         });
 
-        async function loadCurrentHighlighted() { const confDoc = await getDoc(doc(db, "config", "general")); if(confDoc.exists() && confDoc.data().ruta_destacada) document.getElementById('highlight-input').value = confDoc.data().ruta_destacada; }
-        document.getElementById('highlight-btn').addEventListener('click', async () => { await setDoc(doc(db, "config", "general"), { ruta_destacada: document.getElementById('highlight-input').value.trim() }, { merge: true }); alert("Ruta destacada actualizada."); });
+        async function loadCurrentHighlighted() {
+            const confDoc = await getDoc(doc(db, "config", "general"));
+            if(confDoc.exists() && confDoc.data().ruta_destacada) {
+                document.getElementById('highlight-input').value = confDoc.data().ruta_destacada;
+            }
+        }
+        document.getElementById('highlight-btn').addEventListener('click', async () => {
+            const val = document.getElementById('highlight-input').value.trim();
+            await setDoc(doc(db, "config", "general"), { ruta_destacada: val }, { merge: true });
+            alert("Ruta destacada actualizada en la app.");
+        });
 
         async function loadPendingTrips() {
             const grid = document.getElementById('pending-grid');
             const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", false));
             const snap = await getDocs(q);
-            grid.innerHTML = ''; let count = 0; botQueue = []; 
+            
+            grid.innerHTML = ''; let count = 0;
+            botQueue = []; 
 
             snap.forEach((docSnap) => {
                 count++; const data = docSnap.data(); const docId = docSnap.id;
+                
                 botQueue.push({ id: docId, foto_url: data.foto_url, ruta: data.ruta, tiempo_segundos: data.tiempo_segundos });
 
                 grid.innerHTML += `
                     <div class="admin-card" id="card-${docId}">
                         <div class="card-header"><span>Ruta ${data.ruta}</span><span>${data.tiempo_formateado}</span></div>
                         <div style="font-size:0.8rem; color:#888;">Email: ${data.email_real}</div>
-                        <div class="bot-status loading" id="bot-${docId}" style="${isBotActive ? 'display:block;' : 'display:none;'}">🤖 En cola...</div>
+                        
+                        <div class="bot-status loading" id="bot-${docId}" style="${isBotActive ? 'display:block;' : 'display:none;'}">
+                            🤖 En cola de análisis...
+                        </div>
+
                         <button class="btn-view view-photo" data-url="${data.foto_url}" style="margin-top:10px;">Ver Captura</button>
                         <div class="actions">
                             <button class="btn-reject reject-btn" data-id="${docId}">Rechazar</button>
@@ -233,13 +276,28 @@
             });
             document.getElementById('pending-count').innerText = count;
             if (count === 0) grid.innerHTML = `<div style="grid-column:1/-1; color:#888;">Todo al día.</div>`;
-            else { attachEvents(); if(isBotActive) processBotQueue(); }
+            else {
+                attachEvents();
+                if(isBotActive) processBotQueue(); 
+            }
         }
 
         function attachEvents() {
             document.querySelectorAll('.view-photo').forEach(b => b.onclick = e => { document.getElementById('modal-img').src = e.target.getAttribute('data-url'); document.getElementById('photo-modal').style.display = 'flex'; });
-            document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { e.target.disabled = true; e.target.innerText = "Aprobando..."; await updateDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id')), { verificado: true }); loadPendingTrips(); });
-            document.querySelectorAll('.reject-btn').forEach(b => b.onclick = async e => { if(confirm("¿Seguro que quieres borrar este récord?")) { e.target.disabled = true; e.target.innerText = "Borrando..."; await deleteDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id'))); loadPendingTrips(); } });
+            
+            document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { 
+                e.target.disabled = true; e.target.innerText = "Aprobando...";
+                await updateDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id')), { verificado: true }); 
+                loadPendingTrips(); 
+            });
+            
+            document.querySelectorAll('.reject-btn').forEach(b => b.onclick = async e => { 
+                if(confirm("¿Seguro que quieres borrar este récord?")) { 
+                    e.target.disabled = true; e.target.innerText = "Borrando...";
+                    await deleteDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id'))); 
+                    loadPendingTrips(); 
+                }
+            });
         }
         document.getElementById('close-modal').onclick = () => document.getElementById('photo-modal').style.display = 'none';
     </script>

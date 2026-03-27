@@ -16,12 +16,10 @@
         nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-size: 0.9rem; }
         .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
         
-        /* Panel del Bot */
         .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 15px; flex-wrap: wrap; gap: 15px;}
         .title-group { display: flex; align-items: center; gap: 15px; }
         .badge-count { background: #0071c3; padding: 4px 10px; border-radius: 20px; font-weight: 700; color: white;}
         
-        /* Toggle Switch del Bot */
         .bot-toggle { display: flex; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 15px; border-radius: 30px; border: 1px solid var(--border); }
         .bot-toggle span { font-weight: 700; font-size: 0.9rem; color: #00C851; }
         .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
@@ -35,7 +33,6 @@
         .admin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;}
         .card-header { display: flex; justify-content: space-between; font-weight: 700; color: #0071c3; }
         
-        /* Estado del Bot OCR Avanzado */
         .bot-status { font-size: 0.85rem; font-weight: 700; padding: 8px; border-radius: 6px; background: var(--bg-input); border: 1px solid var(--border); display: none; margin-top: 5px; line-height: 1.4; }
         .bot-status.loading { color: #ffbb33; border-color: #ffbb33; }
         .bot-status.success { color: #00C851; border-color: #00C851; background: rgba(0, 200, 81, 0.1); }
@@ -63,7 +60,7 @@
                 <input type="text" id="highlight-input" placeholder="Ej: 045-162" style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit;">
                 <button id="highlight-btn" style="background:#FFD700; color:#111;">Destacar</button>
             </div>
-            <div style="font-size:0.8rem; color:#888; margin-top:5px;">Esta ruta aparecerá la primera brillando en los Rankings. (Déjalo en blanco para quitarla).</div>
+            <div style="font-size:0.8rem; color:#888; margin-top:5px;">Esta ruta aparecerá la primera brillando en los Rankings.</div>
         </div>
 
         <div class="header-panel">
@@ -72,7 +69,7 @@
                 <div class="badge-count" id="pending-count">0</div>
             </div>
             <div class="bot-toggle">
-                <span>🤖 Bot Antifraude</span>
+                <span>🤖 Bot Detective (Matemático)</span>
                 <label class="switch">
                     <input type="checkbox" id="bot-switch">
                     <span class="slider"></span>
@@ -121,64 +118,82 @@
             
             if(statusEl && isBotActive) {
                 statusEl.className = 'bot-status loading';
-                statusEl.innerHTML = '🤖 Escaneando con IA... (Corrigiendo ceros)';
+                statusEl.innerHTML = '🤖 Escaneando... (Aplicando matemáticas)';
                 
                 try {
                     const result = await Tesseract.recognize(trip.foto_url, 'spa');
                     const text = result.data.text.toLowerCase();
+                    console.log(`OCR Data [${trip.ruta}]:`, text);
                     
-                    console.log(`OCR Lectura para el viaje ${trip.ruta}:`, text);
-                    
-                    // --- 1. VERIFICACIÓN DE ESTACIONES (EL FIX DE LOS CEROS) ---
-                    // Obtenemos los valores brutos de la base de datos (Ej: "045", "162", "002A")
+                    const claimed_m = Math.floor(trip.tiempo_segundos / 60);
+                    const claimed_s = trip.tiempo_segundos % 60;
+
+                    // 1. SANITY CHECK: Imposible tener más de 59 segundos
+                    if (claimed_s >= 60) {
+                        statusEl.className = 'bot-status danger';
+                        statusEl.innerHTML = `🔴 <b>¡ALERTA FRAUDE!</b><br>Imposible tener ${claimed_s} segundos en BiciMAD.`;
+                        isProcessingQueue = false;
+                        if(isBotActive) processBotQueue();
+                        return;
+                    }
+
+                    // 2. VERIFICACIÓN DE ESTACIONES
                     const origRaw = trip.ruta.split('-')[0].toLowerCase();
                     const destRaw = trip.ruta.split('-')[1].toLowerCase();
-                    
-                    // Les afeitamos los ceros de la izquierda con RegEx para buscar en el OCR (Ej: "45", "162", "2a")
                     const origSearch = origRaw.replace(/^0+/, '');
                     const destSearch = destRaw.replace(/^0+/, '');
 
-                    // Buscamos tanto la versión con ceros (por si acaso) como sin ceros
                     const verify_Ids = (text.includes(origSearch) || text.includes(origRaw)) && 
                                        (text.includes(destSearch) || text.includes(destRaw));
 
-                    // --- 2. VERIFICACIÓN DE TIEMPO (Flexible) ---
-                    const claimed_m = Math.floor(trip.tiempo_segundos / 60);
-                    const m_pad = claimed_m.toString().padStart(2, '0');
-                    const m_nopad = claimed_m.toString();
-                    
-                    const claimed_s = trip.tiempo_segundos % 60;
-                    const s_pad = claimed_s.toString().padStart(2, '0');
-                    const s_nopad = claimed_s.toString();
-                    
-                    const verify_Duration = (text.includes(m_pad) || text.includes(m_nopad)) && 
-                                            (text.includes(s_pad) || text.includes(s_nopad));
-
-                    // --- 3. FINGERPRINT ANTI-WORD (Huellas de interfaz BiciMAD) ---
+                    // 3. FINGERPRINT ANTI-WORD
                     let fingerprintScore = 0;
-                    
-                    // A. Patrón de Hora (08:03:12)
-                    if (/\d{2}:\d{2}:\d{2}/.test(text)) fingerprintScore++;
-                    // B. Patrón de Fecha con barras (28/02/26)
-                    if (/\d{2}\/\d{2}\/\d{2}/.test(text)) fingerprintScore++;
-                    // C. El Coste
                     if (/0[.,]00/.test(text) || text.includes('€')) fingerprintScore++;
-                    // D. El formato del tiempo
                     if (/m\.?\s*\d{1,2}\s*s\.?/.test(text)) fingerprintScore++;
 
-                    // --- 4. VEREDICTO FINAL ---
-                    if(verify_Ids && verify_Duration && fingerprintScore >= 1) {
+                    // 4. 🔥 LA CALCULADORA MATEMÁTICA (El Cazador de Trampas) 🔥
+                    let mathCheck = true;
+                    let mathReason = "";
+                    
+                    // Busca todos los patrones de hora HH:MM:SS en el texto
+                    const timeRegex = /\d{2}:\d{2}:\d{2}/g;
+                    const times = text.match(timeRegex);
+
+                    if (times && times.length >= 2) {
+                        fingerprintScore++; // Le damos un punto extra por tener la estructura de BiciMAD
+                        
+                        // Convertimos a segundos absolutos para restar
+                        const t1 = times[0].split(':');
+                        const sec1 = (+t1[0]) * 3600 + (+t1[1]) * 60 + (+t1[2]);
+                        
+                        const t2 = times[1].split(':');
+                        const sec2 = (+t2[0]) * 3600 + (+t2[1]) * 60 + (+t2[2]);
+
+                        let realDiff = Math.abs(sec2 - sec1);
+                        
+                        // Comprobamos si la diferencia real coincide con lo que el usuario ha puesto
+                        // (Damos un margen de 60s por si BiciMAD redondea raro en los servidores)
+                        if (Math.abs(realDiff - trip.tiempo_segundos) > 60) {
+                            mathCheck = false;
+                            const realMin = Math.floor(realDiff / 60);
+                            const realSec = realDiff % 60;
+                            mathReason = `La imagen dice que tardó <b>${realMin}m ${realSec}s</b> en base a las horas.<br>El usuario intenta subir <b>${claimed_m}m ${claimed_s}s</b>.`;
+                        }
+                    }
+
+                    // 5. VEREDICTO FINAL
+                    if (!mathCheck) {
+                        statusEl.className = 'bot-status danger';
+                        statusEl.innerHTML = `🔴 <b>¡CAZADO POR MATEMÁTICAS!</b><br>${mathReason}`;
+                    } else if(verify_Ids && fingerprintScore >= 1) {
                         statusEl.className = 'bot-status success';
-                        statusEl.innerHTML = '🟢 <b>Validado.</b><br>Las estaciones y el tiempo cuadran perfectamente con la foto.';
-                    } else if (verify_Ids && verify_Duration && fingerprintScore === 0) {
+                        statusEl.innerHTML = '🟢 <b>Validado.</b><br>Las horas cuadran, las matemáticas son correctas y tiene formato BiciMAD.';
+                    } else if (verify_Ids && fingerprintScore === 0) {
                         statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>¡ALERTA FRAUDE!</b><br>Los números están, pero NO hay rastros del formato BiciMAD (Hora, coste). Revisa a mano.`;
-                    } else if (!verify_Ids || !verify_Duration) {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>Datos erróneos.</b><br>El usuario ha puesto mal los tiempos o las estaciones (Revisa los números a mano por si el bot falló).`;
+                        statusEl.innerHTML = `🔴 <b>Dudoso.</b><br>Faltan rastros de la interfaz de la app. Revisa a mano.`;
                     } else {
                         statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = '🔴 <b>Peligro:</b> Imagen ilegible o totalmente falsa.';
+                        statusEl.innerHTML = '🔴 <b>Peligro:</b> Datos erróneos o no encuentro las estaciones.';
                     }
                 } catch (error) {
                     statusEl.className = 'bot-status danger';
@@ -190,6 +205,7 @@
             if(isBotActive) processBotQueue(); 
         }
 
+        // ... (resto del código de carga e inicialización se mantiene igual)
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = "home.html"; return; }
             const userDoc = await getDoc(doc(db, "usuarios", user.email));
@@ -197,20 +213,17 @@
                 loadPendingTrips();
                 loadCurrentHighlighted();
             } else {
-                alert("Acceso denegado. No eres administrador."); window.location.href = "home.html";
+                alert("Acceso denegado."); window.location.href = "home.html";
             }
         });
 
         async function loadCurrentHighlighted() {
             const confDoc = await getDoc(doc(db, "config", "general"));
-            if(confDoc.exists() && confDoc.data().ruta_destacada) {
-                document.getElementById('highlight-input').value = confDoc.data().ruta_destacada;
-            }
+            if(confDoc.exists() && confDoc.data().ruta_destacada) document.getElementById('highlight-input').value = confDoc.data().ruta_destacada;
         }
         document.getElementById('highlight-btn').addEventListener('click', async () => {
-            const val = document.getElementById('highlight-input').value.trim();
-            await setDoc(doc(db, "config", "general"), { ruta_destacada: val }, { merge: true });
-            alert("Ruta destacada actualizada en la app.");
+            await setDoc(doc(db, "config", "general"), { ruta_destacada: document.getElementById('highlight-input').value.trim() }, { merge: true });
+            alert("Ruta destacada actualizada.");
         });
 
         async function loadPendingTrips() {
@@ -218,23 +231,17 @@
             const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", false));
             const snap = await getDocs(q);
             
-            grid.innerHTML = ''; let count = 0;
-            botQueue = []; 
+            grid.innerHTML = ''; let count = 0; botQueue = []; 
 
             snap.forEach((docSnap) => {
                 count++; const data = docSnap.data(); const docId = docSnap.id;
-                
                 botQueue.push({ id: docId, foto_url: data.foto_url, ruta: data.ruta, tiempo_segundos: data.tiempo_segundos });
 
                 grid.innerHTML += `
                     <div class="admin-card" id="card-${docId}">
                         <div class="card-header"><span>Ruta ${data.ruta}</span><span>${data.tiempo_formateado}</span></div>
                         <div style="font-size:0.8rem; color:#888;">Email: ${data.email_real}</div>
-                        
-                        <div class="bot-status loading" id="bot-${docId}" style="${isBotActive ? 'display:block;' : 'display:none;'}">
-                            🤖 En cola de análisis...
-                        </div>
-
+                        <div class="bot-status loading" id="bot-${docId}" style="${isBotActive ? 'display:block;' : 'display:none;'}">🤖 En cola...</div>
                         <button class="btn-view view-photo" data-url="${data.foto_url}" style="margin-top:10px;">Ver Captura</button>
                         <div class="actions">
                             <button class="btn-reject reject-btn" data-id="${docId}">Rechazar</button>
@@ -244,28 +251,13 @@
             });
             document.getElementById('pending-count').innerText = count;
             if (count === 0) grid.innerHTML = `<div style="grid-column:1/-1; color:#888;">Todo al día.</div>`;
-            else {
-                attachEvents();
-                if(isBotActive) processBotQueue();
-            }
+            else { attachEvents(); if(isBotActive) processBotQueue(); }
         }
 
         function attachEvents() {
             document.querySelectorAll('.view-photo').forEach(b => b.onclick = e => { document.getElementById('modal-img').src = e.target.getAttribute('data-url'); document.getElementById('photo-modal').style.display = 'flex'; });
-            
-            document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { 
-                e.target.disabled = true; e.target.innerText = "Aprobando...";
-                await updateDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id')), { verificado: true }); 
-                loadPendingTrips(); 
-            });
-            
-            document.querySelectorAll('.reject-btn').forEach(b => b.onclick = async e => { 
-                if(confirm("¿Seguro que quieres borrar este récord?")) { 
-                    e.target.disabled = true; e.target.innerText = "Borrando...";
-                    await deleteDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id'))); 
-                    loadPendingTrips(); 
-                }
-            });
+            document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { e.target.disabled = true; e.target.innerText = "Aprobando..."; await updateDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id')), { verificado: true }); loadPendingTrips(); });
+            document.querySelectorAll('.reject-btn').forEach(b => b.onclick = async e => { if(confirm("¿Seguro que quieres borrar este récord?")) { e.target.disabled = true; e.target.innerText = "Borrando..."; await deleteDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id'))); loadPendingTrips(); } });
         }
         document.getElementById('close-modal').onclick = () => document.getElementById('photo-modal').style.display = 'none';
     </script>

@@ -18,7 +18,6 @@
         
         body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
         
-        /* NAVBAR UNIFICADO (PC) */
         nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
         .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
@@ -29,9 +28,9 @@
         .info-icon:hover { color: var(--primary); }
 
         .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
-        
         .search-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; }
         .search-input { width: 100%; padding: 15px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; box-sizing: border-box; }
+        .search-input:focus { border-color: var(--primary); }
         
         .routes-wrapper { position: relative; display: flex; align-items: center; margin-top: 15px; }
         .scroll-btn { display: none; position: absolute; z-index: 10; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); border-radius: 50%; width: 40px; height: 40px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); align-items: center; justify-content: center; top: 50%; transform: translateY(-50%); transition: 0.2s; opacity: 0.6; backdrop-filter: blur(2px); }
@@ -61,13 +60,13 @@
         .rank-stats { text-align: right; min-width: 65px; }
         .rank-time { font-weight: 800; color: var(--primary); font-size: 1.1rem; }
         .rank-delta { font-size: 0.8rem; font-weight: 700; color: #ff4444; } 
+        .rank-speed { font-size: 0.75rem; color: var(--text-muted); }
         .delta-leader { color: #00C851; font-size: 0.8rem; font-weight: 700; } 
 
         .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); } .rank-1 .rank-pos { color: #FFD700; }
         .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .rank-pos { color: #C0C0C0; }
         .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .rank-pos { color: #CD7F32; }
 
-        /* MEJORA MÓVIL DEL RANKING */
         @media (max-width: 600px) {
             .rank-row { grid-template-columns: 25px 35px minmax(0, 1fr) max-content; gap: 8px; padding: 10px; }
             .rank-pos { font-size: 1rem; }
@@ -76,7 +75,6 @@
             .rank-time { font-size: 1rem; }
         }
 
-        /* NAVBAR INFERIOR (MÓVIL) */
         .bottom-nav { display: none; }
         @media (max-width: 850px) { 
             nav .links { display: none; } 
@@ -143,8 +141,8 @@
 
         document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
 
-        // INSERTA AQUÍ TU rawStations COMPLETO
-        const rawStations = `2 - Metro Callao\n3 - Plaza Conde Suchil\n4 - Malasaña\n5 - Fuencarral`; 
+        // ! IMPORTANTE: PEGA AQUÍ TU rawStations COMPLETO CON LAS 600 ESTACIONES
+        const rawStations = `2 - Metro Callao\n3 - Plaza Conde Suchil\n4 - Malasaña\n5 - Fuencarral\n180 - Estación Sur\n235 - Sodio`; 
 
         const estacionesMap = {};
         rawStations.split('\n').forEach(line => {
@@ -286,6 +284,7 @@
                 const username = userData.username || "Piloto";
                 const d = new Date(t.fecha); const month = d.toLocaleString('es-ES', { month: 'long' });
                 const dateString = `${d.getDate()} de ${month.charAt(0).toUpperCase() + month.slice(1)} ${d.getFullYear()}`;
+                const speedHtml = t.velocidad_kmh ? `<div class="rank-speed">${t.velocidad_kmh} km/h</div>` : '';
                 
                 list.innerHTML += `
                     <div class="rank-row ${rClass}">
@@ -297,6 +296,7 @@
                         </div>
                         <div class="rank-stats">
                             <div class="rank-time">${t.tiempo_formateado}</div>
+                            ${speedHtml}
                             ${deltaHtml}
                         </div>
                     </div>`;

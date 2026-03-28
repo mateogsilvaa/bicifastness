@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clanes</title>
+    <title>Clanes | BiciFastness</title>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-straight/css/uicons-solid-straight.css'>
@@ -12,9 +12,15 @@
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; }
         
         body { margin: 0; padding: 0; padding-bottom: 80px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; }
-        nav { background: #000; border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-decoration: none;}
         
+        nav { background: #000; border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-decoration: none; text-transform: uppercase;}
+        .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
+        nav .links { display: flex; align-items: center; }
+        nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 20px; transition: color 0.3s; }
+        nav .links a.active, nav .links a:hover { color: var(--text-main); }
+        .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
+
         .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
         
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
@@ -22,26 +28,28 @@
         .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
         .clan-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; transition: 0.3s;}
-        .clan-card:hover { border-color: var(--primary); transform: translateY(-3px);}
         .clan-info { display: flex; align-items: center; gap: 15px; }
         .clan-shield { width: 50px; height: 50px; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: white; font-weight: 900; }
         .clan-name { font-size: 1.2rem; font-weight: 800; margin: 0;}
         .clan-stats { font-size: 0.85rem; color: var(--text-muted); margin: 0; display: flex; gap: 15px;}
         
         .btn-join { background: #222; color: white; border: 1px solid #444; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; }
-        .btn-join:hover { background: var(--primary); border-color: var(--primary); }
+        .btn-join:hover:not(:disabled) { background: var(--primary); border-color: var(--primary); }
+        .btn-join:disabled { opacity: 0.5; cursor: not-allowed; }
 
         /* CREAR CLAN FORM */
         .create-form { background: var(--bg-card); padding: 25px; border-radius: 16px; border: 1px solid var(--border); display: none; }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; font-weight: 700; text-transform: uppercase;}
         input[type="text"] { width: 100%; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; }
-        .color-picker { display: flex; gap: 10px; }
-        .color-option { width: 35px; height: 35px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
-        .color-option.active { border-color: white; transform: scale(1.1); }
+        input[type="color"] { width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer; background: transparent; padding: 0; }
+        
+        .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 10px; margin-top: 10px;}
+        .icon-option { width: 40px; height: 40px; background: var(--bg-input); border: 2px solid var(--border); border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 1.2rem; transition: 0.2s;}
+        .icon-option.active { border-color: var(--primary); background: var(--primary); color: white;}
+        
         .btn-submit { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 10px;}
 
-        /* NAVBAR INFERIOR (MÓVIL) - Ajustado para 7 botones */
         .bottom-nav { display: none; }
         @media (max-width: 850px) { 
             nav .links { display: none; } 
@@ -54,14 +62,14 @@
 </head>
 <body>
     <nav>
-        <div class="brand">BiciFastness</div>
+        <a href="home.html" class="brand">BICIFASTNESS</a>
         <div class="nav-right">
             <div class="links">
-                <a href="home.html" class="active">Inicio</a>
+                <a href="home.html">Inicio</a>
                 <a href="ranking.html">Rankings</a>
                 <a href="bicirating.html">BiciRating</a>
                 <a href="mapa.html">Mapa</a>
-                <a href="clanes.html">Clanes</a>
+                <a href="clanes.html" class="active">Clanes</a>
                 <a href="subir.html">Subir</a>
                 <a href="profile.html">Perfil</a>
             </div>
@@ -70,93 +78,199 @@
     </nav>
 
     <div class="bottom-nav">
-        <a href="home.html" class="active"><i class="fi fi-sr-home"></i>Inicio</a>
-        <a href="ranking.html"><i class="fi fi-sr-leaderboard-alt"></i>Rankings</a>
+        <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="ranking.html"><i class="fi fi-sr-leaderboard"></i>Rankings</a>
         <a href="bicirating.html"><i class="fi fi-sr-ranking-star"></i>Rating</a>
         <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
         <a href="mapa.html"><i class="fi fi-ss-map-marker"></i>Mapa</a>
-        <a href="clanes.html"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
+        <a href="clanes.html" class="active"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
         <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
     </div>
+    
     <div class="container">
-        
         <div class="tabs">
             <button class="tab-btn active" id="tab-list">Explorar Clanes</button>
             <button class="tab-btn" id="tab-create">Fundar Clan</button>
         </div>
 
         <div id="view-list">
-            <div class="clan-card">
-                <div class="clan-info">
-                    <div class="clan-shield" style="background: #ff4444;">M</div>
-                    <div>
-                        <h3 class="clan-name">Los Malasañas</h3>
-                        <div class="clan-stats"><span><i class="fi fi-sr-users"></i> 12/50</span> <span><i class="fi fi-sr-map-marker"></i> 4 Bases</span> <span><i class="fi fi-sr-road"></i> 1,204 km</span></div>
-                    </div>
-                </div>
-                <button class="btn-join">Unirse</button>
-            </div>
-            
-            <div class="clan-card">
-                <div class="clan-info">
-                    <div class="clan-shield" style="background: #00C851;">R</div>
-                    <div>
-                        <h3 class="clan-name">Riders del Retiro</h3>
-                        <div class="clan-stats"><span><i class="fi fi-sr-users"></i> 8/50</span> <span><i class="fi fi-sr-map-marker"></i> 2 Bases</span> <span><i class="fi fi-sr-road"></i> 890 km</span></div>
-                    </div>
-                </div>
-                <button class="btn-join">Unirse</button>
-            </div>
-            <p style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin-top:20px;">* Al unirte a un clan, juras lealtad. No podrás abandonarlo en 3 días.</p>
+            <div id="clans-container">Cargando clanes...</div>
         </div>
 
         <div id="view-create" class="create-form">
             <h2 style="color:var(--primary); margin-top:0;">Funda tu Imperio</h2>
-            <p style="font-size:0.9rem; color:var(--text-muted);">Los clanes sin miembros serán disueltos automáticamente por el sistema.</p>
+            <p style="font-size:0.9rem; color:var(--text-muted);">Máximo 5 personas. Coste de fundación: ¡Gratis!</p>
             
             <div class="form-group">
                 <label>Nombre del Clan</label>
-                <input type="text" placeholder="Ej: Los Ángeles del Asfalto" maxlength="20">
+                <input type="text" id="clan-name" placeholder="Ej: Los Ángeles del Asfalto" maxlength="20">
             </div>
             <div class="form-group">
-                <label>Color de Bandera (Dominio en Mapa)</label>
-                <div class="color-picker">
-                    <div class="color-option active" style="background: #ff4444;"></div>
-                    <div class="color-option" style="background: #00C851;"></div>
-                    <div class="color-option" style="background: #33b5e5;"></div>
-                    <div class="color-option" style="background: #FF8800;"></div>
-                    <div class="color-option" style="background: #aa66cc;"></div>
-                </div>
+                <label>Color Dominante (Hex)</label>
+                <input type="color" id="clan-color" value="#ff4444">
             </div>
             <div class="form-group">
-                <label>Lema (Aparece en el perfil)</label>
-                <input type="text" placeholder="Ej: Quemando rueda, no gasolina." maxlength="40">
+                <label>Emblema</label>
+                <div class="icon-grid" id="icon-picker">
+                    </div>
             </div>
-            <button class="btn-submit">Pagar 0€ y Fundar Clan</button>
+            <div class="form-group">
+                <label>Lema</label>
+                <input type="text" id="clan-motto" placeholder="Ej: Quemando rueda, no gasolina." maxlength="40">
+            </div>
+            <button class="btn-submit" id="btn-submit-clan">Fundar Clan</button>
+            <div id="create-msg" style="text-align:center; margin-top:10px; font-weight:600;"></div>
         </div>
 
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
+        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
+
+        let currentUser = null;
+        let myClanId = null;
+
+        // UI Tabs
         document.getElementById('tab-list').onclick = () => {
-            document.getElementById('view-list').style.display = 'block';
-            document.getElementById('view-create').style.display = 'none';
-            document.getElementById('tab-list').classList.add('active');
-            document.getElementById('tab-create').classList.remove('active');
+            document.getElementById('view-list').style.display = 'block'; document.getElementById('view-create').style.display = 'none';
+            document.getElementById('tab-list').classList.add('active'); document.getElementById('tab-create').classList.remove('active');
         };
         document.getElementById('tab-create').onclick = () => {
-            document.getElementById('view-list').style.display = 'none';
-            document.getElementById('view-create').style.display = 'block';
-            document.getElementById('tab-create').classList.add('active');
-            document.getElementById('tab-list').classList.remove('active');
+            document.getElementById('view-list').style.display = 'none'; document.getElementById('view-create').style.display = 'block';
+            document.getElementById('tab-create').classList.add('active'); document.getElementById('tab-list').classList.remove('active');
         };
-        
-        document.querySelectorAll('.color-option').forEach(c => {
-            c.onclick = () => {
-                document.querySelectorAll('.color-option').forEach(el => el.classList.remove('active'));
-                c.classList.add('active');
+
+        // Rellenar Grid de Iconos
+        const icons = [
+            '<i class="fi fi-ss-chess-queen"></i>', '<i class="fi fi-ss-crown"></i>', '<i class="fi fi-ss-dragon"></i>', '<i class="fi fi-sr-dragon-fire"></i>',
+            '<i class="fi fi-ss-lion-head"></i>', '<i class="fi fi-ss-sea-wave"></i>', '<i class="fi fi-sc-sunrise"></i>', '<i class="fi fi-bs-sword-alt"></i>',
+            '<i class="fi fi-sr-spade"></i>', '<i class="fi fi-sc-club"></i>', '<i class="fi fi-ss-heart"></i>', '<i class="fi fi-ss-heart-crack"></i>',
+            '<i class="fi fi-sr-heart-arrow"></i>', '<i class="fi fi-ss-bike"></i>', '<i class="fi fi-sr-beer"></i>', '<i class="fi fi-rs-martini-glass-citrus"></i>',
+            '<i class="fi fi-br-function"></i>', '<i class="fi fi-sr-dice-alt"></i>', '<i class="fi fi-sc-gamepad"></i>', '<i class="fi fi-ss-user-ninja"></i>',
+            '<i class="fi fi-ss-user-astronaut"></i>', '<i class="fi fi-ss-rocket-lunch"></i>', '<i class="fi fi-bs-car"></i>', '<i class="fi fi-sr-sack-dollar"></i>',
+            '<i class="fi fi-ss-moon-stars"></i>', '<i class="fi fi-ss-flame"></i>', '<i class="fi fi-ss-radiation"></i>', '<i class="fi fi-ss-diamond-exclamation"></i>',
+            '<i class="fi fi-br-ban"></i>', '<i class="fi fi-sc-teddy-bear"></i>', '<i class="fi fi-sc-kite"></i>', '<i class="fi fi-sr-gun"></i>',
+            '<i class="fi fi-sr-shield-xmark"></i>', '<i class="fi fi-rr-tire"></i>', '<i class="fi fi-br-football"></i>', '<i class="fi fi-ss-basketball"></i>'
+        ];
+        const iconGrid = document.getElementById('icon-picker');
+        let selectedIcon = icons[1]; // Crown por defecto
+
+        icons.forEach((ic, i) => {
+            const div = document.createElement('div');
+            div.className = 'icon-option' + (i === 1 ? ' active' : '');
+            div.innerHTML = ic;
+            div.onclick = () => {
+                document.querySelectorAll('.icon-option').forEach(e => e.classList.remove('active'));
+                div.classList.add('active');
+                selectedIcon = ic;
+            };
+            iconGrid.appendChild(div);
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) window.location.href = "index.html";
+            else {
+                currentUser = user;
+                const userDoc = await getDoc(doc(db, "usuarios", user.email));
+                if(userDoc.exists()) myClanId = userDoc.data().clanId || null;
+                loadClanes();
             }
         });
+
+        async function loadClanes() {
+            const cSnap = await getDocs(collection(db, "clanes"));
+            const cContainer = document.getElementById('clans-container');
+            cContainer.innerHTML = '';
+            
+            if(cSnap.empty) {
+                cContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Sé el primero en fundar un imperio.</p>';
+                return;
+            }
+
+            cSnap.forEach(d => {
+                const clan = d.data();
+                const isFull = clan.miembros.length >= 5;
+                const isMyClan = myClanId === d.id;
+                
+                let btnHtml = '';
+                if(isMyClan) btnHtml = `<button class="btn-join" disabled style="background:var(--primary); color:white; border:none;">Tu Clan</button>`;
+                else if (isFull) btnHtml = `<button class="btn-join" disabled>Lleno</button>`;
+                else if (myClanId) btnHtml = `<button class="btn-join" disabled title="Ya tienes un clan">Unirse</button>`; // No puedes unirte si ya tienes uno
+                else btnHtml = `<button class="btn-join join-btn-click" data-id="${d.id}">Unirse</button>`;
+
+                cContainer.innerHTML += `
+                    <div class="clan-card">
+                        <div class="clan-info">
+                            <div class="clan-shield" style="background: ${clan.color};">${clan.icono}</div>
+                            <div>
+                                <h3 class="clan-name">${clan.nombre}</h3>
+                                <div class="clan-stats"><span><i class="fi fi-sr-users"></i> ${clan.miembros.length}/5</span> <span><i class="fi fi-sr-star"></i> BR: ${clan.biciRating || 0}</span></div>
+                                <div style="font-size:0.75rem; color:#666;">"${clan.lema}"</div>
+                            </div>
+                        </div>
+                        ${btnHtml}
+                    </div>
+                `;
+            });
+
+            // Lógica de unirse
+            document.querySelectorAll('.join-btn-click').forEach(btn => {
+                btn.onclick = async (e) => {
+                    const clanIdToJoin = e.target.getAttribute('data-id');
+                    e.target.disabled = true; e.target.innerText = "Uniendo...";
+                    try {
+                        // Añadir al array del clan
+                        await updateDoc(doc(db, "clanes", clanIdToJoin), { miembros: arrayUnion(currentUser.email) });
+                        // Actualizar perfil del usuario
+                        await updateDoc(doc(db, "usuarios", currentUser.email), { clanId: clanIdToJoin });
+                        alert("¡Bienvenido al clan!");
+                        window.location.reload();
+                    } catch(err) {
+                        alert("Error al unirte."); e.target.innerText = "Unirse"; e.target.disabled = false;
+                    }
+                }
+            });
+        }
+
+        // Crear Clan
+        document.getElementById('btn-submit-clan').onclick = async () => {
+            if(myClanId) { alert("¡Traición! Ya perteneces a un clan. Abandónalo primero."); return; }
+            
+            const name = document.getElementById('clan-name').value.trim();
+            const color = document.getElementById('clan-color').value;
+            const motto = document.getElementById('clan-motto').value.trim();
+            const msg = document.getElementById('create-msg');
+
+            if(!name || !motto) { msg.innerText = "Rellena nombre y lema."; msg.style.color = "red"; return; }
+            
+            // Creamos un ID seguro para el clan (sin espacios)
+            const newClanId = name.replace(/\s+/g, '_').toLowerCase();
+
+            try {
+                // Verificar si ya existe
+                const checkDoc = await getDoc(doc(db, "clanes", newClanId));
+                if(checkDoc.exists()) { msg.innerText = "Este nombre ya está en uso."; msg.style.color = "red"; return; }
+
+                msg.innerText = "Fundando clan..."; msg.style.color = "var(--primary)";
+                
+                await setDoc(doc(db, "clanes", newClanId), {
+                    nombre: name, color: color, icono: selectedIcon, lema: motto,
+                    admin: currentUser.email, miembros: [currentUser.email], biciRating: 0
+                });
+
+                await updateDoc(doc(db, "usuarios", currentUser.email), { clanId: newClanId });
+                
+                alert("¡Clan fundado con éxito!");
+                window.location.reload();
+            } catch(e) {
+                msg.innerText = "Error: " + e.message; msg.style.color = "red";
+            }
+        };
     </script>
 </body>
 </html>

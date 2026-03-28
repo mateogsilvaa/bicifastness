@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clasificación</title>
+    <title>Clasificación | BiciFastness</title>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-straight/css/uicons-solid-straight.css'>
@@ -12,35 +12,44 @@
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; }
         
         body { margin: 0; padding: 0; padding-bottom: 80px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; }
-        nav { background: #000; border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-decoration: none;}
         
+        nav { background: #000; border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-decoration: none; text-transform: uppercase;}
+        .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
+        nav .links { display: flex; align-items: center; }
+        nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 20px; transition: color 0.3s; }
+        nav .links a.active, nav .links a:hover { color: var(--text-main); }
+        .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
+
         .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
         
-        .header-title { text-align: center; margin-bottom: 30px;}
+        .header-title { text-align: center; margin-bottom: 20px;}
         .header-title h1 { font-size: 2.5rem; font-weight: 900; margin: 0; background: linear-gradient(to right, #0071c3, #00C851); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
         .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; }
+
+        /* TABS */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-muted); border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
         .rank-list { background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
         .rank-row { display: grid; grid-template-columns: 50px 50px 1fr max-content; gap: 15px; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--border); background: var(--bg-input);}
         .rank-row:last-child { border-bottom: none; }
         
         .pos { font-size: 1.5rem; font-weight: 900; color: var(--text-muted); text-align: center;}
-        .avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
+        .avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: white;}
         .username { font-weight: 800; font-size: 1.1rem; }
         .clan-tag { font-size: 0.75rem; background: #333; color: white; padding: 2px 8px; border-radius: 12px; margin-left: 5px; vertical-align: middle;}
         .rating-box { text-align: right; }
         .score { font-size: 1.8rem; font-weight: 900; color: #FFD700; line-height: 1;}
         .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;}
 
-        /* Podio */
         .rank-1 { background: rgba(255, 215, 0, 0.1); border-color: rgba(255, 215, 0, 0.3);} .rank-1 .pos { color: #FFD700; } .rank-1 .avatar { border-color: #FFD700;}
         .rank-2 { background: rgba(192, 192, 192, 0.05); } .rank-2 .pos { color: #C0C0C0; }
         .rank-3 { background: rgba(205, 127, 50, 0.05); } .rank-3 .pos { color: #CD7F32; }
 
         .my-rank { margin-top: 30px; background: linear-gradient(135deg, #1a2a3a 0%, #111 100%); border: 1px solid var(--primary); border-radius: 16px; padding: 20px; text-align: center; }
 
-        /* NAVBAR INFERIOR (MÓVIL) - Ajustado para 7 botones */
         .bottom-nav { display: none; }
         @media (max-width: 850px) { 
             nav .links { display: none; } 
@@ -53,12 +62,12 @@
 </head>
 <body>
     <nav>
-        <div class="brand">BiciFastness</div>
+        <a href="home.html" class="brand">BICIFASTNESS</a>
         <div class="nav-right">
             <div class="links">
-                <a href="home.html" class="active">Inicio</a>
+                <a href="home.html">Inicio</a>
                 <a href="ranking.html">Rankings</a>
-                <a href="bicirating.html">BiciRating</a>
+                <a href="bicirating.html" class="active">BiciRating</a>
                 <a href="mapa.html">Mapa</a>
                 <a href="clanes.html">Clanes</a>
                 <a href="subir.html">Subir</a>
@@ -69,49 +78,140 @@
     </nav>
 
     <div class="bottom-nav">
-        <a href="home.html" class="active"><i class="fi fi-sr-home"></i>Inicio</a>
-        <a href="ranking.html"><i class="fi fi-sr-leaderboard-alt"></i>Rankings</a>
-        <a href="bicirating.html"><i class="fi fi-sr-ranking-star"></i>Rating</a>
+        <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="ranking.html"><i class="fi fi-sr-leaderboard"></i>Rankings</a>
+        <a href="bicirating.html" class="active"><i class="fi fi-sr-ranking-star"></i>Rating</a>
         <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
         <a href="mapa.html"><i class="fi fi-ss-map-marker"></i>Mapa</a>
         <a href="clanes.html"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
         <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
     </div>
+
     <div class="container">
-        
         <div class="header-title">
             <h1>GLOBAL TOP 20</h1>
-            <p>Los pilotos con mayor BiciRating de la ciudad.</p>
+            <p>Los pilotos y clanes con mayor BiciRating de la ciudad.</p>
         </div>
 
-        <div class="rank-list">
-            <div class="rank-row rank-1">
-                <div class="pos">1</div>
-                <img src="https://api.dicebear.com/7.x/initials/svg?seed=Admin" class="avatar">
-                <div><div class="username">AlexFast <span class="clan-tag" style="background:#ff4444;">Malasaña</span></div></div>
-                <div class="rating-box"><div class="score">2,450</div><div class="label">BiciRating</div></div>
-            </div>
-            <div class="rank-row rank-2">
-                <div class="pos">2</div>
-                <img src="https://api.dicebear.com/7.x/initials/svg?seed=B" class="avatar">
-                <div><div class="username">NinjaRider</div></div>
-                <div class="rating-box"><div class="score">2,100</div><div class="label">BiciRating</div></div>
-            </div>
-            <div class="rank-row rank-3">
-                <div class="pos">3</div>
-                <img src="https://api.dicebear.com/7.x/initials/svg?seed=C" class="avatar">
-                <div><div class="username">PedalesLocos <span class="clan-tag" style="background:#00C851;">Retiros</span></div></div>
-                <div class="rating-box"><div class="score">1,980</div><div class="label">BiciRating</div></div>
-            </div>
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-pilotos">Pilotos</button>
+            <button class="tab-btn" id="tab-clanes">Clanes</button>
         </div>
 
-        <div class="my-rank">
+        <div class="rank-list" id="list-pilotos">
+            <div style="padding: 20px; text-align:center; color: var(--text-muted);">Cargando pilotos...</div>
+        </div>
+
+        <div class="rank-list" id="list-clanes" style="display: none;">
+            <div style="padding: 20px; text-align:center; color: var(--text-muted);">Cargando clanes...</div>
+        </div>
+
+        <div class="my-rank" id="my-rank-container">
             <h3 style="margin: 0 0 5px 0; color: white;">Tu Posición Actual</h3>
-            <div style="font-size: 3rem; font-weight: 900; color: var(--primary); line-height: 1;">#84</div>
-            <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 10px;">BiciRating: 450. ¡Sigue asaltando estaciones!</div>
+            <div style="font-size: 3rem; font-weight: 900; color: var(--primary); line-height: 1;" id="my-pos">#--</div>
+            <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 10px;">BiciRating: <span id="my-rating">0</span></div>
         </div>
-
     </div>
 
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
+        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
+
+        // Control de Tabs
+        document.getElementById('tab-pilotos').onclick = () => {
+            document.getElementById('list-pilotos').style.display = 'block';
+            document.getElementById('list-clanes').style.display = 'none';
+            document.getElementById('tab-pilotos').classList.add('active');
+            document.getElementById('tab-clanes').classList.remove('active');
+            document.getElementById('my-rank-container').style.display = 'block';
+        };
+        document.getElementById('tab-clanes').onclick = () => {
+            document.getElementById('list-pilotos').style.display = 'none';
+            document.getElementById('list-clanes').style.display = 'block';
+            document.getElementById('tab-clanes').classList.add('active');
+            document.getElementById('tab-pilotos').classList.remove('active');
+            document.getElementById('my-rank-container').style.display = 'none'; // Ocultamos tu rank en vista clanes
+        };
+
+        let currentUserEmail = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) currentUserEmail = user.email;
+            loadLeaderboards();
+        });
+
+        async function loadLeaderboards() {
+            // 1. CARGAR PILOTOS
+            const usersSnap = await getDocs(collection(db, "usuarios"));
+            let users = [];
+            usersSnap.forEach(d => {
+                let data = d.data();
+                users.push({ id: d.id, email: d.id, name: data.username || "Piloto", rating: data.biciRating || 0, avatar: data.avatar || null, clanId: data.clanId || null });
+            });
+            users.sort((a,b) => b.rating - a.rating);
+
+            // Rellenar Top 20 Pilotos
+            const listP = document.getElementById('list-pilotos');
+            listP.innerHTML = '';
+            if(users.length === 0) listP.innerHTML = '<div style="padding: 20px; text-align:center;">No hay pilotos aún.</div>';
+            
+            let myPos = "--"; let myRating = 0;
+
+            users.slice(0, 20).forEach((u, index) => {
+                const pos = index + 1;
+                if(u.email === currentUserEmail) { myPos = pos; myRating = u.rating; }
+                const rClass = pos === 1 ? 'rank-1' : pos === 2 ? 'rank-2' : pos === 3 ? 'rank-3' : '';
+                const avatar = u.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${u.email}&backgroundColor=0071c3`;
+                const clanTag = u.clanId ? `<span class="clan-tag">${u.clanId}</span>` : '';
+                
+                listP.innerHTML += `
+                    <div class="rank-row ${rClass}">
+                        <div class="pos">${pos}</div>
+                        <img src="${avatar}" class="avatar">
+                        <div><div class="username">${u.name} ${clanTag}</div></div>
+                        <div class="rating-box"><div class="score">${u.rating}</div><div class="label">BiciRating</div></div>
+                    </div>`;
+            });
+
+            // Buscar posición del usuario si no está en el Top 20
+            if(myPos === "--" && currentUserEmail) {
+                const index = users.findIndex(u => u.email === currentUserEmail);
+                if(index !== -1) { myPos = index + 1; myRating = users[index].rating; }
+            }
+            document.getElementById('my-pos').innerText = `#${myPos}`;
+            document.getElementById('my-rating').innerText = myRating;
+
+
+            // 2. CARGAR CLANES
+            const clanesSnap = await getDocs(collection(db, "clanes"));
+            let clanes = [];
+            clanesSnap.forEach(d => {
+                let data = d.data();
+                clanes.push({ name: data.nombre, rating: data.biciRating || 0, icon: data.icono, color: data.color });
+            });
+            clanes.sort((a,b) => b.rating - a.rating);
+
+            const listC = document.getElementById('list-clanes');
+            listC.innerHTML = '';
+            if(clanes.length === 0) listC.innerHTML = '<div style="padding: 20px; text-align:center; color:var(--text-muted);">No hay clanes fundados.</div>';
+
+            clanes.slice(0, 20).forEach((c, index) => {
+                const pos = index + 1;
+                const rClass = pos === 1 ? 'rank-1' : pos === 2 ? 'rank-2' : pos === 3 ? 'rank-3' : '';
+                
+                listC.innerHTML += `
+                    <div class="rank-row ${rClass}">
+                        <div class="pos">${pos}</div>
+                        <div class="avatar" style="background:${c.color}; border:none;">${c.icon}</div>
+                        <div><div class="username">${c.name}</div></div>
+                        <div class="rating-box"><div class="score" style="color:${c.color};">${c.rating}</div><div class="label">Rating de Clan</div></div>
+                    </div>`;
+            });
+        }
+    </script>
 </body>
 </html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clasificación</title>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-straight/css/uicons-solid-straight.css'>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap');
+        :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; }
+        
+        body { margin: 0; padding: 0; padding-bottom: 80px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; }
+        nav { background: #000; border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-decoration: none;}
+        
+        .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        
+        .header-title { text-align: center; margin-bottom: 30px;}
+        .header-title h1 { font-size: 2.5rem; font-weight: 900; margin: 0; background: linear-gradient(to right, #0071c3, #00C851); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
+        .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; }
+
+        .rank-list { background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
+        .rank-row { display: grid; grid-template-columns: 50px 50px 1fr max-content; gap: 15px; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--border); background: var(--bg-input);}
+        .rank-row:last-child { border-bottom: none; }
+        
+        .pos { font-size: 1.5rem; font-weight: 900; color: var(--text-muted); text-align: center;}
+        .avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
+        .username { font-weight: 800; font-size: 1.1rem; }
+        .clan-tag { font-size: 0.75rem; background: #333; color: white; padding: 2px 8px; border-radius: 12px; margin-left: 5px; vertical-align: middle;}
+        .rating-box { text-align: right; }
+        .score { font-size: 1.8rem; font-weight: 900; color: #FFD700; line-height: 1;}
+        .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;}
+
+        /* Podio */
+        .rank-1 { background: rgba(255, 215, 0, 0.1); border-color: rgba(255, 215, 0, 0.3);} .rank-1 .pos { color: #FFD700; } .rank-1 .avatar { border-color: #FFD700;}
+        .rank-2 { background: rgba(192, 192, 192, 0.05); } .rank-2 .pos { color: #C0C0C0; }
+        .rank-3 { background: rgba(205, 127, 50, 0.05); } .rank-3 .pos { color: #CD7F32; }
+
+        .my-rank { margin-top: 30px; background: linear-gradient(135deg, #1a2a3a 0%, #111 100%); border: 1px solid var(--primary); border-radius: 16px; padding: 20px; text-align: center; }
+
+        /* NAVBAR INFERIOR (MÓVIL) - Ajustado para 7 botones */
+        .bottom-nav { display: none; }
+        @media (max-width: 850px) { 
+            nav .links { display: none; } 
+            .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-between; padding: 8px 5px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;} 
+            .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.6rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; text-align: center; } 
+            .bottom-nav a.active { color: var(--primary); } 
+            .bottom-nav a i { font-size: 1.25rem; line-height: 1; } 
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="brand">BiciFastness</div>
+        <div class="nav-right">
+            <div class="links">
+                <a href="home.html" class="active">Inicio</a>
+                <a href="ranking.html">Rankings</a>
+                <a href="bicirating.html">BiciRating</a>
+                <a href="mapa.html">Mapa</a>
+                <a href="clanes.html">Clanes</a>
+                <a href="subir.html">Subir</a>
+                <a href="profile.html">Perfil</a>
+            </div>
+            <a href="info.html" class="info-icon" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
+        </div>
+    </nav>
+
+    <div class="bottom-nav">
+        <a href="home.html" class="active"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="ranking.html"><i class="fi fi-sr-leaderboard-alt"></i>Rankings</a>
+        <a href="bicirating.html"><i class="fi fi-sr-ranking-star"></i>Rating</a>
+        <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
+        <a href="mapa.html"><i class="fi fi-ss-map-marker"></i>Mapa</a>
+        <a href="clanes.html"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
+        <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
+    </div>
+    <div class="container">
+        
+        <div class="header-title">
+            <h1>GLOBAL TOP 20</h1>
+            <p>Los pilotos con mayor BiciRating de la ciudad.</p>
+        </div>
+
+        <div class="rank-list">
+            <div class="rank-row rank-1">
+                <div class="pos">1</div>
+                <img src="https://api.dicebear.com/7.x/initials/svg?seed=Admin" class="avatar">
+                <div><div class="username">AlexFast <span class="clan-tag" style="background:#ff4444;">Malasaña</span></div></div>
+                <div class="rating-box"><div class="score">2,450</div><div class="label">BiciRating</div></div>
+            </div>
+            <div class="rank-row rank-2">
+                <div class="pos">2</div>
+                <img src="https://api.dicebear.com/7.x/initials/svg?seed=B" class="avatar">
+                <div><div class="username">NinjaRider</div></div>
+                <div class="rating-box"><div class="score">2,100</div><div class="label">BiciRating</div></div>
+            </div>
+            <div class="rank-row rank-3">
+                <div class="pos">3</div>
+                <img src="https://api.dicebear.com/7.x/initials/svg?seed=C" class="avatar">
+                <div><div class="username">PedalesLocos <span class="clan-tag" style="background:#00C851;">Retiros</span></div></div>
+                <div class="rating-box"><div class="score">1,980</div><div class="label">BiciRating</div></div>
+            </div>
+        </div>
+
+        <div class="my-rank">
+            <h3 style="margin: 0 0 5px 0; color: white;">Tu Posición Actual</h3>
+            <div style="font-size: 3rem; font-weight: 900; color: var(--primary); line-height: 1;">#84</div>
+            <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 10px;">BiciRating: 450. ¡Sigue asaltando estaciones!</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

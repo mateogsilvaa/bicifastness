@@ -16,9 +16,8 @@
         body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
         
         /* NAVBAR CON LOGO Y CENTRADO DE INFO */
-        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
-        nav .brand img { height: 35px; width: auto; display: block; }
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
         .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
         nav .links { display: flex; align-items: center; }
         nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 20px; transition: color 0.3s; }
@@ -71,23 +70,43 @@
         .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .rank-pos { color: #C0C0C0; }
         .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .rank-pos { color: #CD7F32; }
 
+        /* NAVBAR INFERIOR (MÓVIL) - Ajustado para 7 botones */
         .bottom-nav { display: none; }
-        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 6px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a i { font-size: 1.4rem; line-height:1;} }
+        @media (max-width: 850px) { 
+            nav .links { display: none; } 
+            .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-between; padding: 8px 5px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;} 
+            .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.6rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; text-align: center; } 
+            .bottom-nav a.active { color: var(--primary); } 
+            .bottom-nav a i { font-size: 1.25rem; line-height: 1; } 
+        }
     </style>
 </head>
 <body>
     <nav>
-        <a href="home.html" class="brand"><img src="images/logo.png" alt="BICIFASTNESS" onerror="this.outerHTML='BICIFASTNESS'"></a>
+        <div class="brand">BiciFastness</div>
         <div class="nav-right">
             <div class="links">
-                <a href="home.html">Inicio</a>
-                <a href="ranking.html" class="active">Rankings</a>
-                <a href="subir.html">Subir Tiempo</a>
+                <a href="home.html" class="active">Inicio</a>
+                <a href="ranking.html">Rankings</a>
+                <a href="bicirating.html">BiciRating</a>
+                <a href="mapa.html">Mapa</a>
+                <a href="clanes.html">Clanes</a>
+                <a href="subir.html">Subir</a>
                 <a href="profile.html">Perfil</a>
             </div>
             <a href="info.html" class="info-icon" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
         </div>
     </nav>
+
+    <div class="bottom-nav">
+        <a href="home.html" class="active"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="ranking.html"><i class="fi fi-sr-leaderboard-alt"></i>Rankings</a>
+        <a href="bicirating.html"><i class="fi fi-sr-ranking-star"></i>Rating</a>
+        <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
+        <a href="mapa.html"><i class="fi fi-ss-map-marker"></i>Mapa</a>
+        <a href="clanes.html"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
+        <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
+    </div>
     
     <div class="container">
         <div class="search-section" id="search-section">
@@ -107,13 +126,6 @@
             </div>
             <div id="ranking-list"></div>
         </div>
-    </div>
-    
-    <div class="bottom-nav">
-        <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
-        <a href="ranking.html" class="active"><i class="fi fi-sr-ranking-star"></i>Rankings</a>
-        <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
-        <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
     </div>
 
     <script type="module">

@@ -4,13 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rankings | BiciFastness</title>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-straight/css/uicons-solid-straight.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-channeled/css/uicons-solid-channeled.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-rounded/css/uicons-bold-rounded.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-straight/css/uicons-regular-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
@@ -18,8 +15,10 @@
         
         body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
         
-        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
+        /* NAVBAR CON LOGO Y CENTRADO DE INFO */
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
+        nav .brand img { height: 35px; width: auto; display: block; }
         .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
         nav .links { display: flex; align-items: center; }
         nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 20px; transition: color 0.3s; }
@@ -28,27 +27,33 @@
         .info-icon:hover { color: var(--primary); }
 
         .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+        
         .search-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; }
         .search-input { width: 100%; padding: 15px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; box-sizing: border-box; }
         .search-input:focus { border-color: var(--primary); }
         
         .routes-wrapper { position: relative; display: flex; align-items: center; margin-top: 15px; }
         .scroll-btn { display: none; position: absolute; z-index: 10; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); border-radius: 50%; width: 40px; height: 40px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); align-items: center; justify-content: center; top: 50%; transform: translateY(-50%); transition: 0.2s; opacity: 0.6; backdrop-filter: blur(2px); }
-        .scroll-btn:hover { color: var(--primary); opacity: 1; }
-        .scroll-btn.left { left: -15px; } .scroll-btn.right { right: -15px; }
+        .scroll-btn:hover { color: var(--primary); border-color: var(--primary); opacity: 1; }
+        .scroll-btn.left { left: -15px; }
+        .scroll-btn.right { right: -15px; }
         
         .routes-container { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding: 5px 0; white-space: nowrap; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; width: 100%;}
         .routes-container::-webkit-scrollbar { display: none; }
         
         .route-btn { flex: 0 0 auto; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
         .route-btn.active { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; }
+        
         .glowing-btn { border-color: #FFD700 !important; color: #FFD700 !important; font-weight: 800; box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); animation: pulse 2s infinite; }
+        .glowing-btn.active { background: #FFD700 !important; color: #111 !important; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(255, 215, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); } }
 
         .ranking-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); display: none; }
+        
         .ranking-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-bottom: 15px; }
         .ranking-header h2 { margin: 0; font-size: 1.1rem; color: var(--primary); }
         .pin-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; line-height: 1; }
+        .pin-btn:hover { transform: scale(1.1); color: var(--primary); }
         .pin-btn.pinned { color: var(--primary); }
 
         .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; }
@@ -60,20 +65,11 @@
         .rank-stats { text-align: right; min-width: 65px; }
         .rank-time { font-weight: 800; color: var(--primary); font-size: 1.1rem; }
         .rank-delta { font-size: 0.8rem; font-weight: 700; color: #ff4444; } 
-        .rank-speed { font-size: 0.75rem; color: var(--text-muted); }
         .delta-leader { color: #00C851; font-size: 0.8rem; font-weight: 700; } 
 
         .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); } .rank-1 .rank-pos { color: #FFD700; }
         .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .rank-pos { color: #C0C0C0; }
         .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .rank-pos { color: #CD7F32; }
-
-        @media (max-width: 600px) {
-            .rank-row { grid-template-columns: 25px 35px minmax(0, 1fr) max-content; gap: 8px; padding: 10px; }
-            .rank-pos { font-size: 1rem; }
-            .rank-avatar { width: 35px; height: 35px; }
-            .rank-user { font-size: 0.9rem; }
-            .rank-time { font-size: 1rem; }
-        }
 
         .bottom-nav { display: none; }
         @media (max-width: 850px) { 
@@ -111,11 +107,12 @@
         <a href="clanes.html"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
         <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
     </div>
-
+    
     <div class="container">
         <div class="search-section" id="search-section">
             <h2 style="margin:0 0 10px 0; color:var(--text-main);">Buscar Trayecto</h2>
             <input type="text" id="search-input" class="search-input" placeholder="Buscar nombre de estación o número...">
+            
             <div class="routes-wrapper">
                 <button class="scroll-btn left" id="scroll-left"><i class="fi fi-rr-angle-left"></i></button>
                 <div class="routes-container" id="routes-container">Cargando datos...</div>
@@ -141,8 +138,7 @@
 
         document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
 
-        // ! IMPORTANTE: PEGA AQUÍ TU rawStations COMPLETO CON LAS 600 ESTACIONES
-        const rawStations = `2 - Metro Callao\n3 - Plaza Conde Suchil\n4 - Malasaña\n5 - Fuencarral\n180 - Estación Sur\n235 - Sodio`; 
+        const rawStations = `2 - Metro Callao\n3 - Plaza Conde Suchil\n4 - Malasaña\n5 - Fuencarral\n6 - Colegio de Arquitectos\n7 - Hortaleza, 75\n8 - Metro Alonso Martínez\n9 - Plaza de San Miguel\n10 - Marqués de la Ensenada\n11 - Plaza del Dos de Mayo\n12 - San Hermenegildo\n13 - Conde Duque\n14 - Ventura Rodríguez\n15 - Norte\n16 - San Bernardo\n17 - Plaza de Carlos Cambronero\n18 - Plaza de Pedro Zerolo\n19 - Prim\n20 - Banco de España\n23 - Santo Domingo\n24 - Palacio de Oriente\n25A - Plaza de Celenque A\n25B - Plaza de Celenque B\n26 - Plaza de las Salesas\n27 - Huertas\n29 - Marqués de Cubas\n30 - San Quintín\n31 - Mayor\n32 - Plaza de la Provincia\n33 - Puerta del Sol\n34 - Jacinto Benavente\n35 - Doctor Letamendi, 3\n36 - Plaza Ramales\n37 - Calatrava, 38\n38 - Plaza de los Carros\n39 - Plaza de la Cebada\n40 - Conde de Romanones\n41 - Metro Antón Martín\n42 - Santa Isabel\n43 - Jesús y María\n44 - Plaza de Nelson Mandela\n45 - Metro Puerta de Toledo\n46 - Ribera de Curtidores\n47 - Renfe/Cercanías Embajadores\n48 - Juan Sebastián Elcano\n49 - Casa Encendida\n50 - Museo Reina Sofía\n51 - Ronda de Atocha\n52 - Plaza de Santa Ana\n53 - Plaza de Lavapiés\n54 - Metro Tribunal\n55 - Plaza de San Ildefonso\n56 - Plaza del Carmen\n57 - Santa Cruz de Marcenado\n58 - Metro Chueca\n59 - Plaza de Juan Pujol\n60 - Puerta de Alcalá\n61 - O Donnell - Narváez\n62 - Hospital M. Infantil Gregorio Marañón\n63 - Hospital Gral. Uni. Gregorio Marañón\n65 - Parque del Retiro - Calle Antonio Maura\n67 - CaixaForum Madrid\n68 - Espalter - Ruiz de Alarcón\n69 - Parque del Retiro - Puerta Ángel Caído\n70 - Hospital Uni. Infantil Niño Jesús\n71 - Plaza del Doctor Laguna\n72 - Metro Sáinz de Baranda\n73 - Plaza de los Astros\n74 - Parque Retiro - Jardines Cecilio Rguez\n75 - Parque del Retiro - Plaza Mariano Cavia\n76 - Avenida del Mediterráneo, 19\n77 - Plaza del Conde de Casal\n78 - Metro Pacífico\n79 - Metro Menéndez Pelayo\n81 - Cuesta de Moyano\n82 - Doctor Esquerdo - Metro Conde de Casal\n83 - Pío Baroja\n84 - Biblioteca Pública Elena Fortún\n85 - Parque del Retiro - Puerta de O´Donnell\n86 - Cibeles\n87 - Ayala - Velázquez\n88 - Velázquez-Padilla\n89 - Ayala - Conde de Peñalver\n90 - Metro Velázquez\n91 - Hermosilla - General Pardiñas\n92 - Claudio Coello - Hermosilla\n93 - Plaza de Margaret Thatcher\n94 - Estación de tren de Recoletos\n95 - Claudio Coello - Villanueva\n96 - Alcalá - Castelló\n97 - Metro Príncipe de Vergara\n98 - Plaza de Felipe II\n99 - Alcántara - Hermosilla\n100 - Wizink Center\n101 - Metro O Donnell\n102 - Metro Retiro\n103 - Ortega y Gasset - Serrano\n104 - Castellana - Hermosilla\n105 - Serrano, 46\n106B - Plaza de Colón B\n107 - Serrano - Conde de Aranda\n108 - Mártires Concepcionistas - Alcalá\n109 - Marqués de Salamanca\n110 - Intercambiador de Moncloa\n111A - Metro Moncloa A\n111B - Metro Moncloa B\n112 - Paseo de Moret - Parque del Oeste\n113 - Teleférico Madrid - Estación Rosales\n114 - Quintana - Juan Álvarez de Mendizábal\n115 - Ferraz - Templo de Debod\n116A - Plaza de España - Martín de los Heros\n116B - Metro Plaza de España\n117 - Altamirano  - Martín de los Heros\n118 - OFICINA DEL SER, APR Y BICIREGISTRO\n119 - Méndez Álvaro\n120 - Metro Palos de la Frontera\n121 - Glorieta de Santa María de la Cabeza\n122 - Santa Engracia - Zurbarán\n123 - Metro Argüelles\n124 - Metro Bilbao\n125 - Fdez. de la Hoz - Gral. Martínez Campos\n126 - General Álvarez de Castro\n127 - Mercado Municipal de Vallehermoso\n128 - Metro Islas Filipinas\n129 - Metro Alonso Cano\n130 - Metro Ríos Rosas\n131 - Plaza de Juan Zorrilla\n132 - Glorieta de Cuatro Caminos\n133 - Raimundo Fdez. Villaverde - Dulcinea\n134 - María de Guzmán - Agustín de Betancourt\n135 - Plaza de San Juan de la Cruz\n136 - Metro Nuevos Ministerios\n137 - Plaza de la República Argentina\n138 - Estación de tren Nuevos Ministerios\n139 - José Gutiérrez Abascal - Castellana\n140 - Velázquez - López de Hoyos\n141 - Plaza de Emilio Castelar\n142 - Bajo elevado de Eduardo Dato\n186 - General Pardiñas - Don Ramón de la Cruz\n144 - Metro Diego de León\n145 - Ortega y Gasset 87\n146 - María Francisca, 3\n147 - Doctor Arce 45\n148 - Serrano 210\n149 - Plaza de Quito\n151 - Orense 12\n152 - General Perón, 4\n153 - General Perón - Poeta Joan Maragall\n154 - Orense 36\n155 - San Germán 57\n156 - Sor Ángela de la Cruz-Paseo Castellana\n158 - Alberto Alcocer - Padre Damián\n159 - Paseo de la Habana 63\n160 - Metro Colombia\n161 - Intercambiador de Príncipe Pío A\n162 - Metro Pirámides\n163 - Metro Acacias\n164 - Paseo de las Delicias - Tomás Bretón\n165 - Entrada Matadero - Paseo de la Chopera\n166 - Viaducto de Segovia\n167 - Segovia 45\n168 - Santa María Cabeza - Batalla del Salado\n169 - Glorieta de Pirámides\n170 - Paseo de la Esperanza, 21\n171 - Embajadores-Cáceres\n172 - Estación de tren de Delicias\n173 - Paseo Esperanza - Santa María Cabeza\n174 - Paseo de las Yeserías, 45\n175 - Jaime el Conquistador - Divino Vallés\n177 - Metro Legazpi\n178 - Junta Municipal Distrito de Retiro\n180 - Estación Sur Méndez Álvaro B\n181 - Ibiza - Narváez\n182 - Parque Roma\n183 - Hermosilla - Doctor Esquerdo\n184 - Marqués de Zafra, 24\n185 - Parque Quinta de la Fuente del Berro\n143 - Diego de León - General Pardiñas\n187 - Alejandro González - Alcalá\n188 - Puente de Ventas\n189 - Virgen de la Alegría\n190 - Velázquez - Diego de León\n191 - Metro Diego de León\n192 - Avda. de los Toreros - Fco. Silvela\n193 - Plaza de las Ventas\n194 - Intercambiador de Avenida de América\n195 - Indalecio Hernández - Mataelpino\n196 - Metro Prosperidad\n197 - Parque de Berlín\n198 - Metro Rubén Darío\n199 - Fernando el Católico, 61\n200 - Metro Quevedo\n201 - Metro Canal\n202 - Parque de Santander\n203 - General Ampudia - San Francisco Sales\n204 - Doctor Santero - Bravo Murillo\n205 - Metro Estrecho\n206 - Metro Tetuán\n207 - Plaza de la Remonta\n208 - Intercambiador de Plaza de Castilla\n209 - Plaza de Castilla - Fundación Canal\n210 - Calle de las Tres Cruces - Gran Vía\n211 - Desengaño - Valverde\n212 - Metro Marqués de Vadillo\n213 - Glorieta de Cádiz\n214 - Condesa de Venadito - Albacete\n215 - Gutierre de Cetina - Ascao\n216 - Plaza de Puerta del Ángel\n217 - Hospital Universitario La Paz\n218 - Camino de los Vinateros A\n219 - Camino de los Vinateros B\n220 - Plaza del Encuentro\n221 - Metro Pavones\n222 - Eugenio Caxes - Antonio López\n223 - Ermita del Santo\n224 - Parque de Caramuel\n225 - Sierra Toledana - Doctor Lozano\n226 - Sierra Toledana - Camino de Valderribas\n227 - Arroyo del Olivar\n228 - San Delfín - Antonio López\n229 - Centro Deportivo Municipal Concepción\n230 - Carlota O´Neill - Agastia\n231 - Derechos Humanos - Verdaguer y García\n232 - José María de Pereda - Alcalá\n233 - El dragón de La Elipa\n234 - Metro La Elipa\n235 - Sodio - Embajadores\n236 - Paseo Imperial\n238 - San Germán, 5\n239 - Francos Rodríguez - José Calvo\n240 - Brasilia - Parque Breogán\n241 - Camilo José Cela\n242 - Metro Parque de las Avenidas\n243 - Cartagena\n244 - Hospital Clínico San Carlos\n245 - Galileo - Donoso Cortés\n246 - Metro Iglesia\n247 - Zurbano - José Abascal\n248 - Sinesio Delgado - Cuatro Torres\n249 - Castellana - Cuatro Torres\n250 - Serrano - CSIC\n251 - Santa Hortensia - Corazón de María\n252 - Est. tren Chamartín - Clara Campoamor\n253 - Doctor Fleming - Estadio S. Bernabéu\n254 - Plaza del Perú\n255 - General López Pozas - Apolonio Morales\n256 - Reina Victoria - Beatriz de Bobadilla\n257 - Ciudad Universitaria - INEF\n258 - Metro Ciudad Universitaria A\n259 - Metro Ciudad Universitaria B\n260 - Ciudad Universitaria - Fac. de Biología\n261 - Ciudad Universitaria - Facultad Derecho\n384 - Metro Usera\n388 - Estación tren - Hospital 12 de Octubre\n385 - Estación de tren Orcasitas\n387 - Isabelita Usera, 44\n383 - Metro San Fermín-Orcasur\n386 - Avenida de los Poblados, 130\n476 - Metro Avenida de la Paz\n477 - Metro Ciudad Lineal\n478 - José del Hierro - Misterios\n479 - Metro Arturo Soria\n480 - Vicente Muzas - Arturo Soria\n481 - Diego Ayllón - Arturo Soria\n554 - Metro El Capricho\n284 - Avenida de Burgos, 17\n482 - Metro Pueblo Nuevo\n483 - Marcelino Álvarez - Daroca\n484 - Metro García Noblejas\n523 - Carretera de Canillas\n285 - Santa María Magdalena - La Drácena\n286 - Plaza Duque de Pastrana\n287 - Metro Bambú\n288 - Caídos de la División Azul\n524 - Glorieta Luis Rosales\n460 - Fuente Carrantona - Doctor García Tapia\n455 - Luis de Hoyos Sainz,  198\n456 - Encomienda de Palacios, 8\n416 - Ramírez Tomé\n417 - Romeo y Julieta, 13\n418 - Puerto de Arlabán - San Diego\n496 - Cronos\n501 - Metro Alsacia\n498 - Metro Torre Arias\n499 - Biblioteca Pública Municipal Canillejas\n500 - Aracne, 17\n497 - Metro Suances\n265 - Puerto Serrano - Embajadores\n351 - Comandante Fontanes - General Ricardos\n350 - Ervigio - Amalarico\n389 - Julio Merino - Pilarica\n390 - Avena - Mijo\n556 - Cantabria, 6\n555 - Parque del Capricho\n485 - Francisco Villaespesa - Ledesma\n570 - Uni. Autónoma Madrid - Facul. Medicina\n295 - Hernani - Edgar Neville\n296 - Costa Verde\n297 - Simancas - Pinos Alta\n323 - Centro Deportivo Municipal Gallur\n324 - Metro Lucero\n457 - Hacienda de Pavones, 148\n432 - Maquinilla - Tranvía Blanco\n298 - Marques de Viana - Bellver\n437 - Metro Sierra de Guadalupe\n358 - Verdad\n352 - Algorta  - General Ricardos\n492 - Metro La Almudena\n322 - Ps. Jesuitas - Mercado Alto Extremadura\n392 - Metro Almendrales\n420 - Candilejas, 5\n419 - Estación de tren de El Pozo\n439 - Cabeza Mesada - Parque de Valdeperdices\n398 - Orovilla - Felicidad\n569 - C. Deportivo Mpal. Vicente del Bosque\n571 - Melchor Fernández Almagro - Plaza Tuy\n304 - Valle de Mena, 5\n268 - Metro Arganzuela-Planetario\n305 - Intercambiador de Príncipe Pío B\n306 - Centro Deportivo Mpal Fernando Martín\n486 - Serrano Galvache - Arturo Soria\n502 - Puertollano - Veinticinco de Septiembre\n462 - Gallegos - Lavadero Viejo\n421 - Arroyo del Olivar - Buenos Aires\n487 - Manuel Uribe - Arturo Soria\n422 - Travesia de Palomeras, 7\n423 - Estación de tren Asamblea de Madrid\n424 - Camino de Valderribas, 47\n425 - Ramón Perez Ayala - Pque. Cerro Tío Pío\n426 - Humanes - Benjamín Palencia\n427 - Andaluces, 2\n428 - Estadio de Vallecas\n393 - Manuel Noya , 29\n489 - Serrano Galvache - Yerma\n490 - Hnos.García Noblejas-FcoLargo Caballero\n488 - Ricardo Ortiz, 33\n525 - Metro Manoteras\n504 - Biblioteca Pública Municipal San Blas\n503 - Zaldívar - Valdecanillas\n404 - Junta Municipal Distrito de Villaverde\n353 - Mercedes Arteaga, 21\n355 - Intercambiador de Plaza Elíptica\n326 - Metro Alto de Extremadura\n327 - El Greco, 27 - C. Cultural El Greco\n458 - Metro Vinateros\n459 - Moratalaz\n461 - Plaza Corregidor Ldo. Antonio de Mena\n356 - Portalegre - Tinamús\n572 - Junta Mpal. Dtto. Fuencarral - El Pardo\n573 - Melchor Fernández Almagro - Villa Marín\n575 - Metro Barrio del Pilar\n574 - Chantada\n440 - Metro Villa de Vallecas\n507 - Seis - Sexta\n299 - Rosario Pino - Joan Maragall\n300 - Capitan Blanco Argibay - Alfalfa\n301 - Muller - Capitan Blanco Argibay\n396 - Gran Avenida, 27\n394 - Periana, 24\n397 - Centro Deportivo Municipal Orcasur\n399 - Bohemios - Gigantes y Cabezudos\n430 - Torremolinos - Rafael Alberti\n269 - Ariel - Parque Enrique Tierno Galván\n491 - Esteban Collantes - José Arcones Gil\n527 - Velacho Alto - Trinquete\n526 - Plaza del Liceo\n431 - Puerto Canfranc, 18\n429 - Carlos M. Alvarez - Javier de Miguel\n357 - Sorbe - Baleares\n270 - Teresa L. Valcárcel - Tte. Cnel. Noreña\n493 - Arturo Soria - San Luis\n433 - Villalobos, 28\n436 - Campus Sur UPM\n434 - Charleroi - Cocherón de la Villa\n506 - Albarracín - Julián Camarillo\n505 - Castillo de Uclés, 37\n435 - San Claudio\n508-old - Alcala\n302 - Ps. Dirección B - Pque A. Rguez Sahagún\n463 - Casalarreina, 18\n464 - Univ. Rey Juan Carlos - Campus Madrid\n400 - Metro Ciudad de los Ángeles\n307 - Metro Valdezarza\n303 - Ps. Dirección A - Pque A. Rguez Sahagún\n576 - El Ferrol, 18\n577 - Monforte de Lemos - Plaza de Mondariz\n309 - Ofelia Nieto - Villaamil\n308 - María Auxiliadora - Francos Rodríguez\n510 - Metro Avenida de Guadalajara\n511 - Aquitania 31\n512 - Semilla - Aparejadores\n513 - Centro Deportivo Mpal. Pepu Hernández\n514 - María Sevilla Diago\n515 - Avenida de Hellin, 13\n359 - El Toboso - Zaida\n360 - Ntra. Sra. Fátima - Ntra. Sra. de Luz\n361 - Metro Pan Bendito\n441 - Estación de tren de Santa Eugenia\n442 - Santa Eugenia - Zazuar\n443 - Fuentespina, 33\n362 - Hilario Herranz Establos, 36\n557 - Metro Alameda de Osuna\n290 - Francisco Suárez - Paseo de La Habana\n529 - Lopez de Hoyos , 478\n530 - Metro Mar de Cristal\n531 - Metro Parque de Santa María\n532 - Metro San Lorenzo\n533 - San Luis, 23\n106A - Plaza de Colón A\n582 - Isla Graciosa - Isla de Java\n583 - Ángel Múgica - Marcos de Orueta\n584 - Metro Montecarmelo\n585 - Metro Fuencarral\n586 - Caldas Estrach - San Cugat del Vallés\n534 - Mesena, 102\n273 - Delicias - General Lacy\n587 - Metro Paco de Lucía\n588 - Campo Calatrava - Rda Ingenioso Hidalgo\n589 - Monast. Silos - Monast. Montesclaros\n535 - Metro Canillas\n328 - Cebreros, 97\n329 - Metro Laguna\n330 - Duquesa de Parcent - Marcelino Castillo\n331 - Valmojado\n332 - Los Yébenes, 159\n363 - Metro Oporto\n364 - Metro Opañel\n536 - Boj\n537 - Plaza López de la Plata\n538 - Haendel, 8\n333 - Illescas - Camarena\n365 - Palacio Vistalegre Arena\n366 - Metro Carabanchel\n291 - Plaza José María Soler\n292 - Centro Deportivo Municipal Pradillo\n494 - Metro Pinar de Chamartín\n516 - Juan Ignacio Luca Tena - Quinta Molinos\n368 - Eugenia de Montijo\n370 - Avefría - Plaza de Tarifa\n590 - Metro Arroyofresno\n517 - San Mariano - Circe\n518 - Tampico - Plaza Barbados\n371 - Joaquin Turina, 49\n372 - Lonja de la Seda, 33\n373 - Metro La Peseta\n374 - Dinero - La Peseta\n375 - Calderilla, 4\n591 - Metro Mirasierra\n592 - Estación de tren de Pitis\n376 - Metro Carpetana\n377 - Metro Abrantes\n539 - Mota del Cuervo\n334 - Metro Campamento\n335 - Cardaño, 10\n519 - Troya, 11\n378 - Eugenia de Montijo, 83\n379 - Antonia Rodríguez Sacristán - Valeriana\n495 - Caleruega\n593 - Metro Avenida de la Ilustración\n594 - Pedro Rico, 49\n595 - Betanzos - Fermín Caballero\n596 - Metro Lacoma\n540 - Estación de tren Fuente de la Mora\n336 - Calle Oliva de Plasencia, 1\n337 - Metro Aluche\n338 - Guareña - Luis Chamizo\n339 - Estación de tren Las Águilas\n597 - Foresta, 8\n445 - C. Deportivo Mpal. Juan de Dios Román\n599 - Instalación Deportiva La Cabrera\n343 - Metro Aviación Española\n344 - Ocaña, 103\n313 - Juan XXIII, 24\n314 - Av. Valladolid - Parque de la Bombilla\n315 - Caroli\n316 - C. Deportivo Mpal. Ciudad De Los Poetas\n317 - Antonio Machado, 30\n345 - Fuente del Tiro - Avd. de las Águilas\n449 - Metro Congosto\n450 - Camino de las Hormigueras, 161\n294 - Edificio Torres Blancas\n604 - Metro Las Tablas\n348 - José de Cadalso - Rafael Finat\n438 - Biblioteca Pública Luis Martín Santos\n451 -  La Granja de San Ildefonso, 14\n452 - Las Suertes, 15\n453 - Metro La Gavia\n454 - Gran Vía del Sureste - Las Suertes\n267 - Paseo de la Chopera - Fernando Poo\n580 - Metro Herrera Oria\n150 - Castellana - Hermanos Pinzón\n157 - Plaza de Cuzco\n395 - Guetaria, 84B\n548 - Eduardo Mazón - Guadalajara\n293 - Santa Rita - Clara del Rey\n520 - Niza - Plaza de Grecia\n558 - Biblioteca Pública Mpal. Gloria Fuertes\n561 - Plaza Nuestra Señora de Loreto\n562 - Tomillar - Tintín y Milú\n560 - Playa de Zarauz - Playa de la Caleta\n568 - IFEMA A\n405 - Paseo Alberto Palacios, 42\n401 - Estación de tren de Villaverde Bajo\n406 - La Nave de Madrid\n403 - Auñón, 16\n280 - Ps de los Melancólicos - San Epifanio\n367 - Metro San Francisco\n325 - Ps. Jesuitas - Pza. Cerro Bermejo\n578 - Sierra de Atapuerca - Viloria de Rioja\n446 - C. Deportivo Mpal. Miguel Guillén Prim\n382 -Parque Eugenia de Montijo, 2\n410 - Est. de tren de S. Cristóbal Industrial\n319 - Valdesangil\n579 - Maria Tubau - Isabel Colbrand\n602 - Monasterio Sobrado - Monasterio Silos\n600 - Centro Deportivo Municipal La Masó\n566 - Avenida de Logroño\n565 - Metro Barajas\n467 - Univ. Rey Juan Carlos - Facultad  CJS\n469 - C. Deportivo Mpal Faustina Valladolid\n470 - Avenida Real - Galeote\n471 - Molino Viejo - Minerva\n271 - Amaltea-Meneses\n466 - Villablanca - Vereda del Pinar\n275 - Juan Antonio Vallejo-Nájera Botas, 25\n475 - Aurora Boreal - Minerva\n274 - Estación Sur Méndez Álvaro A\n605 - Nuria - Peña Sirio\n522 - Metro Estadio Metropolitano\n521 - Metro Las Rosas\n508 - Metro Canillejas\n80A - Estación de Atocha A\n80B - Estación de Atocha B\n447 - Adolfo Bioy Casares - Las Suertes\n412 - Estación de tren de Puente de Alcocer\n415 - Diamante - Delmira Agustini\n413 - Doctor Martín Arévalo\n545 - Zapatoca, 8\n567 - Plaza Mayor de Barajas\n563 - Soto Hidalgo\n281 - Reina Cristina - Julián Gayarre\n609 - Metro Ronda de la Comunicación\n408 - Metro San Cristóbal\n409 - Eduardo Barreiros, 114\n606 - Fermín Caballero - Sangenjo\n349 - Huerta de Castañeda 26\n544 - Gregorio Sánchez Herráez 14\n551 - Oña\n552 - Ana de Austria - Ignacio Aldecoa\n542 - Intercambiador de Valdebebas\n320 - Metro Lago\n608 - Estella - Camino de Santiago\n278 - Paseo los Pontones - Ps. Melancólicos\n289 - Luis de Salazar - Padre Claret\n547 - Rafaela Aparicio - Maruja Mallo\n402 - Berrocal, 9\n543 - Tomas Redondo\n277 - Virgen del Puerto\n272 - Tejo - Parque La Ronda\n282 - Parque Retiro - Puerta Reina Mercedes\n1 - Metro Sol\n263 - Gran Vía de San Francisco\n559 - Calle Babilonia, 19\n581 - Metro Peñagrande\n598 - Hospital Ramón y Cajal\n341 - Escalona - Seseña\n346 - Metro Empalme\n347 - Est. tren Mtra Justa Freire-Poli Aluche\n528 - Albelda - Torrelaguna\n312 - Metro Batán\n321 - Metro Casa de Campo\n310 - Estación de tren de Aravaca\n311 - C. Universitaria - F. Geografía e Histo\n283 - Museo Nacional del Prado\n564 - IFEMA B\n468 - Caños de San Pedro - San Cipriano\n465 - Cordel de Pavones - Bulevar José Prat\n414 - Metro Villaverde Bajo-Cruce\n380 - Oca\n411 - Estación de tren de Villaverde Alto\n354 - Jacinto Verdaguer - Lola de Membrives\n318 - C. Deportivo Mpal. José María Cagigal\n549 - Francisco Pi y Maragall\n279 - Paseo de los Melancólicos, 1\n407 - Carmen de Burgos, 4\n276 - Paseo de las Yeserías, 15\n340 - Illescas - Seseña\n342 - Osa de la Vega - Rafael Finat\n381 - Alfredo Aleix - Mercedes Rodríguez\n444 - Valderrebollo, 18\n448 - Metro Las Suertes\n472 - Metro Valdebernardo\n473 - Villablanca - Parque Forestal Vicálvaro\n474 - Estación de tren de Vicálvaro\n541 - Metro Pinar del Rey\n546 - Andorra - Canillas\n550 - Príncipe Carlos, 54\n553 - María Portugal - Niceto Alcalá Zamora\n601 - Estación de tren de Fuencarral\n603 - Castiello de Jaca, 14\n607 - Metro Ligero - Palas de Rey\n610 - Bardegueral\n237 - Acueducto de Amaniel\n262 - María de las Mercedes de Borbón B\n611 - María de las Mercedes de Borbón A\n176 - Plaza de la Beata María Ana de Jesús\n630 - Calle de Febrero 4\n629 - Avda de Fermina Sevillano 23\n620 - Calle Cazorla 79\n621 - Calle Montiel 27\n622 - Calle Sierra de Albarracin 2\n617 - Calle Eduardo Barreiros\n626 - Avenida Victoria Kent 9\n627 - Alcalde Andrés Madrid Dávila 92\n624  - Avenida Blas de Lezo 33\n625 - Avenida de Miguel Delibes 49\n612 - Calle Rosalia de Castro 1\n613 - Facultad de informática\n615 - Avenida Juan de Andrés 21\n616 - Alcalde Martín de Alzaga\n628  - Calle Arcaute 13\n619 - Cooperativa Electrica 13\n623  -  Ronda del Sur, esq Santa Rafaela\n614 - Biblioteca central de la UNED\n618 - Calle Paterna 55\n632 - Avda. Campus Sur, 11\n631 -  CAMPUS SUR 2\n22 - Jacometrezo 3\n8000 - EV Puente de Vallecas\n8001 - EV JMD Carabanchel\n633 - HUB Plaza de España`;
 
         const estacionesMap = {};
         rawStations.split('\n').forEach(line => {
@@ -161,7 +157,10 @@
         }
 
         let allTrips = [], uniqueRoutes = [], usersMap = {};
-        let highlightedRoute = null; let currentU = null; let userFavorites = []; let selectedRouteId = null;
+        let highlightedRoute = null;
+        let currentU = null;
+        let userFavorites = [];
+        let selectedRouteId = null;
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) window.location.href = "index.html";
@@ -196,8 +195,11 @@
             const c = document.getElementById('routes-container');
             const lBtn = document.getElementById('scroll-left');
             const rBtn = document.getElementById('scroll-right');
-            if(window.innerWidth <= 768 || c.scrollWidth <= c.clientWidth) { lBtn.style.display = 'none'; rBtn.style.display = 'none'; } 
-            else { lBtn.style.display = 'flex'; rBtn.style.display = 'flex'; }
+            if(window.innerWidth <= 768 || c.scrollWidth <= c.clientWidth) {
+                lBtn.style.display = 'none'; rBtn.style.display = 'none';
+            } else {
+                lBtn.style.display = 'flex'; rBtn.style.display = 'flex';
+            }
         }
 
         document.getElementById('scroll-left').onclick = () => document.getElementById('routes-container').scrollBy({ left: -250, behavior: 'smooth' });
@@ -206,11 +208,13 @@
 
         function renderDefaultBtns() {
             const c = document.getElementById('routes-container'); c.innerHTML = '';
+            
             if (highlightedRoute) {
                 const b = document.createElement('button'); b.className = 'route-btn glowing-btn';
                 b.innerHTML = `🔥 ${getRouteName(highlightedRoute)}`;
                 b.onclick = () => select(highlightedRoute, b); c.appendChild(b);
             }
+            
             userFavorites.forEach(r => {
                 if (r !== highlightedRoute) {
                     const b = document.createElement('button'); b.className = 'route-btn';
@@ -219,18 +223,23 @@
                     b.onclick = () => select(r, b); c.appendChild(b);
                 }
             });
-            if(!highlightedRoute && userFavorites.length === 0) { c.innerHTML = "<span style='color:var(--text-muted); font-size:0.9rem; padding: 10px 0;'>Busca una ruta arriba y ánclala.</span>"; }
+
+            if(!highlightedRoute && userFavorites.length === 0) {
+                c.innerHTML = "<span style='color:var(--text-muted); font-size:0.9rem; padding: 10px 0;'>Busca una ruta en la barra de arriba y ánclala para verla aquí.</span>";
+            }
             setTimeout(updateArrows, 100);
         }
 
         document.getElementById('search-input').addEventListener('input', e => {
             const term = e.target.value.trim().toLowerCase();
             if (!term) { renderDefaultBtns(); return; }
+
             const filtered = uniqueRoutes.filter(r => r.toLowerCase().includes(term) || (estacionesMap[r.split('-')[0]]||"").toLowerCase().includes(term) || (estacionesMap[r.split('-')[1]]||"").toLowerCase().includes(term));
             const c = document.getElementById('routes-container'); c.innerHTML = '';
             filtered.forEach(r => {
                 const b = document.createElement('button'); b.className = 'route-btn'; 
-                b.innerHTML = getRouteName(r); b.onclick = () => select(r, b); c.appendChild(b);
+                b.innerHTML = getRouteName(r);
+                b.onclick = () => select(r, b); c.appendChild(b);
             });
             setTimeout(updateArrows, 100);
         });
@@ -238,14 +247,18 @@
         document.getElementById('pin-btn').addEventListener('click', async () => {
             if(!selectedRouteId) return;
             const btn = document.getElementById('pin-btn');
+
             if(userFavorites.includes(selectedRouteId)) {
                 userFavorites = userFavorites.filter(r => r !== selectedRouteId);
-                btn.classList.remove('pinned'); btn.innerHTML = '<i class="fi fi-br-bookmark"></i>';
+                btn.classList.remove('pinned'); 
+                btn.innerHTML = '<i class="fi fi-br-bookmark"></i>';
             } else {
                 if(userFavorites.length >= 3) { alert("Límite de 3 rutas favoritas alcanzado."); return; }
                 userFavorites.push(selectedRouteId);
-                btn.classList.add('pinned'); btn.innerHTML = '<i class="fi fi-sr-bookmark"></i>';
+                btn.classList.add('pinned'); 
+                btn.innerHTML = '<i class="fi fi-sr-bookmark"></i>';
             }
+
             await setDoc(doc(db, "usuarios", currentU.email), { favoriteRoutes: userFavorites }, { merge: true });
             if(!document.getElementById('search-input').value.trim()) renderDefaultBtns();
         });
@@ -260,12 +273,24 @@
             if(userFavorites.includes(ruta)) { pinBtn.classList.add('pinned'); pinBtn.innerHTML = '<i class="fi fi-sr-bookmark"></i>'; }
             else { pinBtn.classList.remove('pinned'); pinBtn.innerHTML = '<i class="fi fi-br-bookmark"></i>'; }
             
+            // LA MAGIA: OBTENER EL MEJOR TIEMPO POR USUARIO
             let rawTrips = allTrips.filter(t => t.ruta === ruta).sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
-            let trips = []; let seenUsers = new Set();
-            for (let t of rawTrips) { if (!seenUsers.has(t.email_real)) { seenUsers.add(t.email_real); trips.push(t); } }
+            let trips = [];
+            let seenUsers = new Set();
+            
+            for (let t of rawTrips) {
+                if (!seenUsers.has(t.email_real)) {
+                    seenUsers.add(t.email_real);
+                    trips.push(t);
+                }
+            }
 
             const list = document.getElementById('ranking-list'); list.innerHTML = '';
-            if(trips.length === 0) { list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-weight:600;">Aún no hay tiempos para esta ruta. ¡Sé el primero!</div>`; return; }
+            
+            if(trips.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-weight:600;">Aún no hay tiempos para esta ruta. ¡Sé el primero en dominarla! 🚴💨</div>`;
+                return;
+            }
 
             const best = trips[0].tiempo_segundos;
             trips.forEach((t, i) => {
@@ -275,16 +300,19 @@
                 let deltaHtml = "";
                 if(pos === 1) deltaHtml = `<div class="delta-leader">Líder 👑</div>`;
                 else {
-                    let diff = t.tiempo_segundos - best; let dm = Math.floor(diff / 60); let ds = diff % 60;
-                    let text = dm > 0 ? `+${dm}m ${ds}s` : `+${ds}s`; deltaHtml = `<div class="rank-delta">${text}</div>`;
+                    let diff = t.tiempo_segundos - best;
+                    let dm = Math.floor(diff / 60); let ds = diff % 60;
+                    let text = dm > 0 ? `+${dm}m ${ds}s` : `+${ds}s`;
+                    deltaHtml = `<div class="rank-delta">${text}</div>`;
                 }
                 
                 const userData = usersMap[t.email_real] || {};
                 const avatar = userData.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${t.email_real}&backgroundColor=0071c3`;
                 const username = userData.username || "Piloto";
-                const d = new Date(t.fecha); const month = d.toLocaleString('es-ES', { month: 'long' });
+                
+                const d = new Date(t.fecha);
+                const month = d.toLocaleString('es-ES', { month: 'long' });
                 const dateString = `${d.getDate()} de ${month.charAt(0).toUpperCase() + month.slice(1)} ${d.getFullYear()}`;
-                const speedHtml = t.velocidad_kmh ? `<div class="rank-speed">${t.velocidad_kmh} km/h</div>` : '';
                 
                 list.innerHTML += `
                     <div class="rank-row ${rClass}">
@@ -296,7 +324,6 @@
                         </div>
                         <div class="rank-stats">
                             <div class="rank-time">${t.tiempo_formateado}</div>
-                            ${speedHtml}
                             ${deltaHtml}
                         </div>
                     </div>`;

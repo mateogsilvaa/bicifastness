@@ -28,7 +28,7 @@
         .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
         
         .header-title { text-align: center; margin-bottom: 20px;}
-        .header-title h1 { font-size: 2.5rem; font-weight: 900; margin: 0; background: linear-gradient(to right, #0071c3, #00C851); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
+        .header-title h1 { font-size: 2.5rem; font-weight: 900; margin: 0; color: #0071c3; }
         .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; }
 
         /* TABS */
@@ -36,21 +36,22 @@
         .tab-btn { flex: 1; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-muted); border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
         .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-        .rank-list { background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
-        .rank-row { display: grid; grid-template-columns: 50px 50px 1fr max-content; gap: 15px; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--border); background: var(--bg-input);}
-        .rank-row:last-child { border-bottom: none; }
+        .rank-list { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); }
+        .rank-list > div:first-child { border-radius: 8px; }
+        .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box;}
+        .rank-row:last-child { margin-bottom: 0; }
         
-        .pos { font-size: 1.5rem; font-weight: 900; color: var(--text-muted); text-align: center;}
-        .avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: white;}
-        .username { font-weight: 800; font-size: 1.1rem; }
-        .clan-tag { font-size: 0.75rem; background: #333; color: white; padding: 2px 8px; border-radius: 12px; margin-left: 5px; vertical-align: middle;}
+        .pos { font-size: 1.2rem; font-weight: 800; color: var(--text-muted); text-align: center;}
+        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); display: flex; justify-content: center; align-items: center; font-size: 1.2rem; color: white;}
+        .username { font-weight: 700; font-size: 1rem; }
+        .clan-tag { font-size: 0.7rem; background: #333; color: white; padding: 2px 6px; border-radius: 8px; margin-left: 5px; vertical-align: middle;}
         .rating-box { text-align: right; }
-        .score { font-size: 1.8rem; font-weight: 900; color: #FFD700; line-height: 1;}
+        .score { font-size: 1.1rem; font-weight: 800; color: #FFD700; line-height: 1;}
         .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;}
 
-        .rank-1 { background: rgba(255, 215, 0, 0.1); border-color: rgba(255, 215, 0, 0.3);} .rank-1 .pos { color: #FFD700; } .rank-1 .avatar { border-color: #FFD700;}
-        .rank-2 { background: rgba(192, 192, 192, 0.05); } .rank-2 .pos { color: #C0C0C0; }
-        .rank-3 { background: rgba(205, 127, 50, 0.05); } .rank-3 .pos { color: #CD7F32; }
+        .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); } .rank-1 .pos { color: #FFD700; } .rank-1 .avatar { border-color: #FFD700;}
+        .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .pos { color: #C0C0C0; }
+        .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .pos { color: #CD7F32; }
 
         .my-rank { margin-top: 30px; background: linear-gradient(135deg, #1a2a3a 0%, #111 100%); border: 1px solid var(--primary); border-radius: 16px; padding: 20px; text-align: center; }
 

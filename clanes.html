@@ -14,46 +14,52 @@
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; }
+        :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
+        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --bg-input: #f0f0f0; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
 
-        body { margin: 0; padding: 0; padding-bottom: 80px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; }
+        body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
 
-        nav { background: #000; border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-decoration: none; text-transform: uppercase;}
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
         .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
         nav .links { display: flex; align-items: center; }
         nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 20px; transition: color 0.3s; }
         nav .links a.active, nav .links a:hover { color: var(--text-main); }
         .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
+        .info-icon:hover { color: var(--primary); }
 
-        .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
 
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
         .tab-btn { flex: 1; padding: 15px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-muted); border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
         .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-        .clan-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; transition: 0.3s;}
+        .clan-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; transition: 0.3s;}
+        .clan-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,113,195,0.15); }
         .clan-info { display: flex; align-items: center; gap: 15px; }
-        .clan-shield { width: 50px; height: 50px; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: white; font-weight: 900; }
-        .clan-name { font-size: 1.2rem; font-weight: 800; margin: 0;}
-        .clan-stats { font-size: 0.85rem; color: var(--text-muted); margin: 0; display: flex; gap: 15px;}
+        .clan-shield { width: 50px; height: 50px; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: white; font-weight: 900; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .clan-name { font-size: 1.2rem; font-weight: 800; margin: 0; color: var(--text-main); }
+        .clan-stats { font-size: 0.85rem; color: var(--text-muted); margin: 5px 0 0 0; display: flex; gap: 15px;}
 
-        .btn-join { background: #222; color: white; border: 1px solid #444; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; }
-        .btn-join:hover:not(:disabled) { background: var(--primary); border-color: var(--primary); }
+        .btn-join { background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-join:hover:not(:disabled) { background: var(--primary); color: white; border-color: var(--primary); transform: scale(1.05); }
         .btn-join:disabled { opacity: 0.5; cursor: not-allowed; }
 
         /* CREAR CLAN FORM */
-        .create-form { background: var(--bg-card); padding: 25px; border-radius: 16px; border: 1px solid var(--border); display: none; }
+        .create-form { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); display: none; }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; font-weight: 700; text-transform: uppercase;}
         input[type="text"] { width: 100%; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; }
+        input[type="text"]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,113,195,0.1); }
         input[type="color"] { width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer; background: transparent; padding: 0; }
 
         .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 10px; margin-top: 10px;}
         .icon-option { width: 40px; height: 40px; background: var(--bg-input); border: 2px solid var(--border); border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 1.2rem; transition: 0.2s;}
+        .icon-option:hover { border-color: var(--primary); transform: scale(1.1); }
         .icon-option.active { border-color: var(--primary); background: var(--primary); color: white;}
 
-        .btn-submit { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 10px;}
+        .btn-submit { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-submit:hover { background: #005a9e; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,113,195,0.3); }
 
         .bottom-nav { display: none; }
         @media (max-width: 850px) { 

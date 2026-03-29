@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mapa de Conquista | BiciFastness</title>
+    
+    <script>
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+    </script>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-straight/css/uicons-solid-straight.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
@@ -12,21 +17,24 @@
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-rounded/css/uicons-bold-rounded.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-straight/css/uicons-regular-straight.css'>
     <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
-        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
+        
+        :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
+        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --bg-input: #f0f0f0; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
         
         body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-main);}
         
-        nav { background: #000; border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
-        nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
-        nav .brand img { height: 35px; width: auto; display: block; }
+        /* NAVBAR UNIFICADO */
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
         .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
         nav .links { display: flex; align-items: center; }
-        nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 20px; transition: color 0.3s; }
-        nav .links a:hover { color: var(--text-main); }
+        nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 15px; transition: color 0.3s; }
+        nav .links a.active, nav .links a:hover { color: var(--text-main); }
         .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
+        .info-icon:hover { color: var(--primary); }
         
         #map { flex-grow: 1; width: 100%; z-index: 1; }
         
@@ -35,11 +43,12 @@
         /* ESTILO DEL POPUP */
         .leaflet-popup-content-wrapper { background: var(--bg-card); color: var(--text-main); border-radius: 12px; font-family: 'Poppins', sans-serif; padding: 0; overflow: hidden; border: 1px solid var(--border);}
         .leaflet-popup-tip { display: none; }
-        .popup-header { background: var(--bg-input); padding: 15px; text-align: center; border-bottom: 2px solid var(--border); }
+        .popup-header { background: var(--bg-input); padding: 15px; text-align: center; border-bottom: 1px solid var(--border); }
         .popup-title { font-weight: 800; font-size: 1.1rem; margin: 0; color: var(--text-main); }
         .popup-clan { font-size: 0.8rem; font-weight: 700; display: inline-block; padding: 4px 10px; border-radius: 20px; margin-top: 5px; color: white; }
         .popup-body { padding: 15px; }
-        .btn-asaltar { display: block; width: 100%; text-align: center; background: #ff4444; color: white; text-decoration: none; padding: 10px; border-radius: 8px; font-weight: 800; text-transform: uppercase; margin-top: 10px; transition: 0.2s;}
+        .btn-asaltar { display: block; width: 100%; text-align: center; background: #ff4444; color: white; text-decoration: none; padding: 10px; border-radius: 8px; font-weight: 800; text-transform: uppercase; margin-top: 10px; transition: 0.2s; box-sizing: border-box;}
+        .btn-asaltar:hover { opacity: 0.9; transform: scale(0.98); }
 
         /* NAVBAR INFERIOR (MÓVIL) */
         .bottom-nav { display: none; }
@@ -51,10 +60,11 @@
             .bottom-nav a i { font-size: 1.25rem; line-height: 1; } 
         }
     </style>
+    <link rel="icon" href="./logo.png?v=3" type="image/png">
 </head>
 <body>
     <nav>
-        <a href="home.html" class="brand"><img src="images/logo.png" alt="BICIFASTNESS" onerror="this.outerHTML='BICIFASTNESS'"></a>
+        <a href="home.html" class="brand">BICIFASTNESS</a>
         <div class="nav-right">
             <div class="links">
                 <a href="home.html">Inicio</a>
@@ -85,53 +95,90 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module">
-        // Inicializar mapa centrado en Madrid Centro
+        // 1. Configurar el estilo del mapa según el tema claro/oscuro
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         const tileUrl = isDark ? 
             'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 
             'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
+        // 2. Inicializar mapa centrado en Madrid
         const map = L.map('map', { zoomControl: false }).setView([40.4168, -3.7038], 14);
         L.tileLayer(tileUrl, { attribution: '&copy; BiciFastness' }).addTo(map);
 
-        document.getElementById('locate-btn').addEventListener('click', () => { map.locate({setView: true, maxZoom: 16}); });
-
-        // LISTA DE ESTACIONES DE PRUEBA (Muestra coherente para el mapa de Madrid)
-        // En un escenario real, sacaríamos de una API o Firebase las coordenadas exactas de las 600 bases.
-        const markersData = [
-            { id: "1", name: "Puerta del Sol", lat: 40.4169, lng: -3.7035, clan: "Los Malasañas", color: "#ff4444" },
-            { id: "2", name: "Metro Callao", lat: 40.4201, lng: -3.7058, clan: "Riders del Retiro", color: "#00C851" },
-            { id: "26", name: "Plaza de las Salesas", lat: 40.4240, lng: -3.6938, clan: "Ninguno", color: "#888888" },
-            { id: "45", name: "Puerta de Toledo", lat: 40.4069, lng: -3.7118, clan: "Los Malasañas", color: "#ff4444" },
-            { id: "60", name: "Puerta de Alcalá", lat: 40.4199, lng: -3.6887, clan: "Riders del Retiro", color: "#00C851" },
-            { id: "86", name: "Cibeles", lat: 40.4193, lng: -3.6931, clan: "Ninguno", color: "#888888" },
-            { id: "162", name: "Metro Pirámides", lat: 40.4024, lng: -3.7115, clan: "Ninguno", color: "#888888" },
-            { id: "110", name: "Intercambiador Moncloa", lat: 40.4346, lng: -3.7188, clan: "Los Malasañas", color: "#ff4444" }
-        ];
-
-        // Pintar estaciones en el mapa
-        markersData.forEach(station => {
-            const marker = L.circleMarker([station.lat, station.lng], {
-                radius: 8, fillColor: station.color, color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.9
-            });
-            
-            let clanBadge = station.clan === 'Ninguno' ? 
-                `<span class="popup-clan" style="background:#888;">Estación Libre (Neutral)</span>` : 
-                `<span class="popup-clan" style="background:${station.color};">Dominada por: ${station.clan}</span>`;
-
-            const popupContent = `
-                <div class="popup-header">
-                    <h3 class="popup-title">Estación ${station.id}</h3>
-                    <p style="margin:5px 0 0 0; font-size:0.9rem;">${station.name}</p>
-                    ${clanBadge}
-                </div>
-                <div class="popup-body">
-                    <a href="subir.html?origen=${station.id}" class="btn-asaltar"><i class="fi fi-sr-flag"></i> ¡Asaltar esta Base!</a>
-                </div>
-            `;
-            marker.bindPopup(popupContent, { minWidth: 200 });
-            marker.addTo(map);
+        // 3. Botón de Geolocalización
+        document.getElementById('locate-btn').addEventListener('click', () => { 
+            map.locate({setView: true, maxZoom: 16}); 
         });
+
+        // 4. Lógica de Colores de Clanes
+        function getClanColor(clanId) {
+            switch(clanId) {
+                case 1: return "#ff4d4d"; // Clan Rojo
+                case 2: return "#4d94ff"; // Clan Azul
+                case 3: return "#4dff88"; // Clan Verde
+                default: return "#808080"; // Neutral (Gris)
+            }
+        }
+
+        function stationStyle(feature) {
+            // Asumimos properties.clanId (si no existe, será undefined/neutral)
+            let clanId = feature.properties.clanId || null; 
+            return {
+                radius: 8,
+                fillColor: getClanColor(clanId),
+                color: "#ffffff",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.9
+            };
+        }
+
+        // 5. Cargar el GeoJSON de forma dinámica con FETCH
+        fetch('data/emt.geojson')
+            .then(response => {
+                if (!response.ok) throw new Error("Error al cargar el GeoJSON");
+                return response.json();
+            })
+            .then(data => {
+                L.geoJSON(data, {
+                    // Convertir cada punto en un marcador circular
+                    pointToLayer: function (feature, latlng) {
+                        return L.circleMarker(latlng, stationStyle(feature));
+                    },
+                    // Comportamiento del Popup para cada estación
+                    onEachFeature: function (feature, layer) {
+                        const clanId = feature.properties.clanId;
+                        const clanName = clanId ? `Clan ${clanId}` : "Ninguno";
+                        const colorBadge = getClanColor(clanId);
+                        
+                        let clanBadge = clanId ? 
+                            `<span class="popup-clan" style="background:${colorBadge};">Dominada por: ${clanName}</span>` : 
+                            `<span class="popup-clan" style="background:#888;">Estación Libre (Neutral)</span>`;
+
+                        const popupContent = `
+                            <div class="popup-header">
+                                <h3 class="popup-title">${feature.properties.Name}</h3>
+                                <p style="margin:5px 0 0 0; font-size:0.85rem; color: var(--text-muted);">${feature.properties.Address}</p>
+                                ${clanBadge}
+                            </div>
+                            <div class="popup-body">
+                                <p style="margin: 0 0 10px 0; font-size: 0.85rem; text-align: center;">
+                                    Bases totales: <b>${feature.properties.TotalBases || '?'}</b>
+                                </p>
+                                <a href="subir.html?origen=${feature.properties.number}" class="btn-asaltar">
+                                    <i class="fi fi-ss-sword-alt"></i> ¡Asaltar Base!
+                                </a>
+                            </div>
+                        `;
+                        layer.bindPopup(popupContent, { minWidth: 220 });
+                    }
+                }).addTo(map);
+            })
+            .catch(error => {
+                console.error('Atención:', error);
+                alert('No se pudo cargar el archivo de estaciones. Comprueba que data/emt.geojson existe.');
+            });
+
     </script>
 </body>
 </html>

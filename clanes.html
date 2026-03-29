@@ -32,7 +32,6 @@
         nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 20px; transition: color 0.3s; }
         nav .links a.active, nav .links a:hover { color: var(--text-main); }
         .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
-        .info-icon:hover { color: var(--primary); }
 
         .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
 
@@ -44,44 +43,61 @@
         .search-container { margin-bottom: 20px; position: relative; }
         .search-container i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
         .search-input { width: 100%; padding: 15px 15px 15px 45px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); border-radius: 12px; box-sizing: border-box; font-family: inherit; font-size: 1rem; transition: 0.3s;}
-        .search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,113,195,0.1); }
-
-        .clan-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 15px; transition: 0.3s;}
+        
+        .clan-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 15px; transition: 0.3s; display: flex; justify-content: space-between; align-items: center;}
         .clan-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,113,195,0.1); }
-        .clan-header { display: flex; align-items: center; justify-content: space-between; }
         .clan-info { display: flex; align-items: center; gap: 15px; }
-        .clan-shield { width: 50px; height: 50px; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: white; font-weight: 900; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .clan-shield { width: 50px; height: 50px; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .clan-shield i { display: flex; align-items: center; justify-content: center; line-height: 0; margin-top: 3px; } /* Ajuste de centrado */
         .clan-name { font-size: 1.2rem; font-weight: 800; margin: 0; color: var(--text-main); }
         .clan-stats { font-size: 0.85rem; color: var(--text-muted); margin: 5px 0 0 0; display: flex; gap: 15px;}
+        .clan-actions { display: flex; gap: 10px; flex-direction: column;}
 
-        .btn-join { background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
-        .btn-join:hover:not(:disabled) { background: var(--primary); color: white; border-color: var(--primary); transform: scale(1.05); }
+        .btn-join { background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border); padding: 8px 15px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 0.85rem; }
+        .btn-join:hover:not(:disabled) { background: var(--primary); color: white; border-color: var(--primary); }
         .btn-join:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-info { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 8px 15px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 0.85rem; }
+        .btn-info:hover { background: var(--primary); color: white; }
 
-        /* SOLICITUDES ADMINISTRADOR */
+        /* MI CLAN PANEL */
+        .my-clan-header { text-align: center; margin-bottom: 30px; }
+        .my-clan-shield { width: 80px; height: 80px; border-radius: 20px; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; color: white; margin: 0 auto 15px auto; }
+        .my-clan-shield i { display: flex; line-height: 0; margin-top: 5px;}
+        .my-clan-title { font-size: 2rem; font-weight: 900; margin: 0; }
+        .my-clan-motto { color: var(--text-muted); font-style: italic; }
+
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px;}
+        .dash-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+        .dash-card h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 1.1rem; display: flex; align-items: center; gap: 10px;}
+        
+        .member-list { list-style: none; padding: 0; margin: 0; }
+        .member-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem;}
+        .member-item:last-child { border-bottom: none; }
+        
         .admin-panel { margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border); }
-        .admin-panel h4 { margin: 0 0 10px 0; color: var(--primary); font-size: 0.9rem; text-transform: uppercase;}
-        .request-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 8px 12px; border-radius: 8px; margin-bottom: 5px; font-size: 0.85rem;}
+        .request-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 0.85rem;}
         .btn-icon { background: none; border: none; cursor: pointer; border-radius: 4px; padding: 5px 8px; transition: 0.2s; }
         .btn-icon.accept { color: #00C851; background: rgba(0,200,81,0.1); }
         .btn-icon.reject { color: #ff4444; background: rgba(255,68,68,0.1); }
-        .btn-icon:hover { transform: scale(1.1); }
+
+        /* MODAL EXPLORAR */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
+        .modal-content { background-color: var(--bg-card); margin: 10% auto; padding: 30px; border: 1px solid var(--border); border-radius: 16px; width: 90%; max-width: 500px; position: relative; }
+        .close-modal { color: var(--text-muted); position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close-modal:hover { color: var(--text-main); }
 
         /* CREAR CLAN FORM */
-        .create-form { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); display: none; }
+        .create-form { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; font-weight: 700; text-transform: uppercase;}
         input[type="text"] { width: 100%; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; }
-        input[type="text"]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,113,195,0.1); }
         input[type="color"] { width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer; background: transparent; padding: 0; }
 
         .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 10px; margin-top: 10px;}
         .icon-option { width: 40px; height: 40px; background: var(--bg-input); border: 2px solid var(--border); border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 1.2rem; transition: 0.2s;}
-        .icon-option:hover { border-color: var(--primary); transform: scale(1.1); }
+        .icon-option i { display: flex; align-items: center; line-height: 0; margin-top: 2px;} /* Centrado */
         .icon-option.active { border-color: var(--primary); background: var(--primary); color: white;}
-
-        .btn-submit { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 10px; transition: 0.2s; }
-        .btn-submit:hover { background: #005a9e; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,113,195,0.3); }
+        .btn-submit { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 10px; }
 
         .bottom-nav { display: none; }
         @media (max-width: 850px) { 
@@ -106,54 +122,52 @@
                 <a href="subir.html">Subir</a>
                 <a href="profile.html">Perfil</a>
             </div>
-            <a href="info.html" class="info-icon" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
+            <a href="info.html" class="info-icon"><i class="fi fi-bs-info"></i></a>
         </div>
     </nav>
 
     <div class="container">
         <div class="tabs">
             <button class="tab-btn active" id="tab-list">Explorar Clanes</button>
-            <button class="tab-btn" id="tab-create">Fundar Clan</button>
-        </div>
+            <button class="tab-btn" id="tab-action">Fundar Clan</button> </div>
 
         <div id="view-list">
             <div class="search-container">
                 <i class="fi fi-br-search"></i>
                 <input type="text" id="search-clan" class="search-input" placeholder="Buscar clan por nombre...">
             </div>
-
             <div id="clans-container">Cargando clanes...</div>
         </div>
 
-        <div id="view-create" class="create-form">
+        <div id="view-create" class="create-form" style="display:none;">
             <h2 style="color:var(--primary); margin-top:0;">Funda tu Imperio</h2>
             <p style="font-size:0.9rem; color:var(--text-muted);">Máximo 5 personas. Fundar clan es gratis.</p>
 
-            <div class="form-group">
-                <label>Nombre del Clan</label>
-                <input type="text" id="clan-name" placeholder="Ej: Los Ángeles del Asfalto" maxlength="20">
-            </div>
-            <div class="form-group">
-                <label>Color Dominante (Hex)</label>
-                <input type="color" id="clan-color" value="#0071c3">
-            </div>
-            <div class="form-group">
-                <label>Emblema</label>
-                <div class="icon-grid" id="icon-picker"></div>
-            </div>
-            <div class="form-group">
-                <label>Lema</label>
-                <input type="text" id="clan-motto" placeholder="Ej: Quemando rueda, no gasolina." maxlength="40">
-            </div>
+            <div class="form-group"><label>Nombre del Clan</label><input type="text" id="clan-name" placeholder="Ej: Los Ángeles del Asfalto" maxlength="20"></div>
+            <div class="form-group"><label>Color Dominante</label><input type="color" id="clan-color" value="#0071c3"></div>
+            <div class="form-group"><label>Emblema</label><div class="icon-grid" id="icon-picker"></div></div>
+            <div class="form-group"><label>Lema</label><input type="text" id="clan-motto" placeholder="Ej: Quemando rueda, no gasolina." maxlength="40"></div>
+            
             <button class="btn-submit" id="btn-submit-clan">Fundar Clan</button>
             <div id="create-msg" style="text-align:center; margin-top:10px; font-weight:600;"></div>
+        </div>
+
+        <div id="view-myclan" style="display:none;">
+            <div id="myclan-content">Cargando tu cuartel...</div>
+        </div>
+    </div>
+
+    <div id="clan-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" id="close-modal">&times;</span>
+            <div id="modal-body"></div>
         </div>
     </div>
 
     <div class="bottom-nav">
         <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
-        <a href="ranking.html"><i class="fi fi-sr-ranking-star"></i>Rankings</a>
-        <a href="bicirating.html"><i class="fi fi-sr-leaderboard-trophy"></i>Rating</a>
+        <a href="ranking.html"><i class="fi fi-sr-leaderboard"></i>Rankings</a>
+        <a href="bicirating.html"><i class="fi fi-sr-ranking-star"></i>Rating</a>
         <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
         <a href="mapa.html"><i class="fi fi-ss-map-marker"></i>Mapa</a>
         <a href="clanes.html" class="active"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
@@ -170,19 +184,31 @@
 
         let currentUser = null;
         let myClanId = null;
-        let allClanes = []; // Array para guardar todos y poder buscar
+        let allClanes = []; 
 
-        // UI Tabs
-        document.getElementById('tab-list').onclick = () => {
-            document.getElementById('view-list').style.display = 'block'; document.getElementById('view-create').style.display = 'none';
-            document.getElementById('tab-list').classList.add('active'); document.getElementById('tab-create').classList.remove('active');
+        // UI Tabs & Modal
+        const tabList = document.getElementById('tab-list');
+        const tabAction = document.getElementById('tab-action');
+        const viewList = document.getElementById('view-list');
+        const viewCreate = document.getElementById('view-create');
+        const viewMyClan = document.getElementById('view-myclan');
+        const modal = document.getElementById('clan-modal');
+
+        tabList.onclick = () => {
+            viewList.style.display = 'block'; viewCreate.style.display = 'none'; viewMyClan.style.display = 'none';
+            tabList.classList.add('active'); tabAction.classList.remove('active');
         };
-        document.getElementById('tab-create').onclick = () => {
-            document.getElementById('view-list').style.display = 'none'; document.getElementById('view-create').style.display = 'block';
-            document.getElementById('tab-create').classList.add('active'); document.getElementById('tab-list').classList.remove('active');
+        tabAction.onclick = () => {
+            viewList.style.display = 'none';
+            tabList.classList.remove('active'); tabAction.classList.add('active');
+            if(myClanId) { viewMyClan.style.display = 'block'; viewCreate.style.display = 'none'; } 
+            else { viewCreate.style.display = 'block'; viewMyClan.style.display = 'none'; }
         };
 
-        // Rellenar Grid de Iconos
+        document.getElementById('close-modal').onclick = () => modal.style.display = "none";
+        window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
+
+        // Grid Iconos
         const icons = [
             '<i class="fi fi-ss-chess-queen"></i>', '<i class="fi fi-ss-crown"></i>', '<i class="fi fi-ss-dragon"></i>', '<i class="fi fi-sr-dragon-fire"></i>',
             '<i class="fi fi-ss-lion"></i>', '<i class="fi fi-ss-sea-wave"></i>', '<i class="fi fi-sr-sunrise"></i>', '<i class="fi fi-bs-sword"></i>',
@@ -193,7 +219,7 @@
             '<i class="fi fi-ss-radiation"></i>', '<i class="fi fi-ss-diamond-exclamation"></i>', '<i class="fi fi-br-ban"></i>', '<i class="fi fi-sr-shield-xmark"></i>'
         ];
         const iconGrid = document.getElementById('icon-picker');
-        let selectedIcon = icons[1]; // Crown por defecto
+        let selectedIcon = icons[1];
 
         icons.forEach((ic, i) => {
             const div = document.createElement('div');
@@ -201,170 +227,215 @@
             div.innerHTML = ic;
             div.onclick = () => {
                 document.querySelectorAll('.icon-option').forEach(e => e.classList.remove('active'));
-                div.classList.add('active');
-                selectedIcon = ic;
+                div.classList.add('active'); selectedIcon = ic;
             };
             iconGrid.appendChild(div);
         });
 
-        // Auth
+        // Auth & Inicialización
         onAuthStateChanged(auth, async (user) => {
             if (!user) window.location.href = "index.html";
             else {
                 currentUser = user;
                 const userDoc = await getDoc(doc(db, "usuarios", user.email));
                 if(userDoc.exists()) myClanId = userDoc.data().clanId || null;
+                
+                // Configurar textos de las pestañas
+                if(myClanId) {
+                    tabAction.innerText = "Mi Clan";
+                    loadMyClanData();
+                } else {
+                    tabAction.innerText = "Fundar Clan";
+                }
                 fetchClanes();
             }
         });
 
-        // Buscar Clanes desde Firebase y guardarlos
+        // EXPLORAR CLANES
         async function fetchClanes() {
             const cSnap = await getDocs(collection(db, "clanes"));
             allClanes = [];
             cSnap.forEach(d => {
-                let clanData = d.data();
-                clanData.id = d.id;
-                // Aseguramos que existe el array de solicitudes
+                let clanData = d.data(); clanData.id = d.id;
                 if(!clanData.solicitudes) clanData.solicitudes = []; 
                 allClanes.push(clanData);
             });
             renderClanes(allClanes);
         }
 
-        // Renderizar HTML de clanes
         function renderClanes(clanesArray) {
             const cContainer = document.getElementById('clans-container');
             cContainer.innerHTML = '';
-
-            if(clanesArray.length === 0) {
-                cContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted);">No se encontraron clanes.</p>';
-                return;
-            }
+            if(clanesArray.length === 0) { cContainer.innerHTML = '<p style="text-align:center;">No se encontraron clanes.</p>'; return; }
 
             clanesArray.forEach(clan => {
                 const isFull = clan.miembros.length >= 5;
                 const isMyClan = myClanId === clan.id;
                 const isPending = clan.solicitudes.includes(currentUser.email);
-                const isAdmin = clan.admin === currentUser.email;
 
-                let btnHtml = '';
-                if(isMyClan) {
-                    btnHtml = `<button class="btn-join" disabled style="background:var(--primary); color:white; border:none;">Tu Clan</button>`;
-                } else if (isPending) {
-                    btnHtml = `<button class="btn-join" disabled>Pendiente...</button>`;
-                } else if (isFull) {
-                    btnHtml = `<button class="btn-join" disabled>Lleno</button>`;
-                } else if (myClanId) {
-                    btnHtml = `<button class="btn-join" disabled title="Ya tienes un clan">Unirse</button>`; 
-                } else {
-                    btnHtml = `<button class="btn-join join-btn-click" data-id="${clan.id}">Solicitar Unión</button>`;
-                }
-
-                // Panel de solicitudes solo para el Admin
-                let adminPanel = '';
-                if (isAdmin && clan.solicitudes.length > 0) {
-                    adminPanel = `<div class="admin-panel"><h4>Solicitudes Pendientes:</h4>`;
-                    clan.solicitudes.forEach(reqEmail => {
-                        adminPanel += `
-                            <div class="request-item">
-                                <span>${reqEmail}</span>
-                                <div>
-                                    <button class="btn-icon accept" onclick="window.acceptUser('${clan.id}', '${reqEmail}')"><i class="fi fi-br-check"></i></button>
-                                    <button class="btn-icon reject" onclick="window.rejectUser('${clan.id}', '${reqEmail}')"><i class="fi fi-br-cross"></i></button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    adminPanel += `</div>`;
-                }
+                let btnJoinHtml = '';
+                if(isMyClan) btnJoinHtml = `<button class="btn-join" disabled style="background:var(--primary); color:white; border:none;">Tu Clan</button>`;
+                else if (isPending) btnJoinHtml = `<button class="btn-join" disabled>Pendiente...</button>`;
+                else if (isFull) btnJoinHtml = `<button class="btn-join" disabled>Lleno</button>`;
+                else if (myClanId) btnJoinHtml = ``; // Ocultamos botón de unirse si ya tiene clan
+                else btnJoinHtml = `<button class="btn-join join-btn-click" data-id="${clan.id}">Solicitar Unión</button>`;
 
                 cContainer.innerHTML += `
                     <div class="clan-card">
-                        <div class="clan-header">
-                            <div class="clan-info">
-                                <div class="clan-shield" style="background: ${clan.color};">${clan.icono}</div>
-                                <div>
-                                    <h3 class="clan-name">${clan.nombre}</h3>
-                                    <div class="clan-stats">
-                                        <span><i class="fi fi-sr-users"></i> ${clan.miembros.length}/5</span> 
-                                        <span><i class="fi fi-sr-star"></i> BR: ${clan.biciRating || 0}</span>
-                                    </div>
-                                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">"${clan.lema}"</div>
+                        <div class="clan-info">
+                            <div class="clan-shield" style="background: ${clan.color};">${clan.icono}</div>
+                            <div>
+                                <h3 class="clan-name">${clan.nombre}</h3>
+                                <div class="clan-stats">
+                                    <span><i class="fi fi-sr-users"></i> ${clan.miembros.length}/5</span> 
+                                    <span><i class="fi fi-sr-star"></i> BR: ${clan.biciRating || 0}</span>
                                 </div>
                             </div>
-                            ${btnHtml}
                         </div>
-                        ${adminPanel}
+                        <div class="clan-actions">
+                            <button class="btn-info info-btn-click" data-id="${clan.id}">Ver Info</button>
+                            ${btnJoinHtml}
+                        </div>
                     </div>
                 `;
             });
 
-            // Asignar evento al botón de solicitar
+            // Botones: Solicitar
             document.querySelectorAll('.join-btn-click').forEach(btn => {
                 btn.onclick = async (e) => {
                     const clanIdToJoin = e.target.getAttribute('data-id');
                     e.target.disabled = true; e.target.innerText = "Enviando...";
                     try {
-                        // Añadir a "solicitudes" en lugar de "miembros"
                         await updateDoc(doc(db, "clanes", clanIdToJoin), { solicitudes: arrayUnion(currentUser.email) });
-                        alert("Solicitud enviada al líder del clan.");
-                        fetchClanes(); // Recargar
-                    } catch(err) {
-                        alert("Error al enviar solicitud."); e.target.innerText = "Solicitar Unión"; e.target.disabled = false;
-                    }
+                        alert("Solicitud enviada al líder."); fetchClanes(); 
+                    } catch(err) { alert("Error al solicitar."); e.target.innerText = "Solicitar Unión"; e.target.disabled = false; }
+                }
+            });
+
+            // Botones: Ver Info (Modal)
+            document.querySelectorAll('.info-btn-click').forEach(btn => {
+                btn.onclick = (e) => {
+                    const c = allClanes.find(x => x.id === e.target.getAttribute('data-id'));
+                    const membersHtml = c.miembros.map(m => `<li class="member-item"><span>🚴 ${m.split('@')[0]}</span> ${c.admin===m ? '<span class="clan-tag" style="background:var(--primary); padding:2px 5px; border-radius:4px; font-size:0.7rem; color:white;">Líder</span>' : ''}</li>`).join('');
+                    
+                    document.getElementById('modal-body').innerHTML = `
+                        <div style="text-align:center;">
+                            <div class="clan-shield" style="background:${c.color}; margin: 0 auto 10px auto;">${c.icono}</div>
+                            <h2 style="margin:0; color:var(--text-main);">${c.nombre}</h2>
+                            <p style="color:var(--text-muted); font-style:italic;">"${c.lema}"</p>
+                            <div style="margin: 20px 0; background:var(--bg-input); padding:10px; border-radius:8px;">
+                                <b>BiciRating:</b> <span style="color:#FFD700; font-weight:900;">${c.biciRating || 0}</span>
+                            </div>
+                            <h4 style="text-align:left; color:var(--primary); margin-bottom:10px;">Miembros (${c.miembros.length}/5)</h4>
+                            <ul class="member-list" style="text-align:left;">${membersHtml}</ul>
+                        </div>
+                    `;
+                    modal.style.display = "block";
                 }
             });
         }
 
-        // Lógica del Buscador
         document.getElementById('search-clan').addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const filtrados = allClanes.filter(c => c.nombre.toLowerCase().includes(query));
-            renderClanes(filtrados);
+            const q = e.target.value.toLowerCase();
+            renderClanes(allClanes.filter(c => c.nombre.toLowerCase().includes(q)));
         });
 
-        // Funciones Globales para Aceptar/Rechazar usuarios (Panel de Administrador)
-        window.acceptUser = async (clanId, userEmail) => {
-            try {
-                // Quitamos de solicitudes y metemos en miembros
-                await updateDoc(doc(db, "clanes", clanId), { 
-                    solicitudes: arrayRemove(userEmail),
-                    miembros: arrayUnion(userEmail)
+        // PANEL MI CLAN
+        async function loadMyClanData() {
+            if(!myClanId) return;
+            const docSnap = await getDoc(doc(db, "clanes", myClanId));
+            if(!docSnap.exists()) return;
+            const clan = docSnap.data();
+            const isAdmin = clan.admin === currentUser.email;
+
+            // Render Miembros
+            let membersList = '';
+            clan.miembros.forEach(m => {
+                let badge = m === clan.admin ? '<span style="background:var(--primary); padding:2px 5px; border-radius:4px; font-size:0.7rem; color:white;">Líder</span>' : '';
+                let kickBtn = (isAdmin && m !== currentUser.email) ? `<button class="btn-icon reject" onclick="window.kickUser('${m}')" title="Expulsar"><i class="fi fi-br-cross"></i></button>` : '';
+                membersList += `<li class="member-item"><div>🚴 ${m.split('@')[0]} ${badge}</div> ${kickBtn}</li>`;
+            });
+
+            // Render Solicitudes (Solo Admin)
+            let adminHtml = '';
+            if(isAdmin && clan.solicitudes && clan.solicitudes.length > 0) {
+                adminHtml = `<div class="dash-card" style="border-color:var(--primary);"><h3><i class="fi fi-sr-envelope"></i> Solicitudes</h3>`;
+                clan.solicitudes.forEach(req => {
+                    adminHtml += `
+                        <div class="request-item">
+                            <span>${req.split('@')[0]}</span>
+                            <div>
+                                <button class="btn-icon accept" onclick="window.acceptUser('${req}')"><i class="fi fi-br-check"></i></button>
+                                <button class="btn-icon reject" onclick="window.rejectUser('${req}')"><i class="fi fi-br-cross"></i></button>
+                            </div>
+                        </div>`;
                 });
-                // Actualizamos el perfil del usuario para que sepa que tiene clan
-                await updateDoc(doc(db, "usuarios", userEmail), { clanId: clanId });
-                alert(`${userEmail} ha sido aceptado en el clan.`);
-                fetchClanes();
-            } catch (e) { alert("Error al aceptar usuario: " + e.message); }
+                adminHtml += `</div>`;
+            }
+
+            // Botón Salir (Si no es admin)
+            let leaveHtml = !isAdmin ? `<button style="width:100%; background:transparent; border:1px solid #ff4444; color:#ff4444; padding:10px; border-radius:8px; font-weight:700; margin-top:20px; cursor:pointer;" onclick="window.leaveClan()">Abandonar Clan</button>` : '';
+
+            document.getElementById('myclan-content').innerHTML = `
+                <div class="my-clan-header">
+                    <div class="my-clan-shield" style="background:${clan.color};">${clan.icono}</div>
+                    <h2 class="my-clan-title">${clan.nombre}</h2>
+                    <p class="my-clan-motto">"${clan.lema}"</p>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="dash-card">
+                        <h3><i class="fi fi-sr-users"></i> Miembros</h3>
+                        <ul class="member-list">${membersList}</ul>
+                    </div>
+                    <div class="dash-card">
+                        <h3><i class="fi fi-ss-map-marker"></i> Estaciones</h3>
+                        <p style="color:var(--text-muted); font-size:0.9rem;">Próximamente... aquí verás el mapa de tus dominios.</p>
+                        <div style="font-size:2rem; font-weight:900; color:var(--primary); margin-top:10px;">0 <i class="fi fi-sr-flag" style="font-size:1.2rem;"></i></div>
+                    </div>
+                    ${adminHtml}
+                </div>
+                ${leaveHtml}
+            `;
+        }
+
+        // FUNCIONES DE ADMIN / MIEMBRO
+        window.acceptUser = async (userEmail) => {
+            try {
+                await updateDoc(doc(db, "clanes", myClanId), { solicitudes: arrayRemove(userEmail), miembros: arrayUnion(userEmail) });
+                await updateDoc(doc(db, "usuarios", userEmail), { clanId: myClanId });
+                alert("Usuario aceptado."); loadMyClanData(); fetchClanes();
+            } catch (e) { alert("Error: " + e.message); }
+        };
+        window.rejectUser = async (userEmail) => {
+            try { await updateDoc(doc(db, "clanes", myClanId), { solicitudes: arrayRemove(userEmail) }); loadMyClanData(); } catch (e) {}
+        };
+        window.kickUser = async (userEmail) => {
+            if(!confirm(`¿Seguro que quieres expulsar a ${userEmail}?`)) return;
+            try {
+                await updateDoc(doc(db, "clanes", myClanId), { miembros: arrayRemove(userEmail) });
+                await updateDoc(doc(db, "usuarios", userEmail), { clanId: null });
+                loadMyClanData();
+            } catch (e) { alert("Error: " + e.message); }
+        };
+        window.leaveClan = async () => {
+            if(!confirm("¿Seguro que quieres abandonar tu clan? Perderás los beneficios de territorio.")) return;
+            try {
+                await updateDoc(doc(db, "clanes", myClanId), { miembros: arrayRemove(currentUser.email) });
+                await updateDoc(doc(db, "usuarios", currentUser.email), { clanId: null });
+                window.location.reload();
+            } catch(e) { alert("Error al salir."); }
         };
 
-        window.rejectUser = async (clanId, userEmail) => {
-            try {
-                // Solo quitamos de solicitudes
-                await updateDoc(doc(db, "clanes", clanId), { 
-                    solicitudes: arrayRemove(userEmail)
-                });
-                fetchClanes();
-            } catch (e) { alert("Error al rechazar usuario."); }
-        };
-
-        // Crear Clan
+        // FUNDAR CLAN
         document.getElementById('btn-submit-clan').onclick = async () => {
-            if(myClanId) { alert("Ya perteneces a un clan. Abandónalo para fundar uno nuevo."); return; }
-
             const name = document.getElementById('clan-name').value.trim();
             const color = document.getElementById('clan-color').value;
             const motto = document.getElementById('clan-motto').value.trim();
             const msg = document.getElementById('create-msg');
-
             if(!name || !motto) { msg.innerText = "Rellena nombre y lema."; msg.style.color = "red"; return; }
 
-            // Creamos un ID seguro para el clan
             const newClanId = name.replace(/\s+/g, '_').toLowerCase();
-
             try {
-                msg.innerText = "Comprobando disponibilidad..."; msg.style.color = "var(--primary)";
                 const checkDoc = await getDoc(doc(db, "clanes", newClanId));
                 if(checkDoc.exists()) { msg.innerText = "Ese nombre ya existe."; msg.style.color = "red"; return; }
 
@@ -373,14 +444,9 @@
                     nombre: name, color: color, icono: selectedIcon, lema: motto,
                     admin: currentUser.email, miembros: [currentUser.email], solicitudes: [], biciRating: 0
                 });
-
                 await updateDoc(doc(db, "usuarios", currentUser.email), { clanId: newClanId });
-
-                alert("¡Has fundado tu imperio con éxito!");
-                window.location.reload();
-            } catch(e) {
-                msg.innerText = "Error (Revisa los permisos de Firestore): " + e.message; msg.style.color = "red";
-            }
+                alert("¡Has fundado tu imperio con éxito!"); window.location.reload();
+            } catch(e) { msg.innerText = "Error: " + e.message; msg.style.color = "red"; }
         };
     </script>
 </body>

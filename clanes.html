@@ -230,7 +230,7 @@
             '<i class="fi fi-ss-lion"></i>', '<i class="fi fi-ss-sea-wave"></i>', '<i class="fi fi-sr-sunrise"></i>', '<i class="fi fi-bs-sword"></i>',
             '<i class="fi fi-sr-spade"></i>', '<i class="fi fi-sr-clubs"></i>', '<i class="fi fi-ss-heart"></i>', '<i class="fi fi-sr-heart-arrow"></i>',
             '<i class="fi fi-ss-bike"></i>', '<i class="fi fi-sr-beer"></i>', '<i class="fi fi-rs-martini-glass-citrus"></i>', '<i class="fi fi-sr-dice-alt"></i>',
-            '<i class="fi fi-sr-gamepad"></i>', '<i class="fi fi-ss-user-ninja"></i>', '<i class="fi fi-ss-user-astronaut"></i>', '<i class="fi fi-ss-rocket-launch"></i>',
+            '<i class="fi fi-sr-gamepad"></i>', '<i class="fi fi-ss-user-ninja"></i>', '<i class="fi fi-ss-user-astronaut"></i>', '<i class="fi fi-ss-rocket-lunch"></i>',
             '<i class="fi fi-bs-car"></i>', '<i class="fi fi-sr-sack-dollar"></i>', '<i class="fi fi-ss-moon-stars"></i>', '<i class="fi fi-ss-flame"></i>',
             '<i class="fi fi-ss-radiation"></i>', '<i class="fi fi-ss-diamond-exclamation"></i>', '<i class="fi fi-br-ban"></i>', '<i class="fi fi-sr-shield-xmark"></i>'
         ];
@@ -256,13 +256,18 @@
                 const userDoc = await getDoc(doc(db, "usuarios", user.email));
                 if(userDoc.exists()) myClanId = userDoc.data().clanId || null;
                 
-                if(myClanId) { tabAction.innerText = "Mi Clan"; loadMyClanData(); } 
-                else { tabAction.innerText = "Fundar Clan"; }
+                // Configurar textos de las pestañas
+                if(myClanId) {
+                    tabAction.innerText = "Mi Clan";
+                    loadMyClanData();
+                } else {
+                    tabAction.innerText = "Fundar Clan";
+                }
                 fetchClanes();
             }
         });
 
-        // Generador de Avatar helper
+        // Generador de Avatar helper (CORREGIDO CON BACKTICKS)
         const getAvatar = (email) => `https://api.dicebear.com/7.x/initials/svg?seed=${email}&backgroundColor=222`;
 
         // EXPLORAR CLANES
@@ -373,13 +378,14 @@
             const docSnap = await getDoc(doc(db, "clanes", myClanId));
             if(!docSnap.exists()) return;
             const clan = docSnap.data();
-            const isAdmin = clan.admin === currentUser.email;
+            const isClanLeader = clan.admin === currentUser.email;
 
             // Render Miembros
             let membersList = '';
             clan.miembros.forEach(m => {
                 let badge = m === clan.admin ? '<span class="badge-leader">Líder</span>' : '';
-                let kickBtn = (isAdmin && m !== currentUser.email) ? `<button class="btn-icon reject" onclick="window.kickUser('${m}')" title="Expulsar"><i class="fi fi-br-cross"></i></button>` : '';
+                let kickBtn = (isClanLeader && m !== currentUser.email) ? `<button class="btn-icon reject" onclick="window.kickUser('${m}')" title="Expulsar"><i class="fi fi-br-cross"></i></button>` : '';
+                // AGREGADA LA FOTO AQUÍ
                 membersList += `
                     <li class="member-item">
                         <div class="member-info-group">
@@ -391,9 +397,9 @@
                     </li>`;
             });
 
-            // Render Solicitudes (Solo Admin)
+            // Render Solicitudes (Solo si es líder de clan)
             let adminHtml = '';
-            if(isAdmin && clan.solicitudes && clan.solicitudes.length > 0) {
+            if(isClanLeader && clan.solicitudes && clan.solicitudes.length > 0) {
                 adminHtml = `
                     <div class="dash-card admin-panel">
                         <h3><i class="fi fi-sr-envelope-open"></i> Solicitudes Pendientes</h3>
@@ -415,8 +421,9 @@
                 adminHtml += `</div>`;
             }
 
-            let leaveHtml = !isAdmin ? `<button class="btn-danger-outline" onclick="window.leaveClan()"><i class="fi fi-br-exit"></i> Abandonar Clan</button>` : '';
+            let leaveHtml = !isClanLeader ? `<button class="btn-danger-outline" onclick="window.leaveClan()"><i class="fi fi-br-exit"></i> Abandonar Clan</button>` : '';
 
+            // CAMBIADO EL COLOR DE LA BANDERA A AZUL AQUÍ (color:var(--primary))
             document.getElementById('myclan-content').innerHTML = `
                 <div class="my-clan-header">
                     <div class="my-clan-bg-blur" style="background:${clan.color};"></div>
@@ -435,7 +442,7 @@
                     <div class="dash-card">
                         <h3><i class="fi fi-ss-map-marker"></i> Territorio</h3>
                         <p style="color:var(--text-muted); font-size:0.9rem;">Zonas conquistadas en la ciudad.</p>
-                        <div style="font-size:3rem; font-weight:900; color:var(--primary); line-height:1; margin-top:10px;">0 <i class="fi fi-sr-flag" style="font-size:1.5rem; color:${clan.color};"></i></div>
+                        <div style="font-size:3rem; font-weight:900; color:var(--primary); line-height:1; margin-top:10px;">0 <i class="fi fi-sr-flag" style="font-size:1.5rem; color:var(--primary);"></i></div>
                     </div>
                     ${adminHtml}
                 </div>

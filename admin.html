@@ -13,7 +13,7 @@
         
         body { margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s; }
         
-        /* NAVBAR UNIFICADO (Logo clickeable e Info centrado) */
+        /* NAVBAR UNIFICADO */
         nav { background: #000; border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
         nav .brand img { height: 35px; width: auto; display: block; }
@@ -45,7 +45,7 @@
         .admin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;}
         .card-header { display: flex; justify-content: space-between; font-weight: 700; color: #0071c3; }
         
-        /* Estados del Bot (Sencillo: Verde, Rojo, Naranja) */
+        /* Estados del Bot */
         .bot-status { font-size: 0.9rem; font-weight: 600; padding: 12px; border-radius: 8px; background: var(--bg-input); border: 1px solid var(--border); display: none; margin-top: 5px; line-height: 1.4; }
         .bot-status.loading { color: #aaaaaa; border-color: #444; }
         .bot-status.success { color: #00C851; border-color: #00C851; background: rgba(0, 200, 81, 0.1); }
@@ -116,6 +116,7 @@
             else { document.querySelectorAll('.bot-status').forEach(el => { el.style.display = 'none'; el.className = 'bot-status'; }); }
         });
 
+        // ------------------ LOGICA DEL BOT OCR ------------------
         async function processBotQueue() {
             if(isProcessingQueue || !isBotActive || botQueue.length === 0) return;
             isProcessingQueue = true;
@@ -134,16 +135,13 @@
                     const claimed_m = Math.floor(trip.tiempo_segundos / 60);
                     const claimed_s = trip.tiempo_segundos % 60;
 
-                    // 1. ¿ESTÁN LAS ESTACIONES EN LA IMAGEN?
                     const origRaw = trip.ruta.split('-')[0].toLowerCase();
                     const destRaw = trip.ruta.split('-')[1].toLowerCase();
                     const origSearch = origRaw.replace(/^0+/, '');
                     const destSearch = destRaw.replace(/^0+/, '');
                     const verify_Ids = (text.includes(origSearch) || text.includes(origRaw)) && (text.includes(destSearch) || text.includes(destRaw));
 
-                    // 2. ¿ESTÁ EL TIEMPO EN EL TEXTO? (Buscamos "Xm Ys")
-                    let timeFound = false;
-                    let isApp = false; // Bandera para saber si tiene pinta de app real
+                    let timeFound = false; let isApp = false; 
                     const durationRegex = /(\d{1,3})\s*m\.?\s*(\d{1,2})\s*s\.?/g;
                     const allDurations = [...text.matchAll(durationRegex)];
                     
@@ -154,55 +152,41 @@
                         if (Math.abs(t_sec - trip.tiempo_segundos) <= 2) { timeFound = true; break; }
                     }
 
-                    // 3. ¿CUADRAN LAS HORAS MATEMÁTICAMENTE?
                     let mathStatus = "not_found"; 
                     const timeRegex = /\d{2}:\d{2}:\d{2}/g;
                     const times = text.match(timeRegex);
 
                     if (times && times.length >= 2) {
-                        isApp = true;
-                        mathStatus = "failed"; 
+                        isApp = true; mathStatus = "failed"; 
                         for(let i = 0; i < times.length - 1; i++) {
                             const t1 = times[i].split(':'); const sec1 = (+t1[0]) * 3600 + (+t1[1]) * 60 + (+t1[2]);
                             const t2 = times[i+1].split(':'); const sec2 = (+t2[0]) * 3600 + (+t2[1]) * 60 + (+t2[2]);
                             let realDiff = Math.abs(sec2 - sec1);
-                            
                             if (Math.abs(realDiff - trip.tiempo_segundos) <= 15) { mathStatus = "passed"; break; }
                         }
                     }
-                    
                     if (text.includes('€') || /0[.,]00/.test(text)) isApp = true;
 
-                    // --- LÓGICA SIMPLE: VERDE, ROJO O NARANJA ---
+                    // --- RESULTADO ---
                     if (claimed_s >= 60) {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>CLARAMENTE FALSO:</b><br>${claimed_s} segundos es imposible. Trampa pillada.`;
-                    } 
-                    else if (verify_Ids && (timeFound || mathStatus === "passed")) {
-                        statusEl.className = 'bot-status success';
-                        statusEl.innerHTML = `🟢 <b>CLARAMENTE VERDADERO:</b><br>Estaciones coinciden y el tiempo cuadra perfectamente.`;
-                    } 
-                    else if (!verify_Ids && !isApp) {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>CLARAMENTE FALSO:</b><br>No detecto ni estaciones ni interfaz de BiciMAD.`;
-                    } 
-                    else if (mathStatus === "failed" && !timeFound && isApp) {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>CLARAMENTE FALSO:</b><br>He leído todos los tiempos y horas de la captura, y ninguno es ${claimed_m}m ${claimed_s}s. Pillado.`;
-                    } 
-                    else {
-                        statusEl.className = 'bot-status warning';
-                        statusEl.innerHTML = `🟠 <b>DUDOSO:</b><br>El bot solo pudo leer la imagen a medias. Por favor, revísalo a mano.`;
+                        statusEl.className = 'bot-status danger'; statusEl.innerHTML = `🔴 <b>FALSO:</b> ${claimed_s} segundos imposible.`;
+                    } else if (verify_Ids && (timeFound || mathStatus === "passed")) {
+                        statusEl.className = 'bot-status success'; statusEl.innerHTML = `🟢 <b>VERDADERO:</b> Todo cuadra.`;
+                    } else if (!verify_Ids && !isApp) {
+                        statusEl.className = 'bot-status danger'; statusEl.innerHTML = `🔴 <b>FALSO:</b> No detecto la app BiciMAD.`;
+                    } else if (mathStatus === "failed" && !timeFound && isApp) {
+                        statusEl.className = 'bot-status danger'; statusEl.innerHTML = `🔴 <b>FALSO:</b> Tiempos matemáticos erróneos.`;
+                    } else {
+                        statusEl.className = 'bot-status warning'; statusEl.innerHTML = `🟠 <b>DUDOSO:</b> Revisión manual.`;
                     }
-
                 } catch (error) {
-                    statusEl.className = 'bot-status warning';
-                    statusEl.innerHTML = '🟠 <b>Dudoso:</b> Error al leer la imagen. Revísala a mano.';
+                    statusEl.className = 'bot-status warning'; statusEl.innerHTML = '🟠 <b>Dudoso:</b> Error al leer imagen.';
                 }
             }
             isProcessingQueue = false; if(isBotActive) processBotQueue(); 
         }
 
+        // ------------------ AUTENTICACIÓN ------------------
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = "home.html"; return; }
             const userDoc = await getDoc(doc(db, "usuarios", user.email));
@@ -211,9 +195,11 @@
             } else { alert("Acceso denegado."); window.location.href = "home.html"; }
         });
 
+        // ------------------ DESTACAR RUTA ------------------
         async function loadCurrentHighlighted() { const confDoc = await getDoc(doc(db, "config", "general")); if(confDoc.exists() && confDoc.data().ruta_destacada) document.getElementById('highlight-input').value = confDoc.data().ruta_destacada; }
         document.getElementById('highlight-btn').addEventListener('click', async () => { await setDoc(doc(db, "config", "general"), { ruta_destacada: document.getElementById('highlight-input').value.trim() }, { merge: true }); alert("Ruta destacada actualizada."); });
 
+        // ------------------ CARGAR PENDIENTES ------------------
         async function loadPendingTrips() {
             const grid = document.getElementById('pending-grid');
             const q = query(collection(db, "tiempos_viaje"), where("verificado", "==", false));
@@ -222,7 +208,7 @@
 
             snap.forEach((docSnap) => {
                 count++; const data = docSnap.data(); const docId = docSnap.id;
-                botQueue.push({ id: docId, foto_url: data.foto_url, ruta: data.ruta, tiempo_segundos: data.tiempo_segundos });
+                botQueue.push({ id: docId, foto_url: data.foto_url, ruta: data.ruta, tiempo_segundos: data.tiempo_segundos, email_real: data.email_real });
 
                 grid.innerHTML += `
                     <div class="admin-card" id="card-${docId}">
@@ -232,7 +218,7 @@
                         <button class="btn-view view-photo" data-url="${data.foto_url}" style="margin-top:10px;">Ver Captura</button>
                         <div class="actions">
                             <button class="btn-reject reject-btn" data-id="${docId}">Rechazar</button>
-                            <button class="btn-approve approve-btn" data-id="${docId}">Aprobar</button>
+                            <button class="btn-approve approve-btn" data-id="${docId}" data-email="${data.email_real}" data-ruta="${data.ruta}">Aprobar</button>
                         </div>
                     </div>`;
             });
@@ -241,11 +227,114 @@
             else { attachEvents(); if(isBotActive) processBotQueue(); }
         }
 
+        // ------------------ EL CEREBRO: RECÁLCULO TOTAL DE ESTACIÓN ------------------
+        const userClanCache = {}; // Cacheamos los clanes para no saturar Firebase con lecturas
+
+        async function getUserClan(email) {
+            if (userClanCache[email] !== undefined) return userClanCache[email];
+            const userDoc = await getDoc(doc(db, "usuarios", email));
+            const clanId = userDoc.exists() ? (userDoc.data().clanId || null) : null;
+            userClanCache[email] = clanId;
+            return clanId;
+        }
+
+        async function recalcularEstacion(numEstacion) {
+            // Traemos TODOS los viajes verificados
+            const qAll = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
+            const snap = await getDocs(qAll);
+
+            let viajesPorRuta = {};
+
+            // Agrupamos solo las rutas que pasen por ESTA estación
+            snap.forEach(d => {
+                const data = d.data();
+                const parts = data.ruta.split('-');
+                const orig = parts[0].replace(/^0+/, '') || "0";
+                const dest = parts[1].replace(/^0+/, '') || "0";
+
+                if (orig === numEstacion || dest === numEstacion) {
+                    if (!viajesPorRuta[data.ruta]) viajesPorRuta[data.ruta] = [];
+                    viajesPorRuta[data.ruta].push(data);
+                }
+            });
+
+            let puntosClan = {};
+
+            // Calculamos el Top 10 para cada ruta involucrada
+            for (const [ruta, viajes] of Object.entries(viajesPorRuta)) {
+                viajes.sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
+                const top10 = viajes.slice(0, 10);
+
+                for (let i = 0; i < top10.length; i++) {
+                    const clanId = await getUserClan(top10[i].email_real);
+                    if (clanId) {
+                        let pts = 0;
+                        if (i === 0) pts = 7;
+                        else if (i === 1) pts = 5;
+                        else if (i === 2) pts = 3;
+                        else if (i >= 3 && i <= 9) pts = 1;
+
+                        puntosClan[clanId] = (puntosClan[clanId] || 0) + pts;
+                    }
+                }
+            }
+
+            // Determinar quién tiene más puntos en la estación
+            let dominante = null;
+            let maxPts = 0;
+            let sumTotal = 0;
+            for (const [clan, pts] of Object.entries(puntosClan)) {
+                sumTotal += pts;
+                if (pts > maxPts) { maxPts = pts; dominante = clan; }
+            }
+
+            // Guardar en la base de datos de estadísticas
+            await setDoc(doc(db, "estaciones_stats", numEstacion), {
+                clan_dominante: dominante,
+                total_puntos: sumTotal,
+                puntos_detalle: puntosClan
+            }, { merge: true });
+        }
+
+        // ------------------ EVENTOS DE BOTONES ------------------
         function attachEvents() {
             document.querySelectorAll('.view-photo').forEach(b => b.onclick = e => { document.getElementById('modal-img').src = e.target.getAttribute('data-url'); document.getElementById('photo-modal').style.display = 'flex'; });
-            document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { e.target.disabled = true; e.target.innerText = "Aprobando..."; await updateDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id')), { verificado: true }); loadPendingTrips(); });
-            document.querySelectorAll('.reject-btn').forEach(b => b.onclick = async e => { if(confirm("¿Seguro que quieres borrar este récord?")) { e.target.disabled = true; e.target.innerText = "Borrando..."; await deleteDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id'))); loadPendingTrips(); } });
+            
+            document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { 
+                e.target.disabled = true; e.target.innerText = "Calculando..."; 
+                
+                const docId = e.target.getAttribute('data-id');
+                const ruta = e.target.getAttribute('data-ruta');
+
+                try {
+                    // 1. Aprobar viaje
+                    await updateDoc(doc(db, "tiempos_viaje", docId), { verificado: true }); 
+
+                    // 2. Extraer estaciones limpias (sin los ceros del principio)
+                    const parts = ruta.split('-');
+                    const estOrigen = parts[0].replace(/^0+/, '') || "0";
+                    const estDestino = parts[1].replace(/^0+/, '') || "0";
+
+                    // 3. Recalcular las dos estaciones
+                    await recalcularEstacion(estOrigen);
+                    await recalcularEstacion(estDestino);
+
+                    loadPendingTrips(); 
+                } catch(err) {
+                    alert("Error al aprobar: " + err.message);
+                    e.target.disabled = false; e.target.innerText = "Aprobar";
+                }
+            });
+
+            document.querySelectorAll('.reject-btn').forEach(b => b.onclick = async e => { 
+                if(confirm("¿Seguro que quieres borrar este récord?")) { 
+                    e.target.disabled = true; e.target.innerText = "Borrando..."; 
+                    await deleteDoc(doc(db, "tiempos_viaje", e.target.getAttribute('data-id'))); 
+                    loadPendingTrips(); 
+                } 
+            });
         }
+        
         document.getElementById('close-modal').onclick = () => document.getElementById('photo-modal').style.display = 'none';
     </script>
 </body>

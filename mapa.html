@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mapa de Conquista | BiciFastness</title>
+    <title>Mapa | BiciFastness</title>
     
     <script>
         document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
@@ -26,7 +26,6 @@
         
         body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-main);}
         
-        /* NAVBAR UNIFICADO */
         nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
         nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
         .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
@@ -38,19 +37,21 @@
         
         #map { flex-grow: 1; width: 100%; z-index: 1; }
         
-        .locate-btn { position: absolute; bottom: 90px; right: 20px; z-index: 1000; background: var(--primary); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        .locate-btn { position: absolute; bottom: 90px; right: 20px; z-index: 1000; background: var(--primary); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s;}
+        .locate-btn:hover { transform: scale(1.1); }
 
         /* ESTILO DEL POPUP */
-        .leaflet-popup-content-wrapper { background: var(--bg-card); color: var(--text-main); border-radius: 12px; font-family: 'Poppins', sans-serif; padding: 0; overflow: hidden; border: 1px solid var(--border);}
+        .leaflet-popup-content-wrapper { background: var(--bg-card); color: var(--text-main); border-radius: 12px; font-family: 'Poppins', sans-serif; padding: 0; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.5);}
         .leaflet-popup-tip { display: none; }
         .popup-header { background: var(--bg-input); padding: 15px; text-align: center; border-bottom: 1px solid var(--border); }
         .popup-title { font-weight: 800; font-size: 1.1rem; margin: 0; color: var(--text-main); }
         .popup-clan { font-size: 0.8rem; font-weight: 700; display: inline-block; padding: 4px 10px; border-radius: 20px; margin-top: 5px; color: white; }
         .popup-body { padding: 15px; }
-        .btn-asaltar { display: block; width: 100%; text-align: center; background: #ff4444; color: white; text-decoration: none; padding: 10px; border-radius: 8px; font-weight: 800; text-transform: uppercase; margin-top: 10px; transition: 0.2s; box-sizing: border-box;}
-        .btn-asaltar:hover { opacity: 0.9; transform: scale(0.98); }
+        
+        /* BOTÓN ASALTAR AZUL */
+        .btn-asaltar { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: var(--primary); color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 800; text-transform: uppercase; margin-top: 10px; transition: 0.2s; box-sizing: border-box; border: none;}
+        .btn-asaltar:hover { background: #005a9e; transform: scale(0.98); }
 
-        /* NAVBAR INFERIOR (MÓVIL) */
         .bottom-nav { display: none; }
         @media (max-width: 850px) { 
             nav .links { display: none; } 
@@ -79,7 +80,7 @@
         </div>
     </nav>
 
-    <button class="locate-btn" id="locate-btn" title="Mi ubicación"><i class="fi fi-sr-crosshairs"></i></button>
+    <button class="locate-btn" id="locate-btn" title="Mi ubicación"><i class="fi fi-br-crosshairs"></i></button>
 
     <div id="map"></div>
 
@@ -95,65 +96,76 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module">
-        // 1. Configurar el estilo del mapa según el tema claro/oscuro
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // CONFIGURACIÓN FIREBASE
+        const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // CONFIGURACIÓN MAPA
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         const tileUrl = isDark ? 
             'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 
             'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
-        // 2. Inicializar mapa centrado en Madrid
         const map = L.map('map', { zoomControl: false }).setView([40.4168, -3.7038], 14);
         L.tileLayer(tileUrl, { attribution: '&copy; BiciFastness' }).addTo(map);
 
-        // 3. Botón de Geolocalización
         document.getElementById('locate-btn').addEventListener('click', () => { 
             map.locate({setView: true, maxZoom: 16}); 
         });
 
-        // 4. Lógica de Colores de Clanes
-        function getClanColor(clanId) {
-            switch(clanId) {
-                case 1: return "#ff4d4d"; // Clan Rojo
-                case 2: return "#4d94ff"; // Clan Azul
-                case 3: return "#4dff88"; // Clan Verde
-                default: return "#808080"; // Neutral (Gris)
-            }
-        }
+        // CARGA Y RENDERIZADO PRINCIPAL
+        async function loadMapData() {
+            try {
+                // 1. Obtener información de todos los clanes (Para saber sus colores y nombres)
+                const clanesSnap = await getDocs(collection(db, "clanes"));
+                const clanesDict = {};
+                clanesSnap.forEach(doc => { clanesDict[doc.id] = doc.data(); });
 
-        function stationStyle(feature) {
-            // Asumimos properties.clanId (si no existe, será undefined/neutral)
-            let clanId = feature.properties.clanId || null; 
-            return {
-                radius: 8,
-                fillColor: getClanColor(clanId),
-                color: "#ffffff",
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.9
-            };
-        }
+                // 2. Obtener las estadísticas de dominio de las estaciones
+                const statsSnap = await getDocs(collection(db, "estaciones_stats"));
+                const statsDict = {};
+                statsSnap.forEach(doc => { statsDict[doc.id] = doc.data(); });
 
-        // 5. Cargar el GeoJSON de forma dinámica con FETCH
-        fetch('data/emt.geojson')
-            .then(response => {
-                if (!response.ok) throw new Error("Error al cargar el GeoJSON");
-                return response.json();
-            })
-            .then(data => {
-                L.geoJSON(data, {
-                    // Convertir cada punto en un marcador circular
+                // 3. Cargar el GeoJSON de la EMT
+                const response = await fetch('data/emt.geojson');
+                if (!response.ok) throw new Error("Error al cargar emt.geojson");
+                const geojsonData = await response.json();
+
+                // 4. Dibujar en el mapa cruzando los datos
+                L.geoJSON(geojsonData, {
                     pointToLayer: function (feature, latlng) {
-                        return L.circleMarker(latlng, stationStyle(feature));
-                    },
-                    // Comportamiento del Popup para cada estación
-                    onEachFeature: function (feature, layer) {
-                        const clanId = feature.properties.clanId;
-                        const clanName = clanId ? `Clan ${clanId}` : "Ninguno";
-                        const colorBadge = getClanColor(clanId);
+                        const stationNum = feature.properties.number;
+                        const statInfo = statsDict[stationNum];
                         
-                        let clanBadge = clanId ? 
-                            `<span class="popup-clan" style="background:${colorBadge};">Dominada por: ${clanName}</span>` : 
-                            `<span class="popup-clan" style="background:#888;">Estación Libre (Neutral)</span>`;
+                        // Si hay datos en Firebase, miramos quién domina. Si no, es neutral.
+                        const clanId = statInfo ? statInfo.clan_dominante : null;
+                        const clanColor = (clanId && clanesDict[clanId]) ? clanesDict[clanId].color : "#888888";
+
+                        return L.circleMarker(latlng, {
+                            radius: 8,
+                            fillColor: clanColor,
+                            color: "#ffffff",
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.9
+                        });
+                    },
+                    onEachFeature: function (feature, layer) {
+                        const stationNum = feature.properties.number;
+                        const statInfo = statsDict[stationNum];
+                        
+                        const clanId = statInfo ? statInfo.clan_dominante : null;
+                        const clanData = (clanId && clanesDict[clanId]) ? clanesDict[clanId] : null;
+                        const puntosTotales = statInfo ? (statInfo.total_puntos || 0) : 0;
+
+                        // Construcción de la etiqueta del clan
+                        let clanBadge = clanData 
+                            ? `<span class="popup-clan" style="background:${clanData.color};">Dominada por: ${clanData.nombre}</span>` 
+                            : `<span class="popup-clan" style="background:#888;">Territorio Neutral</span>`;
 
                         const popupContent = `
                             <div class="popup-header">
@@ -162,23 +174,22 @@
                                 ${clanBadge}
                             </div>
                             <div class="popup-body">
-                                <p style="margin: 0 0 10px 0; font-size: 0.85rem; text-align: center;">
-                                    Bases totales: <b>${feature.properties.TotalBases || '?'}</b>
-                                </p>
-                                <a href="subir.html?origen=${feature.properties.number}" class="btn-asaltar">
-                                    <i class="fi fi-ss-sword-alt"></i> ¡Asaltar Base!
+                                <a href="subir.html?origen=${stationNum}" class="btn-asaltar">
+                                    <i class="fi fi-sr-sword"></i> ¡Atacar Estación!
                                 </a>
                             </div>
                         `;
-                        layer.bindPopup(popupContent, { minWidth: 220 });
+                        layer.bindPopup(popupContent, { minWidth: 240 });
                     }
                 }).addTo(map);
-            })
-            .catch(error => {
-                console.error('Atención:', error);
-                alert('No se pudo cargar el archivo de estaciones. Comprueba que data/emt.geojson existe.');
-            });
 
+            } catch (error) {
+                console.error('Error inicializando el mapa:', error);
+            }
+        }
+
+        // Iniciar la carga
+        loadMapData();
     </script>
 </body>
 </html>

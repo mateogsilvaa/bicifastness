@@ -193,7 +193,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
@@ -224,22 +224,23 @@
         document.getElementById('close-modal').onclick = () => modal.style.display = "none";
         window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
 
-        // Grid Iconos
+        // ARRAY DE ICONOS 100% FUNCIONALES
         const icons = [
             '<i class="fi fi-ss-chess-queen"></i>', '<i class="fi fi-ss-crown"></i>', '<i class="fi fi-ss-dragon"></i>', '<i class="fi fi-br-ufo-beam"></i>     ',
             '<i class="fi fi-sr-tachometer-alt-fastest"></i>', '<i class="fi fi-sr-fort"></i>', '<i class="fi fi-sr-sunrise"></i>', '<i class="fi fi-bs-sword"></i>',
             '<i class="fi fi-sr-spade"></i>', '<i class="fi fi-sr-club"></i>', '<i class="fi fi-ss-heart"></i>', '<i class="fi fi-sr-heart-arrow"></i>',
             '<i class="fi fi-ss-bike"></i>', '<i class="fi fi-sr-beer"></i>', '<i class="fi fi-rs-martini-glass-citrus"></i>', '<i class="fi fi-sr-dice-alt"></i>',
             '<i class="fi fi-sr-gamepad"></i>', '<i class="fi fi-ss-user-ninja"></i>', '<i class="fi fi-ss-user-astronaut"></i>', '<i class="fi fi-ss-rocket-lunch"></i>',
-            '<i class="fi fi-bs-car"></i>', '<i class="fi fi-sr-sack-dollar"></i>', '<i class="fi fi-ss-moon-stars"></i>', '<i class="fi fi-ss-flame"></i>',
-            '<i class="fi fi-ss-radiation"></i>', '<i class="fi fi-ss-diamond-exclamation"></i>', '<i class="fi fi-br-ban"></i>', '<i class="fi fi-sr-shield-xmark"></i>'
+            '<i class="fi fi-bs-car"></i>', '<i class="fi fi-sr-sack-dollar"></i>', '<i class="fi fi-ss-moon-stars"></i>', '<i class="fi fi-ss-flame"></i>', '<i class="fi fi-sr-bolt"></i>',
+            '<i class="fi fi-ss-radiation"></i>', '<i class="fi fi-ss-diamond-exclamation"></i>', '<i class="fi fi-br-ban"></i>', '<i class="fi fi-sr-shield-xmark"></i>', '<i class="fi fi-sr-helmet-battle"></i>'
         ];
+        
         const iconGrid = document.getElementById('icon-picker');
-        let selectedIcon = icons[1];
+        let selectedIcon = icons[0]; 
 
         icons.forEach((ic, i) => {
             const div = document.createElement('div');
-            div.className = 'icon-option' + (i === 1 ? ' active' : '');
+            div.className = 'icon-option' + (i === 0 ? ' active' : '');
             div.innerHTML = ic;
             div.onclick = () => {
                 document.querySelectorAll('.icon-option').forEach(e => e.classList.remove('active'));
@@ -256,18 +257,12 @@
                 const userDoc = await getDoc(doc(db, "usuarios", user.email));
                 if(userDoc.exists()) myClanId = userDoc.data().clanId || null;
                 
-                // Configurar textos de las pestañas
-                if(myClanId) {
-                    tabAction.innerText = "Mi Clan";
-                    loadMyClanData();
-                } else {
-                    tabAction.innerText = "Fundar Clan";
-                }
+                if(myClanId) { tabAction.innerText = "Mi Clan"; loadMyClanData(); } 
+                else { tabAction.innerText = "Fundar Clan"; }
                 fetchClanes();
             }
         });
 
-        // Generador de Avatar helper (CORREGIDO CON BACKTICKS)
         const getAvatar = (email) => `https://api.dicebear.com/7.x/initials/svg?seed=${email}&backgroundColor=222`;
 
         // EXPLORAR CLANES
@@ -307,7 +302,6 @@
                                 <h3 class="clan-name">${clan.nombre}</h3>
                                 <div class="clan-stats">
                                     <span><i class="fi fi-sr-users"></i> ${clan.miembros.length}/5</span> 
-                                    <span><i class="fi fi-sr-star"></i> BR: ${clan.biciRating || 0}</span>
                                 </div>
                             </div>
                         </div>
@@ -319,7 +313,6 @@
                 `;
             });
 
-            // Asignar Eventos Solicitud
             document.querySelectorAll('.join-btn-click').forEach(btn => {
                 btn.onclick = async (e) => {
                     const clanIdToJoin = e.target.getAttribute('data-id');
@@ -331,13 +324,10 @@
                 }
             });
 
-            // Asignar Eventos Ver Ficha (Modal)
             document.querySelectorAll('.info-btn-click').forEach(btn => {
                 btn.onclick = (e) => {
                     const c = allClanes.find(x => x.id === e.target.getAttribute('data-id'));
-                    
                     document.getElementById('modal-header-color').style.background = `linear-gradient(to bottom, ${c.color}, transparent)`;
-                    
                     const membersHtml = c.miembros.map(m => `
                         <li class="member-item" style="border:none; padding:8px 0; background:transparent;">
                             <div class="member-info-group">
@@ -353,11 +343,7 @@
                         <h2 style="margin:0; color:var(--text-main); font-weight:900; text-transform:uppercase;">${c.nombre}</h2>
                         <p style="color:var(--text-muted); font-style:italic; font-size:0.95rem; margin-top:5px;">"${c.lema}"</p>
                         
-                        <div class="modal-rating-badge">
-                            <i class="fi fi-sr-star"></i> BiciRating: ${c.biciRating || 0}
-                        </div>
-                        
-                        <div style="background:var(--bg-input); padding:20px; border-radius:12px; margin-top: 10px;">
+                        <div style="background:var(--bg-input); padding:20px; border-radius:12px; margin-top: 20px;">
                             <h4 style="text-align:left; color:var(--text-muted); margin:0 0 10px 0; text-transform:uppercase; font-size:0.8rem;">Escuadrón (${c.miembros.length}/5)</h4>
                             <ul class="member-list" style="text-align:left;">${membersHtml}</ul>
                         </div>
@@ -372,6 +358,84 @@
             renderClanes(allClanes.filter(c => c.nombre.toLowerCase().includes(q)));
         });
 
+        // ------------------ LÓGICA DE TERRITORIOS DINÁMICOS ------------------
+        
+        async function getUserClan(email) {
+            const userDoc = await getDoc(doc(db, "usuarios", email));
+            return userDoc.exists() ? (userDoc.data().clanId || null) : null;
+        }
+
+        async function recalcularEstacion(numEstacion) {
+            const qAll = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
+            const snap = await getDocs(qAll);
+
+            let viajesPorRuta = {};
+            snap.forEach(d => {
+                const data = d.data();
+                const parts = data.ruta.split('-');
+                const orig = parts[0].replace(/^0+/, '') || "0";
+                const dest = parts[1].replace(/^0+/, '') || "0";
+
+                if (orig === numEstacion || dest === numEstacion) {
+                    if (!viajesPorRuta[data.ruta]) viajesPorRuta[data.ruta] = [];
+                    viajesPorRuta[data.ruta].push(data);
+                }
+            });
+
+            let puntosClan = {};
+
+            for (const [ruta, viajes] of Object.entries(viajesPorRuta)) {
+                viajes.sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
+                const top10 = viajes.slice(0, 10);
+
+                for (let i = 0; i < top10.length; i++) {
+                    const clanId = await getUserClan(top10[i].email_real);
+                    if (clanId) {
+                        let pts = 0;
+                        if (i === 0) pts = 7;
+                        else if (i === 1) pts = 5;
+                        else if (i === 2) pts = 3;
+                        else if (i >= 3 && i <= 9) pts = 1;
+
+                        puntosClan[clanId] = (puntosClan[clanId] || 0) + pts;
+                    }
+                }
+            }
+
+            let dominante = null;
+            let maxPts = 0;
+            let sumTotal = 0;
+            for (const [clan, pts] of Object.entries(puntosClan)) {
+                sumTotal += pts;
+                if (pts > maxPts) { maxPts = pts; dominante = clan; }
+            }
+
+            await setDoc(doc(db, "estaciones_stats", numEstacion), {
+                clan_dominante: dominante,
+                total_puntos: sumTotal,
+                puntos_detalle: puntosClan
+            }, { merge: true });
+        }
+
+        // Esta función se ejecuta siempre que un usuario cambia de clan (fichajes, abandonos, etc)
+        async function updateUserTerritories(email) {
+            const qUserTrips = query(collection(db, "tiempos_viaje"), where("email_real", "==", email), where("verificado", "==", true));
+            const snap = await getDocs(qUserTrips);
+            
+            let stationsToUpdate = new Set();
+            snap.forEach(doc => {
+                const data = doc.data();
+                const parts = data.ruta.split('-');
+                stationsToUpdate.add(parts[0].replace(/^0+/, '') || "0");
+                stationsToUpdate.add(parts[1].replace(/^0+/, '') || "0");
+            });
+
+            for (let stationNum of stationsToUpdate) {
+                await recalcularEstacion(stationNum);
+            }
+        }
+
+
         // PANEL MI CLAN
         async function loadMyClanData() {
             if(!myClanId) return;
@@ -380,12 +444,14 @@
             const clan = docSnap.data();
             const isClanLeader = clan.admin === currentUser.email;
 
-            // Render Miembros
+            // Calcular Cuántas estaciones domina este clan
+            const qStats = await getDocs(query(collection(db, "estaciones_stats"), where("clan_dominante", "==", myClanId)));
+            const estacionesConquistadas = qStats.size;
+
             let membersList = '';
             clan.miembros.forEach(m => {
                 let badge = m === clan.admin ? '<span class="badge-leader">Líder</span>' : '';
                 let kickBtn = (isClanLeader && m !== currentUser.email) ? `<button class="btn-icon reject" onclick="window.kickUser('${m}')" title="Expulsar"><i class="fi fi-br-cross"></i></button>` : '';
-                // AGREGADA LA FOTO AQUÍ
                 membersList += `
                     <li class="member-item">
                         <div class="member-info-group">
@@ -397,7 +463,6 @@
                     </li>`;
             });
 
-            // Render Solicitudes (Solo si es líder de clan)
             let adminHtml = '';
             if(isClanLeader && clan.solicitudes && clan.solicitudes.length > 0) {
                 adminHtml = `
@@ -423,7 +488,6 @@
 
             let leaveHtml = !isClanLeader ? `<button class="btn-danger-outline" onclick="window.leaveClan()"><i class="fi fi-br-exit"></i> Abandonar Clan</button>` : '';
 
-            // CAMBIADO EL COLOR DE LA BANDERA A AZUL AQUÍ (color:var(--primary))
             document.getElementById('myclan-content').innerHTML = `
                 <div class="my-clan-header">
                     <div class="my-clan-bg-blur" style="background:${clan.color};"></div>
@@ -442,7 +506,7 @@
                     <div class="dash-card">
                         <h3><i class="fi fi-ss-map-marker"></i> Territorio</h3>
                         <p style="color:var(--text-muted); font-size:0.9rem;">Zonas conquistadas en la ciudad.</p>
-                        <div style="font-size:3rem; font-weight:900; color:var(--primary); line-height:1; margin-top:10px;">0 <i class="fi fi-sr-flag" style="font-size:1.5rem; color:var(--primary);"></i></div>
+                        <div style="font-size:3rem; font-weight:900; color:var(--primary); line-height:1; margin-top:10px;">${estacionesConquistadas} <i class="fi fi-sr-flag" style="font-size:1.5rem; color:var(--primary);"></i></div>
                     </div>
                     ${adminHtml}
                 </div>
@@ -453,27 +517,45 @@
         // FUNCIONES ADMIN / MIEMBRO
         window.acceptUser = async (userEmail) => {
             try {
+                // 1. Asignar el clan
                 await updateDoc(doc(db, "clanes", myClanId), { solicitudes: arrayRemove(userEmail), miembros: arrayUnion(userEmail) });
                 await updateDoc(doc(db, "usuarios", userEmail), { clanId: myClanId });
+                
+                // 2. Mover su influencia territorial (Recalcular estaciones)
+                await updateUserTerritories(userEmail);
+                
+                alert("Usuario aceptado y mapa actualizado."); 
                 loadMyClanData(); fetchClanes();
             } catch (e) { alert("Error: " + e.message); }
         };
+        
         window.rejectUser = async (userEmail) => {
             try { await updateDoc(doc(db, "clanes", myClanId), { solicitudes: arrayRemove(userEmail) }); loadMyClanData(); fetchClanes(); } catch (e) {}
         };
+        
         window.kickUser = async (userEmail) => {
-            if(!confirm(`¿Expulsar a ${userEmail}?`)) return;
+            if(!confirm(`¿Expulsar a ${userEmail}? Sus puntos se restarán del territorio de tu clan.`)) return;
             try {
+                // 1. Quitar el clan
                 await updateDoc(doc(db, "clanes", myClanId), { miembros: arrayRemove(userEmail) });
                 await updateDoc(doc(db, "usuarios", userEmail), { clanId: null });
+                
+                // 2. Mover su influencia territorial (Recalcular estaciones)
+                await updateUserTerritories(userEmail);
+                
                 loadMyClanData(); fetchClanes();
             } catch (e) { alert("Error al expulsar."); }
         };
+        
         window.leaveClan = async () => {
-            if(!confirm("¿Abandonar el clan?")) return;
+            if(!confirm("¿Abandonar el clan? Tus puntos de territorio se irán contigo.")) return;
             try {
-                await updateDoc(doc(db, "clanes", myClanId), { miembros: arrayRemove(currentUser.email) });
-                await updateDoc(doc(db, "usuarios", currentUser.email), { clanId: null });
+                const myEmail = currentUser.email;
+                await updateDoc(doc(db, "clanes", myClanId), { miembros: arrayRemove(myEmail) });
+                await updateDoc(doc(db, "usuarios", myEmail), { clanId: null });
+                
+                await updateUserTerritories(myEmail);
+                
                 window.location.reload();
             } catch(e) {}
         };
@@ -497,6 +579,10 @@
                     admin: currentUser.email, miembros: [currentUser.email], solicitudes: [], biciRating: 0
                 });
                 await updateDoc(doc(db, "usuarios", currentUser.email), { clanId: newClanId });
+                
+                // Mover tu influencia al nuevo clan recién creado
+                await updateUserTerritories(currentUser.email);
+                
                 window.location.reload();
             } catch(e) { msg.innerText = "Error de conexión."; msg.style.color = "red"; }
         };

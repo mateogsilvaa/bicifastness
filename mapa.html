@@ -48,9 +48,9 @@
         .popup-clan { font-size: 0.8rem; font-weight: 700; display: inline-block; padding: 4px 10px; border-radius: 20px; margin-top: 5px; color: white; }
         .popup-body { padding: 15px; }
         
-        /* BOTÓN ASALTAR AZUL */
-        .btn-asaltar { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: var(--primary); color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 800; text-transform: uppercase; margin-top: 10px; transition: 0.2s; box-sizing: border-box; border: none;}
-        .btn-asaltar:hover { background: #005a9e; transform: scale(0.98); }
+        /* BOTÓN ASALTAR CORREGIDO (Texto Blanco Forzado) */
+        .btn-asaltar { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: var(--primary); color: #ffffff !important; text-decoration: none !important; padding: 12px; border-radius: 8px; font-weight: 800; text-transform: uppercase; margin-top: 10px; transition: 0.2s; box-sizing: border-box; border: none;}
+        .btn-asaltar:hover { background: #005a9e; color: #ffffff !important; transform: scale(0.98); }
 
         .bottom-nav { display: none; }
         @media (max-width: 850px) { 
@@ -160,7 +160,6 @@
                         
                         const clanId = statInfo ? statInfo.clan_dominante : null;
                         const clanData = (clanId && clanesDict[clanId]) ? clanesDict[clanId] : null;
-                        const puntosTotales = statInfo ? (statInfo.total_puntos || 0) : 0;
 
                         // Construcción de la etiqueta del clan
                         let clanBadge = clanData 

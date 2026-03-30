@@ -515,18 +515,38 @@
         }
 
         // FUNCIONES ADMIN / MIEMBRO
+        // FUNCIONES ADMIN / MIEMBRO
         window.acceptUser = async (userEmail) => {
             try {
-                // 1. Asignar el clan
-                await updateDoc(doc(db, "clanes", myClanId), { solicitudes: arrayRemove(userEmail), miembros: arrayUnion(userEmail) });
-                await updateDoc(doc(db, "usuarios", userEmail), { clanId: myClanId });
+                // 1. COMPROBACIÓN DE SEGURIDAD: ¿Ya tiene clan?
+                const userRef = doc(db, "usuarios", userEmail);
+                const userDoc = await getDoc(userRef);
                 
-                // 2. Mover su influencia territorial (Recalcular estaciones)
+                if (userDoc.exists() && userDoc.data().clanId !== null) {
+                    // Si ya tiene clan, le avisamos al líder y borramos la solicitud obsoleta
+                    alert(`¡Demasiado tarde! ${userEmail.split('@')[0]} ya se unió a otro escuadrón mientras esperaba.`);
+                    await updateDoc(doc(db, "clanes", myClanId), { solicitudes: arrayRemove(userEmail) });
+                    loadMyClanData(); 
+                    fetchClanes();
+                    return; // Detenemos la función aquí para que no entre en este clan
+                }
+
+                // 2. Si está libre, lo metemos en el clan
+                await updateDoc(doc(db, "clanes", myClanId), { 
+                    solicitudes: arrayRemove(userEmail), 
+                    miembros: arrayUnion(userEmail) 
+                });
+                await updateDoc(userRef, { clanId: myClanId });
+                
+                // 3. Mover su influencia territorial (Recalcular estaciones)
                 await updateUserTerritories(userEmail);
                 
-                alert("Usuario aceptado y mapa actualizado."); 
-                loadMyClanData(); fetchClanes();
-            } catch (e) { alert("Error: " + e.message); }
+                alert(`Has reclutado a ${userEmail.split('@')[0]} con éxito.`); 
+                loadMyClanData(); 
+                fetchClanes();
+            } catch (e) { 
+                alert("Error al aceptar usuario: " + e.message); 
+            }
         };
         
         window.rejectUser = async (userEmail) => {

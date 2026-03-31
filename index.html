@@ -19,6 +19,8 @@
         button:active { transform: scale(0.98); }
         button:hover { background: var(--primary-hover); }
         button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .guest-link { margin-top: 15px; display: block; font-size: 0.9em; font-weight: 700; color: var(--primary); text-decoration: none; padding: 10px; border: 1px solid var(--border); border-radius: 8px; transition: 0.2s;}
+        .guest-link:hover { background: rgba(0, 113, 195, 0.1); border-color: var(--primary);}
         .toggle { margin-top: 20px; font-size: 0.85em; }
         .toggle a { color: var(--text-muted); text-decoration: none; font-weight: 600; transition: color 0.3s; }
         .toggle a:hover { color: var(--primary); }
@@ -35,6 +37,7 @@
         <button id="action-btn">Entrar</button>
         <div id="error-msg"></div>
         <div class="toggle"><a href="register.html">¿No tienes cuenta? Regístrate</a></div>
+        <a href="home.html" class="guest-link">👀 Explorar sin cuenta</a>
     </div>
 
     <script type="module">

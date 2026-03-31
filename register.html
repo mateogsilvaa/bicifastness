@@ -1,58 +1,59 @@
-<!DOCTYPE html>
-<html lang="es" data-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --primary-hover: #005a9e; }
-        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --primary-hover: #005a9e; }
-        
-        body { margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: background 0.3s, color 0.3s; }
-        .card { background: var(--bg-card); padding: 2.5rem 2rem; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 100%; max-width: 350px; text-align: center; box-sizing: border-box;}
-        h1 { color: var(--primary); margin-top: 0; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
-        h3 { margin-top: 0; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; margin: 8px 0; background: var(--bg-main); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
-        input:focus { border-color: var(--primary); outline: none; }
-        button { width: 100%; padding: 14px; margin-top: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.3s, transform 0.1s; }
-        button:active { transform: scale(0.98); }
-        button:disabled { opacity: 0.6; cursor: not-allowed; }
-        .toggle { margin-top: 20px; font-size: 0.85em; }
-        .toggle a { color: var(--text-muted); text-decoration: none; font-weight: 600; transition: color 0.3s; }
-        .toggle a:hover { color: var(--primary); }
-        #error-msg { color: #ff4444; font-size: 0.85em; margin-top: 10px; min-height: 20px; font-weight: 600; }
-    </style>
-<link rel="icon" href="./logo.png?v=3" type="image/png">
-</head>
-<body>
-    <div class="card">
-        <h1>BiciFastness</h1>
-        <h3>Crear Cuenta</h3>
-        <input type="text" id="username" placeholder="Nombre de usuario (Rider)">
-        <input type="email" id="email" placeholder="Correo electrónico">
-        <input type="password" id="password" placeholder="Contraseña (mín. 6 chars)">
-        <input type="password" id="confirm-password" placeholder="Repite contraseña">
-        <button id="register-btn">Empezar a competir</button>
-        <div id="error-msg"></div>
-        <div class="toggle"><a href="index.html">¿Ya tienes cuenta? Inicia sesión</a></div>
-    </div>
+    <!DOCTYPE html>
+    <html lang="es" data-theme="dark">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Registro</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+            :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --primary-hover: #005a9e; }
+            [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --primary-hover: #005a9e; }
+            
+            body { margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: background 0.3s, color 0.3s; }
+            .card { background: var(--bg-card); padding: 2.5rem 2rem; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 100%; max-width: 350px; text-align: center; box-sizing: border-box;}
+            h1 { color: var(--primary); margin-top: 0; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
+            h3 { margin-top: 0; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; margin-bottom: 20px; }
+            input { width: 100%; padding: 12px; margin: 8px 0; background: var(--bg-main); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
+            input:focus { border-color: var(--primary); outline: none; }
+            button { width: 100%; padding: 14px; margin-top: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.3s, transform 0.1s; }
+            button:active { transform: scale(0.98); }
+            button:disabled { opacity: 0.6; cursor: not-allowed; }
+            .toggle { margin-top: 20px; font-size: 0.85em; }
+            .toggle a { color: var(--text-muted); text-decoration: none; font-weight: 600; transition: color 0.3s; }
+            .toggle a:hover { color: var(--primary); }
+            #error-msg { color: #ff4444; font-size: 0.85em; margin-top: 10px; min-height: 20px; font-weight: 600; }
+        </style>
+    <link rel="icon" href="./logo.png?v=3" type="image/png">
+    </head>
+    <body>
+        <div class="card">
+            <h1>BiciFastness</h1>
+            <h3>Crear Cuenta</h3>
+            <input type="text" id="username" placeholder="Nombre de usuario (Rider)">
+            <input type="email" id="email" placeholder="Correo electrónico">
+            <input type="password" id="password" placeholder="Contraseña (mín. 6 chars)">
+            <input type="password" id="confirm-password" placeholder="Repite contraseña">
+            <button id="register-btn">Empezar a competir</button>
+            <div id="error-msg"></div>
+            <div class="toggle"><a href="index.html">¿Ya tienes cuenta? Inicia sesión</a></div>
+        </div>
 
-    <script type="module">
+        <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        
+        // IMPORTAMOS NUESTRO FILTRO DE PALABRAS
+        import { containsBadWords } from './badwords.js';
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
         document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
         
-        // EL FRENO: Variable para saber si estamos en medio de un registro
         let isRegistering = false;
 
         onAuthStateChanged(auth, (user) => { 
-            // Si hay usuario Y NO estamos registrando, nos vamos al inicio (ej. si recargas la página estando logueado)
             if (user && !isRegistering) window.location.href = "home.html"; 
         });
 
@@ -69,16 +70,18 @@
             if(!username || !email || !pass || !confirmPass) { errorMsg.innerText = "Rellena todos los campos."; return; }
             if(pass !== confirmPass) { errorMsg.innerText = "Las contraseñas no coinciden."; return; }
 
+            // COMPROBACIÓN DE LENGUAJE OFENSIVO EN EL NOMBRE
+            if (containsBadWords(username)) {
+                errorMsg.innerText = "El nombre de usuario contiene palabras no permitidas.";
+                return;
+            }
+
             try {
                 btn.innerText = "Creando..."; btn.disabled = true;
-                
-                // ACTIVAMOS EL FRENO para que onAuthStateChanged no nos eche de la página
                 isRegistering = true; 
                 
-                // 1. Creamos la cuenta en Firebase Auth
                 const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
                 
-                // 2. Guardamos el perfil en Firestore de forma segura
                 await setDoc(doc(db, "usuarios", email), {
                     username: username,
                     email: email,
@@ -86,15 +89,14 @@
                     avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=0071c3`
                 });
                 
-                // 3. Una vez guardado todo correctamente, NOSOTROS hacemos la redirección
                 window.location.href = "home.html";
             } catch (error) {
-                isRegistering = false; // Quitamos el freno si da error
+                isRegistering = false; 
                 btn.disabled = false; btn.innerText = "Empezar a competir";
                 if(error.code === 'auth/email-already-in-use') errorMsg.innerText = "Correo ya registrado.";
                 else errorMsg.innerText = "Error: " + error.message;
             }
         });
     </script>
-</body>
-</html>
+    </body>
+    </html>

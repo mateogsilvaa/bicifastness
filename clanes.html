@@ -182,7 +182,7 @@
 
     <div class="bottom-nav">
         <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
-        <a href="ranking.html"><i class="fi fi-sr-leaderboard"></i>Rankings</a>
+        <a href="ranking.html"><i class="fi fi-sr-ranking-star"></i>Rankings</a>
         <a href="bicirating.html"><i class="fi fi-ss-medal"></i>Rating</a>
         <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
         <a href="mapa.html"><i class="fi fi-ss-map-marker"></i>Mapa</a>
@@ -194,7 +194,9 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
+        
+        // AÑADE ESTA LÍNEA
+        import { containsBadWords } from './badwords.js';
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
@@ -581,12 +583,20 @@
         };
 
         // FUNDAR CLAN
+        // FUNDAR CLAN
         document.getElementById('btn-submit-clan').onclick = async () => {
             const name = document.getElementById('clan-name').value.trim();
             const color = document.getElementById('clan-color').value;
             const motto = document.getElementById('clan-motto').value.trim();
             const msg = document.getElementById('create-msg');
             if(!name || !motto) { msg.innerText = "Rellena todos los campos."; msg.style.color = "red"; return; }
+
+            // COMPROBACIÓN DE LENGUAJE OFENSIVO
+            if (containsBadWords(name)) {
+                msg.innerText = "El nombre del clan contiene palabras no permitidas."; 
+                msg.style.color = "red"; 
+                return;
+            }
 
             const newClanId = name.replace(/\s+/g, '_').toLowerCase();
             try {

@@ -13,7 +13,6 @@
         
         body { margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s; }
         
-        /* NAVBAR UNIFICADO */
         nav { background: #000; border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
         nav .brand img { height: 35px; width: auto; display: block; }
@@ -26,12 +25,10 @@
 
         .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
         
-        /* Panel del Bot */
         .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 15px; flex-wrap: wrap; gap: 15px;}
         .title-group { display: flex; align-items: center; gap: 15px; }
         .badge-count { background: #0071c3; padding: 4px 10px; border-radius: 20px; font-weight: 700; color: white;}
         
-        /* Toggle Switch del Bot */
         .bot-toggle { display: flex; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 15px; border-radius: 30px; border: 1px solid var(--border); }
         .bot-toggle span { font-weight: 700; font-size: 0.9rem; color: #00C851; }
         .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
@@ -45,7 +42,6 @@
         .admin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;}
         .card-header { display: flex; justify-content: space-between; font-weight: 700; color: #0071c3; }
         
-        /* Estados del Bot */
         .bot-status { font-size: 0.9rem; font-weight: 600; padding: 12px; border-radius: 8px; background: var(--bg-input); border: 1px solid var(--border); display: none; margin-top: 5px; line-height: 1.4; }
         .bot-status.loading { color: #aaaaaa; border-color: #444; }
         .bot-status.success { color: #00C851; border-color: #00C851; background: rgba(0, 200, 81, 0.1); }
@@ -77,7 +73,7 @@
             <div class="card-header"><span style="color:#FFD700;">🔥 Destacar Ruta de la Semana</span></div>
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <input type="text" id="highlight-input" placeholder="Ej: 045-162" style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit;">
-                <button id="highlight-btn" style="background:#FFD700; color:#111;">Destacar</button>
+                <button id="highlight-btn" style="background:#FFD700; color:#111;">Destacar Ruta</button>
             </div>
         </div>
 
@@ -167,7 +163,6 @@
                     }
                     if (text.includes('€') || /0[.,]00/.test(text)) isApp = true;
 
-                    // --- RESULTADO ---
                     if (claimed_s >= 60) {
                         statusEl.className = 'bot-status danger'; statusEl.innerHTML = `🔴 <b>FALSO:</b> ${claimed_s} segundos imposible.`;
                     } else if (verify_Ids && (timeFound || mathStatus === "passed")) {
@@ -195,9 +190,45 @@
             } else { alert("Acceso denegado."); window.location.href = "home.html"; }
         });
 
-        // ------------------ DESTACAR RUTA ------------------
-        async function loadCurrentHighlighted() { const confDoc = await getDoc(doc(db, "config", "general")); if(confDoc.exists() && confDoc.data().ruta_destacada) document.getElementById('highlight-input').value = confDoc.data().ruta_destacada; }
-        document.getElementById('highlight-btn').addEventListener('click', async () => { await setDoc(doc(db, "config", "general"), { ruta_destacada: document.getElementById('highlight-input').value.trim() }, { merge: true }); alert("Ruta destacada actualizada."); });
+        // ------------------ DESTACAR RUTA (Con Recálculo) ------------------
+        async function loadCurrentHighlighted() { 
+            const confDoc = await getDoc(doc(db, "config", "general")); 
+            if(confDoc.exists() && confDoc.data().ruta_destacada) {
+                document.getElementById('highlight-input').value = confDoc.data().ruta_destacada; 
+            }
+        }
+
+        document.getElementById('highlight-btn').addEventListener('click', async () => { 
+            const btn = document.getElementById('highlight-btn');
+            btn.disabled = true; btn.innerText = "Aplicando...";
+            
+            const newRuta = document.getElementById('highlight-input').value.trim();
+            if(!newRuta) { btn.disabled = false; btn.innerText = "Destacar Ruta"; return; }
+
+            const confRef = doc(db, "config", "general");
+            const confDoc = await getDoc(confRef);
+            let historicas = [];
+            let oldDestacada = null;
+
+            if (confDoc.exists()) {
+                const data = confDoc.data();
+                oldDestacada = data.ruta_destacada;
+                historicas = data.rutas_historicas || [];
+                // Si había una ruta vieja y es distinta de la nueva, se vuelve histórica
+                if (oldDestacada && oldDestacada !== newRuta && !historicas.includes(oldDestacada)) {
+                    historicas.push(oldDestacada);
+                }
+            }
+            
+            await setDoc(confRef, { ruta_destacada: newRuta, rutas_historicas: historicas }, { merge: true });
+
+            // Recalculamos los BiciRatings de la ruta antigua (baja a x1.5) y la nueva (sube a x2)
+            if (oldDestacada) await recalcularRutaBiciRating(oldDestacada);
+            await recalcularRutaBiciRating(newRuta);
+
+            alert("Ruta destacada actualizada y rankings de jugadores recalculados.");
+            btn.disabled = false; btn.innerText = "Destacar Ruta";
+        });
 
         // ------------------ CARGAR PENDIENTES ------------------
         async function loadPendingTrips() {
@@ -227,9 +258,86 @@
             else { attachEvents(); if(isBotActive) processBotQueue(); }
         }
 
-        // ------------------ EL CEREBRO: RECÁLCULO TOTAL DE ESTACIÓN ------------------
-        const userClanCache = {}; // Cacheamos los clanes para no saturar Firebase con lecturas
+        // ------------------ EL CEREBRO: CÁLCULO DE BICIRATING (USUARIOS) ------------------
+        async function recalcularRutaBiciRating(rutaString) {
+            // 1. Obtener multiplicadores desde Firebase Config
+            let multiplier = 1;
+            const confDoc = await getDoc(doc(db, "config", "general"));
+            if(confDoc.exists()) {
+                const data = confDoc.data();
+                if (data.ruta_destacada === rutaString) multiplier = 2; // +100%
+                else if (data.rutas_historicas && data.rutas_historicas.includes(rutaString)) multiplier = 1.5; // +50%
+            }
 
+            // 2. Traer todos los viajes verificados de ESTA ruta
+            const qRoute = query(collection(db, "tiempos_viaje"), where("ruta", "==", rutaString), where("verificado", "==", true));
+            const snap = await getDocs(qRoute);
+
+            // 3. Filtrar para quedarnos solo con el MEJOR tiempo de cada usuario en esta ruta
+            let userBestTimes = {}; 
+            let usersInvolved = new Set(); // Todos los que alguna vez corrieron por aquí
+
+            snap.forEach(d => {
+                const data = d.data();
+                const email = data.email_real;
+                usersInvolved.add(email);
+                
+                // Si es su primera vez o es un tiempo mejor que el anterior que leímos
+                if(!userBestTimes[email] || data.tiempo_segundos < userBestTimes[email].tiempo) {
+                    userBestTimes[email] = { tiempo: data.tiempo_segundos };
+                }
+            });
+
+            // 4. Ordenar los tiempos para sacar el Top 7 absoluto
+            let topList = Object.entries(userBestTimes).map(([email, data]) => ({ email, ...data }));
+            topList.sort((a, b) => a.tiempo - b.tiempo); // De más rápido a más lento
+
+            // 5. Asignar los puntos base escalonados (Tu idea)
+            let pointsMap = {};
+            topList.forEach((u, index) => {
+                let pts = 0;
+                if (index === 0) pts = 80;
+                else if (index === 1) pts = 65;
+                else if (index === 2) pts = 55;
+                else if (index === 3 || index === 4) pts = 35;
+                else if (index === 5 || index === 6) pts = 20;
+
+                // Multiplicamos y redondeamos para evitar decimales
+                pointsMap[u.email] = Math.round(pts * multiplier);
+            });
+
+            // 6. Actualizar el perfil de CADA usuario que haya corrido en esta ruta
+            for (let email of usersInvolved) {
+                const routePoints = pointsMap[email] || 0; // Si ha caído del Top 7, gana 0 puntos.
+                
+                const userRef = doc(db, "usuarios", email);
+                const userDoc = await getDoc(userRef);
+                
+                if (userDoc.exists()) {
+                    let uData = userDoc.data();
+                    let dictRutas = uData.puntos_por_ruta || {};
+                    let totalViajes = uData.viajes_verificados_totales || 0; // Viajes totales
+                    
+                    // Actualizamos su medalla invisible para esta ruta específica
+                    dictRutas[rutaString] = routePoints;
+
+                    // SUMAMOS SU BICIRATING TOTAL
+                    // (5 puntos por cada viaje subido y verificado) + (La suma de todas sus medallas en rutas)
+                    let sumMedallas = 0;
+                    for (let r in dictRutas) sumMedallas += dictRutas[r];
+
+                    let finalBiciRating = (totalViajes * 5) + sumMedallas;
+
+                    await updateDoc(userRef, {
+                        puntos_por_ruta: dictRutas,
+                        biciRating: finalBiciRating
+                    });
+                }
+            }
+        }
+
+        // ------------------ EL CEREBRO 2: DUEÑOS DE ESTACIONES (CLANES) ------------------
+        const userClanCache = {};
         async function getUserClan(email) {
             if (userClanCache[email] !== undefined) return userClanCache[email];
             const userDoc = await getDoc(doc(db, "usuarios", email));
@@ -239,13 +347,10 @@
         }
 
         async function recalcularEstacion(numEstacion) {
-            // Traemos TODOS los viajes verificados
             const qAll = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
             const snap = await getDocs(qAll);
 
             let viajesPorRuta = {};
-
-            // Agrupamos solo las rutas que pasen por ESTA estación
             snap.forEach(d => {
                 const data = d.data();
                 const parts = data.ruta.split('-');
@@ -260,7 +365,6 @@
 
             let puntosClan = {};
 
-            // Calculamos el Top 10 para cada ruta involucrada
             for (const [ruta, viajes] of Object.entries(viajesPorRuta)) {
                 viajes.sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
                 const top10 = viajes.slice(0, 10);
@@ -273,49 +377,53 @@
                         else if (i === 1) pts = 5;
                         else if (i === 2) pts = 3;
                         else if (i >= 3 && i <= 9) pts = 1;
-
                         puntosClan[clanId] = (puntosClan[clanId] || 0) + pts;
                     }
                 }
             }
 
-            // Determinar quién tiene más puntos en la estación
-            let dominante = null;
-            let maxPts = 0;
-            let sumTotal = 0;
+            let dominante = null; let maxPts = 0; let sumTotal = 0;
             for (const [clan, pts] of Object.entries(puntosClan)) {
                 sumTotal += pts;
                 if (pts > maxPts) { maxPts = pts; dominante = clan; }
             }
 
-            // Guardar en la base de datos de estadísticas
             await setDoc(doc(db, "estaciones_stats", numEstacion), {
-                clan_dominante: dominante,
-                total_puntos: sumTotal,
-                puntos_detalle: puntosClan
+                clan_dominante: dominante, total_puntos: sumTotal, puntos_detalle: puntosClan
             }, { merge: true });
         }
 
-        // ------------------ EVENTOS DE BOTONES ------------------
+
+        // ------------------ EVENTOS DE BOTONES (APROBAR/RECHAZAR) ------------------
         function attachEvents() {
             document.querySelectorAll('.view-photo').forEach(b => b.onclick = e => { document.getElementById('modal-img').src = e.target.getAttribute('data-url'); document.getElementById('photo-modal').style.display = 'flex'; });
             
             document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { 
-                e.target.disabled = true; e.target.innerText = "Calculando..."; 
+                e.target.disabled = true; e.target.innerText = "Calculando Ratings..."; 
                 
                 const docId = e.target.getAttribute('data-id');
                 const ruta = e.target.getAttribute('data-ruta');
+                const email = e.target.getAttribute('data-email');
 
                 try {
                     // 1. Aprobar viaje
                     await updateDoc(doc(db, "tiempos_viaje", docId), { verificado: true }); 
 
-                    // 2. Extraer estaciones limpias (sin los ceros del principio)
+                    // 2. Sumar +1 viaje válido al perfil del usuario
+                    const userRef = doc(db, "usuarios", email);
+                    const userD = await getDoc(userRef);
+                    if(userD.exists()) {
+                        let vvt = (userD.data().viajes_verificados_totales || 0) + 1;
+                        await updateDoc(userRef, { viajes_verificados_totales: vvt });
+                    }
+
+                    // 3. Recalcular BiciRating (Jugadores)
+                    await recalcularRutaBiciRating(ruta);
+
+                    // 4. Recalcular Dominio de Estaciones (Clanes)
                     const parts = ruta.split('-');
                     const estOrigen = parts[0].replace(/^0+/, '') || "0";
                     const estDestino = parts[1].replace(/^0+/, '') || "0";
-
-                    // 3. Recalcular las dos estaciones
                     await recalcularEstacion(estOrigen);
                     await recalcularEstacion(estDestino);
 

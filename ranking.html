@@ -166,8 +166,12 @@
         let selectedRouteId = null;
 
         onAuthStateChanged(auth, async (user) => {
-            if (!user) window.location.href = "index.html";
-            else {
+            if (!user) {
+                // MODO INVITADO
+                currentU = null;
+                userFavorites = [];
+                load();
+            } else {
                 currentU = user;
                 const userDoc = await getDoc(doc(db, "usuarios", user.email));
                 if(userDoc.exists()) userFavorites = userDoc.data().favoriteRoutes || [];
@@ -248,6 +252,12 @@
         });
 
         document.getElementById('pin-btn').addEventListener('click', async () => {
+            // MODO INVITADO: Bloqueamos si no hay sesión
+            if (!currentU) {
+                window.location.href = "index.html";
+                return;
+            }
+
             if(!selectedRouteId) return;
             const btn = document.getElementById('pin-btn');
 
@@ -276,7 +286,6 @@
             if(userFavorites.includes(ruta)) { pinBtn.classList.add('pinned'); pinBtn.innerHTML = '<i class="fi fi-sr-bookmark"></i>'; }
             else { pinBtn.classList.remove('pinned'); pinBtn.innerHTML = '<i class="fi fi-br-bookmark"></i>'; }
             
-            // LA MAGIA: OBTENER EL MEJOR TIEMPO POR USUARIO
             let rawTrips = allTrips.filter(t => t.ruta === ruta).sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
             let trips = [];
             let seenUsers = new Set();

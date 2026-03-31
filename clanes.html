@@ -2,7 +2,7 @@
 <html lang="es" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Clanes | BiciFastness</title>
     
     <script>
@@ -182,7 +182,7 @@
 
     <div class="bottom-nav">
         <a href="home.html"><i class="fi fi-sr-home"></i>Inicio</a>
-        <a href="ranking.html"><i class="fi fi-sr-ranking-star"></i>Rankings</a>
+        <a href="ranking.html"><i class="fi fi-sr-leaderboard"></i>Rankings</a>
         <a href="bicirating.html"><i class="fi fi-ss-medal"></i>Rating</a>
         <a href="subir.html"><i class="fi fi-sr-add"></i>Subir</a>
         <a href="mapa.html"><i class="fi fi-ss-map-marker"></i>Mapa</a>
@@ -195,8 +195,8 @@
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         
-        // AÑADE ESTA LÍNEA
         import { containsBadWords } from './badwords.js';
+        
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
@@ -216,7 +216,13 @@
             viewList.style.display = 'block'; viewCreate.style.display = 'none'; viewMyClan.style.display = 'none';
             tabList.classList.add('active'); tabAction.classList.remove('active');
         };
+        
         tabAction.onclick = () => {
+            // MODO INVITADO: Al login si no hay sesión
+            if (!currentUser) {
+                window.location.href = "index.html";
+                return;
+            }
             viewList.style.display = 'none';
             tabList.classList.remove('active'); tabAction.classList.add('active');
             if(myClanId) { viewMyClan.style.display = 'block'; viewCreate.style.display = 'none'; } 
@@ -226,9 +232,8 @@
         document.getElementById('close-modal').onclick = () => modal.style.display = "none";
         window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
 
-        // ARRAY DE ICONOS 100% FUNCIONALES
         const icons = [
-            '<i class="fi fi-ss-chess-queen"></i>', '<i class="fi fi-ss-crown"></i>', '<i class="fi fi-ss-dragon"></i>', '<i class="fi fi-br-ufo-beam"></i>     ',
+            '<i class="fi fi-ss-chess-queen"></i>', '<i class="fi fi-ss-crown"></i>', '<i class="fi fi-ss-dragon"></i>', '<i class="fi fi-br-ufo-beam"></i>',
             '<i class="fi fi-sr-tachometer-alt-fastest"></i>', '<i class="fi fi-sr-fort"></i>', '<i class="fi fi-sr-sunrise"></i>', '<i class="fi fi-bs-sword"></i>',
             '<i class="fi fi-sr-spade"></i>', '<i class="fi fi-sr-club"></i>', '<i class="fi fi-ss-heart"></i>', '<i class="fi fi-sr-heart-arrow"></i>',
             '<i class="fi fi-ss-bike"></i>', '<i class="fi fi-sr-beer"></i>', '<i class="fi fi-rs-martini-glass-citrus"></i>', '<i class="fi fi-sr-dice-alt"></i>',
@@ -251,10 +256,14 @@
             iconGrid.appendChild(div);
         });
 
-        // Auth & Inicialización
+        // Auth & Inicialización - ACEPTA INVITADOS
         onAuthStateChanged(auth, async (user) => {
-            if (!user) window.location.href = "index.html";
-            else {
+            if (!user) {
+                currentUser = null;
+                myClanId = null;
+                tabAction.innerText = "Fundar Clan";
+                fetchClanes(); // Carga pública
+            } else {
                 currentUser = user;
                 const userDoc = await getDoc(doc(db, "usuarios", user.email));
                 if(userDoc.exists()) myClanId = userDoc.data().clanId || null;
@@ -287,7 +296,7 @@
             clanesArray.forEach(clan => {
                 const isFull = clan.miembros.length >= 5;
                 const isMyClan = myClanId === clan.id;
-                const isPending = clan.solicitudes.includes(currentUser.email);
+                const isPending = currentUser ? clan.solicitudes.includes(currentUser.email) : false;
 
                 let btnJoinHtml = '';
                 if(isMyClan) btnJoinHtml = `<button class="btn-join" disabled style="background:var(--primary); color:white; border:none;"><i class="fi fi-br-check"></i> Tu Clan</button>`;
@@ -317,6 +326,11 @@
 
             document.querySelectorAll('.join-btn-click').forEach(btn => {
                 btn.onclick = async (e) => {
+                    // MODO INVITADO
+                    if (!currentUser) {
+                        window.location.href = "index.html";
+                        return;
+                    }
                     const clanIdToJoin = e.target.getAttribute('data-id');
                     e.target.disabled = true; e.target.innerHTML = "<i class='fi fi-sr-spinner-alt'></i>...";
                     try {
@@ -361,7 +375,6 @@
         });
 
         // ------------------ LÓGICA DE TERRITORIOS DINÁMICOS ------------------
-        
         async function getUserClan(email) {
             const userDoc = await getDoc(doc(db, "usuarios", email));
             return userDoc.exists() ? (userDoc.data().clanId || null) : null;
@@ -398,45 +411,33 @@
                         else if (i === 1) pts = 5;
                         else if (i === 2) pts = 3;
                         else if (i >= 3 && i <= 9) pts = 1;
-
                         puntosClan[clanId] = (puntosClan[clanId] || 0) + pts;
                     }
                 }
             }
 
-            let dominante = null;
-            let maxPts = 0;
-            let sumTotal = 0;
+            let dominante = null; let maxPts = 0; let sumTotal = 0;
             for (const [clan, pts] of Object.entries(puntosClan)) {
                 sumTotal += pts;
                 if (pts > maxPts) { maxPts = pts; dominante = clan; }
             }
 
             await setDoc(doc(db, "estaciones_stats", numEstacion), {
-                clan_dominante: dominante,
-                total_puntos: sumTotal,
-                puntos_detalle: puntosClan
+                clan_dominante: dominante, total_puntos: sumTotal, puntos_detalle: puntosClan
             }, { merge: true });
         }
 
-        // Esta función se ejecuta siempre que un usuario cambia de clan (fichajes, abandonos, etc)
         async function updateUserTerritories(email) {
             const qUserTrips = query(collection(db, "tiempos_viaje"), where("email_real", "==", email), where("verificado", "==", true));
             const snap = await getDocs(qUserTrips);
-            
             let stationsToUpdate = new Set();
             snap.forEach(doc => {
-                const data = doc.data();
-                const parts = data.ruta.split('-');
+                const data = doc.data(); const parts = data.ruta.split('-');
                 stationsToUpdate.add(parts[0].replace(/^0+/, '') || "0");
                 stationsToUpdate.add(parts[1].replace(/^0+/, '') || "0");
             });
-
-            for (let stationNum of stationsToUpdate) {
-                await recalcularEstacion(stationNum);
-            }
+            for (let stationNum of stationsToUpdate) await recalcularEstacion(stationNum);
         }
-
 
         // PANEL MI CLAN
         async function loadMyClanData() {
@@ -446,7 +447,6 @@
             const clan = docSnap.data();
             const isClanLeader = clan.admin === currentUser.email;
 
-            // Calcular Cuántas estaciones domina este clan
             const qStats = await getDocs(query(collection(db, "estaciones_stats"), where("clan_dominante", "==", myClanId)));
             const estacionesConquistadas = qStats.size;
 
@@ -458,8 +458,7 @@
                     <li class="member-item">
                         <div class="member-info-group">
                             <img src="${getAvatar(m)}" class="member-avatar">
-                            <span>${m.split('@')[0]}</span> 
-                            ${badge}
+                            <span>${m.split('@')[0]}</span> ${badge}
                         </div> 
                         ${kickBtn}
                     </li>`;
@@ -471,7 +470,6 @@
                     <div class="dash-card admin-panel">
                         <h3><i class="fi fi-sr-envelope-open"></i> Solicitudes Pendientes</h3>
                         <p style="font-size:0.8rem; color:var(--text-muted); margin-top:-10px;">Elige a los mejores para tu escuadrón.</p>`;
-                
                 clan.solicitudes.forEach(req => {
                     adminHtml += `
                         <div class="request-item">
@@ -499,7 +497,6 @@
                         <p class="my-clan-motto">"${clan.lema}"</p>
                     </div>
                 </div>
-                
                 <div class="dashboard-grid">
                     <div class="dash-card">
                         <h3><i class="fi fi-sr-users"></i> Miembros (${clan.miembros.length}/5)</h3>
@@ -517,38 +514,21 @@
         }
 
         // FUNCIONES ADMIN / MIEMBRO
-        // FUNCIONES ADMIN / MIEMBRO
         window.acceptUser = async (userEmail) => {
             try {
-                // 1. COMPROBACIÓN DE SEGURIDAD: ¿Ya tiene clan?
                 const userRef = doc(db, "usuarios", userEmail);
                 const userDoc = await getDoc(userRef);
-                
                 if (userDoc.exists() && userDoc.data().clanId !== null) {
-                    // Si ya tiene clan, le avisamos al líder y borramos la solicitud obsoleta
                     alert(`¡Demasiado tarde! ${userEmail.split('@')[0]} ya se unió a otro escuadrón mientras esperaba.`);
                     await updateDoc(doc(db, "clanes", myClanId), { solicitudes: arrayRemove(userEmail) });
-                    loadMyClanData(); 
-                    fetchClanes();
-                    return; // Detenemos la función aquí para que no entre en este clan
+                    loadMyClanData(); fetchClanes(); return; 
                 }
-
-                // 2. Si está libre, lo metemos en el clan
-                await updateDoc(doc(db, "clanes", myClanId), { 
-                    solicitudes: arrayRemove(userEmail), 
-                    miembros: arrayUnion(userEmail) 
-                });
+                await updateDoc(doc(db, "clanes", myClanId), { solicitudes: arrayRemove(userEmail), miembros: arrayUnion(userEmail) });
                 await updateDoc(userRef, { clanId: myClanId });
-                
-                // 3. Mover su influencia territorial (Recalcular estaciones)
                 await updateUserTerritories(userEmail);
-                
                 alert(`Has reclutado a ${userEmail.split('@')[0]} con éxito.`); 
-                loadMyClanData(); 
-                fetchClanes();
-            } catch (e) { 
-                alert("Error al aceptar usuario: " + e.message); 
-            }
+                loadMyClanData(); fetchClanes();
+            } catch (e) { alert("Error al aceptar usuario: " + e.message); }
         };
         
         window.rejectUser = async (userEmail) => {
@@ -558,13 +538,9 @@
         window.kickUser = async (userEmail) => {
             if(!confirm(`¿Expulsar a ${userEmail}? Sus puntos se restarán del territorio de tu clan.`)) return;
             try {
-                // 1. Quitar el clan
                 await updateDoc(doc(db, "clanes", myClanId), { miembros: arrayRemove(userEmail) });
                 await updateDoc(doc(db, "usuarios", userEmail), { clanId: null });
-                
-                // 2. Mover su influencia territorial (Recalcular estaciones)
                 await updateUserTerritories(userEmail);
-                
                 loadMyClanData(); fetchClanes();
             } catch (e) { alert("Error al expulsar."); }
         };
@@ -575,14 +551,11 @@
                 const myEmail = currentUser.email;
                 await updateDoc(doc(db, "clanes", myClanId), { miembros: arrayRemove(myEmail) });
                 await updateDoc(doc(db, "usuarios", myEmail), { clanId: null });
-                
                 await updateUserTerritories(myEmail);
-                
                 window.location.reload();
             } catch(e) {}
         };
 
-        // FUNDAR CLAN
         // FUNDAR CLAN
         document.getElementById('btn-submit-clan').onclick = async () => {
             const name = document.getElementById('clan-name').value.trim();
@@ -591,11 +564,9 @@
             const msg = document.getElementById('create-msg');
             if(!name || !motto) { msg.innerText = "Rellena todos los campos."; msg.style.color = "red"; return; }
 
-            // COMPROBACIÓN DE LENGUAJE OFENSIVO
             if (containsBadWords(name)) {
                 msg.innerText = "El nombre del clan contiene palabras no permitidas."; 
-                msg.style.color = "red"; 
-                return;
+                msg.style.color = "red"; return;
             }
 
             const newClanId = name.replace(/\s+/g, '_').toLowerCase();
@@ -609,10 +580,7 @@
                     admin: currentUser.email, miembros: [currentUser.email], solicitudes: [], biciRating: 0
                 });
                 await updateDoc(doc(db, "usuarios", currentUser.email), { clanId: newClanId });
-                
-                // Mover tu influencia al nuevo clan recién creado
                 await updateUserTerritories(currentUser.email);
-                
                 window.location.reload();
             } catch(e) { msg.innerText = "Error de conexión."; msg.style.color = "red"; }
         };

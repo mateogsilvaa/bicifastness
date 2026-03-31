@@ -100,7 +100,7 @@ export const forbiddenWords = [
     "pousse-crotte", "putain", "pute", "ramoner", "sac à foutre", "sac à merde", 
     "salaud", "salope", "suce", "tapette", "tanche", "teuch", "tringler", 
     "trique", "troncher", "trou du cul", "turlute", "zigounette",
-    "admin", "administrator", "sistema", "system", "moderador", "mod", "bicimad", "bicifastness"
+    "admin", "administrator", "sistema", "system", "moderador", "bicifastness"
 ];
 
 // Función para validar un texto contra el diccionario

@@ -256,10 +256,12 @@
                         const discrepancia_foto = Math.abs(diferencia_matematica - aiResult.segundos_azul);
 
                         // Comprobación Foto vs Claim del usuario
-                        const origClaimed = trip.ruta.split('-')[0].replace(/^0+/, '');
-                        const destClaimed = trip.ruta.split('-')[1].replace(/^0+/, '');
-                        const origMatches = aiResult.origen === origClaimed;
-                        const destMatches = aiResult.destino === destClaimed;
+                        // Forzamos a que todo sea texto (String) y quitamos espacios invisibles (.trim)
+                        const origClaimed = String(trip.ruta.split('-')[0]).replace(/^0+/, '').trim();
+                        const destClaimed = String(trip.ruta.split('-')[1]).replace(/^0+/, '').trim();
+
+                        const origMatches = String(aiResult.origen).trim() === origClaimed;
+                        const destMatches = String(aiResult.destino).trim() === destClaimed;
                         const timeDiffUser = Math.abs(aiResult.segundos_azul - trip.tiempo_segundos);
                         const timeMatchesUser = timeDiffUser <= 5; 
 

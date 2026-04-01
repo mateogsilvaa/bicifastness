@@ -17,8 +17,11 @@
         :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
         [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --bg-input: #f0f0f0; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
         
+        /* AUMENTADO EL PADDING BOTTOM A 100px PARA QUE SE VEA EL ÚLTIMO VIAJE */
         body { margin: 0; padding: 0; padding-bottom: 100px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
         
+        /* NAVBAR CON LOGO Y CENTRADO DE INFO ARREGLADO */
+        /* NAVBAR UNIFICADO */
         nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
         
@@ -27,6 +30,7 @@
         nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; transition: color 0.3s; line-height: 1; }
         nav .links a.active, nav .links a:hover { color: var(--text-main); }
         
+        /* Ajuste óptico milimétrico para el icono Info */
         .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
         .info-icon:hover { color: var(--primary); }
 
@@ -178,7 +182,7 @@
         </div>
     </div>
 
-    <script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="mateogsilvaa" data-description="Support me on Buy me a coffee!" data-message="" data-color="#5F7FFF" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
+    <script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="bicifastness" data-description="Support me on Buy me a coffee!" data-message="Buy me a ride" data-color="#5F7FFF" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
@@ -248,7 +252,7 @@
             if (bmcFrame) {
                  window.postMessage('openBMCWindow', '*'); 
             } else {
-                 window.open('https://buymeacoffee.com/mateogsilvaa', '_blank');
+                 window.open('https://buymeacoffee.com/bicifastness', '_blank');
             }
         });
 

@@ -138,7 +138,7 @@
             
             if(statusEl && isBotActive) {
                 statusEl.className = 'bot-status loading';
-                statusEl.innerHTML = '🤖 Analizando imagen con Gemini IA (Modo Estricto)...';
+                statusEl.innerHTML = '🤖 Analizando imagen con Gemini IA (Modo Auditor Forense Integral)...';
                 
                 try {
                     // 1. OBTENER LA API KEY DE FORMA SEGURA DESDE FIRESTORE
@@ -150,14 +150,33 @@
                     const base64Data = trip.foto_url.split(',')[1];
                     const mimeType = trip.foto_url.match(/data:(.*?);/)[1];
 
-                    // Le damos las NUEVAS instrucciones a la IA (Modo Policía)
-                    const prompt = `Eres un verificador auditor experto de la app BiciMAD. Analiza la imagen minuciosamente para detectar falsificaciones y extrae: 
-                    1) El número de la estación de origen (solo el número inicial, ej: '165'). 
-                    2) El número de la estación de destino (solo el número inicial, ej: '47'). 
-                    3) La duración total del recuadro inferior azul en segundos (ej: '07m. 32s' = 452). 
-                    4) La hora exacta de salida que aparece en texto gris bajo la estación de origen (extrae SOLO el formato 'HH:MM:SS').
-                    5) La hora exacta de llegada que aparece en texto gris bajo la estación de destino (extrae SOLO el formato 'HH:MM:SS').
-                    Devuelve ESTRICTAMENTE y ÚNICAMENTE un objeto JSON válido con esta estructura: {"origen": "numero", "destino": "numero", "segundos_azul": numero, "hora_salida": "HH:MM:SS", "hora_llegada": "HH:MM:SS", "es_bicimad": true}. Si la imagen no parece un ticket oficial de BiciMAD, devuelve {"es_bicimad": false}. No añadas comillas markdown ni texto extra.`;
+                    // Le damos las NUEVAS instrucciones a la IA (Modo AUDITOR FORENSE VISUAL Y MATEMÁTICO)
+                    const prompt = `Eres un auditor forense digital experto en detectar manipulación de imágenes de la app BiciMAD. Analiza la captura de pantalla minuciosamente.
+
+                    1. INSPECCIÓN VISUAL OBLIGATORIA (Píxeles y Diseño):
+                       - Examina las fuentes (fonts) del texto gris de las horas y fechas (ej: '18:00:00'). ¿El renderizado de los píxeles y el grosor de la letra son idénticos al resto del texto gris estable de la interfaz, o parecen texto superpuesto posteriormente?
+                       - Revisa la alineación. ¿Están las horas perfectamente centradas bajo los pins, o hay desviaciones sospechosas?
+                       - Busca textos sospechosos de composite (pegados). En tu imagen de prueba, el destino muestra la estructura '47 - Renfe/Cercanías Embajadores (47)'. La repetición del número (47) al inicio y al final entre paréntesis es un error típico de diseño de falsificaciones (composite mal hecho). Una app profesional raramente usaría ese formato redundante. Si detectas esta estructura redundante, marca la imagen como visualmente falsa.
+
+                    2. EXTRACCIÓN DE DATOS (Solo si la inspección visual es aprobada):
+                       - Extrae número estación origen.
+                       - Extrae número estación destino.
+                       - Extrae duración total azul en segundos.
+                       - Extrae hora salida gris (HH:MM:SS).
+                       - Extrae hora llegada gris (HH:MM:SS).
+
+                    3. RESPUESTA:
+                       Devuelve ÚNICAMENTE un objeto JSON válido.
+                       Estructura si la imagen es falsa VISUALMENTE (font alterada, textos redundantes sospechosos):
+                       {"visual_integrity": false, "manipulation_details": "Detalles cortos de lo detectado, ej: 'Texto redundante de estación' o 'Font alterada en hora de salida'"}
+
+                       Estructura si la imagen parece genuina visualmente:
+                       {"visual_integrity": true, "origen": "numero", "destino": "numero", "segundos_azul": numero, "hora_salida": "HH:MM:SS", "hora_llegada": "HH:MM:SS", "es_bicimad": true}
+
+                       Si no parece ser un ticket de BiciMAD:
+                       {"es_bicimad": false, "visual_integrity": false}
+
+                    No añadas markdown ni texto extra.`;
 
                     const requestBody = {
                         contents: [{
@@ -207,12 +226,18 @@
                     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
                     const aiResult = JSON.parse(jsonText);
 
-                    // 4. EVALUAMOS LA RESPUESTA DE LA IA (Modo Estricto)
-                    if (!aiResult.es_bicimad) {
+                    // 4. EVALUAMOS LA RESPUESTA DE LA IA (Modo Inspector Forense Integral)
+                    if (aiResult.es_bicimad === false) {
                         statusEl.className = 'bot-status danger';
                         statusEl.innerHTML = `🔴 <b>FALSO:</b> La IA determina que la imagen no es de BiciMAD.`;
-                    } else {
-                        // Cálculos matemáticos de fechas
+                    } else if (aiResult.visual_integrity === false) {
+                        // !!! CAZADO POR PÍXELES !!! (Incluso si las mates cuadraban)
+                        statusEl.className = 'bot-status danger';
+                        statusEl.innerHTML = `🔴 <b>FALSIFICACIÓN VISUAL DETECTADA:</b><br>
+                        La IA ha detectado manipulación visual en los píxeles de la imagen.<br>
+                        Motivo: <b>${aiResult.manipulation_details}</b>.`;
+                    } else if (aiResult.visual_integrity === true) {
+                        // !!! PASÓ EL EXAMEN VISUAL, AHORA MATEMÁTICAS !!!
                         const parseTime = (timeStr) => {
                             if (!timeStr || !timeStr.includes(':')) return 0;
                             const [h, m, s] = timeStr.split(':').map(Number);
@@ -226,11 +251,10 @@
                         // Por si el viaje pasa de las 23:59 a las 00:00
                         if (diferencia_matematica < 0) diferencia_matematica += 24 * 3600;
 
-                        // Comprobación 1: Auditoría interna de la foto (manipulación)
-                        // Permitimos 2 segundos de desfase por redondeos de la app, pero pillará tus 6 segundos
+                        // Comprobación interna de la foto (redondeo de la app de 2s)
                         const discrepancia_foto = Math.abs(diferencia_matematica - aiResult.segundos_azul);
 
-                        // Comprobación 2: Foto vs Lo que dice el usuario
+                        // Comprobación Foto vs Claim del usuario
                         const origClaimed = trip.ruta.split('-')[0].replace(/^0+/, '');
                         const destClaimed = trip.ruta.split('-')[1].replace(/^0+/, '');
                         const origMatches = aiResult.origen === origClaimed;
@@ -239,15 +263,16 @@
                         const timeMatchesUser = timeDiffUser <= 5; 
 
                         if (discrepancia_foto > 2) {
-                            // Cazada la falsificación
+                            // Cazada la falsificación matemática
                             statusEl.className = 'bot-status danger';
-                            statusEl.innerHTML = `🔴 <b>FALSIFICACIÓN DETECTADA:</b><br>
-                            Las matemáticas de la foto no cuadran. Diferencia real entre horas: <b>${diferencia_matematica}s</b>.<br>
+                            statusEl.innerHTML = `🔴 <b>FALSIFICACIÓN MATEMÁTICA DETECTADA:</b><br>
+                            Las matemáticas internas de la foto no cuadran. Diferencia real entre horas: <b>${diferencia_matematica}s</b>.<br>
                             El recuadro azul ha sido manipulado a <b>${aiResult.segundos_azul}s</b>.`;
                         } else if (origMatches && destMatches && timeMatchesUser) {
                             statusEl.className = 'bot-status success';
-                            statusEl.innerHTML = `🟢 <b>VERIFICADO (CSI):</b> Ruta ${aiResult.origen}-${aiResult.destino} en ${aiResult.segundos_azul}s. Sin rastro de manipulación.`;
+                            statusEl.innerHTML = `🟢 <b>VERIFICADO (AUDITORÍA COMPLETA):</b> Ruta ${aiResult.origen}-${aiResult.destino} en ${aiResult.segundos_azul}s. Sin rastro de manipulación visual ni matemática.`;
                         } else {
+                            // Discrepancia con el formulario
                             statusEl.className = 'bot-status danger';
                             statusEl.innerHTML = `🔴 <b>DISCREPANCIA CON EL USUARIO:</b><br>
                             La IA ha leído en la foto: Ruta <b>${aiResult.origen}-${aiResult.destino}</b> en <b>${aiResult.segundos_azul}s</b>.<br>

@@ -218,7 +218,6 @@
         };
         
         tabAction.onclick = () => {
-            // MODO INVITADO: Al login si no hay sesión
             if (!currentUser) {
                 window.location.href = "index.html";
                 return;
@@ -256,13 +255,44 @@
             iconGrid.appendChild(div);
         });
 
-        // Auth & Inicialización - ACEPTA INVITADOS
+        // ------------------ SISTEMA DE AVATARES REALES (CACHÉ) ------------------
+        const usersCache = {};
+        
+        async function getUserData(email) {
+            if (usersCache[email]) return usersCache[email]; 
+            
+            const userDoc = await getDoc(doc(db, "usuarios", email));
+            if (userDoc.exists()) {
+                usersCache[email] = {
+                    username: userDoc.data().username || email.split('@')[0],
+                    avatar: userDoc.data().avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${email}&backgroundColor=0071c3`
+                };
+            } else {
+                usersCache[email] = {
+                    username: email.split('@')[0],
+                    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${email}&backgroundColor=0071c3`
+                };
+            }
+            return usersCache[email];
+        }
+
+        // ------------------ CALCULAR BICIRATING DEL CLAN ------------------
+        async function recalcularBiciRatingClan(clanId) {
+            if (!clanId) return;
+            const qUsers = query(collection(db, "usuarios"), where("clanId", "==", clanId));
+            const snap = await getDocs(qUsers);
+            let total = 0;
+            snap.forEach(d => total += (d.data().biciRating || 0));
+            await updateDoc(doc(db, "clanes", clanId), { biciRating: total });
+        }
+
+
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 currentUser = null;
                 myClanId = null;
                 tabAction.innerText = "Fundar Clan";
-                fetchClanes(); // Carga pública
+                fetchClanes(); 
             } else {
                 currentUser = user;
                 const userDoc = await getDoc(doc(db, "usuarios", user.email));
@@ -273,8 +303,6 @@
                 fetchClanes();
             }
         });
-
-        const getAvatar = (email) => `https://api.dicebear.com/7.x/initials/svg?seed=${email}&backgroundColor=222`;
 
         // EXPLORAR CLANES
         async function fetchClanes() {
@@ -326,7 +354,6 @@
 
             document.querySelectorAll('.join-btn-click').forEach(btn => {
                 btn.onclick = async (e) => {
-                    // MODO INVITADO
                     if (!currentUser) {
                         window.location.href = "index.html";
                         return;
@@ -341,18 +368,9 @@
             });
 
             document.querySelectorAll('.info-btn-click').forEach(btn => {
-                btn.onclick = (e) => {
+                btn.onclick = async (e) => {
                     const c = allClanes.find(x => x.id === e.target.getAttribute('data-id'));
                     document.getElementById('modal-header-color').style.background = `linear-gradient(to bottom, ${c.color}, transparent)`;
-                    const membersHtml = c.miembros.map(m => `
-                        <li class="member-item" style="border:none; padding:8px 0; background:transparent;">
-                            <div class="member-info-group">
-                                <img src="${getAvatar(m)}" class="member-avatar">
-                                <span>${m.split('@')[0]}</span>
-                                ${c.admin===m ? '<span class="badge-leader">Líder</span>' : ''}
-                            </div>
-                        </li>
-                    `).join('');
                     
                     document.getElementById('modal-body').innerHTML = `
                         <div class="clan-shield" style="background:${c.color}; margin: 0 auto 15px auto; width: 70px; height: 70px; font-size: 2rem;">${c.icono}</div>
@@ -361,10 +379,28 @@
                         
                         <div style="background:var(--bg-input); padding:20px; border-radius:12px; margin-top: 20px;">
                             <h4 style="text-align:left; color:var(--text-muted); margin:0 0 10px 0; text-transform:uppercase; font-size:0.8rem;">Escuadrón (${c.miembros.length}/5)</h4>
-                            <ul class="member-list" style="text-align:left;">${membersHtml}</ul>
+                            <ul class="member-list" style="text-align:left;" id="modal-member-list">
+                                <div style="text-align:center; padding:10px;"><i class="fi fi-sr-spinner-alt"></i> Cargando pilotos...</div>
+                            </ul>
                         </div>
                     `;
                     modal.style.display = "block";
+
+                    // Cargar avatares reales
+                    let membersHtml = '';
+                    for (let m of c.miembros) {
+                        let uData = await getUserData(m);
+                        membersHtml += `
+                            <li class="member-item" style="border:none; padding:8px 0; background:transparent;">
+                                <div class="member-info-group">
+                                    <img src="${uData.avatar}" class="member-avatar">
+                                    <span>${uData.username}</span>
+                                    ${c.admin === m ? '<span class="badge-leader">Líder</span>' : ''}
+                                </div>
+                            </li>
+                        `;
+                    }
+                    document.getElementById('modal-member-list').innerHTML = membersHtml;
                 }
             });
         }
@@ -375,11 +411,6 @@
         });
 
         // ------------------ LÓGICA DE TERRITORIOS DINÁMICOS ------------------
-        async function getUserClan(email) {
-            const userDoc = await getDoc(doc(db, "usuarios", email));
-            return userDoc.exists() ? (userDoc.data().clanId || null) : null;
-        }
-
         async function recalcularEstacion(numEstacion) {
             const qAll = query(collection(db, "tiempos_viaje"), where("verificado", "==", true));
             const snap = await getDocs(qAll);
@@ -404,7 +435,9 @@
                 const top10 = viajes.slice(0, 10);
 
                 for (let i = 0; i < top10.length; i++) {
-                    const clanId = await getUserClan(top10[i].email_real);
+                    const userDoc = await getDoc(doc(db, "usuarios", top10[i].email_real));
+                    const clanId = userDoc.exists() ? (userDoc.data().clanId || null) : null;
+                    
                     if (clanId) {
                         let pts = 0;
                         if (i === 0) pts = 7;
@@ -451,18 +484,19 @@
             const estacionesConquistadas = qStats.size;
 
             let membersList = '';
-            clan.miembros.forEach(m => {
+            for (let m of clan.miembros) {
+                let uData = await getUserData(m);
                 let badge = m === clan.admin ? '<span class="badge-leader">Líder</span>' : '';
                 let kickBtn = (isClanLeader && m !== currentUser.email) ? `<button class="btn-icon reject" onclick="window.kickUser('${m}')" title="Expulsar"><i class="fi fi-br-cross"></i></button>` : '';
                 membersList += `
                     <li class="member-item">
                         <div class="member-info-group">
-                            <img src="${getAvatar(m)}" class="member-avatar">
-                            <span>${m.split('@')[0]}</span> ${badge}
+                            <img src="${uData.avatar}" class="member-avatar">
+                            <span>${uData.username}</span> ${badge}
                         </div> 
                         ${kickBtn}
                     </li>`;
-            });
+            }
 
             let adminHtml = '';
             if(isClanLeader && clan.solicitudes && clan.solicitudes.length > 0) {
@@ -470,19 +504,21 @@
                     <div class="dash-card admin-panel">
                         <h3><i class="fi fi-sr-envelope-open"></i> Solicitudes Pendientes</h3>
                         <p style="font-size:0.8rem; color:var(--text-muted); margin-top:-10px;">Elige a los mejores para tu escuadrón.</p>`;
-                clan.solicitudes.forEach(req => {
+                
+                for (let req of clan.solicitudes) {
+                    let reqData = await getUserData(req);
                     adminHtml += `
                         <div class="request-item">
                             <div class="member-info-group">
-                                <img src="${getAvatar(req)}" class="member-avatar">
-                                <span>${req.split('@')[0]}</span>
+                                <img src="${reqData.avatar}" class="member-avatar">
+                                <span>${reqData.username}</span>
                             </div>
                             <div>
                                 <button class="btn-icon accept" onclick="window.acceptUser('${req}')" title="Aceptar"><i class="fi fi-br-check"></i></button>
                                 <button class="btn-icon reject" onclick="window.rejectUser('${req}')" title="Rechazar"><i class="fi fi-br-cross"></i></button>
                             </div>
                         </div>`;
-                });
+                }
                 adminHtml += `</div>`;
             }
 
@@ -526,6 +562,9 @@
                 await updateDoc(doc(db, "clanes", myClanId), { solicitudes: arrayRemove(userEmail), miembros: arrayUnion(userEmail) });
                 await updateDoc(userRef, { clanId: myClanId });
                 await updateUserTerritories(userEmail);
+                
+                await recalcularBiciRatingClan(myClanId);
+
                 alert(`Has reclutado a ${userEmail.split('@')[0]} con éxito.`); 
                 loadMyClanData(); fetchClanes();
             } catch (e) { alert("Error al aceptar usuario: " + e.message); }
@@ -541,6 +580,9 @@
                 await updateDoc(doc(db, "clanes", myClanId), { miembros: arrayRemove(userEmail) });
                 await updateDoc(doc(db, "usuarios", userEmail), { clanId: null });
                 await updateUserTerritories(userEmail);
+                
+                await recalcularBiciRatingClan(myClanId);
+
                 loadMyClanData(); fetchClanes();
             } catch (e) { alert("Error al expulsar."); }
         };
@@ -552,6 +594,9 @@
                 await updateDoc(doc(db, "clanes", myClanId), { miembros: arrayRemove(myEmail) });
                 await updateDoc(doc(db, "usuarios", myEmail), { clanId: null });
                 await updateUserTerritories(myEmail);
+                
+                await recalcularBiciRatingClan(myClanId);
+
                 window.location.reload();
             } catch(e) {}
         };
@@ -581,6 +626,9 @@
                 });
                 await updateDoc(doc(db, "usuarios", currentUser.email), { clanId: newClanId });
                 await updateUserTerritories(currentUser.email);
+                
+                await recalcularBiciRatingClan(newClanId);
+
                 window.location.reload();
             } catch(e) { msg.innerText = "Error de conexión."; msg.style.color = "red"; }
         };

@@ -172,7 +172,11 @@
                         body: JSON.stringify(requestBody)
                     });
 
-                    if (!response.ok) throw new Error("Error en la conexión con la IA");
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        console.error("Detalles del error de Gemini:", errData);
+                        throw new Error(errData.error?.message || "Código de error: " + response.status);
+                    }
 
                     const data = await response.json();
                     let jsonText = data.candidates[0].content.parts[0].text;

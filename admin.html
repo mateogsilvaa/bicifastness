@@ -150,13 +150,14 @@
                     const base64Data = trip.foto_url.split(',')[1];
                     const mimeType = trip.foto_url.match(/data:(.*?);/)[1];
 
-                    // Le damos las NUEVAS instrucciones a la IA (Modo AUDITOR FORENSE VISUAL Y MATEMÁTICO)
+                    // Le damos las NUEVAS instrucciones a la IA (Modo Auditor Forense CORREGIDO)
                     const prompt = `Eres un auditor forense digital experto en detectar manipulación de imágenes de la app BiciMAD. Analiza la captura de pantalla minuciosamente.
 
                     1. INSPECCIÓN VISUAL OBLIGATORIA (Píxeles y Diseño):
                        - Examina las fuentes (fonts) del texto gris de las horas y fechas (ej: '18:00:00'). ¿El renderizado de los píxeles y el grosor de la letra son idénticos al resto del texto gris estable de la interfaz, o parecen texto superpuesto posteriormente?
                        - Revisa la alineación. ¿Están las horas perfectamente centradas bajo los pins, o hay desviaciones sospechosas?
-                       - Busca textos sospechosos de composite (pegados). En tu imagen de prueba, el destino muestra la estructura '47 - Renfe/Cercanías Embajadores (47)'. La repetición del número (47) al inicio y al final entre paréntesis es un error típico de diseño de falsificaciones (composite mal hecho). Una app profesional raramente usaría ese formato redundante. Si detectas esta estructura redundante, marca la imagen como visualmente falsa.
+
+                       - ¡NUEVO AJUSTE IMPORTANTE!: Acepta como VÁLIDO el formato redundante de estación "Número - Nombre (Número)" (ej: "47 - Renfe/Cercanías Embajadores (47)"). Se ha confirmado que es un formato REAL y legítimo de la app BiciMAD, no un error de composite. No lo marques como falso por esto.
 
                     2. EXTRACCIÓN DE DATOS (Solo si la inspección visual es aprobada):
                        - Extrae número estación origen.
@@ -167,8 +168,8 @@
 
                     3. RESPUESTA:
                        Devuelve ÚNICAMENTE un objeto JSON válido.
-                       Estructura si la imagen es falsa VISUALMENTE (font alterada, textos redundantes sospechosos):
-                       {"visual_integrity": false, "manipulation_details": "Detalles cortos de lo detectado, ej: 'Texto redundante de estación' o 'Font alterada en hora de salida'"}
+                       Estructura si la imagen es falsa VISUALMENTE (font alterada, textos superpuestos, etc):
+                       {"visual_integrity": false, "manipulation_details": "Detalles cortos de lo detectado, ej: 'Font alterada en hora de salida' o 'Alineación sospechosa'"}
 
                        Estructura si la imagen parece genuina visualmente:
                        {"visual_integrity": true, "origen": "numero", "destino": "numero", "segundos_azul": numero, "hora_salida": "HH:MM:SS", "hora_llegada": "HH:MM:SS", "es_bicimad": true}
@@ -231,13 +232,13 @@
                         statusEl.className = 'bot-status danger';
                         statusEl.innerHTML = `🔴 <b>FALSO:</b> La IA determina que la imagen no es de BiciMAD.`;
                     } else if (aiResult.visual_integrity === false) {
-                        // !!! CAZADO POR PÍXELES !!! (Incluso si las mates cuadraban)
+                        // Cazado por píxeles alterados o alineación
                         statusEl.className = 'bot-status danger';
                         statusEl.innerHTML = `🔴 <b>FALSIFICACIÓN VISUAL DETECTADA:</b><br>
                         La IA ha detectado manipulación visual en los píxeles de la imagen.<br>
                         Motivo: <b>${aiResult.manipulation_details}</b>.`;
                     } else if (aiResult.visual_integrity === true) {
-                        // !!! PASÓ EL EXAMEN VISUAL, AHORA MATEMÁTICAS !!!
+                        // Pasó el examen visual, ahora matemáticas
                         const parseTime = (timeStr) => {
                             if (!timeStr || !timeStr.includes(':')) return 0;
                             const [h, m, s] = timeStr.split(':').map(Number);

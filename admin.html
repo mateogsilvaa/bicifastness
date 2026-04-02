@@ -52,9 +52,16 @@
         .btn-view { background: #222; color: #fff; border: 1px solid #444; width: 100%; }
         .actions { display: flex; gap: 10px; margin-top: 10px;} .actions button {flex: 1;}
         .btn-approve { background: #00C851; color: #003311; } .btn-reject { background: #ff4444; color: #4d0000; }
+        
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
         .modal img { max-width: 90%; max-height: 80vh; border-radius: 8px; }
         .close-modal { position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem; cursor: pointer; font-weight: 800; }
+
+        /* ESTILOS PARA EL GESTOR DE INSIGNIAS */
+        .badges-manager-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 15px; }
+        .badge-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); }
+        .badge-info { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 600; }
+        .badge-icon { font-size: 1.2rem; }
     </style>
 </head>
 <body>
@@ -69,12 +76,32 @@
     </nav>
 
     <div class="container">
-        <div class="admin-card" style="margin-bottom: 30px;">
+        
+        <div class="admin-card" style="margin-bottom: 20px;">
             <div class="card-header"><span style="color:#FFD700;">🔥 Destacar Ruta de la Semana</span></div>
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <input type="text" id="highlight-input" placeholder="Ej: 045-162" style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit;">
                 <button id="highlight-btn" style="background:#FFD700; color:#111;">Destacar Ruta</button>
             </div>
+        </div>
+
+        <div class="admin-card" style="margin-bottom: 40px; border-color: #9C27B0;">
+            <div class="card-header"><span style="color:#E040FB;">🏅 Gestor de Insignias (Usuarios y Clanes)</span></div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin: 5px 0 15px 0;">Busca el <b>email exacto</b> del usuario o el <b>ID exacto</b> del clan (ej: <i>los_angeles_del_asfalto</i>) para gestionar sus chapas.</p>
+            
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <select id="badge-target-type" style="padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-weight:700; outline:none;">
+                    <option value="usuarios">Piloto (Email)</option>
+                    <option value="clanes">Clan (ID)</option>
+                </select>
+                <input type="text" id="badge-search-input" placeholder="Email del piloto o ID del clan..." style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit;">
+                <button id="badge-search-btn" style="background:#9C27B0; color:#fff;">Buscar</button>
+            </div>
+
+            <div id="badge-target-name" style="font-weight: 800; font-size: 1.1rem; color: #E040FB; margin-bottom: 10px; display: none;">Editando a: <span></span></div>
+            
+            <div class="badges-manager-grid" id="badges-grid" style="display: none;">
+                </div>
         </div>
 
         <div class="header-panel">
@@ -101,6 +128,9 @@
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+        // IMPORTAR DICCIONARIO DE INSIGNIAS
+        import { DICCIONARIO_INSIGNIAS } from './insignias.js';
+
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
@@ -126,8 +156,6 @@
             else { document.querySelectorAll('.bot-status').forEach(el => { el.style.display = 'none'; el.className = 'bot-status'; }); }
         });
 
-        // ------------------ LOGICA DEL BOT OCR 2.0 (Mejorado) ------------------
-        // ------------------ LÓGICA DEL BOT DE IA VISUAL (GEMINI) SEGURO ------------------
         // ------------------ LÓGICA DEL BOT DE IA VISUAL (GEMINI) SEGURO ------------------
         async function processBotQueue() {
             if(isProcessingQueue || !isBotActive || botQueue.length === 0) return;
@@ -205,7 +233,6 @@
                     }
 
                     const exactModelName = availableModels[0].name; 
-                    console.log("El bot está usando el modelo:", exactModelName);
 
                     // 3. HACEMOS LA PETICIÓN AL MODELO
                     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${exactModelName}:generateContent?key=${apiKey}`, {
@@ -299,6 +326,91 @@
             if (userDoc.exists() && userDoc.data().isAdmin === true) {
                 loadPendingTrips(); loadCurrentHighlighted();
             } else { alert("Acceso denegado."); window.location.href = "home.html"; }
+        });
+
+        // ------------------ LÓGICA GESTOR DE INSIGNIAS ------------------
+        let currentBadgeTargetId = null;
+        let currentBadgeTargetType = null;
+        let targetLogrosData = [];
+
+        document.getElementById('badge-search-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('badge-search-btn');
+            const type = document.getElementById('badge-target-type').value;
+            const targetId = document.getElementById('badge-search-input').value.trim().toLowerCase();
+            const grid = document.getElementById('badges-grid');
+            const nameLabel = document.getElementById('badge-target-name');
+
+            if(!targetId) return;
+
+            btn.disabled = true; btn.innerText = "...";
+            grid.style.display = 'none';
+            nameLabel.style.display = 'none';
+
+            try {
+                const targetRef = doc(db, type, targetId);
+                const targetDoc = await getDoc(targetRef);
+
+                if (!targetDoc.exists()) {
+                    alert(`No se ha encontrado el ${type === 'usuarios' ? 'piloto' : 'clan'} con ese ID.`);
+                    btn.disabled = false; btn.innerText = "Buscar";
+                    return;
+                }
+
+                currentBadgeTargetId = targetId;
+                currentBadgeTargetType = type;
+                const data = targetDoc.data();
+                targetLogrosData = data.logros || [];
+
+                nameLabel.innerHTML = `Editando a: <span>${data.username || data.nombre || targetId}</span>`;
+                nameLabel.style.display = 'block';
+
+                // Pintamos los switches
+                grid.innerHTML = '';
+                for (const [badgeId, badgeInfo] of Object.entries(DICCIONARIO_INSIGNIAS)) {
+                    const isChecked = targetLogrosData.includes(badgeId);
+                    grid.innerHTML += `
+                        <div class="badge-row">
+                            <div class="badge-info">
+                                <i class="${badgeInfo.icono} badge-icon" style="color: ${badgeInfo.color};"></i>
+                                <span>${badgeInfo.titulo}</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" class="badge-toggle" data-badge-id="${badgeId}" ${isChecked ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    `;
+                }
+
+                // Añadimos la lógica de guardar al clickar cada switch
+                document.querySelectorAll('.badge-toggle').forEach(chk => {
+                    chk.addEventListener('change', async (e) => {
+                        const bId = e.target.getAttribute('data-badge-id');
+                        const isAdding = e.target.checked;
+                        
+                        try {
+                            const ref = doc(db, currentBadgeTargetType, currentBadgeTargetId);
+                            let newArray = [...targetLogrosData];
+                            
+                            if (isAdding && !newArray.includes(bId)) newArray.push(bId);
+                            else if (!isAdding) newArray = newArray.filter(i => i !== bId);
+
+                            await updateDoc(ref, { logros: newArray });
+                            targetLogrosData = newArray; // actualizamos caché local
+                        } catch(err) {
+                            alert("Error al guardar la insignia.");
+                            e.target.checked = !isAdding; // revertir visualmente
+                        }
+                    });
+                });
+
+                grid.style.display = 'grid';
+
+            } catch (err) {
+                alert("Error al buscar: " + err.message);
+            }
+            
+            btn.disabled = false; btn.innerText = "Buscar";
         });
 
         // ------------------ DESTACAR RUTA (Con Recálculo) ------------------

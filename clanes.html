@@ -196,6 +196,7 @@
         import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         
         import { containsBadWords } from './badwords.js';
+        import { generarHTMLInsignias } from './insignias.js'; // IMPORTAMOS LA FUNCIÓN DE INSIGNIAS
         
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
@@ -311,6 +312,7 @@
             cSnap.forEach(d => {
                 let clanData = d.data(); clanData.id = d.id;
                 if(!clanData.solicitudes) clanData.solicitudes = []; 
+                clanData.logros = clanData.logros || []; // EXTRAEMOS LAS INSIGNIAS DEL CLAN
                 allClanes.push(clanData);
             });
             renderClanes(allClanes);
@@ -376,6 +378,10 @@
                         <div class="clan-shield" style="background:${c.color}; margin: 0 auto 15px auto; width: 70px; height: 70px; font-size: 2rem;">${c.icono}</div>
                         <h2 style="margin:0; color:var(--text-main); font-weight:900; text-transform:uppercase;">${c.nombre}</h2>
                         <p style="color:var(--text-muted); font-style:italic; font-size:0.95rem; margin-top:5px;">"${c.lema}"</p>
+                        
+                        <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);">
+                            ${generarHTMLInsignias(c.logros)}
+                        </div>
                         
                         <div style="background:var(--bg-input); padding:20px; border-radius:12px; margin-top: 20px;">
                             <h4 style="text-align:left; color:var(--text-muted); margin:0 0 10px 0; text-transform:uppercase; font-size:0.8rem;">Escuadrón (${c.miembros.length}/5)</h4>
@@ -478,6 +484,7 @@
             const docSnap = await getDoc(doc(db, "clanes", myClanId));
             if(!docSnap.exists()) return;
             const clan = docSnap.data();
+            const clanLogros = clan.logros || []; // EXTRAEMOS LAS INSIGNIAS DEL CLAN
             const isClanLeader = clan.admin === currentUser.email;
 
             const qStats = await getDocs(query(collection(db, "estaciones_stats"), where("clan_dominante", "==", myClanId)));
@@ -531,6 +538,9 @@
                         <div class="my-clan-shield" style="background:${clan.color};">${clan.icono}</div>
                         <h2 class="my-clan-title">${clan.nombre}</h2>
                         <p class="my-clan-motto">"${clan.lema}"</p>
+                        <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                            ${generarHTMLInsignias(clanLogros)}
+                        </div>
                     </div>
                 </div>
                 <div class="dashboard-grid">
@@ -622,7 +632,8 @@
                 msg.innerText = "Fundando imperio..."; msg.style.color = "var(--primary)";
                 await setDoc(doc(db, "clanes", newClanId), {
                     nombre: name, color: color, icono: selectedIcon, lema: motto,
-                    admin: currentUser.email, miembros: [currentUser.email], solicitudes: [], biciRating: 0
+                    admin: currentUser.email, miembros: [currentUser.email], solicitudes: [], biciRating: 0,
+                    logros: [] // INICIALIZAMOS LAS INSIGNIAS DEL CLAN VACÍAS
                 });
                 await updateDoc(doc(db, "usuarios", currentUser.email), { clanId: newClanId });
                 await updateUserTerritories(currentUser.email);

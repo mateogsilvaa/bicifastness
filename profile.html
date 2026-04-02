@@ -44,7 +44,7 @@
         .pfp:hover { opacity: 0.8; }
         .pfp-input { display: none; }
         .username { font-size: 1.5rem; font-weight: 800; margin: 0;}
-        .email { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 20px;}
+        .email { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 10px;}
         
         .stat-box { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 15px; }
         .stat-num { font-size: 2rem; font-weight: 800; color: var(--primary); }
@@ -96,9 +96,6 @@
         .btn-share { flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s;}
         .btn-share:hover { background: var(--primary-hover); }
         .btn-share.transp { background: #222; border: 1px solid #444; }
-        
-        /* Oculta el botón flotante de BMC */
-        #bmc-wbtn { display: none !important; }
     </style>
 <link rel="icon" href="./logo.png?v=3" type="image/png">
 </head>
@@ -136,6 +133,7 @@
                 <p id="upload-status" style="font-size:0.7rem; color:var(--text-muted); margin:0;">Clic en la foto para cambiarla</p>
                 <div class="username" id="user-name">Cargando...</div>
                 <div class="email" id="user-email"></div>
+                <div id="user-badges" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; min-height: 30px;"></div>
             </div>
             <div class="stat-box theme-box" id="theme-toggle-btn">
                 <div><div style="font-weight:700; color:var(--text-main);">Aspecto Visual</div><div id="theme-text" style="font-size:0.8rem; color:var(--text-muted);">Modo Oscuro</div></div>
@@ -182,12 +180,13 @@
         </div>
     </div>
 
-    <script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="bicifastness" data-description="Support me on Buy me a coffee!" data-message="Buy me a ride" data-color="#5F7FFF" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        
+        // IMPORTAMOS LAS INSIGNIAS DEL NUEVO ARCHIVO
+        import { DICCIONARIO_INSIGNIAS, generarHTMLInsignias } from './insignias.js';
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
@@ -234,9 +233,16 @@
                     usernameGlobal = userDoc.data().username;
                     avatarGlobal = userDoc.data().avatar;
                     const biciRating = userDoc.data().biciRating || 0;
+                    
+                    // EXTRAEMOS LOS LOGROS DE LA BASE DE DATOS Y LOS DIBUJAMOS
+                    const arrayLogros = userDoc.data().logros || [];
+                    document.getElementById('user-badges').innerHTML = generarHTMLInsignias(arrayLogros);
+
                     document.getElementById('user-name').innerText = usernameGlobal;
                     document.getElementById('user-pfp').src = avatarGlobal;
                     document.getElementById('bici-rating-val').innerText = biciRating;
+                } else {
+                    document.getElementById('user-badges').innerHTML = generarHTMLInsignias([]); // Si no hay datos, muestra que no tiene
                 }
                 loadTrips(user.email);
             }
@@ -244,16 +250,10 @@
 
         document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-        // Click en el botón de Buy Me A Ride para disparar el popup
+        // NUEVA LÓGICA DEL BOTÓN: CERO SCRIPTS INYECTADOS, REDIRECCIÓN DIRECTA
         document.getElementById('custom-bmc-btn').addEventListener('click', (e) => {
             e.preventDefault();
-            // Buscar el iframe de Buy Me A Coffee que se genera dinámicamente y hacer click
-            const bmcFrame = document.querySelector('iframe[name="bmc-iframe"]');
-            if (bmcFrame) {
-                 window.postMessage('openBMCWindow', '*'); 
-            } else {
-                 window.open('https://buymeacoffee.com/bicifastness', '_blank');
-            }
+            window.open('https://buymeacoffee.com/bicifastness', '_blank');
         });
 
         document.getElementById('pfp-upload').addEventListener('change', async (e) => {

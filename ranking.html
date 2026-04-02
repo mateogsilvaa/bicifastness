@@ -59,7 +59,9 @@
         .pin-btn:hover { transform: scale(1.1); color: var(--primary); }
         .pin-btn.pinned { color: var(--primary); }
 
-        .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; }
+        .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; cursor: pointer; transition: 0.2s; }
+        .rank-row:hover { border-color: var(--primary); transform: translateX(5px); }
+        
         .rank-pos { font-size: 1.2rem; font-weight: 800; color: var(--text-muted); text-align: center; }
         .rank-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
         .rank-user-container { overflow: hidden; }
@@ -82,6 +84,22 @@
             .bottom-nav a.active { color: var(--primary); } 
             .bottom-nav a i { font-size: 1.25rem; line-height: 1; } 
         }
+
+        /* --- NUEVO CSS: MODAL DE PERFIL --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
+        .modal-content { background: var(--bg-card); padding: 30px; border-radius: 20px; border: 1px solid var(--border); text-align: center; width: 320px; color: var(--text-main); position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.5);}
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer; color: var(--text-muted); font-weight: 800; line-height: 1; transition: 0.2s;}
+        .modal-close:hover { color: var(--primary); }
+        .modal-avatar { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--primary); margin-bottom: 10px; object-fit: cover; }
+        .modal-username { font-size: 1.4rem; font-weight: 800; margin: 0 0 5px 0;}
+        .modal-clan { font-size: 0.8rem; background: var(--border); padding: 3px 8px; border-radius: 12px; display: inline-block; margin-bottom: 20px; font-weight: 600; color: var(--text-main);}
+        
+        .modal-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;}
+        .modal-stat { background: var(--bg-input); padding: 10px; border-radius: 8px; border: 1px solid var(--border);}
+        .modal-stat-val { font-size: 1.3rem; font-weight: 800; color: var(--primary);}
+        .modal-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;}
+        
+        .modal-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);}
     </style>
 </head>
 <body>
@@ -131,10 +149,40 @@
         </div>
     </div>
 
+    <div class="modal" id="user-profile-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="document.getElementById('user-profile-modal').style.display='none'">&times;</span>
+            <img src="" id="um-avatar" class="modal-avatar">
+            <h3 class="modal-username" id="um-username">Usuario</h3>
+            <div id="um-clan-container"></div>
+            
+            <div class="modal-stats-grid">
+                <div class="modal-stat">
+                    <div class="modal-stat-val" id="um-rating">0</div>
+                    <div class="modal-stat-label">BiciRating</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-val" id="um-pos">#0</div>
+                    <div class="modal-stat-label">Ranking</div>
+                </div>
+                <div class="modal-stat" style="grid-column: span 2;">
+                    <div class="modal-stat-val" id="um-trips">...</div>
+                    <div class="modal-stat-label">Viajes Subidos</div>
+                </div>
+            </div>
+
+            <div class="modal-badges" id="um-badges">
+                </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        
+        // Importamos la función de las insignias
+        import { generarHTMLInsignias } from './insignias.js';
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
@@ -181,7 +229,18 @@
 
         async function load() {
             const uSnap = await getDocs(collection(db, "usuarios"));
-            uSnap.forEach(d => usersMap[d.id] = d.data());
+            let tempUsers = [];
+            uSnap.forEach(d => {
+                let data = d.data();
+                data.email = d.id;
+                tempUsers.push(data);
+            });
+            // Ordenar por BiciRating para obtener la posición global
+            tempUsers.sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0));
+            tempUsers.forEach((u, idx) => {
+                u.globalRank = idx + 1;
+                usersMap[u.email] = u;
+            });
 
             try {
                 const confDoc = await getDoc(doc(db, "config", "general"));
@@ -326,8 +385,9 @@
                 const month = d.toLocaleString('es-ES', { month: 'long' });
                 const dateString = `${d.getDate()} de ${month.charAt(0).toUpperCase() + month.slice(1)} ${d.getFullYear()}`;
                 
+                // --- NUEVO: AÑADIDO ONCLICK PARA ABRIR EL PERFIL ---
                 list.innerHTML += `
-                    <div class="rank-row ${rClass}">
+                    <div class="rank-row ${rClass}" onclick="openUserProfile('${t.email_real}')" title="Ver perfil de ${username}">
                         <div class="rank-pos">#${pos}</div>
                         <img src="${avatar}" class="rank-avatar">
                         <div class="rank-user-container">
@@ -341,6 +401,30 @@
                     </div>`;
             });
         }
+
+        // --- NUEVA LÓGICA: FUNCIÓN PARA ABRIR EL PERFIL ---
+        window.openUserProfile = async function(email) {
+            const user = usersMap[email];
+            if(!user) return;
+            
+            document.getElementById('um-avatar').src = user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}&backgroundColor=0071c3`;
+            document.getElementById('um-username').innerText = user.username || "Piloto";
+            document.getElementById('um-clan-container').innerHTML = user.clanId ? `<div class="modal-clan">Clan: ${user.clanId}</div>` : '';
+            document.getElementById('um-rating').innerText = user.biciRating || 0;
+            document.getElementById('um-pos').innerText = `#${user.globalRank || '--'}`;
+            
+            document.getElementById('um-badges').innerHTML = generarHTMLInsignias(user.logros || []);
+            document.getElementById('um-trips').innerText = "..."; 
+            document.getElementById('user-profile-modal').style.display = 'flex';
+            
+            try {
+                const q = query(collection(db, "tiempos_viaje"), where("email_real", "==", email));
+                const snap = await getDocs(q);
+                document.getElementById('um-trips').innerText = snap.size; 
+            } catch (e) {
+                document.getElementById('um-trips').innerText = "0";
+            }
+        };
     </script>
 </body>
 </html>

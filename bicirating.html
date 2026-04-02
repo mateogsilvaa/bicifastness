@@ -49,6 +49,8 @@
         /* AJUSTE RESPONSIVE: grid con min-width: 0 para forzar el truncamiento del texto */
         .rank-row { display: grid; grid-template-columns: 25px 40px minmax(0, 1fr) max-content; gap: 12px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box;}
         .rank-row:last-child { margin-bottom: 0; }
+        /* EFECTO HOVER PARA INDICAR QUE ES CLICABLE */
+        .rank-row:hover { border-color: var(--primary); transform: translateX(5px); transition: 0.2s;}
         
         .pos { font-size: 1.1rem; font-weight: 800; color: var(--text-muted); text-align: center;}
         .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); display: flex; justify-content: center; align-items: center; font-size: 1.2rem; color: white;}
@@ -71,6 +73,7 @@
         .my-rank-container { margin-top: 20px; border-top: 2px dashed var(--border); padding-top: 20px; }
         .my-rank-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 10px; text-align: center; }
         .rank-row.is-me { border-color: var(--primary); background: rgba(0, 113, 195, 0.1); transform: scale(1.02); box-shadow: 0 4px 10px rgba(0,113,195,0.2);}
+        .rank-row.is-me:hover { transform: scale(1.02) translateX(5px); }
         .rank-row.is-me .pos { color: var(--primary); font-size: 1.3rem;}
         .rank-row.is-me .avatar { border-color: var(--primary); }
 
@@ -83,6 +86,22 @@
             .bottom-nav a.active { color: var(--primary); } 
             .bottom-nav a i { font-size: 1.25rem; line-height: 1; } 
         }
+
+        /* --- NUEVO CSS: MODAL DE PERFIL --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
+        .modal-content { background: var(--bg-card); padding: 30px; border-radius: 20px; border: 1px solid var(--border); text-align: center; width: 320px; color: var(--text-main); position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.5);}
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer; color: var(--text-muted); font-weight: 800; line-height: 1; transition: 0.2s;}
+        .modal-close:hover { color: var(--primary); }
+        .modal-avatar { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--primary); margin-bottom: 10px; object-fit: cover; }
+        .modal-username { font-size: 1.4rem; font-weight: 800; margin: 0 0 5px 0;}
+        .modal-clan { font-size: 0.8rem; background: var(--border); padding: 3px 8px; border-radius: 12px; display: inline-block; margin-bottom: 20px; font-weight: 600; color: var(--text-main);}
+        
+        .modal-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;}
+        .modal-stat { background: var(--bg-input); padding: 10px; border-radius: 8px; border: 1px solid var(--border);}
+        .modal-stat-val { font-size: 1.3rem; font-weight: 800; color: var(--primary);}
+        .modal-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;}
+        
+        .modal-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);}
     </style>
 </head>
 <body>
@@ -139,10 +158,41 @@
         </div>
     </div>
 
+    <div class="modal" id="user-profile-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="document.getElementById('user-profile-modal').style.display='none'">&times;</span>
+            <img src="" id="um-avatar" class="modal-avatar">
+            <h3 class="modal-username" id="um-username">Usuario</h3>
+            <div id="um-clan-container"></div>
+            
+            <div class="modal-stats-grid">
+                <div class="modal-stat">
+                    <div class="modal-stat-val" id="um-rating">0</div>
+                    <div class="modal-stat-label">BiciRating</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-val" id="um-pos">#0</div>
+                    <div class="modal-stat-label">Ranking</div>
+                </div>
+                <div class="modal-stat" style="grid-column: span 2;">
+                    <div class="modal-stat-val" id="um-trips">...</div>
+                    <div class="modal-stat-label">Viajes Subidos</div>
+                </div>
+            </div>
+
+            <div class="modal-badges" id="um-badges">
+                </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // Añadidos query y where para poder contar los viajes
+        import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        
+        // Importamos la función para dibujar insignias desde el archivo maestro
+        import { generarHTMLInsignias } from './insignias.js';
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
@@ -160,7 +210,7 @@
             document.getElementById('list-clanes').style.display = 'block';
             document.getElementById('tab-clanes').classList.add('active');
             document.getElementById('tab-pilotos').classList.remove('active');
-            document.getElementById('my-rank-section').style.display = 'none'; // Ocultamos tu rank en vista clanes
+            document.getElementById('my-rank-section').style.display = 'none'; 
         };
 
         let currentUserEmail = null;
@@ -176,9 +226,20 @@
             let users = [];
             usersSnap.forEach(d => {
                 let data = d.data();
-                users.push({ id: d.id, email: d.id, name: data.username || "Piloto", rating: data.biciRating || 0, avatar: data.avatar || null, clanId: data.clanId || null });
+                users.push({ 
+                    id: d.id, 
+                    email: d.id, 
+                    name: data.username || "Piloto", 
+                    rating: data.biciRating || 0, 
+                    avatar: data.avatar || null, 
+                    clanId: data.clanId || null,
+                    logros: data.logros || [] // <-- Obtenemos los logros de la BD
+                });
             });
             users.sort((a,b) => b.rating - a.rating);
+            
+            // Guardamos la lista globalmente para poder leerla al hacer click en el modal
+            window.globalUsersList = users;
 
             // Rellenar Top 20 Pilotos
             const listP = document.getElementById('list-pilotos');
@@ -197,8 +258,9 @@
                 const avatar = u.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${u.email}&backgroundColor=0071c3`;
                 const clanTag = u.clanId ? `<span class="clan-tag">${u.clanId}</span>` : '';
                 
+                // Añadido onclick="openUserProfile(...)" y style="cursor: pointer"
                 listP.innerHTML += `
-                    <div class="rank-row ${rClass}">
+                    <div class="rank-row ${rClass}" onclick="openUserProfile('${u.email}', ${pos})" style="cursor: pointer;" title="Ver perfil de ${u.name}">
                         <div class="pos">${pos}</div>
                         <img src="${avatar}" class="avatar">
                         <div class="username-container">
@@ -220,7 +282,7 @@
                     const myAvatar = myUserObj.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${myUserObj.email}&backgroundColor=0071c3`;
                     const myClanTag = myUserObj.clanId ? `<span class="clan-tag">${myUserObj.clanId}</span>` : '';
                     document.getElementById('my-rank-row-content').innerHTML = `
-                        <div class="rank-row is-me">
+                        <div class="rank-row is-me" onclick="openUserProfile('${myUserObj.email}', ${myPos})" style="cursor:pointer;" title="Ver mi perfil">
                             <div class="pos">${myPos}</div>
                             <img src="${myAvatar}" class="avatar">
                             <div class="username-container">
@@ -238,7 +300,7 @@
             }
 
 
-            // 2. CARGAR CLANES
+            // 2. CARGAR CLANES (Intacto)
             const clanesSnap = await getDocs(collection(db, "clanes"));
             let clanes = [];
             clanesSnap.forEach(d => {
@@ -264,6 +326,39 @@
                     </div>`;
             });
         }
+
+        // --- NUEVA LÓGICA: FUNCIÓN PARA ABRIR EL PERFIL ---
+        window.openUserProfile = async function(email, pos) {
+            // Buscamos los datos del usuario en la lista que ya tenemos cargada
+            const user = window.globalUsersList.find(u => u.email === email);
+            if(!user) return;
+            
+            // Rellenamos datos básicos
+            document.getElementById('um-avatar').src = user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}&backgroundColor=0071c3`;
+            document.getElementById('um-username').innerText = user.name;
+            document.getElementById('um-clan-container').innerHTML = user.clanId ? `<div class="modal-clan">Clan: ${user.clanId}</div>` : '';
+            document.getElementById('um-rating').innerText = user.rating;
+            document.getElementById('um-pos').innerText = `#${pos}`;
+            
+            // Dibujamos las insignias
+            document.getElementById('um-badges').innerHTML = generarHTMLInsignias(user.logros);
+            
+            // Reseteamos el contador de viajes mientras carga
+            document.getElementById('um-trips').innerText = "..."; 
+            
+            // Mostramos el modal
+            document.getElementById('user-profile-modal').style.display = 'flex';
+            
+            try {
+                // Preguntamos a Firebase cuántos viajes ha subido este email
+                const q = query(collection(db, "tiempos_viaje"), where("email_real", "==", email));
+                const snap = await getDocs(q);
+                // snap.size nos da el número exacto de documentos sin tener que descargarlos todos
+                document.getElementById('um-trips').innerText = snap.size; 
+            } catch (e) {
+                document.getElementById('um-trips').innerText = "0";
+            }
+        };
     </script>
 </body>
 </html>

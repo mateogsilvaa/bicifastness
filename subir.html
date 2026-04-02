@@ -125,7 +125,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, getDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
@@ -195,7 +195,37 @@
             if(!estacionesMap[org] || !estacionesMap[dst]) { msg.innerText = "Hay estaciones inválidas."; msg.style.color = "red"; return; }
             
             try {
-                btn.disabled = true; msg.innerText = "Subiendo..."; msg.style.color = "var(--primary)";
+                btn.disabled = true; 
+                msg.innerText = "Verificando límite de envíos..."; 
+                msg.style.color = "var(--primary)";
+
+                // ---------------------------------------------------------
+                // NUEVO CÓDIGO: VERIFICACIÓN DE LÍMITE (3 VIAJES POR DÍA)
+                // ---------------------------------------------------------
+                const hoyInicio = new Date();
+                hoyInicio.setHours(0, 0, 0, 0);
+
+                const q = query(collection(db, "tiempos_viaje"), where("email_real", "==", currentUser.email));
+                const querySnapshot = await getDocs(q);
+                
+                let subidasHoy = 0;
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.uploaded_at) {
+                        const uploadDate = new Date(data.uploaded_at);
+                        if (uploadDate >= hoyInicio) subidasHoy++;
+                    }
+                });
+
+                if (subidasHoy >= 3) {
+                    msg.innerText = "Límite alcanzado: Solo puedes subir 3 viajes por día."; 
+                    msg.style.color = "red";
+                    btn.disabled = false;
+                    return;
+                }
+                // ---------------------------------------------------------
+
+                msg.innerText = "Subiendo..."; 
                 const b64 = await comprimirImagen(file);
                 await addDoc(collection(db, "tiempos_viaje"), {
                     email_real: currentUser.email,
@@ -204,7 +234,8 @@
                     tiempo_formateado: `${m.toString().padStart(2,'0')}m. ${s.toString().padStart(2,'0')}s.`,
                     fecha: new Date(date + 'T00:00:00').toISOString(),
                     foto_url: b64,
-                    verificado: false 
+                    verificado: false,
+                    uploaded_at: new Date().toISOString() // AÑADIDO PARA EL CONTROL DE CUOTA
                 });
                 msg.innerText = "¡Viaje subido! En revisión."; msg.style.color = "#00C851";
                 document.querySelectorAll('input').forEach(i => i.value = '');

@@ -100,6 +100,9 @@
         .modal-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;}
         
         .modal-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);}
+        
+        /* FIX PARA CENTRAR LAS INSIGNIAS CUANDO SON MUCHAS */
+        .contenedor-insignias { justify-content: center !important; }
     </style>
 </head>
 <body>
@@ -195,17 +198,12 @@
         rawStations.split('\n').forEach(line => {
             if(!line.trim()) return;
             let parts = line.split(' - '); let rawNum = parts[0].trim(); let name = parts.slice(1).join(' - ').trim();
-            let match = rawNum.match(/^(\d+)([A-Z]?)$/i);
-            if(match) { let n = match[1]; let l = match[2].toUpperCase() || ''; if(n.length < 3) n = n.padStart(3, '0'); estacionesMap[n + l] = name; } 
-            else { estacionesMap[rawNum] = name; }
+            
+            // Removemos los ceros iniciales del número crudo
+            let cleanNum = rawNum.replace(/^0+/, '') || "0"; 
+            estacionesMap[cleanNum] = name.toLowerCase(); 
+            // Guardamos el nombre en minúsculas para comparaciones exactas
         });
-
-        function getRouteName(rutaId) {
-            const [o, d] = rutaId.split('-');
-            const nameO = estacionesMap[o] || o;
-            const nameD = estacionesMap[d] || d;
-            return `<div style="display:flex; align-items:center; gap:5px;"><span>${nameO}</span> <i class="fi fi-rr-arrow-right" style="font-size:0.8em; margin-top:2px;"></i> <span>${nameD}</span></div>`;
-        }
 
         let allTrips = [], uniqueRoutes = [], usersMap = {};
         let highlightedRoute = null;
@@ -334,6 +332,13 @@
             await setDoc(doc(db, "usuarios", currentU.email), { favoriteRoutes: userFavorites }, { merge: true });
             if(!document.getElementById('search-input').value.trim()) renderDefaultBtns();
         });
+
+        function getRouteName(rutaId) {
+            const [o, d] = rutaId.split('-');
+            const nameO = estacionesMap[o] || o;
+            const nameD = estacionesMap[d] || d;
+            return `<div style="display:flex; align-items:center; gap:5px;"><span>${nameO}</span> <i class="fi fi-rr-arrow-right" style="font-size:0.8em; margin-top:2px;"></i> <span>${nameD}</span></div>`;
+        }
 
         function select(ruta, btn) {
             selectedRouteId = ruta;

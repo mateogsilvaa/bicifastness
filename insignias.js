@@ -6,67 +6,67 @@ export const DICCIONARIO_INSIGNIAS = {
         icono: "fi fi-rr-home",
         titulo: "Hogar, Dulce Hogar",
         descripcion: "Ha subido más de 20 viajes a la misma ruta.",
-        color: "#4CAF50" // Verde
+        color: "#0071c3" // Verde
     },
     "racha_fuego": {
         icono: "fi fi-ss-fire-flame-curved",
-        titulo: "On Fire",
+        titulo: "Racha",
         descripcion: "Viajes verificados 10 días seguidos.",
-        color: "#FF5722" // Naranja fuego
+        color: "#0071c3" // Naranja fuego
     },
     "trotamundos": {
         icono: "fi fi-rr-earth-europa",
         titulo: "Trotamundos",
         descripcion: "Ha subido viajes en más de 25 rutas diferentes.",
-        color: "#2196F3" // Azul tierra
+        color: "#0071c3" // Azul tierra
     },
     "top_5_temp": {
         icono: "fi fi-br-tire",
-        titulo: "Élite del Asfalto",
+        titulo: "Top",
         descripcion: "Top 4 o 5 en el ranking de BiciRating en una temporada.",
-        color: "#9E9E9E" // Gris
+        color: "#0071c3" // Gris
     },
     "oro_temp": {
         icono: "fi fi-bs-first-laurel",
-        titulo: "Leyenda (Oro)",
+        titulo: "Oro",
         descripcion: "Primero en el ranking de BiciRating en una temporada.",
         color: "#FFD700" // Oro
     },
     "plata_temp": {
         icono: "fi fi-bs-second-laurel",
-        titulo: "Subcampeón (Plata)",
+        titulo: "Plata",
         descripcion: "Segundo en el ranking de BiciRating en una temporada.",
         color: "#C0C0C0" // Plata
     },
     "bronce_temp": {
         icono: "fi fi-bs-third-laurel",
-        titulo: "Tercero (Bronce)",
+        titulo: "Bronce",
         descripcion: "Tercero en el ranking de BiciRating en una temporada.",
         color: "#CD7F32" // Bronce
     },
     "francotirador": {
-        icono: "fi fi-sc-binoculars",
+        icono: "fi fi-sr-binoculars",
         titulo: "Francotirador",
         descripcion: "Primero en una ruta mientras estaba destacada (3 veces).",
-        color: "#9C27B0" // Morado
+        color: "#0071c3" // Morado
     },
     "pionero": {
         icono: "fi fi-br-hourglass-start",
-        titulo: "Pionero",
+        titulo: "Desde el principio",
         descripcion: "Top 10 primeros usuarios en registrarse en BiciFastness.",
-        color: "#00BCD4" // Cyan
+        color: "#0071c3" // Cyan
     },
     "diamante": {
         icono: "fi fi-rs-diamond",
-        titulo: "Miembro VIP",
+        titulo: "VIP",
         descripcion: "Insignia exclusiva y clasificada.",
-        color: "#E040FB" // Rosa brillante
+        color: "#0071c3" // Rosa brillante
     },
     "mecenas": {
         icono: "fi fi-br-circle-heart",
         titulo: "Mecenas",
         descripcion: "Ha apoyado económicamente al proyecto.",
-        color: "#E91E63" // Rojo/Rosa corazón
+        color: "#0071c3" // Rojo/Rosa corazón
     }
 };
 

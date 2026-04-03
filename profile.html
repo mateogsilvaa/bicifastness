@@ -136,7 +136,8 @@
                 <p id="upload-status" style="font-size:0.7rem; color:var(--text-muted); margin:0;">Clic en la foto para cambiarla</p>
                 <div class="username" id="user-name">Cargando...</div>
                 <div class="email" id="user-email"></div>
-                <div id="user-badges" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; min-height: 30px;"></div>
+                <div id="user-badges" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; min-height: 30px;"></div>
+                <div id="badge-desc-box" style="margin-top: 5px; margin-bottom: 20px; font-size: 0.85rem; color: var(--text-main); display: none; background: rgba(0, 113, 195, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--primary); font-weight: 600;"></div>
             </div>
             <div class="stat-box theme-box" id="theme-toggle-btn">
                 <div><div style="font-weight:700; color:var(--text-main);">Aspecto Visual</div><div id="theme-text" style="font-size:0.8rem; color:var(--text-muted);">Modo Oscuro</div></div>
@@ -398,6 +399,17 @@
                 btn1.innerText = prevText1; btn1.disabled = false; btn2.disabled = false;
             }
         }
+        
+        // --- EVENTO PARA MOSTRAR DESCRIPCIÓN DE LAS INSIGNIAS AL CLICAR ---
+        document.getElementById('user-badges').addEventListener('click', (e) => {
+            const badge = e.target.closest('.insignia-badge');
+            if (badge) {
+                const descBox = document.getElementById('badge-desc-box');
+                // El atributo title viene como "Titulo: Descripcion", lo mostramos
+                descBox.innerText = badge.getAttribute('title');
+                descBox.style.display = 'block';
+            }
+        });
     </script>
 </body>
 </html>

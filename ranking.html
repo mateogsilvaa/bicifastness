@@ -203,7 +203,9 @@
             </div>
 
             <div class="modal-badges" id="um-badges">
-                </div>
+            </div>
+
+            <div id="badge-desc-box" style="margin-top: 15px; font-size: 0.85rem; color: var(--text-main); display: none; background: rgba(0, 113, 195, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--primary); font-weight: 600;"></div>
         </div>
     </div>
 
@@ -496,6 +498,7 @@
 
         // --- FUNCIÓN PARA ABRIR EL PERFIL ---
         window.openUserProfile = async function(email) {
+            document.getElementById('badge-desc-box').style.display = 'none'; // Ocultar al abrir nuevo perfil
             const user = usersMap[email];
             if(!user) return;
             
@@ -517,6 +520,17 @@
                 document.getElementById('um-trips').innerText = "0";
             }
         };
+
+        // --- EVENTO PARA MOSTRAR DESCRIPCIÓN DE LAS INSIGNIAS AL CLICAR ---
+        document.getElementById('um-badges').addEventListener('click', (e) => {
+            const badge = e.target.closest('.insignia-badge');
+            if (badge) {
+                const descBox = document.getElementById('badge-desc-box');
+                // El atributo title viene como "Titulo: Descripcion", lo mostramos
+                descBox.innerText = badge.getAttribute('title');
+                descBox.style.display = 'block';
+            }
+        });
     </script>
 </body>
 </html>

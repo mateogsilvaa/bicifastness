@@ -102,7 +102,7 @@
         .modal-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;}
         
         .modal-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);}
-
+        
         /* FIX PARA CENTRAR LAS INSIGNIAS CUANDO SON MUCHAS */
         .contenedor-insignias { justify-content: center !important; }
     </style>
@@ -184,7 +184,9 @@
             </div>
 
             <div class="modal-badges" id="um-badges">
-                </div>
+            </div>
+
+            <div id="badge-desc-box" style="margin-top: 15px; font-size: 0.8rem; color: var(--text-main); display: none; background: rgba(0, 113, 195, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--primary); font-weight: 600;"></div>
         </div>
     </div>
 
@@ -332,6 +334,9 @@
 
         // --- NUEVA LÓGICA: FUNCIÓN PARA ABRIR EL PERFIL ---
         window.openUserProfile = async function(email, pos) {
+            // Ocultamos la caja de descripción de la insignia al abrir un perfil nuevo
+            document.getElementById('badge-desc-box').style.display = 'none';
+
             // Buscamos los datos del usuario en la lista que ya tenemos cargada
             const user = window.globalUsersList.find(u => u.email === email);
             if(!user) return;
@@ -362,6 +367,17 @@
                 document.getElementById('um-trips').innerText = "0";
             }
         };
+
+        // --- EVENTO PARA MOSTRAR DESCRIPCIÓN DE LAS INSIGNIAS AL CLICAR ---
+        document.getElementById('um-badges').addEventListener('click', (e) => {
+            const badge = e.target.closest('.insignia-badge');
+            if (badge) {
+                const descBox = document.getElementById('badge-desc-box');
+                // El atributo title viene como "Titulo: Descripcion", lo ponemos en la cajita
+                descBox.innerText = badge.getAttribute('title');
+                descBox.style.display = 'block';
+            }
+        });
     </script>
 </body>
 </html>

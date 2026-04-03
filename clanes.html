@@ -200,7 +200,7 @@
         import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         
         import { containsBadWords } from './badwords.js';
-        import { generarHTMLInsignias } from './cinsignias.js'; // IMPORTAMOS LA FUNCIÓN DE INSIGNIAS
+        import { generarHTMLInsignias } from './insignias.js'; // IMPORTAMOS LA FUNCIÓN DE INSIGNIAS
         
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
@@ -386,6 +386,8 @@
                         <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);">
                             ${generarHTMLInsignias(c.logros)}
                         </div>
+
+                        <div id="badge-desc-box" style="margin-top: 15px; font-size: 0.85rem; color: var(--text-main); display: none; background: rgba(0, 113, 195, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--primary); font-weight: 600;"></div>
                         
                         <div style="background:var(--bg-input); padding:20px; border-radius:12px; margin-top: 20px;">
                             <h4 style="text-align:left; color:var(--text-muted); margin:0 0 10px 0; text-transform:uppercase; font-size:0.8rem;">Escuadrón (${c.miembros.length}/5)</h4>
@@ -418,6 +420,26 @@
         document.getElementById('search-clan').addEventListener('input', (e) => {
             const q = e.target.value.toLowerCase();
             renderClanes(allClanes.filter(c => c.nombre.toLowerCase().includes(q)));
+        });
+
+        // --- EVENTO PARA MOSTRAR DESCRIPCIÓN DE LAS INSIGNIAS AL CLICAR (MODAL EXPLORAR Y PANEL MI CLAN) ---
+        // Usamos delegación de eventos al document para pillar tanto las del modal de Ver Ficha como las de "Mi Clan"
+        document.addEventListener('click', (e) => {
+            const badge = e.target.closest('.insignia-badge');
+            if (badge) {
+                // Buscamos la caja de descripción más cercana. 
+                // Puede estar en el modal de 'Ver Ficha' o en el panel de 'Mi Clan'
+                let descBox = badge.closest('#modal-body')?.querySelector('#badge-desc-box');
+                
+                if (!descBox) {
+                    descBox = document.getElementById('myclan-badge-desc-box');
+                }
+
+                if (descBox) {
+                    descBox.innerText = badge.getAttribute('title');
+                    descBox.style.display = 'block';
+                }
+            }
         });
 
         // ------------------ LÓGICA DE TERRITORIOS DINÁMICOS ------------------
@@ -545,6 +567,8 @@
                         <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
                             ${generarHTMLInsignias(clanLogros)}
                         </div>
+                        
+                        <div id="myclan-badge-desc-box" style="margin: 15px auto 0 auto; max-width: 400px; font-size: 0.85rem; color: var(--text-main); display: none; background: rgba(0, 113, 195, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--primary); font-weight: 600;"></div>
                     </div>
                 </div>
                 <div class="dashboard-grid">

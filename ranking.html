@@ -67,10 +67,17 @@
         .rank-user-container { overflow: hidden; }
         .rank-user { font-weight: 700; font-size: 1rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
         .rank-date { font-size: 0.75rem; color: var(--text-muted); display: block; font-weight: 400; }
-        .rank-stats { text-align: right; min-width: 65px; }
+        
+        /* Modificado para acomodar el botón de reporte */
+        .rank-stats { display: flex; align-items: center; gap: 10px; justify-content: flex-end; min-width: 85px; }
+        .stats-text { text-align: right; }
         .rank-time { font-weight: 800; color: var(--primary); font-size: 1.1rem; }
         .rank-delta { font-size: 0.8rem; font-weight: 700; color: #ff4444; } 
         .delta-leader { color: #00C851; font-size: 0.8rem; font-weight: 700; } 
+        
+        /* NUEVO: Botón de Reporte */
+        .report-btn { background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; padding: 5px; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .report-btn:hover { color: #ff4444; transform: scale(1.1); }
 
         .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); } .rank-1 .rank-pos { color: #FFD700; }
         .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .rank-pos { color: #C0C0C0; }
@@ -100,7 +107,7 @@
         .modal-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;}
         
         .modal-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);}
-        
+
         /* FIX PARA CENTRAR LAS INSIGNIAS CUANDO SON MUCHAS */
         .contenedor-insignias { justify-content: center !important; }
     </style>
@@ -131,7 +138,7 @@
         <a href="clanes.html"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
         <a href="profile.html"><i class="fi fi-sr-user"></i>Perfil</a>
     </div>
-    
+
     <div class="container">
         <div class="search-section" id="search-section">
             <h2 style="margin:0 0 10px 0; color:var(--text-main);">Buscar Trayecto</h2>
@@ -182,7 +189,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         
         // Importamos la función de las insignias
         import { generarHTMLInsignias } from './insignias.js';
@@ -357,7 +364,9 @@
             for (let t of rawTrips) {
                 if (!seenUsers.has(t.email_real)) {
                     seenUsers.add(t.email_real);
-                    trips.push(t);
+                    
+                    // Almacenamos el ID del viaje también para usarlo en el reporte
+                    trips.push({ ...t, tripId: t.id || t.tripId || (t.email_real + '-' + t.ruta) }); 
                 }
             }
 
@@ -390,24 +399,64 @@
                 const month = d.toLocaleString('es-ES', { month: 'long' });
                 const dateString = `${d.getDate()} de ${month.charAt(0).toUpperCase() + month.slice(1)} ${d.getFullYear()}`;
                 
-                // --- NUEVO: AÑADIDO ONCLICK PARA ABRIR EL PERFIL ---
+                // NUEVO: Botón de reporte añadido
                 list.innerHTML += `
-                    <div class="rank-row ${rClass}" onclick="openUserProfile('${t.email_real}')" title="Ver perfil de ${username}">
+                    <div class="rank-row ${rClass}">
                         <div class="rank-pos">#${pos}</div>
-                        <img src="${avatar}" class="rank-avatar">
-                        <div class="rank-user-container">
+                        <img src="${avatar}" class="rank-avatar" onclick="openUserProfile('${t.email_real}')" title="Ver perfil de ${username}">
+                        <div class="rank-user-container" onclick="openUserProfile('${t.email_real}')" title="Ver perfil de ${username}">
                             <div class="rank-user">${username}</div>
                             <span class="rank-date">${dateString}</span>
                         </div>
                         <div class="rank-stats">
-                            <div class="rank-time">${t.tiempo_formateado}</div>
-                            ${deltaHtml}
+                            <div class="stats-text">
+                                <div class="rank-time">${t.tiempo_formateado}</div>
+                                ${deltaHtml}
+                            </div>
+                            <button class="report-btn" title="Reportar tiempo sospechoso" onclick="reportTrip('${t.tripId}', '${t.email_real}', '${t.ruta}')">
+                                <i class="fi fi-rr-flag"></i>
+                            </button>
                         </div>
                     </div>`;
             });
         }
 
-        // --- NUEVA LÓGICA: FUNCIÓN PARA ABRIR EL PERFIL ---
+        // --- NUEVO: FUNCIÓN PARA REPORTAR VIAJES ---
+        window.reportTrip = async function(tripId, reportedEmail, ruta) {
+            if (!currentU) {
+                alert("Debes iniciar sesión para poder reportar un viaje.");
+                window.location.href = "index.html";
+                return;
+            }
+
+            if (currentU.email === reportedEmail) {
+                alert("No puedes reportar tu propio viaje.");
+                return;
+            }
+
+            const confirmReport = confirm("⚠️ ATENCIÓN ⚠️\n\nEstás a punto de reportar este tiempo como sospechoso o falso. Si se demuestra que estás reportando tiempos legítimos sin motivo, tu cuenta podrá ser suspendida.\n\n¿Estás seguro de que quieres enviar este reporte a los administradores?");
+
+            if (!confirmReport) return;
+
+            try {
+                // Guardamos el reporte en una nueva colección llamada 'reportes'
+                await addDoc(collection(db, "reportes"), {
+                    tripId: tripId,
+                    reportedEmail: reportedEmail,
+                    ruta: ruta,
+                    reporterEmail: currentU.email,
+                    timestamp: serverTimestamp(),
+                    status: "pendiente"
+                });
+                
+                alert("Reporte enviado con éxito. Un administrador lo revisará pronto.");
+            } catch (error) {
+                console.error("Error al reportar:", error);
+                alert("Hubo un error al enviar el reporte. Por favor, inténtalo de nuevo.");
+            }
+        };
+
+        // --- FUNCIÓN PARA ABRIR EL PERFIL ---
         window.openUserProfile = async function(email) {
             const user = usersMap[email];
             if(!user) return;

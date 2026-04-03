@@ -57,11 +57,19 @@
         .modal img { max-width: 90%; max-height: 80vh; border-radius: 8px; }
         .close-modal { position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem; cursor: pointer; font-weight: 800; }
 
-        /* ESTILOS PARA EL GESTOR DE INSIGNIAS */
+        /* FIX PARA CENTRAR LAS INSIGNIAS (por si acaso) */
+        .contenedor-insignias { justify-content: center !important; }
+
+        /* ESTILOS PARA EL GESTOR DE INSIGNIAS Y BUSCADOR LIVE */
         .badges-manager-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 15px; }
         .badge-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); }
         .badge-info { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 600; }
         .badge-icon { font-size: 1.2rem; }
+
+        .search-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-top: 5px; }
+        .search-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: 600;}
+        .search-item:last-child { border-bottom: none; }
+        .search-item:hover { background: var(--bg-input); color: var(--primary); }
     </style>
 </head>
 <body>
@@ -86,16 +94,12 @@
         </div>
 
         <div class="admin-card" style="margin-bottom: 40px; border-color: #9C27B0;">
-            <div class="card-header"><span style="color:#E040FB;">🏅 Gestor de Insignias (Usuarios y Clanes)</span></div>
-            <p style="font-size:0.85rem; color:var(--text-muted); margin: 5px 0 15px 0;">Busca el <b>email exacto</b> del usuario o el <b>ID exacto</b> del clan (ej: <i>los_angeles_del_asfalto</i>) para gestionar sus chapas.</p>
+            <div class="card-header"><span style="color:#E040FB;">🏅 Gestor de Insignias</span></div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin: 5px 0 15px 0;">Escribe el <b>nombre</b> de cualquier piloto o clan. Los resultados aparecerán al instante.</p>
             
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <select id="badge-target-type" style="padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-weight:700; outline:none;">
-                    <option value="usuarios">Piloto (Email)</option>
-                    <option value="clanes">Clan (ID)</option>
-                </select>
-                <input type="text" id="badge-search-input" placeholder="Email del piloto o ID del clan..." style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit;">
-                <button id="badge-search-btn" style="background:#9C27B0; color:#fff;">Buscar</button>
+            <div style="position: relative; margin-bottom:15px;">
+                <input type="text" id="badge-live-search" placeholder="Buscar por nombre..." style="width:100%; padding:12px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit; outline:none;">
+                <div id="badge-search-results" class="search-dropdown"></div>
             </div>
 
             <div id="badge-target-name" style="font-weight: 800; font-size: 1.1rem; color: #E040FB; margin-bottom: 10px; display: none;">Editando a: <span></span></div>
@@ -117,8 +121,16 @@
                 </label>
             </div>
         </div>
-        
-        <div class="pending-grid" id="pending-grid"></div>
+        <div class="pending-grid" id="pending-grid" style="margin-bottom: 40px;"></div>
+
+        <div class="header-panel" style="border-bottom-color: #ff4444;">
+            <div class="title-group">
+                <h2 style="margin:0; color:#ff4444;"><i class="fi fi-sr-flag"></i> Viajes Reportados</h2>
+                <div class="badge-count" id="reports-count" style="background: #ff4444;">0</div>
+            </div>
+        </div>
+        <div class="pending-grid" id="reports-grid"></div>
+
     </div>
     
     <div class="modal" id="photo-modal"><span class="close-modal" id="close-modal">&times;</span><img id="modal-img"></div>
@@ -325,93 +337,123 @@
             const userDoc = await getDoc(doc(db, "usuarios", user.email));
             if (userDoc.exists() && userDoc.data().isAdmin === true) {
                 loadPendingTrips(); loadCurrentHighlighted();
+                loadAllForSearch(); // Cargar datos para el buscador de insignias
             } else { alert("Acceso denegado."); window.location.href = "home.html"; }
         });
 
         // ------------------ LÓGICA GESTOR DE INSIGNIAS ------------------
+        let globalAdminUsers = [];
+        let globalAdminClans = [];
         let currentBadgeTargetId = null;
         let currentBadgeTargetType = null;
         let targetLogrosData = [];
 
-        document.getElementById('badge-search-btn').addEventListener('click', async () => {
-            const btn = document.getElementById('badge-search-btn');
-            const type = document.getElementById('badge-target-type').value;
-            const targetId = document.getElementById('badge-search-input').value.trim().toLowerCase();
-            const grid = document.getElementById('badges-grid');
-            const nameLabel = document.getElementById('badge-target-name');
+        async function loadAllForSearch() {
+            const uSnap = await getDocs(collection(db, "usuarios"));
+            uSnap.forEach(d => {
+                let data = d.data();
+                globalAdminUsers.push({ id: d.id, name: data.username || d.id, type: 'usuarios', data: data });
+            });
+            const cSnap = await getDocs(collection(db, "clanes"));
+            cSnap.forEach(d => {
+                let data = d.data();
+                globalAdminClans.push({ id: d.id, name: data.nombre || d.id, type: 'clanes', data: data });
+            });
+        }
 
-            if(!targetId) return;
+        document.getElementById('badge-live-search').addEventListener('input', (e) => {
+            const term = e.target.value.trim().toLowerCase();
+            const resDiv = document.getElementById('badge-search-results');
+            if(!term) { resDiv.style.display = 'none'; return; }
 
-            btn.disabled = true; btn.innerText = "...";
-            grid.style.display = 'none';
-            nameLabel.style.display = 'none';
+            let results = [];
+            globalAdminUsers.forEach(u => {
+                if(u.name.toLowerCase().includes(term)) results.push(u);
+            });
+            globalAdminClans.forEach(c => {
+                if(c.name.toLowerCase().includes(term)) results.push(c);
+            });
 
-            try {
-                const targetRef = doc(db, type, targetId);
-                const targetDoc = await getDoc(targetRef);
-
-                if (!targetDoc.exists()) {
-                    alert(`No se ha encontrado el ${type === 'usuarios' ? 'piloto' : 'clan'} con ese ID.`);
-                    btn.disabled = false; btn.innerText = "Buscar";
-                    return;
-                }
-
-                currentBadgeTargetId = targetId;
-                currentBadgeTargetType = type;
-                const data = targetDoc.data();
-                targetLogrosData = data.logros || [];
-
-                nameLabel.innerHTML = `Editando a: <span>${data.username || data.nombre || targetId}</span>`;
-                nameLabel.style.display = 'block';
-
-                // Pintamos los switches
-                grid.innerHTML = '';
-                for (const [badgeId, badgeInfo] of Object.entries(DICCIONARIO_INSIGNIAS)) {
-                    const isChecked = targetLogrosData.includes(badgeId);
-                    grid.innerHTML += `
-                        <div class="badge-row">
-                            <div class="badge-info">
-                                <i class="${badgeInfo.icono} badge-icon" style="color: ${badgeInfo.color};"></i>
-                                <span>${badgeInfo.titulo}</span>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" class="badge-toggle" data-badge-id="${badgeId}" ${isChecked ? 'checked' : ''}>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    `;
-                }
-
-                // Añadimos la lógica de guardar al clickar cada switch
-                document.querySelectorAll('.badge-toggle').forEach(chk => {
-                    chk.addEventListener('change', async (e) => {
-                        const bId = e.target.getAttribute('data-badge-id');
-                        const isAdding = e.target.checked;
-                        
-                        try {
-                            const ref = doc(db, currentBadgeTargetType, currentBadgeTargetId);
-                            let newArray = [...targetLogrosData];
-                            
-                            if (isAdding && !newArray.includes(bId)) newArray.push(bId);
-                            else if (!isAdding) newArray = newArray.filter(i => i !== bId);
-
-                            await updateDoc(ref, { logros: newArray });
-                            targetLogrosData = newArray; // actualizamos caché local
-                        } catch(err) {
-                            alert("Error al guardar la insignia.");
-                            e.target.checked = !isAdding; // revertir visualmente
-                        }
-                    });
+            resDiv.innerHTML = '';
+            if(results.length === 0) {
+                resDiv.innerHTML = '<div style="padding:10px; color:#888;">No hay resultados</div>';
+            } else {
+                results.slice(0, 10).forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    const icon = item.type === 'usuarios' ? '👤 Piloto' : '🛡️ Clan';
+                    div.innerHTML = `<span>${item.name}</span><span style="color:#888; font-size:0.8rem;">${icon}</span>`;
+                    div.onclick = () => selectBadgeTarget(item);
+                    resDiv.appendChild(div);
                 });
-
-                grid.style.display = 'grid';
-
-            } catch (err) {
-                alert("Error al buscar: " + err.message);
             }
-            
-            btn.disabled = false; btn.innerText = "Buscar";
+            resDiv.style.display = 'block';
         });
+
+        document.addEventListener('click', (e) => {
+            if(e.target.id !== 'badge-live-search') {
+                document.getElementById('badge-search-results').style.display = 'none';
+            }
+        });
+
+        async function selectBadgeTarget(item) {
+            document.getElementById('badge-live-search').value = '';
+            document.getElementById('badge-search-results').style.display = 'none';
+            
+            currentBadgeTargetId = item.id;
+            currentBadgeTargetType = item.type;
+            
+            const targetDoc = await getDoc(doc(db, item.type, item.id));
+            if(!targetDoc.exists()) return;
+            
+            const data = targetDoc.data();
+            targetLogrosData = data.logros || [];
+
+            const nameLabel = document.getElementById('badge-target-name');
+            nameLabel.innerHTML = `Editando a: <span>${item.name}</span> <span style="font-size:0.8rem; color:#888;">(${item.type === 'usuarios' ? 'Piloto' : 'Clan'})</span>`;
+            nameLabel.style.display = 'block';
+
+            const grid = document.getElementById('badges-grid');
+            grid.innerHTML = '';
+            for (const [badgeId, badgeInfo] of Object.entries(DICCIONARIO_INSIGNIAS)) {
+                const isChecked = targetLogrosData.includes(badgeId);
+                grid.innerHTML += `
+                    <div class="badge-row">
+                        <div class="badge-info">
+                            <i class="${badgeInfo.icono} badge-icon" style="color: ${badgeInfo.color};"></i>
+                            <span>${badgeInfo.titulo}</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" class="badge-toggle" data-badge-id="${badgeId}" ${isChecked ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                `;
+            }
+
+            document.querySelectorAll('.badge-toggle').forEach(chk => {
+                chk.addEventListener('change', async (e) => {
+                    const bId = e.target.getAttribute('data-badge-id');
+                    const isAdding = e.target.checked;
+                    
+                    try {
+                        const ref = doc(db, currentBadgeTargetType, currentBadgeTargetId);
+                        let newArray = [...targetLogrosData];
+                        
+                        if (isAdding && !newArray.includes(bId)) newArray.push(bId);
+                        else if (!isAdding) newArray = newArray.filter(i => i !== bId);
+
+                        await updateDoc(ref, { logros: newArray });
+                        targetLogrosData = newArray; 
+                    } catch(err) {
+                        alert("Error al guardar la insignia.");
+                        e.target.checked = !isAdding; 
+                    }
+                });
+            });
+
+            grid.style.display = 'grid';
+        }
 
         // ------------------ DESTACAR RUTA (Con Recálculo) ------------------
         async function loadCurrentHighlighted() { 

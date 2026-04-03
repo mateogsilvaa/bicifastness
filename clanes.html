@@ -200,7 +200,7 @@
         import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         
         import { containsBadWords } from './badwords.js';
-        import { generarHTMLInsignias } from './insignias.js'; // IMPORTAMOS LA FUNCIÓN DE INSIGNIAS
+        import { generarHTMLInsignias } from './cinsignias.js'; // IMPORTAMOS LA FUNCIÓN DE INSIGNIAS
         
         const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);

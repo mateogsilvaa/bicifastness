@@ -84,8 +84,28 @@
         .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .rank-pos { color: #CD7F32; }
 
         .bottom-nav { display: none; }
+        
+        /* MEJORA VISUAL PARA MÓVILES (menos comprimido) */
         @media (max-width: 850px) { 
             nav .links { display: none; } 
+            
+            .rank-row { 
+                grid-template-columns: 1fr; /* Una sola columna principal */
+                gap: 5px;
+                padding: 15px;
+            }
+            .rank-pos { text-align: left; font-size: 1rem; display: inline-block;}
+            .rank-avatar { width: 30px; height: 30px; display: inline-block; vertical-align: middle; margin-left: 10px;}
+            
+            /* Agrupamos la posición y el usuario en la primera línea */
+            .rank-user-container { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 5px; }
+            .rank-user { font-size: 0.95rem; }
+            .rank-date { display: inline-block; margin-left: auto; }
+            
+            /* Agrupamos el tiempo y el botón en la segunda línea */
+            .rank-stats { justify-content: space-between; border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 5px;}
+            .stats-text { text-align: left; display: flex; align-items: baseline; gap: 10px;}
+            
             .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-between; padding: 8px 5px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;} 
             .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.6rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; text-align: center; } 
             .bottom-nav a.active { color: var(--primary); } 
@@ -205,16 +225,21 @@
         rawStations.split('\n').forEach(line => {
             if(!line.trim()) return;
             let parts = line.split(' - '); let rawNum = parts[0].trim(); let name = parts.slice(1).join(' - ').trim();
-            let match = rawNum.match(/^(\d+)([A-Z]?)$/i);
-            if(match) { let n = match[1]; let l = match[2].toUpperCase() || ''; if(n.length < 3) n = n.padStart(3, '0'); estacionesMap[n + l] = name; } 
-            else { estacionesMap[rawNum] = name; }
+            
+            // Removemos los ceros iniciales del número crudo
+            let cleanNum = rawNum.replace(/^0+/, '') || "0"; 
+            estacionesMap[cleanNum] = name.toLowerCase(); 
+            // Guardamos el nombre en minúsculas para comparaciones exactas
         });
 
-        function getRouteName(rutaId) {
-            const [o, d] = rutaId.split('-');
-            const nameO = estacionesMap[o] || o;
-            const nameD = estacionesMap[d] || d;
-            return `<div style="display:flex; align-items:center; gap:5px;"><span>${nameO}</span> <i class="fi fi-rr-arrow-right" style="font-size:0.8em; margin-top:2px;"></i> <span>${nameD}</span></div>`;
+        // 1. AÑADIMOS LA FUNCIÓN PARA CAPITALIZAR (Título)
+        function toTitleCase(str) {
+            return str.replace(
+                /\w\S*/g,
+                function(txt) {
+                    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+                }
+            );
         }
 
         let allTrips = [], uniqueRoutes = [], usersMap = {};
@@ -345,10 +370,17 @@
             if(!document.getElementById('search-input').value.trim()) renderDefaultBtns();
         });
 
+        // 2. MODIFICAMOS getRouteName PARA QUE USE EL toTitleCase Y QUITE LOS NÚMEROS A LA HORA DE BUSCAR EN EL MAPA
         function getRouteName(rutaId) {
             const [o, d] = rutaId.split('-');
-            const nameO = estacionesMap[o] || o;
-            const nameD = estacionesMap[d] || d;
+            // Le quitamos los ceros a la izquierda al ID original para que encuentre la estación
+            const cleanO = o.replace(/^0+/, '') || "0";
+            const cleanD = d.replace(/^0+/, '') || "0";
+            
+            // Buscamos el nombre (ahora ignorando el número original si no lo encuentra) y capitalizamos
+            const nameO = estacionesMap[cleanO] ? toTitleCase(estacionesMap[cleanO]) : cleanO;
+            const nameD = estacionesMap[cleanD] ? toTitleCase(estacionesMap[cleanD]) : cleanD;
+            
             return `<div style="display:flex; align-items:center; gap:5px;"><span>${nameO}</span> <i class="fi fi-rr-arrow-right" style="font-size:0.8em; margin-top:2px;"></i> <span>${nameD}</span></div>`;
         }
 

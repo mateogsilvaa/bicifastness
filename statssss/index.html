@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas | BiciFastness</title>
+    <script src="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap');
+        :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
+        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
+        body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s; }
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
+        nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; transition: color 0.3s; }
+        nav .links a:hover, nav .links a.active { color: var(--text-main); }
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-bottom: 40px; }
+        .stat-card { background: var(--bg-card); padding: 40px 30px; border-radius: 20px; border: 1px solid var(--border); text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: transform 0.3s, box-shadow 0.3s; position: relative; overflow: hidden; }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--primary), #0099ff); }
+        .stat-icon { font-size: 3rem; color: var(--primary); margin-bottom: 20px; display: block; }
+        .stat-number { font-size: 3.5rem; font-weight: 900; color: var(--text-main); margin: 0; line-height: 1; }
+        .stat-label { font-size: 1.1rem; color: var(--text-muted); margin: 10px 0 0 0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .loading { text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 1.1rem; }
+        .error { text-align: center; padding: 60px 20px; color: #ff4444; font-size: 1.1rem; }
+        .bottom-nav { display: none; }
+        @media (max-width: 768px) { 
+            nav .links { display: none; } 
+            .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } 
+            .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; } 
+            .bottom-nav a.active { color: var(--primary); } 
+            .bottom-nav a i { font-size: 1.4rem; line-height:1; } 
+            .stats-grid { grid-template-columns: 1fr; gap: 20px; } 
+            .stat-card { padding: 30px 20px; } 
+            .stat-number { font-size: 2.5rem; } 
+        }
+    </style>
+    <link rel="icon" href="../images/logo.png" type="image/png">
+</head>
+<body>
+    <nav>
+        <div class="brand">BiciFastness</div>
+        <div class="nav-right">
+            <div class="links">
+                <a href="../home/">Inicio</a>
+                <a href="../ranking/">Rankings</a>
+                <a href="../bicirating/">BiciRating</a>
+                <a href="../mapa/">Mapa</a>
+                <a href="../clanes/">Clanes</a>
+                <a href="../subir/">Subir</a>
+                <a href="../profile/">Perfil</a>
+            </div>
+            <a href="./" class="info-icon active" title="Estadísticas"><i class="fi fi-bs-chart-pie"></i></a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div id="loading" class="loading">
+            <i class="fi fi-sr-spinner" style="font-size: 2rem; margin-bottom: 15px; display: block;"></i>
+            Cargando estadísticas desde PocketBase...
+        </div>
+        
+        <div id="error" class="error" style="display: none;">
+            <i class="fi fi-sr-exclamation-circle" style="font-size: 2rem; margin-bottom: 15px; display: block;"></i>
+            Error al cargar las estadísticas
+        </div>
+        
+        <div id="stats-container" class="stats-grid" style="display: none;">
+            <div class="stat-card">
+                <i class="fi fi-sr-users stat-icon"></i>
+                <div class="stat-number" id="users-count">-</div>
+                <div class="stat-label">Usuarios Registrados</div>
+            </div>
+            <div class="stat-card">
+                <i class="fi fi-sr-route stat-icon"></i>
+                <div class="stat-number" id="trips-count">-</div>
+                <div class="stat-label">Viajes Totales</div>
+            </div>
+            <div class="stat-card">
+                <i class="fi fi-sr-shield-alt stat-icon"></i>
+                <div class="stat-number" id="clans-count">-</div>
+                <div class="stat-label">Clanes Activos</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import PocketBase from 'https://cdn.jsdelivr.net/npm/pocketbase@0.22.0/+esm';
+        const pb = new PocketBase('https://vicinity-unfrozen-washout.ngrok-free.dev');
+        
+        // Pase VIP para saltar advertencia de Ngrok
+        pb.beforeSend = function (url, options) {
+            options.headers = Object.assign({}, options.headers, {
+                'ngrok-skip-browser-warning': 'true'
+            });
+            return { url, options };
+        };
+
+        async function loadStats() {
+            try {
+                // Lectura optimizada: getList(1,1) trae solo 1 registro, pero devuelve el totalItems de la colección.
+                const usersReq = await pb.collection('usuarios').getList(1, 1);
+                const tripsReq = await pb.collection('tiempos_viaje').getList(1, 1, { filter: 'verificado = true' });
+                const allTripsReq = await pb.collection('tiempos_viaje').getList(1, 1);
+                const clansReq = await pb.collection('clanes').getList(1, 1);
+
+                document.getElementById('users-count').textContent = usersReq.totalItems.toLocaleString('es-ES');
+                document.getElementById('trips-count').textContent = tripsReq.totalItems.toLocaleString('es-ES');
+                document.getElementById('clans-count').textContent = clansReq.totalItems.toLocaleString('es-ES');
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('stats-container').style.display = 'grid';
+                document.getElementById('trips-count').title = `Total viajes: ${allTripsReq.totalItems.toLocaleString('es-ES')} | Verificados: ${tripsReq.totalItems.toLocaleString('es-ES')}`;
+
+            } catch (error) {
+                console.error('Error cargando estadísticas de PocketBase:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+        loadStats();
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+    </script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    // Lectura pública para datos del mapa
+    match /clanes/{docId} {
+      allow read: if true; // Lectura pública para el mapa
+      allow write: if isAuthed();
+    }
+    match /estaciones_stats/{docId} {
+      allow read: if true; // Lectura pública para el mapa
+      allow write: if isAuthed();
+    }
+    
+    // Colecciones que requieren autenticación
+    match /usuarios/{docId} {
+      allow read, write: if isAuthed();
+    }
+    match /tiempos_viaje/{docId} {
+      allow read, write: if isAuthed();
+    }
+    match /reportes/{docId} {
+      allow read, write: if isAuthed();
+    }
+    match /config/{docId} {
+      allow read, write: if isAuthed();
+    }
+    match /secrets/{docId} {
+      allow read, write: if isAuthed();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <title>Info | BiciFastness</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+        :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
+        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
+        
+        body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s; }
+        
+        /* NAVBAR */
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
+        nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; transition: color 0.3s; }
+        nav .links a:hover, nav .links a.active { color: var(--text-main); }
+        
+        .container { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        .card { background: var(--bg-card); padding: 2.5rem; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .card-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px;}
+        .card-header i { font-size: 1.5rem; color: var(--primary); }
+        
+        h2 { color: var(--primary); font-weight: 800; margin: 0; border-bottom: 2px solid var(--border); padding-bottom: 10px; width: 100%;}
+        h3 { color: var(--text-main); font-weight: 700; margin-top: 30px;}
+        p { color: var(--text-muted); line-height: 1.6; }
+        
+        .step-list { list-style: none; padding: 0; }
+        .step-list li { background: var(--bg-main); margin-bottom: 15px; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary); color: var(--text-main); font-weight: 600;}
+        .step-list li span { color: var(--primary); margin-right: 10px; font-size: 1.2rem;}
+
+        .highlight-box { background: rgba(0, 113, 195, 0.1); border: 1px solid var(--primary); padding: 15px; border-radius: 8px; margin-top: 20px;}
+        .highlight-box p:first-child { color: var(--primary); font-weight: 700; margin: 0; }
+        
+        .danger-box { background: rgba(255, 68, 68, 0.1); border: 1px solid #ff4444; padding: 15px; border-radius: 8px; margin-top: 20px;}
+        .danger-box p:first-child { color: #ff4444; font-weight: 700; margin: 0; }
+
+        .support-box h3 { margin-top: 0; display: flex; align-items: center; gap: 10px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;}
+
+        /* CONTACT LINK */
+        .contact-link { color: var(--primary); text-decoration: none; font-weight: 700; transition: color 0.3s; }
+        .contact-link:hover { text-decoration: underline; color: #0099ff; }
+
+        .bottom-nav { display: none; }
+        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a i { font-size: 1.4rem; line-height:1; } }
+    </style>
+<link rel="icon" href="../images/logo.png" type="image/png">
+</head>
+<body>
+    <nav>
+        <div class="brand">BiciFastness</div>
+        <div class="nav-right">
+            <div class="links">
+                <a href="../home/">Inicio</a>
+                <a href="../ranking/">Rankings</a>
+                <a href="../bicirating/">BiciRating</a>
+                <a href="../mapa/">Mapa</a>
+                <a href="../clanes/">Clanes</a>
+                <a href="../subir/">Subir</a>
+                <a href="../profile/">Perfil</a>
+            </div>
+            <a href="../info/" class="info-icon active" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        
+        <div class="card">
+            <div class="card-header">
+                <i class="fi fi-sr-stopwatch"></i>
+                <h2>Subir Tiempos y Verificación</h2>
+            </div>
+            <p>BiciFastness es la plataforma definitiva para los reyes del asfalto. Se registran tus viajes en BiciMAD para ver quién domina la ciudad.</p>
+            
+            <ul class="step-list">
+                <li><span>1.</span> Haz tu viaje en BiciMAD.</li>
+                <li><span>2.</span> Abre la app oficial de BiciMAD, entra en tus viajes y haz una <strong>captura de pantalla clara</strong> donde se vean las estaciones, la fecha y el tiempo.</li>
+                <li><span>3.</span> Ve a la sección "Subir" de esta web e introduce los datos del viaje y adjunta la foto.</li>
+            </ul>
+
+            <div class="highlight-box">
+                <p><i class="fi fi-sr-robot"></i> SOBRE EL BOT VERIFICADOR</p>
+                <p style="margin-top: 5px; font-weight: 400; color: var(--text-main);">Contamos con un <strong>Bot de Inteligencia Artificial (OCR)</strong> que lee las imágenes para evitar trampas. Si tu captura está borrosa, cortada o tiene notificaciones encima, es muy probable que el bot la marque como errónea. ¡Sube fotos limpias!</p>
+            </div>
+
+            <div style="margin-top: 25px; padding: 20px; background: var(--bg-main); border-radius: 12px; border: 2px solid var(--primary);">
+                <h3 style="color: var(--primary); margin-top: 0; text-align: center; font-size: 1.1rem;">
+                    <i class="fi fi-sr-image" style="margin-right: 8px;"></i>
+                    IMAGEN PERFECTA - EJEMPLO
+                </h3>
+                <div style="text-align: center; margin: 15px 0;">
+                    <img src="../images/ejemplo.jpg" alt="Ejemplo de captura perfecta" style="max-width: 100%; height: auto; border-radius: 8px; border: 3px solid var(--primary); box-shadow: 0 4px 15px rgba(0, 113, 195, 0.3);">
+                </div>
+                <p style="margin: 15px 0 0 0; font-size: 0.9rem; color: var(--text-muted); text-align: center; font-style: italic;">
+                    Esta es la imagen perfecta que debes subir: clara, sin recortes, sin notificaciones y con todos los datos visibles.
+                </p>
+            </div>
+
+            <div class="danger-box">
+                <p><i class="fi fi-sr-engine-warning"></i> CERO TRAMPAS</p>
+                <p style="margin-top: 5px; font-weight: 400; color: var(--text-main);">Cualquier intento de subir capturas falsas, editadas con Photoshop u otro tipo de trampas resultará en el <strong>baneo permanente</strong> de tu cuenta y la eliminación de todos tus récords.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fi fi-sr-leaderboard-trophy"></i>
+                <h2>El BiciRating: Tu Nivel Real</h2>
+            </div>
+            <p>El BiciRating no es una puntuación que sube para siempre. Es un <strong>sistema vivo y competitivo</strong> que mide tu habilidad actual. Puedes ganar puntos... y perderlos.</p>
+            
+            <h3>¿Cómo se ganan puntos?</h3>
+            <ul class="step-list">
+                <li><span>Constancia:</span> +5 puntos automáticos por cada viaje verificado que subas.</li>
+                <li><span>Habilidad:</span> Entrar en el Top 7 de cualquier ruta otorga una medalla oculta: <br><strong>1º (80pts) | 2º (65pts) | 3º (55pts) | 4º/5º (35pts) | 6º/7º (20pts)</strong></li>
+            </ul>
+
+            <h3>🔥 Las Rutas Destacadas e Históricas</h3>
+            <p>Cada dos semanas, se destacará una ruta específica. Mientras esté destacada, los puntos de esa ruta <strong>valen el doble (x2)</strong>. Cuando las semanas terminan, la ruta pasa a ser una "Ruta Histórica" y mantendrá un multiplicador de <strong>x1.5 para siempre</strong>. ¡Pelea por esos puntos!</p>
+
+            <div class="danger-box" style="border-color: var(--primary); background: rgba(0, 113, 195, 0.1);">
+                <p style="color: var(--primary);"><i class="fi fi-sr-swords"></i> DEFIENDE TU TRONO</p>
+                <p style="color: var(--text-main); margin-top: 5px; font-weight: 400;">Si estás en el Top 1 de una ruta y alguien hace un tiempo mejor, te empujará a la posición 2. <strong>El sistema restará la diferencia de puntos de tu BiciRating automáticamente.</strong> Tienes que mantenerte rápido para no caer en el ranking global.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fi fi-sr-map-marker"></i>
+                <h2>Clanes y Territorios</h2>
+            </div>
+            <p>No tienes por qué correr solo. Funda un clan con hasta 5 integrantes y dominad los barrios de Madrid.</p>
+            
+            <ul class="step-list">
+                <li><span>Rating del Clan:</span> Es la suma exacta del BiciRating de todos sus miembros. Si un miembro es expulsado o abandona, se lleva sus puntos consigo.</li>
+                <li><span>Control del Mapa:</span> El mapa de la ciudad está vivo. Las estaciones se pintan del color del clan dominante.</li>
+                <li><span>¿Cómo se conquista?</span> Para dominar una estación, el sistema revisa TODAS las rutas que salen o llegan a ella. Si un miembro de tu clan entra en el Top 10 de esa ruta, suma puntos para la estación (1º suma 7pts, el 2º suma 5pts, etc.). El clan con más puntos sumados en una estación, se la queda.</li>
+            </ul>
+        </div>
+
+        <div class="card support-box">
+            <h3><i class="fi fi-sr-time-fast"></i> Un poco de paciencia</h3>
+            <p>Los tiempos tardan un poco en verificarse. Aunque el Bot ayuda, la validación final tarda para garantizar que los rankings sean 100% justos.</p>
+            
+            <p style="font-weight: 400; font-size: 0.95rem; margin-top: 20px;">Este es un proyecto totalmente independiente creado por y para la comunidad, sin financiación externa ni ningún tipo de apoyo. Los servidores y el mantenimiento cuestan tiempo y dinero.</p>
+            
+            <p style="font-weight: 400; font-size: 0.95rem;">Si te gusta lo que se está haciendo y quieres que la plataforma siga viva, puedes ayudar desde la sección de tu Perfil. Toda ayuda, por pequeña que sea, permite mantener la rueda girando.</p>
+            
+            <div style="margin-top: 25px; padding-top: 15px; border-top: 1px dashed var(--border);">
+                <p style="font-weight: 400; font-size: 0.95rem; margin-bottom: 5px;">¿Tienes alguna duda, problema o sugerencia?</p>
+                <p style="font-weight: 400; font-size: 0.95rem; margin-top: 0;">Escríbenos a: <a href="mailto:bicifastness@gmail.com" class="contact-link">bicifastness@gmail.com</a></p>
+            </div>
+
+            <strong style="display:block; margin-top: 25px; color: var(--primary); font-size: 1.1rem; text-align: center;">¡Nos vemos en las calles!</strong>
+        </div>
+
+    </div>
+
+    <div class="bottom-nav">
+        <a href="../home/"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="../ranking/"><i class="fi fi-sr-leaderboard"></i>Rankings</a>
+        <a href="../bicirating/"><i class="fi fi-ss-medal"></i>Rating</a>
+        <a href="../subir/"><i class="fi fi-sr-add"></i>Subir</a>
+        <a href="../mapa/"><i class="fi fi-ss-map-marker"></i>Mapa</a>
+        <a href="../clanes/"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
+        <a href="../profile/"><i class="fi fi-sr-user"></i>Perfil</a>
+    </div>
+
+    <script>
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+    </script>
+</body>
+</html>

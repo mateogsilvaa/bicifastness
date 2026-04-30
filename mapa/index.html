@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <title>Mapa | BiciFastness</title>
+    
+    <script>
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+    </script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-straight/css/uicons-solid-straight.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-rounded/css/uicons-bold-rounded.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-straight/css/uicons-regular-straight.css'>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap');
+        
+        :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
+        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --bg-input: #f0f0f0; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
+        
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-main);}
+        
+        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
+        .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
+        nav .links { display: flex; align-items: center; }
+        nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 15px; transition: color 0.3s; }
+        nav .links a.active, nav .links a:hover { color: var(--text-main); }
+        .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
+        .info-icon:hover { color: var(--primary); }
+        
+        #map { flex-grow: 1; width: 100%; z-index: 1; }
+        
+        /* BOTONES FLOTANTES */
+        .locate-btn { position: absolute; bottom: 90px; right: 20px; z-index: 1000; background: var(--primary); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s;}
+        .locate-btn:hover { transform: scale(1.1); }
+
+        .route-btn { position: absolute; bottom: 150px; right: 20px; z-index: 1000; background: var(--bg-card); color: var(--primary); border: 2px solid var(--primary); border-radius: 50%; width: 50px; height: 50px; font-size: 1.2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s;}
+        .route-btn:hover { transform: scale(1.1); background: var(--primary); color: white;}
+
+        /* ========================================= */
+        /* POPUP DE LEAFLET (BLINDADO Y REDISEÑADO)  */
+        /* ========================================= */
+        .leaflet-popup-content-wrapper {
+            padding: 0 !important;
+            border-radius: 12px !important;
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
+            overflow: hidden !important;
+        }
+        .leaflet-popup-content {
+            margin: 0 !important;
+            width: 250px !important;
+            font-family: 'Poppins', sans-serif !important;
+            color: var(--text-main) !important;
+            line-height: 1.4 !important;
+        }
+        .leaflet-popup-tip {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border) !important;
+        }
+        /* Botón de cerrar de Leaflet (la 'x' de arriba) */
+        .leaflet-popup-close-button {
+            color: var(--text-muted) !important;
+            padding: 12px 12px 0 0 !important;
+            z-index: 100 !important;
+            font-size: 1.2rem !important;
+        }
+        .leaflet-popup-close-button:hover {
+            color: var(--text-main) !important;
+            background: transparent !important;
+        }
+
+        /* ESTRUCTURA INTERNA DEL POPUP */
+        .popup-header { 
+            background: var(--bg-input); 
+            padding: 20px 15px 15px 15px; 
+            text-align: center; 
+            border-bottom: 1px solid var(--border); 
+            position: relative;
+        }
+        .popup-title { 
+            font-weight: 800; 
+            font-size: 1.1rem; 
+            margin: 0; 
+            color: var(--text-main); 
+            line-height: 1.2;
+        }
+        .popup-address { 
+            margin: 5px 0 10px 0; 
+            font-size: 0.8rem; 
+            color: var(--text-muted); 
+            line-height: 1.3;
+        }
+        .popup-clan { 
+            font-size: 0.75rem; 
+            font-weight: 800; 
+            display: inline-block; 
+            padding: 6px 12px; 
+            border-radius: 20px; 
+            color: #ffffff !important; 
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5); 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            text-transform: uppercase;
+        }
+        .popup-body { 
+            padding: 15px; 
+            background: var(--bg-card); 
+        }
+        
+        .btn-asaltar { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px; 
+            width: 100%; 
+            background: var(--primary) !important; 
+            color: #ffffff !important; 
+            text-decoration: none !important; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            transition: 0.2s; 
+            box-sizing: border-box; 
+            border: none;
+            cursor: pointer;
+        }
+        .btn-asaltar:hover { 
+            background: #005a9e !important; 
+            transform: scale(0.98); 
+        }
+        /* ========================================= */
+
+
+        /* ESTILO DEL PANEL CALCULADORA */
+        #routing-panel { 
+            display: none; 
+            position: absolute; 
+            bottom: 210px; 
+            right: 20px; 
+            z-index: 1000; 
+            background: var(--bg-card); 
+            padding: 20px; 
+            border-radius: 16px; 
+            border: 1px solid var(--border); 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); 
+            width: 300px; 
+            box-sizing: border-box; 
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .autocomplete-container { 
+            position: relative; 
+            width: 100%; 
+            margin-bottom: 12px; 
+            display: flex; 
+            align-items: center; 
+            background: var(--bg-input); 
+            border: 1px solid var(--border); 
+            border-radius: 10px; 
+            padding: 0 12px; 
+            box-sizing: border-box;
+        }
+        .autocomplete-container i { color: var(--primary); font-size: 1rem; margin-right: 10px; }
+        .autocomplete-container input { 
+            flex-grow: 1; 
+            width: 100%; 
+            padding: 12px 0; 
+            border: none; 
+            background: transparent; 
+            color: var(--text-main); 
+            box-sizing: border-box; 
+            font-family: inherit; 
+            font-size: 0.9rem; 
+            outline: none; 
+        }
+
+        /* RESULTADOS DE LA RUTA */
+        #route-results { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); display: none; text-align: center; }
+        .route-stat { display: flex; justify-content: space-around; gap: 10px; }
+        .stat-item { display: flex; flex-direction: column; align-items: center; }
+        .stat-val { font-weight: 800; color: var(--primary); font-size: 1.1rem; }
+        .stat-lab { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+
+        .autocomplete-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; max-height: 150px; overflow-y: auto; z-index: 2000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-top: 5px; box-sizing: border-box; }
+        .autocomplete-item { padding: 10px 15px; cursor: pointer; color: var(--text-main); font-size: 0.85rem; border-bottom: 1px solid var(--bg-input); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover { background: var(--bg-input); color: var(--primary); }
+
+        .bottom-nav { display: none; }
+        @media (max-width: 850px) { 
+            nav .links { display: none; } 
+            .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-between; padding: 8px 5px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;} 
+            .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.6rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; text-align: center; } 
+            .bottom-nav a.active { color: var(--primary); } 
+            .bottom-nav a i { font-size: 1.25rem; line-height: 1; } 
+            #routing-panel { bottom: 210px !important; right: 10px !important; width: calc(100% - 20px) !important; max-width: 320px; }
+        }
+    </style>
+    <link rel="icon" href="../images/logo.png" type="image/png">
+</head>
+<body>
+    <nav>
+        <a href="../home/" class="brand">BICIFASTNESS</a>
+        <div class="nav-right">
+            <div class="links">
+                <a href="../home/">Inicio</a>
+                <a href="../ranking/">Rankings</a>
+                <a href="../bicirating/">BiciRating</a>
+                <a href="../mapa/" class="active">Mapa</a>
+                <a href="../clanes/">Clanes</a>
+                <a href="../subir/">Subir</a>
+                <a href="../profile/">Perfil</a>
+            </div>
+            <a href="../info/" class="info-icon" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
+        </div>
+    </nav>
+
+    <button class="locate-btn" id="locate-btn" title="Mi ubicación"><i class="fi fi-sr-marker"></i></button>
+    <button class="route-btn" id="route-toggle-btn" title="Calcular Ruta"><i class="fi fi-bs-route"></i></button>
+
+    <div id="map"></div>
+
+    <div id="routing-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0; font-size: 1rem; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fi fi-bs-route"></i> Calculadora Bici
+            </h3>
+            <i id="close-routing-panel" class="fi fi-br-cross" style="color: var(--text-muted); cursor: pointer; font-size: 0.9rem;" title="Cerrar"></i>
+        </div>
+        
+        <div class="autocomplete-container">
+            <i class="fi fi-bs-map-marker-cross"></i>
+            <input type="text" id="route-start" placeholder="Origen (Nº o Nombre)">
+            <div id="start-results" class="autocomplete-results"></div>
+        </div>
+
+        <div class="autocomplete-container" style="margin-bottom: 15px;">
+            <i class="fi fi-bs-map-marker-cross"></i>
+            <input type="text" id="route-end" placeholder="Destino (Nº o Nombre)">
+            <div id="end-results" class="autocomplete-results"></div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <button id="calc-route-btn" style="flex: 1; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s;">Trazar</button>
+            <button id="clear-route-btn" style="background: var(--bg-input); color: var(--text-muted); border: 1px solid var(--border); padding: 12px 15px; border-radius: 10px; cursor: pointer; transition: 0.2s;"><i class="fi fi-br-cross"></i></button>
+        </div>
+
+        <div id="route-results">
+            <div class="route-stat">
+                <div class="stat-item">
+                    <span class="stat-val" id="res-dist">--</span>
+                    <span class="stat-lab">Distancia</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-val" id="res-time">--</span>
+                    <span class="stat-lab">Tiempo Est.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="../home/"><i class="fi fi-sr-home"></i>Inicio</a>
+        <a href="../ranking/"><i class="fi fi-sr-ranking-star"></i>Rankings</a>
+        <a href="../bicirating/"><i class="fi fi-ss-medal"></i>Rating</a>
+        <a href="../subir/"><i class="fi fi-sr-add"></i>Subir</a>
+        <a href="../mapa/" class="active"><i class="fi fi-ss-map-marker"></i>Mapa</a>
+        <a href="../clanes/"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
+        <a href="../profile/"><i class="fi fi-sr-user"></i>Perfil</a>
+    </div>
+
+    <script type="module">
+        // ----------------------------------------------------
+        // OPTIMIZADO PARA AHORRAR LECTURAS EN FIREBASE: 
+        // AHORA LEE DIRECTAMENTE DE POCKETBASE
+        // ----------------------------------------------------
+        import PocketBase from 'https://cdn.jsdelivr.net/npm/pocketbase@0.22.0/+esm';
+        const pb = new PocketBase('https://vicinity-unfrozen-washout.ngrok-free.dev');
+        
+        // Pase VIP para saltar advertencia de Ngrok
+        pb.beforeSend = function (url, options) {
+            options.headers = Object.assign({}, options.headers, {
+                'ngrok-skip-browser-warning': 'true'
+            });
+            return { url, options };
+        };
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const tileUrl = isDark ? 
+            'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 
+            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+        const map = L.map('map', { zoomControl: false }).setView([40.4168, -3.7038], 14);
+        L.tileLayer(tileUrl, { attribution: '&copy; BiciFastness' }).addTo(map);
+
+        document.getElementById('locate-btn').addEventListener('click', () => { 
+            map.locate({setView: true, maxZoom: 16}); 
+        });
+
+        const routingPanel = document.getElementById('routing-panel');
+        document.getElementById('route-toggle-btn').addEventListener('click', () => {
+            routingPanel.style.display = routingPanel.style.display === 'none' ? 'block' : 'none';
+        });
+        document.getElementById('close-routing-panel').addEventListener('click', () => {
+            routingPanel.style.display = 'none';
+        });
+
+        let fullStationsData = []; 
+        let routingControl = null;
+
+        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+        async function loadMapData() {
+            try {
+                // LECTURA DE POCKETBASE
+                const clanesRecords = await pb.collection('clanes').getFullList();
+                const clanesDict = {};
+                clanesRecords.forEach(record => { 
+                    clanesDict[record.id] = record; 
+                    // Mapa de apoyo por si el ID de firebase era el nombre formateado
+                    if(record.nombre) {
+                        const slug = record.nombre.replace(/\s+/g, '_').toLowerCase();
+                        clanesDict[slug] = record;
+                    }
+                });
+
+                const statsRecords = await pb.collection('estaciones_stats').getFullList();
+                const statsDict = {};
+                statsRecords.forEach(record => { 
+                    const stationNum = record.estacion_id || record.id;
+                    statsDict[stationNum] = record; 
+                });
+
+                const response = await fetch('../data/emt.geojson');
+                if (!response.ok) throw new Error("Error al cargar emt.geojson");
+                const geojsonData = await response.json();
+
+                L.geoJSON(geojsonData, {
+                    pointToLayer: function (feature, latlng) {
+                        const stationNum = feature.properties.number;
+                        const stationName = feature.properties.Name;
+                        let cleanName = stationName;
+                        if(cleanName.includes('-')) cleanName = cleanName.split('-').slice(1).join('-').trim();
+                        
+                        fullStationsData.push({
+                            number: stationNum,
+                            name: cleanName,
+                            searchString: `${stationNum} - ${cleanName}`.toLowerCase(),
+                            latlng: latlng
+                        });
+
+                        const statInfo = statsDict[stationNum];
+                        const clanId = statInfo ? statInfo.clan_dominante : null;
+                        const clanColor = (clanId && clanesDict[clanId]) ? clanesDict[clanId].color : "#888888";
+
+                        return L.circleMarker(latlng, {
+                            radius: 8, fillColor: clanColor, color: "#ffffff", weight: 2, opacity: 1, fillOpacity: 0.9
+                        });
+                    },
+                    onEachFeature: function (feature, layer) {
+                        const stationNum = feature.properties.number;
+                        const statInfo = statsDict[stationNum];
+                        const clanId = statInfo ? statInfo.clan_dominante : null;
+                        const clanData = (clanId && clanesDict[clanId]) ? clanesDict[clanId] : null;
+
+                        let clanNameStr = clanData ? escapeHtml(clanData.nombre) : (clanId || "Neutral");
+                        let clanColorStr = clanData ? clanData.color : "#888888";
+
+                        let clanBadge = clanData 
+                            ? `<span class="popup-clan" style="background:${clanColorStr};">Dominada por: ${clanNameStr}</span>` 
+                            : `<span class="popup-clan" style="background:#888888;">Territorio Neutral</span>`;
+
+                        const popupContent = `
+                            <div class="popup-header">
+                                <h3 class="popup-title">${escapeHtml(feature.properties.Name)}</h3>
+                                <p class="popup-address">${escapeHtml(feature.properties.Address)}</p>
+                                ${clanBadge}
+                            </div>
+                            <div class="popup-body">
+                                <a href="../subir/?origen=${stationNum}" class="btn-asaltar">
+                                    <i class="fi fi-sr-sword"></i> ¡Atacar Estación!
+                                </a>
+                            </div>
+                        `;
+                        layer.bindPopup(popupContent, { minWidth: 240 });
+                    }
+                }).addTo(map);
+
+            } catch (error) { console.error('Error inicializando el mapa:', error); }
+        }
+
+        loadMapData();
+
+        function setupAutocomplete(inputId, resultsId) {
+            const input = document.getElementById(inputId);
+            const results = document.getElementById(resultsId);
+
+            input.addEventListener('input', () => {
+                const val = input.value.toLowerCase().trim();
+                results.innerHTML = '';
+                if (!val) { results.style.display = 'none'; input.removeAttribute('data-station-num'); return; }
+                const matches = fullStationsData.filter(s => s.searchString.includes(val)).slice(0, 10);
+                if (matches.length > 0) {
+                    matches.forEach(m => {
+                        const div = document.createElement('div');
+                        div.className = 'autocomplete-item';
+                        div.innerText = `${m.number} - ${m.name}`;
+                        div.onclick = () => {
+                            input.value = `${m.number} - ${m.name}`;
+                            input.setAttribute('data-station-num', m.number);
+                            results.style.display = 'none';
+                        };
+                        results.appendChild(div);
+                    });
+                    results.style.display = 'block';
+                } else { results.style.display = 'none'; }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (e.target !== input && e.target !== results) { results.style.display = 'none'; }
+            });
+        }
+
+        setupAutocomplete('route-start', 'start-results');
+        setupAutocomplete('route-end', 'end-results');
+
+        document.getElementById('calc-route-btn').addEventListener('click', () => {
+            const btn = document.getElementById('calc-route-btn');
+            const startInput = document.getElementById('route-start');
+            const endInput = document.getElementById('route-end');
+
+            let startId = startInput.getAttribute('data-station-num') || startInput.value.trim();
+            let endId = endInput.getAttribute('data-station-num') || endInput.value.trim();
+
+            let startData = fullStationsData.find(s => s.number === startId || s.number === String(startId).padStart(3, '0'));
+            let endData = fullStationsData.find(s => s.number === endId || s.number === String(endId).padStart(3, '0'));
+
+            if(!startData || !endData) { alert("⚠️ Selecciona estaciones válidas."); return; }
+            if(routingControl) map.removeControl(routingControl);
+
+            btn.innerText = "Calculando...";
+
+            const greenIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], shadowSize: [41, 41] });
+            const redIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], shadowSize: [41, 41] });
+
+            routingControl = L.Routing.control({
+                waypoints: [L.latLng(startData.latlng.lat, startData.latlng.lng), L.latLng(endData.latlng.lat, endData.latlng.lng)],
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://routing.openstreetmap.de/routed-bike/route/v1',
+                    profile: 'bicycle'
+                }),
+                lineOptions: { styles: [{ color: '#0071c3', weight: 6, opacity: 0.9 }] },
+                addWaypoints: false,
+                draggableWaypoints: false,
+                fitSelectedRoutes: true,
+                show: false, 
+                createMarker: function(i, waypoint, n) {
+                    return L.marker(waypoint.latLng, { icon: i === 0 ? greenIcon : redIcon });
+                }
+            }).on('routesfound', function(e) {
+                btn.innerText = "Trazar";
+                const routes = e.routes;
+                const summary = routes[0].summary;
+                
+                document.getElementById('route-results').style.display = 'block';
+                document.getElementById('res-dist').innerText = (summary.totalDistance / 1000).toFixed(1) + " km";
+                document.getElementById('res-time').innerText = Math.round(summary.totalTime / 60) + " min";
+                
+            }).on('routingerror', function() {
+                alert("Error calculando ruta ciclista.");
+                btn.innerText = "Trazar";
+            }).addTo(map);
+        });
+
+        document.getElementById('clear-route-btn').addEventListener('click', () => {
+            if(routingControl) { map.removeControl(routingControl); routingControl = null; }
+            document.getElementById('route-start').value = ''; 
+            document.getElementById('route-end').value = '';
+            document.getElementById('route-results').style.display = 'none';
+        });
+    </script>
+</body>
+</html>

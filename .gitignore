@@ -81,3 +81,15 @@ android-sdk/ -e
 # Environment files
 *.env
 *.env.*
+
+# --- BiciFastness ---
+# Credenciales de servicio de Firebase: NUNCA al repositorio.
+serviceAccountKey*.json
+*-firebase-adminsdk-*.json
+.firebase/
+firebase-debug.log*
+.runtimeconfig.json
+
+# Parametros de las Cloud Functions (no secretos, pero locales)
+functions/.env
+functions/.env.*

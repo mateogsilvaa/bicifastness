@@ -1,406 +1,145 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-    <title>Rating | BiciFastness</title>
-    
-    <script>
-        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
-    </script>
-
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-straight/css/uicons-solid-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-channeled/css/uicons-solid-channeled.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-rounded/css/uicons-bold-rounded.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-straight/css/uicons-regular-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
-    <link rel="icon" href="../images/logo.png" type="image/png">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap');
-        
-        :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
-        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --bg-input: #f0f0f0; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
-        
-        body { margin: 0; padding: 0; padding-bottom: 80px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
-        
-        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-decoration: none; text-transform: uppercase;}
-        .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
-        nav .links { display: flex; align-items: center; }
-        nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 20px; transition: color 0.3s; }
-        nav .links a.active, nav .links a:hover { color: var(--text-main); }
-        .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
-        .info-icon:hover { color: var(--primary); }
-
-        .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
-        
-        .header-title { text-align: center; margin-bottom: 20px;}
-        .header-title h1 { font-size: 2.2rem; font-weight: 900; margin: 0; color: var(--primary); }
-        .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; }
-
-        /* TABS */
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { flex: 1; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-muted); border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
-        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-
-        .rank-list { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); }
-        
-        /* AJUSTE RESPONSIVE: grid con min-width: 0 para forzar el truncamiento del texto */
-        .rank-row { display: grid; grid-template-columns: 25px 40px minmax(0, 1fr) max-content; gap: 12px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box;}
-        .rank-row:last-child { margin-bottom: 0; }
-        /* EFECTO HOVER PARA INDICAR QUE ES CLICABLE */
-        .rank-row:hover { border-color: var(--primary); transform: translateX(5px); transition: 0.2s;}
-        
-        .pos { font-size: 1.1rem; font-weight: 800; color: var(--text-muted); text-align: center;}
-        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); display: flex; justify-content: center; align-items: center; font-size: 1.2rem; color: white; line-height: 1; margin: 0; }
-        
-        /* Contenedor del nombre para que se corte si es muy largo */
-        .username-container { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px;}
-        .username { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-        .clan-tag { font-size: 0.65rem; background: var(--border); color: var(--text-main); padding: 2px 6px; border-radius: 8px; white-space: nowrap;}
-        
-        .rating-box { text-align: right; }
-        .score { font-size: 1.1rem; font-weight: 800; color: #FFD700; line-height: 1;}
-        .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;}
-
-        /* COLORES TOP 3 */
-        .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); } .rank-1 .pos { color: #FFD700; } .rank-1 .avatar { border-color: #FFD700;}
-        .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .pos { color: #C0C0C0; }
-        .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .pos { color: #CD7F32; }
-
-        /* FILA DEL USUARIO (Tu Posición Actual) */
-        .my-rank-container { margin-top: 20px; border-top: 2px dashed var(--border); padding-top: 20px; }
-        .my-rank-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 10px; text-align: center; }
-        .rank-row.is-me { border-color: var(--primary); background: rgba(0, 113, 195, 0.1); transform: scale(1.02); box-shadow: 0 4px 10px rgba(0,113,195,0.2);}
-        .rank-row.is-me:hover { transform: scale(1.02) translateX(5px); }
-        .rank-row.is-me .pos { color: var(--primary); font-size: 1.3rem;}
-        .rank-row.is-me .avatar { border-color: var(--primary); }
-
-        .bottom-nav { display: none; }
-        @media (max-width: 850px) { 
-            nav .links { display: none; } 
-            .rank-list { padding: 15px; } /* Menos padding en móviles */
-            .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-between; padding: 8px 5px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;} 
-            .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.6rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; text-align: center; } 
-            .bottom-nav a.active { color: var(--primary); } 
-            .bottom-nav a i { font-size: 1.25rem; line-height: 1; } 
-        }
-
-        /* --- NUEVO CSS: MODAL DE PERFIL --- */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
-        .modal-content { background: var(--bg-card); padding: 30px; border-radius: 20px; border: 1px solid var(--border); text-align: center; width: 320px; color: var(--text-main); position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.5);}
-        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer; color: var(--text-muted); font-weight: 800; line-height: 1; transition: 0.2s;}
-        .modal-close:hover { color: var(--primary); }
-        .modal-avatar { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--primary); margin-bottom: 10px; object-fit: cover; }
-        .modal-username { font-size: 1.4rem; font-weight: 800; margin: 0 0 5px 0;}
-        .modal-clan { font-size: 0.8rem; background: var(--border); padding: 3px 8px; border-radius: 12px; display: inline-block; margin-bottom: 20px; font-weight: 600; color: var(--text-main);}
-        
-        .modal-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;}
-        .modal-stat { background: var(--bg-input); padding: 10px; border-radius: 8px; border: 1px solid var(--border);}
-        .modal-stat-val { font-size: 1.3rem; font-weight: 800; color: var(--primary);}
-        .modal-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;}
-        
-        .modal-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);}
-        
-        /* FIX PARA CENTRAR LAS INSIGNIAS CUANDO SON MUCHAS */
-        .contenedor-insignias { justify-content: center !important; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="BiciRating: clasificacion global de pilotos y clanes de BiciFastness.">
+<title>BiciRating | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
+<style>
+  .pestanas { display: flex; gap: 10px; margin: 20px 0; }
+  .pestanas button { width: auto; margin: 0; padding: 10px 20px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
+  .pestanas button.activa { border-color: var(--primary); color: var(--primary); }
+  .fila { display: flex; align-items: center; gap: 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; }
+  .fila.p1 { border-color: var(--oro); }
+  .fila.p2 { border-color: #c0c0c0; }
+  .fila.p3 { border-color: #cd7f32; }
+  .puesto { font-weight: 900; min-width: 40px; color: var(--text-muted); font-size: 1.1rem; }
+  .fila.p1 .puesto { color: var(--oro); }
+  .avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--bg-input); }
+  .nombre { flex: 1; min-width: 0; }
+  .nombre strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nombre span { font-size: .75rem; color: var(--text-muted); }
+  .puntos { font-weight: 800; color: var(--primary); font-size: 1.05rem; }
+  .marca-clan { width: 6px; height: 42px; border-radius: 3px; background: var(--primary); }
+</style>
 </head>
 <body>
-    <nav>
-        <a href="../home/" class="brand">BICIFASTNESS</a>
-        <div class="nav-right">
-            <div class="links">
-                <a href="../home/">Inicio</a>
-                <a href="../ranking/">Rankings</a>
-                <a href="../bicirating/" class="active">BiciRating</a>
-                <a href="../mapa/">Mapa</a>
-                <a href="../clanes/">Clanes</a>
-                <a href="../subir/">Subir</a>
-                <a href="../profile/">Perfil</a>
-            </div>
-            <a href="../info/" class="info-icon" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
-        </div>
-    </nav>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+<div class="bottom-nav" id="nav-inferior"></div>
 
-    <div class="bottom-nav">
-        <a href="../home/"><i class="fi fi-sr-home"></i>Inicio</a>
-        <a href="../ranking/"><i class="fi fi-sr-ranking-star"></i>Rankings</a>
-        <a href="../bicirating/" class="active"><i class="fi fi-ss-medal"></i>Rating</a>
-        <a href="../subir/"><i class="fi fi-sr-add"></i>Subir</a>
-        <a href="../mapa/"><i class="fi fi-ss-map-marker"></i>Mapa</a>
-        <a href="../clanes/"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
-        <a href="../profile/"><i class="fi fi-sr-user"></i>Perfil</a>
-    </div>
+<main class="container" id="principal">
+  <h2>BiciRating</h2>
+  <p style="color: var(--text-muted); font-size: .9rem; max-width: 640px;">
+    Cada viaje verificado suma 5 puntos, y quedar entre los siete primeros de una
+    ruta suma segun el puesto. La ruta destacada de la temporada puntua el doble.
+  </p>
 
-    <div class="container">
-        <div class="header-title">
-            <h1>TOP BICIRATING</h1>
-            <p>Los pilotos y clanes con mayor BiciRating de la ciudad.</p>
-        </div>
+  <div class="pestanas">
+    <button id="tab-pilotos" class="activa">Pilotos</button>
+    <button id="tab-clanes">Clanes</button>
+  </div>
 
-        <div class="tabs">
-            <button class="tab-btn active" id="tab-pilotos">Pilotos</button>
-            <button class="tab-btn" id="tab-clanes">Clanes</button>
-        </div>
+  <p class="mensaje" id="mensaje"></p>
+  <div id="lista"></div>
+</main>
 
-        <div class="rank-list" id="list-pilotos">
-            <div style="padding: 20px; text-align:center; color: var(--text-muted);">Cargando pilotos...</div>
-        </div>
+<footer id="pie-legal"></footer>
 
-        <div class="rank-list" id="list-clanes" style="display: none;">
-            <div style="padding: 20px; text-align:center; color: var(--text-muted);">Cargando clanes...</div>
-        </div>
+<script type="module">
+  import { db, collection, getDocs } from '/assets/js/firebase.js';
+  import { iniciarPagina } from '/assets/js/ui.js';
+  import { id, el, estado, reemplazar, imagen } from '/assets/js/dom.js';
 
-        <div class="my-rank-container" id="my-rank-section">
-            <div class="my-rank-label">Tu Posición Actual</div>
-            <div id="my-rank-row-content">
-                <div style="text-align:center; color: var(--text-muted); font-size: 0.9rem;">Cargando...</div>
-            </div>
-        </div>
-    </div>
+  iniciarPagina('bicirating');
 
-    <div class="modal" id="user-profile-modal">
-        <div class="modal-content">
-            <span class="modal-close" onclick="document.getElementById('user-profile-modal').style.display='none'">&times;</span>
-            <img src="" id="um-avatar" class="modal-avatar">
-            <h3 class="modal-username" id="um-username">Usuario</h3>
-            <div id="um-clan-container"></div>
-            
-            <div class="modal-stats-grid">
-                <div class="modal-stat">
-                    <div class="modal-stat-val" id="um-rating">0</div>
-                    <div class="modal-stat-label">BiciRating</div>
-                </div>
-                <div class="modal-stat">
-                    <div class="modal-stat-val" id="um-pos">#0</div>
-                    <div class="modal-stat-label">Ranking</div>
-                </div>
-                <div class="modal-stat" style="grid-column: span 2;">
-                    <div class="modal-stat-val" id="um-trips">...</div>
-                    <div class="modal-stat-label">Viajes Subidos</div>
-                </div>
-            </div>
+  let pilotos = [];
+  let clanes = [];
+  let vista = 'pilotos';
 
-            <div class="modal-badges" id="um-badges">
-            </div>
+  cargar();
 
-            <div id="badge-desc-box" style="margin-top: 15px; font-size: 0.8rem; color: var(--text-main); display: none; background: rgba(0, 113, 195, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--primary); font-weight: 600;"></div>
-        </div>
-    </div>
+  async function cargar() {
+    estado(id('mensaje'), 'Cargando clasificacion...');
+    try {
+      // Lectura publica directa de Firestore. Antes venia de PocketBase a traves
+      // de un tunel de ngrok, que ademas era un punto unico de fallo.
+      const [usuariosSnap, clanesSnap] = await Promise.all([
+        getDocs(collection(db, 'usuarios')),
+        getDocs(collection(db, 'clanes')),
+      ]);
 
-    <script type="module">
-        import PocketBase from 'https://cdn.jsdelivr.net/npm/pocketbase@0.22.0/+esm';
-        const pb = new PocketBase('https://vicinity-unfrozen-washout.ngrok-free.dev');
-        
-        // Pase VIP para saltar advertencia de Ngrok
-        pb.beforeSend = function (url, options) {
-            options.headers = Object.assign({}, options.headers, {
-                'ngrok-skip-browser-warning': 'true'
-            });
-            return { url, options };
-        };
+      pilotos = usuariosSnap.docs
+        .map((d) => ({ uid: d.id, ...d.data() }))
+        .filter((u) => !u.suspendido)
+        .sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0));
 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        
-        // Importamos la función para dibujar insignias desde el archivo maestro
-        import { generarHTMLInsignias } from '../insignias.js';
+      clanes = clanesSnap.docs
+        .map((d) => ({ clanId: d.id, ...d.data() }))
+        .sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0));
 
-        const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
-        const app = initializeApp(firebaseConfig); const auth = getAuth(app); 
+      estado(id('mensaje'), '');
+      pintar();
+    } catch (error) {
+      estado(id('mensaje'), `No se ha podido cargar la clasificacion: ${error.message}`, 'error');
+    }
+  }
 
-        // Control de Tabs
-        document.getElementById('tab-pilotos').onclick = () => {
-            document.getElementById('list-pilotos').style.display = 'block';
-            document.getElementById('list-clanes').style.display = 'none';
-            document.getElementById('tab-pilotos').classList.add('active');
-            document.getElementById('tab-clanes').classList.remove('active');
-            document.getElementById('my-rank-section').style.display = 'block';
-        };
-        document.getElementById('tab-clanes').onclick = () => {
-            document.getElementById('list-pilotos').style.display = 'none';
-            document.getElementById('list-clanes').style.display = 'block';
-            document.getElementById('tab-clanes').classList.add('active');
-            document.getElementById('tab-pilotos').classList.remove('active');
-            document.getElementById('my-rank-section').style.display = 'none'; 
-        };
+  function pintar() {
+    const datos = vista === 'pilotos' ? pilotos : clanes;
 
-        let currentUserEmail = null;
-        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-        const safeHTML = (html) => DOMPurify.sanitize(String(html ?? ''));
-        const safeColor = (value, fallback = '#0071c3') => /^#[0-9a-fA-F]{3,8}$/.test(String(value || '').trim()) ? String(value).trim() : fallback;
+    if (!datos.length) {
+      reemplazar(id('lista'), el('p', {
+        texto: 'Todavia no hay nadie clasificado.',
+        estilo: { color: 'var(--text-muted)', textAlign: 'center', padding: '30px' },
+      }));
+      return;
+    }
 
-        onAuthStateChanged(auth, async (user) => {
-            if (user) currentUserEmail = user.email;
-            else currentUserEmail = null;
-            loadLeaderboards();
-        });
+    reemplazar(id('lista'), datos.slice(0, 100).map((item, indice) => {
+      const puesto = indice + 1;
+      const clase = `fila ${puesto <= 3 ? `p${puesto}` : ''}`;
 
-        // Cargar rankings inmediatamente para usuarios sin cuenta usando PocketBase
-        async function loadLeaderboards() {
-            try {
-                // 1. CARGAR PILOTOS DESDE POCKETBASE
-                const usersRecords = await pb.collection('usuarios').getFullList();
-                let users = [];
-                usersRecords.forEach(data => {
-                    users.push({ 
-                        id: data.id, 
-                        email: data.email, 
-                        name: data.username || "Piloto", 
-                        rating: data.biciRating || 0, 
-                        avatar: data.avatar || null, 
-                        clanId: data.clanId || null,
-                        logros: data.logros || [] 
-                    });
-                });
-                users.sort((a,b) => b.rating - a.rating);
-                
-                // Guardamos la lista globalmente para poder leerla al hacer click en el modal
-                window.globalUsersList = users;
+      if (vista === 'pilotos') {
+        const nombre = item.username || 'Piloto';
+        return el('div', { clase }, [
+          el('div', { clase: 'puesto', texto: `#${puesto}` }),
+          imagen(item.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nombre)}&backgroundColor=0071c3`,
+            { clase: 'avatar', attrs: { alt: '', loading: 'lazy' } }),
+          el('div', { clase: 'nombre' }, [
+            el('strong', { texto: nombre }),
+            el('span', { texto: `${item.viajesVerificados || 0} viajes verificados` }),
+          ]),
+          el('div', { clase: 'puntos', texto: String(item.biciRating || 0) }),
+        ]);
+      }
 
-                // Rellenar Top 20 Pilotos
-                const listP = document.getElementById('list-pilotos');
-                listP.innerHTML = '';
-                
-                if(users.length === 0) {
-                    listP.innerHTML = '<div style="padding: 20px; text-align:center;">No hay pilotos aún.</div>';
-                }
-                
-                let myPos = "--"; let myUserObj = null;
+      const marca = el('div', { clase: 'marca-clan' });
+      marca.style.background = item.color || 'var(--primary)';
 
-                users.slice(0, 20).forEach((u, index) => {
-                    const pos = index + 1;
-                    if(u.email === currentUserEmail) { myPos = pos; myUserObj = u; }
-                    const rClass = pos === 1 ? 'rank-1' : pos === 2 ? 'rank-2' : pos === 3 ? 'rank-3' : '';
-                    const avatar = u.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${u.email}&backgroundColor=0071c3`;
-                    const clanTag = u.clanId ? `<span class="clan-tag">${escapeHtml(u.clanId)}</span>` : '';
-                    const safeEmail = String(u.email || '').replace(/'/g, "\\'");
-                    const safeName = escapeHtml(u.name);
-                    
-                    listP.innerHTML += `
-                        <div class="rank-row ${rClass}" onclick="openUserProfile('${safeEmail}', ${pos})" style="cursor: pointer;" title="Ver perfil de ${safeName}">
-                            <div class="pos">${pos}</div>
-                            <img src="${avatar}" class="avatar">
-                            <div class="username-container">
-                                <div class="username">${safeName}</div>
-                                ${clanTag}
-                            </div>
-                            <div class="rating-box"><div class="score">${u.rating}</div><div class="label">BiciRating</div></div>
-                        </div>`;
-                });
+      return el('div', { clase }, [
+        el('div', { clase: 'puesto', texto: `#${puesto}` }),
+        marca,
+        el('div', { clase: 'nombre' }, [
+          el('strong', { texto: item.nombre || item.clanId }),
+          el('span', { texto: `${item.numMiembros ?? (item.miembros || []).length} miembros` }),
+        ]),
+        el('div', { clase: 'puntos', texto: String(item.biciRating || 0) }),
+      ]);
+    }));
+  }
 
-                // Pintar "Tu Posición Actual"
-                if (currentUserEmail) {
-                    if(myPos === "--") {
-                        const index = users.findIndex(u => u.email === currentUserEmail);
-                        if(index !== -1) { myPos = index + 1; myUserObj = users[index]; }
-                    }
-                    
-                    if (myUserObj) {
-                        const myAvatar = myUserObj.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${myUserObj.email}&backgroundColor=0071c3`;
-                        const myClanTag = myUserObj.clanId ? `<span class="clan-tag">${escapeHtml(myUserObj.clanId)}</span>` : '';
-                        const safeMyEmail = String(myUserObj.email || '').replace(/'/g, "\\'");
-                        const safeMyName = escapeHtml(myUserObj.name);
-                        document.getElementById('my-rank-row-content').innerHTML = `
-                            <div class="rank-row is-me" onclick="openUserProfile('${safeMyEmail}', ${myPos})" style="cursor:pointer;" title="Ver mi perfil">
-                                <div class="pos">${myPos}</div>
-                                <img src="${myAvatar}" class="avatar">
-                                <div class="username-container">
-                                    <div class="username">Tú (${safeMyName})</div>
-                                    ${myClanTag}
-                                </div>
-                                <div class="rating-box"><div class="score">${myUserObj.rating}</div><div class="label">BiciRating</div></div>
-                            </div>
-                        `;
-                    } else {
-                        document.getElementById('my-rank-row-content').innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size: 0.9rem;">Sube un viaje para aparecer en el ranking.</div>';
-                    }
-                } else {
-                    document.getElementById('my-rank-row-content').innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size: 0.9rem;">Inicia sesión para ver tu posición.</div>';
-                }
-
-
-                // 2. CARGAR CLANES DESDE POCKETBASE
-                const clanesRecords = await pb.collection('clanes').getFullList();
-                let clanes = [];
-                clanesRecords.forEach(data => {
-                    clanes.push({ name: data.nombre, rating: data.biciRating || 0, icon: data.icono, color: data.color });
-                });
-                clanes.sort((a,b) => b.rating - a.rating);
-
-                const listC = document.getElementById('list-clanes');
-                listC.innerHTML = '';
-                if(clanes.length === 0) listC.innerHTML = '<div style="padding: 20px; text-align:center; color:var(--text-muted);">No hay clanes fundados.</div>';
-
-                clanes.slice(0, 20).forEach((c, index) => {
-                    const pos = index + 1;
-                    const rClass = pos === 1 ? 'rank-1' : pos === 2 ? 'rank-2' : pos === 3 ? 'rank-3' : '';
-                    
-                    listC.innerHTML += `
-                        <div class="rank-row ${rClass}">
-                            <div class="pos">${pos}</div>
-                            <div class="avatar" style="background:${safeColor(c.color)}; border:none;">${c.icon}</div>
-                            <div class="username-container"><div class="username">${escapeHtml(c.name)}</div></div>
-                            <div class="rating-box"><div class="score" style="color:${safeColor(c.color)};">${c.rating}</div><div class="label">Rating Clan</div></div>
-                        </div>`;
-                });
-
-            } catch(e) {
-                console.error("Error al cargar rankings desde PocketBase:", e);
-                document.getElementById('list-pilotos').innerHTML = '<div style="padding: 20px; text-align:center; color: #ff4444;">Error cargando rankings.</div>';
-            }
-        }
-
-        // --- NUEVA LÓGICA: FUNCIÓN PARA ABRIR EL PERFIL ---
-        window.openUserProfile = async function(email, pos) {
-            // Ocultamos la caja de descripción de la insignia al abrir un perfil nuevo
-            document.getElementById('badge-desc-box').style.display = 'none';
-
-            // Buscamos los datos del usuario en la lista que ya tenemos cargada
-            const user = window.globalUsersList.find(u => u.email === email);
-            if(!user) return;
-            
-            // Rellenamos datos básicos
-            document.getElementById('um-avatar').src = user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}&backgroundColor=0071c3`;
-            document.getElementById('um-username').innerText = user.name;
-            document.getElementById('um-clan-container').innerHTML = user.clanId ? safeHTML(`<div class="modal-clan">Clan: ${escapeHtml(user.clanId)}</div>`) : '';
-            document.getElementById('um-rating').innerText = user.rating;
-            document.getElementById('um-pos').innerText = `#${pos}`;
-            
-            // Dibujamos las insignias
-            document.getElementById('um-badges').innerHTML = safeHTML(generarHTMLInsignias(user.logros));
-            
-            // Reseteamos el contador de viajes mientras carga
-            document.getElementById('um-trips').innerText = "..."; 
-            
-            // Mostramos el modal
-            document.getElementById('user-profile-modal').style.display = 'flex';
-            
-            try {
-                // Preguntamos a PocketBase cuántos viajes ha subido este email usando getList(1,1) para no descargar datos innecesarios
-                const result = await pb.collection('tiempos_viaje').getList(1, 1, {
-                    filter: `email_real = "${email}"`
-                });
-                document.getElementById('um-trips').innerText = result.totalItems; 
-            } catch (e) {
-                document.getElementById('um-trips').innerText = "0";
-            }
-        };
-
-        // --- EVENTO PARA MOSTRAR DESCRIPCIÓN DE LAS INSIGNIAS AL CLICAR ---
-        document.getElementById('um-badges').addEventListener('click', (e) => {
-            const badge = e.target.closest('.insignia-badge');
-            if (badge) {
-                const descBox = document.getElementById('badge-desc-box');
-                // El atributo title viene como "Titulo: Descripcion", lo ponemos en la cajita
-                descBox.innerText = badge.getAttribute('title');
-                descBox.style.display = 'block';
-            }
-        });
-    </script>
+  for (const cual of ['pilotos', 'clanes']) {
+    id(`tab-${cual}`).addEventListener('click', () => {
+      vista = cual;
+      id('tab-pilotos').classList.toggle('activa', cual === 'pilotos');
+      id('tab-clanes').classList.toggle('activa', cual === 'clanes');
+      pintar();
+    });
+  }
+</script>
 </body>
 </html>

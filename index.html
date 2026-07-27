@@ -1,98 +1,115 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-    <title>Login</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --primary-hover: #005a9e; }
-        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --primary-hover: #005a9e; }
-        body { margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; transition: background 0.3s, color 0.3s; }
-        .card { background: var(--bg-card); padding: 2.5rem 2rem; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 100%; max-width: 350px; text-align: center; box-sizing: border-box; }
-        h1 { color: var(--primary); margin-top: 0; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
-        h3 { margin-top: 0; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; margin-bottom: 25px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; background: var(--bg-main); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
-        input:focus { border-color: var(--primary); outline: none; }
-        button { width: 100%; padding: 14px; margin-top: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.3s, transform 0.1s; }
-        button:active { transform: scale(0.98); }
-        button:hover { background: var(--primary-hover); }
-        button:disabled { opacity: 0.6; cursor: not-allowed; }
-        .guest-link { margin-top: 15px; display: block; font-size: 0.9em; font-weight: 700; color: var(--primary); text-decoration: none; padding: 10px; border: 1px solid var(--border); border-radius: 8px; transition: 0.2s;}
-        .guest-link:hover { background: rgba(0, 113, 195, 0.1); border-color: var(--primary);}
-        .toggle { margin-top: 20px; font-size: 0.85em; }
-        .toggle a { color: var(--text-muted); text-decoration: none; font-weight: 600; transition: color 0.3s; }
-        .toggle a:hover { color: var(--primary); }
-        #error-msg { color: #ff4444; font-size: 0.85em; margin-top: 10px; min-height: 20px; font-weight: 600; }
-    </style>
-<link rel="icon" href="images/logo.png" type="image/png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="BiciFastness: compite con tus tiempos de BiciMAD por Madrid.">
+<title>Iniciar sesion | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+  body { justify-content: center; align-items: center; padding-bottom: 0; }
+  .card { width: 100%; max-width: 360px; text-align: center; }
+  h1 { color: var(--primary); margin: 0 0 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
+  h2.sub { border: none; color: var(--text-muted); font-weight: 600; font-size: .9rem; margin: 0 0 25px; display: block; padding: 0; }
+  input { margin: 10px 0; text-align: left; }
+  .enlace { display: block; margin-top: 15px; font-size: .85rem; color: var(--text-muted); text-decoration: none; font-weight: 600; }
+  .enlace:hover { color: var(--primary); }
+  .invitado { display: block; margin-top: 15px; font-size: .9rem; font-weight: 700; color: var(--primary); text-decoration: none; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+  .invitado:hover { background: rgba(0,113,195,.1); border-color: var(--primary); }
+  #pie-legal { border: none; margin-top: 24px; padding: 0; }
+</style>
 </head>
 <body>
-    <div class="card">
-        <h1>BiciFastness</h1>
-        <h3>Iniciar Sesión</h3>
-        <input type="email" id="email" placeholder="Correo electrónico">
-        <input type="password" id="password" placeholder="Contraseña">
-        <button id="action-btn">Entrar</button>
-        <div id="error-msg"></div>
-        <div class="toggle"><a href="register/">¿No tienes cuenta? Regístrate</a></div>
-        <a href="home/" class="guest-link">👀 Explorar sin cuenta</a>
-    </div>
+<main class="card">
+  <h1>BiciFastness</h1>
+  <h2 class="sub">Iniciar sesion</h2>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import PocketBase from 'https://cdn.jsdelivr.net/npm/pocketbase@0.22.0/+esm';
+  <form id="form-login" novalidate>
+    <label class="solo-lectores" for="email">Correo electronico</label>
+    <input type="email" id="email" name="email" placeholder="Correo electronico"
+           autocomplete="email" required>
 
-        const pb = new PocketBase('https://vicinity-unfrozen-washout.ngrok-free.dev');
-        
-        // Pase VIP para saltar advertencia de Ngrok
-        pb.beforeSend = function (url, options) {
-            options.headers = Object.assign({}, options.headers, {
-                'ngrok-skip-browser-warning': 'true'
-            });
-            return { url, options };
-        };
-        const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
-        const app = initializeApp(firebaseConfig); const auth = getAuth(app);
+    <label class="solo-lectores" for="password">Contrasena</label>
+    <input type="password" id="password" name="password" placeholder="Contrasena"
+           autocomplete="current-password" required>
 
-        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
-        onAuthStateChanged(auth, (user) => { if (user) window.location.href = "home/"; });
+    <button type="submit" id="btn-entrar">Entrar</button>
+  </form>
 
-        const btn = document.getElementById('action-btn');
-        const errorMsg = document.getElementById('error-msg');
+  <p class="mensaje" id="mensaje"></p>
 
-        btn.addEventListener('click', async () => {
-            const email = document.getElementById('email').value.trim().toLowerCase();
-            const pass = document.getElementById('password').value;
-            errorMsg.innerText = "";
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            
-            if(!email || !pass) { errorMsg.innerText = "Rellena todos los campos."; return; }
-            if (!emailRegex.test(email)) { errorMsg.innerText = "Correo no válido."; return; }
-            
-            try {
-                btn.innerText = "Cargando..."; btn.disabled = true;
-                // 1. Iniciar sesión en Firebase (Principal)
-                await signInWithEmailAndPassword(auth, email, pass);
-                
-                // 2. Sincronizar sesión con PocketBase
-                try {
-                    await pb.collection('usuarios').authWithPassword(email, pass);
-                } catch(pbErr) {
-                    // Si el usuario migró pero no tiene pass en PB, lo creamos forzadamente ya que Firebase lo ha validado
-                    await pb.collection('usuarios').create({ email: email, password: pass, passwordConfirm: pass });
-                    await pb.collection('usuarios').authWithPassword(email, pass);
-                }
-                
-            } catch (error) {
-                btn.disabled = false; btn.innerText = "Entrar";
-                if(error.code === 'auth/invalid-credential') errorMsg.innerText = "Datos incorrectos.";
-                else errorMsg.innerText = "Error: " + error.message;
-            }
-        });
-    </script>
+  <a href="#" class="enlace" id="btn-recuperar">He olvidado mi contrasena</a>
+  <a href="/register/" class="enlace">No tengo cuenta. Quiero registrarme</a>
+  <a href="/home/" class="invitado">Explorar sin cuenta</a>
+
+  <footer id="pie-legal"></footer>
+</main>
+
+<script type="module">
+  import {
+    auth, onAuthStateChanged, signInWithEmailAndPassword,
+    sendPasswordResetEmail, traducirErrorAuth,
+  } from '/assets/js/firebase.js';
+  import { aplicarTema, montarPieLegal, montarAvisoCookies } from '/assets/js/ui.js';
+  import { id, estado } from '/assets/js/dom.js';
+
+  aplicarTema();
+  montarPieLegal();
+  montarAvisoCookies();
+
+  const form = id('form-login');
+  const boton = id('btn-entrar');
+  const mensaje = id('mensaje');
+
+  onAuthStateChanged(auth, (usuario) => {
+    if (usuario) window.location.replace('/home/');
+  });
+
+  form.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    const email = id('email').value.trim().toLowerCase();
+    const clave = id('password').value;
+
+    if (!email || !clave) {
+      estado(mensaje, 'Rellena los dos campos.', 'error');
+      return;
+    }
+
+    boton.disabled = true;
+    boton.textContent = 'Entrando...';
+    estado(mensaje, '');
+
+    try {
+      // Un unico sistema de identidad. La version anterior tambien creaba una
+      // cuenta en PocketBase con la contrasena escrita aqui: si el usuario no
+      // existia alli, la CREABA con la clave introducida, lo que permitia
+      // apropiarse de la cuenta de otro con solo conocer su correo.
+      await signInWithEmailAndPassword(auth, email, clave);
+      window.location.replace('/home/');
+    } catch (error) {
+      boton.disabled = false;
+      boton.textContent = 'Entrar';
+      estado(mensaje, traducirErrorAuth(error), 'error');
+    }
+  });
+
+  id('btn-recuperar').addEventListener('click', async (evento) => {
+    evento.preventDefault();
+    const email = id('email').value.trim().toLowerCase();
+    if (!email) {
+      estado(mensaje, 'Escribe tu correo arriba y vuelve a pulsar aqui.', 'aviso');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error) {
+      // Da igual si el correo existe o no: responder distinto permitiria
+      // averiguar que direcciones estan registradas.
+      console.debug('recuperacion', error.code);
+    }
+    estado(mensaje, 'Si ese correo tiene cuenta, recibiras un enlace para cambiar la contrasena.', 'exito');
+  });
+</script>
 </body>
 </html>
-                                                

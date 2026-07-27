@@ -1,1111 +1,436 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-    <title>Admin | BiciFastness</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-straight/css/uicons-solid-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-channeled/css/uicons-solid-channeled.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-rounded/css/uicons-bold-rounded.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-straight/css/uicons-regular-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
-    <link rel="icon" href="../images/logo.png" type="image/png">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        :root { --bg-main: #0d0d0d; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #ffbb33; }
-        
-        body { margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s; }
-        
-        nav { background: #000; border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
-        nav .brand img { height: 35px; width: auto; display: block; }
-        .nav-right { display: flex; align-items: center; gap: 20px; }
-        nav .links { display: flex; align-items: center; }
-        nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; transition: color 0.3s; line-height: 1; }
-        nav .links a:hover { color: var(--text-main); }
-        .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
-        .info-icon:hover { color: var(--primary); }
-
-        .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
-        
-        .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 15px; flex-wrap: wrap; gap: 15px;}
-        .title-group { display: flex; align-items: center; gap: 15px; }
-        .badge-count { background: #0071c3; padding: 4px 10px; border-radius: 20px; font-weight: 700; color: white;}
-        
-        .bot-toggle { display: flex; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 15px; border-radius: 30px; border: 1px solid var(--border); }
-        .bot-toggle span { font-weight: 700; font-size: 0.9rem; color: #00C851; }
-        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #00C851; }
-        input:checked + .slider:before { transform: translateX(20px); }
-
-        .pending-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .admin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;}
-        .card-header { display: flex; justify-content: space-between; font-weight: 700; color: #0071c3; }
-        
-        .bot-status { font-size: 0.9rem; font-weight: 600; padding: 12px; border-radius: 8px; background: var(--bg-input); border: 1px solid var(--border); display: none; margin-top: 5px; line-height: 1.4; }
-        .bot-status.loading { color: #aaaaaa; border-color: #444; }
-        .bot-status.success { color: #00C851; border-color: #00C851; background: rgba(0, 200, 81, 0.1); }
-        .bot-status.warning { color: #ffbb33; border-color: #ffbb33; background: rgba(255, 187, 51, 0.1); }
-        .bot-status.danger { color: #ff4444; border-color: #ff4444; background: rgba(255, 68, 68, 0.1); }
-
-        button { padding: 10px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; transition: 0.2s; font-family: inherit; }
-        .btn-view { background: #222; color: #fff; border: 1px solid #444; width: 100%; }
-        .actions { display: flex; gap: 10px; margin-top: 10px;} .actions button {flex: 1;}
-        .btn-approve { background: #00C851; color: #003311; } .btn-reject { background: #ff4444; color: #4d0000; }
-        
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
-        .modal img { max-width: 90%; max-height: 80vh; border-radius: 8px; }
-        .close-modal { position: absolute; top: 20px; right: 30px; color: white; font-size: 2rem; cursor: pointer; font-weight: 800; }
-
-        .badges-manager-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 15px; }
-        .badge-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); }
-        .badge-info { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 600; }
-        .badge-icon { font-size: 1.2rem; }
-
-        .search-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-top: 5px; }
-        .search-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: 600;}
-        .search-item:last-child { border-bottom: none; }
-        .search-item:hover { background: var(--bg-input); color: var(--primary); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel de administracion | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
+<style>
+  .container { max-width: 1200px; }
+  .seccion { margin-bottom: 40px; }
+  .seccion > h2 { display: flex; align-items: center; gap: 10px; }
+  .contador { background: var(--primary); color: #fff; border-radius: 20px; padding: 2px 12px; font-size: .8rem; }
+  .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; margin-top: 16px; }
+  .tarjeta { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .tarjeta.riesgo-alto { border-color: var(--error); background: rgba(255,68,68,.05); }
+  .tarjeta.riesgo-medio { border-color: var(--aviso); background: rgba(255,187,51,.04); }
+  .cabecera { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 6px; gap: 10px; }
+  .meta { font-size: .78rem; color: var(--text-muted); line-height: 1.6; }
+  .veredicto { margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: var(--bg-input); font-size: .8rem; }
+  .veredicto ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.6; }
+  .veredicto li { margin-bottom: 4px; }
+  .acciones { display: flex; gap: 10px; margin-top: 14px; }
+  .acciones button { margin: 0; padding: 10px; font-size: .85rem; }
+  .btn-aprobar { background: var(--exito); color: #003311; }
+  .btn-rechazar { background: transparent; border: 1px solid var(--error); color: var(--error); }
+  .btn-ver { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+  .buscador { position: relative; }
+  .resultados { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; max-height: 260px; overflow-y: auto; z-index: 50; display: none; }
+  .resultados div { padding: 10px 14px; cursor: pointer; display: flex; justify-content: space-between; font-size: .9rem; }
+  .resultados div:hover { background: var(--bg-input); }
+  .insignias { display: none; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 16px; }
+  .fila-insignia { display: flex; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 10px 14px; border-radius: 8px; font-size: .85rem; }
+  .vacio { grid-column: 1/-1; color: var(--text-muted); padding: 20px; text-align: center; }
+  #visor { position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #visor img { max-width: 92%; max-height: 88vh; border-radius: 8px; }
+</style>
 </head>
 <body>
-    <nav>
-        <a href="../home/" class="brand">
-            <img src="../images/logo.png" alt="BICIFASTNESS" onerror="this.outerHTML='BICIFASTNESS'">
-        </a>
-        <div class="nav-right">
-            <div class="links"><a href="../home/">Volver a Inicio</a></div>
-            <a href="../info/" class="info-icon" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+<div class="bottom-nav" id="nav-inferior"></div>
+
+<main class="container" id="principal">
+  <p id="cargando" style="color: var(--text-muted);">Comprobando permisos...</p>
+
+  <div id="panel" class="oculto">
+    <section class="seccion">
+      <h2>Viajes en revision <span class="contador" id="cuenta-revision">0</span></h2>
+      <p class="meta">
+        Aqui solo llega lo que el analisis automatico no ha podido decidir por si
+        solo. Lo aprobado y lo rechazado en automatico no aparece en esta lista.
+      </p>
+      <div class="rejilla" id="rejilla-revision"></div>
+    </section>
+
+    <section class="seccion">
+      <h2>Reportes de la comunidad <span class="contador" id="cuenta-reportes">0</span></h2>
+      <div class="rejilla" id="rejilla-reportes"></div>
+    </section>
+
+    <section class="seccion">
+      <h2>Ruta destacada</h2>
+      <div class="card" style="margin-top: 16px;">
+        <div class="row">
+          <div class="form-group">
+            <label for="ruta-origen">Salida</label>
+            <input type="text" id="ruta-origen" maxlength="4" placeholder="002">
+          </div>
+          <div class="form-group">
+            <label for="ruta-destino">Meta</label>
+            <input type="text" id="ruta-destino" maxlength="4" placeholder="110">
+          </div>
         </div>
-    </nav>
+        <button id="btn-destacar">Destacar ruta</button>
+        <p class="mensaje" id="msg-destacar"></p>
+      </div>
+    </section>
 
-    <div class="container">
-        
-        <div class="admin-card" style="margin-bottom: 20px;">
-            <div class="card-header"><span style="color:#FFD700;">🔥 Destacar Ruta de la Semana</span></div>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <input type="text" id="highlight-input" placeholder="Ej: 045-162" style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit;">
-                <button id="highlight-btn" style="background:#FFD700; color:#111;">Destacar Ruta</button>
-            </div>
+    <section class="seccion">
+      <h2>Insignias</h2>
+      <div class="card" style="margin-top: 16px;">
+        <div class="form-group buscador">
+          <label for="busca-objetivo">Buscar piloto o clan</label>
+          <input type="text" id="busca-objetivo" autocomplete="off" placeholder="Escribe un nombre">
+          <div class="resultados" id="resultados-busqueda"></div>
         </div>
+        <p id="objetivo-actual" class="meta"></p>
+        <div class="insignias" id="rejilla-insignias"></div>
+      </div>
+    </section>
 
-        <div class="admin-card" style="margin-bottom: 20px; border-color: #9C27B0;">
-            <div class="card-header"><span style="color:#E040FB;">🏅 Gestor de Insignias</span></div>
-            <p style="font-size:0.85rem; color:var(--text-muted); margin: 5px 0 15px 0;">Escribe el <b>nombre</b> de cualquier piloto o clan. Los resultados aparecerán al instante.</p>
-            
-            <div style="position: relative; margin-bottom:15px;">
-                <input type="text" id="badge-live-search" placeholder="Buscar por nombre..." style="width:100%; padding:12px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); font-family:inherit; outline:none;">
-                <div id="badge-search-results" class="search-dropdown"></div>
-            </div>
+    <section class="seccion">
+      <h2>Administradores</h2>
+      <div class="card" style="margin-top: 16px;">
+        <p class="meta">
+          El rol de administrador es un custom claim de Firebase Auth y solo se
+          puede conceder con credenciales de servicio, que nunca deben llegar al
+          navegador. Se hace desde tu ordenador:
+        </p>
+        <pre class="meta" style="background:var(--bg-input); padding:12px; border-radius:8px; overflow-x:auto;">GOOGLE_APPLICATION_CREDENTIALS=./clave.json node scripts/set-admin.js correo@ejemplo.com</pre>
+        <p class="meta">Quien lo reciba debe cerrar sesion y volver a entrar.</p>
+      </div>
+    </section>
+  </div>
+</main>
 
-            <div id="badge-target-name" style="font-weight: 800; font-size: 1.1rem; color: #E040FB; margin-bottom: 10px; display: none;">Editando a: <span></span></div>
-            
-            <div class="badges-manager-grid" id="badges-grid" style="display: none;"></div>
-        </div>
+<div id="visor" role="dialog" aria-modal="true" aria-label="Captura ampliada"></div>
+<footer id="pie-legal"></footer>
 
-        <div class="admin-card" style="margin-bottom: 40px; border-color: #00C851;">
-            <div class="card-header"><span style="color:#00C851;">🕵️ Radar de Insignias (Automático)</span></div>
-            <p style="font-size:0.85rem; color:var(--text-muted); margin: 5px 0 15px 0;">Escanea la base de datos buscando pilotos que han cumplido los requisitos de una insignia pero aún no se la has otorgado.</p>
-            <button id="scan-badges-btn" style="background:#00C851; color:#003311; width: 100%; margin-bottom: 15px;">Iniciar Escaneo Automático</button>
-            <div id="scan-results" style="display: flex; flex-direction: column; gap: 10px;"></div>
-        </div>
+<script type="module">
+  import {
+    auth, db, onAuthStateChanged,
+    collection, getDocs, query, where, orderBy,
+  } from '/assets/js/firebase.js';
+  import { iniciarPagina, nombreRuta, formatearFecha, formatearTiempo, normalizarEstacion } from '/assets/js/ui.js';
+  import { id, el, estado, reemplazar, imagen, confirmar } from '/assets/js/dom.js';
+  import { DICCIONARIO_INSIGNIAS } from '/insignias.js';
+  import {
+    resolverViaje, resolverReporte, verCaptura,
+    gestionarInsignia, destacarRuta,
+  } from '/assets/js/acciones.js';
 
-        <div class="header-panel">
-            <div class="title-group">
-                <h2 style="margin:0;">Pendientes</h2>
-                <div class="badge-count" id="pending-count">0</div>
-            </div>
-            <div class="bot-toggle">
-                <span>🤖 Bot Verificador Simple</span>
-                <label class="switch">
-                    <input type="checkbox" id="bot-switch">
-                    <span class="slider"></span>
-                </label>
-            </div>
-        </div>
-        <div class="pending-grid" id="pending-grid" style="margin-bottom: 40px;"></div>
+  iniciarPagina('admin');
 
-        <div class="header-panel" style="border-bottom-color: #ff4444;">
-            <div class="title-group">
-                <h2 style="margin:0; color:#ff4444;"><i class="fi fi-sr-flag"></i> Viajes Reportados</h2>
-                <div class="badge-count" id="reports-count" style="background: #ff4444;">0</div>
-            </div>
-        </div>
-        <div class="pending-grid" id="reports-grid"></div>
 
-    </div>
-    
-    <div class="modal" id="photo-modal"><span class="close-modal" id="close-modal">&times;</span><img id="modal-img"></div>
+  // --- Control de acceso ---
+  onAuthStateChanged(auth, async (usuario) => {
+    if (!usuario) { window.location.replace('/'); return; }
 
-    <script type="module">
-        import PocketBase from 'https://cdn.jsdelivr.net/npm/pocketbase@0.22.0/+esm';
-        const pb = new PocketBase('https://vicinity-unfrozen-washout.ngrok-free.dev');
-        
-        // Pase VIP para saltar advertencia de Ngrok
-        pb.beforeSend = function (url, options) {
-            options.headers = Object.assign({}, options.headers, {
-                'ngrok-skip-browser-warning': 'true'
-            });
-            return { url, options };
-        };
+    // El rol se lee del token, que va firmado por Firebase. La version anterior
+    // lo leia de un documento de Firestore que el propio usuario podia escribir,
+    // asi que cualquiera se concedia el panel a si mismo.
+    const token = await usuario.getIdTokenResult(true);
+    if (token.claims.admin !== true) {
+      id('cargando').textContent = 'No tienes permisos de administrador.';
+      setTimeout(() => window.location.replace('/home/'), 1500);
+      return;
+    }
 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    id('cargando').classList.add('oculto');
+    id('panel').classList.remove('oculto');
+    cargarRevision();
+    cargarReportes();
+    cargarObjetivos();
+  });
 
-        import { DICCIONARIO_INSIGNIAS } from '../insignias.js';
+  // --- Viajes en revision ---
+  async function cargarRevision() {
+    const rejilla = id('rejilla-revision');
+    reemplazar(rejilla, el('div', { clase: 'vacio', texto: 'Cargando...' }));
 
-        const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
-        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
+    try {
+      const snapshot = await getDocs(query(
+        collection(db, 'tiempos_viaje'),
+        where('estado', '==', 'revision'),
+        orderBy('creado', 'desc')
+      ));
 
-        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-        const safeHTML = (html) => DOMPurify.sanitize(String(html ?? ''));
+      id('cuenta-revision').textContent = snapshot.size;
 
-        let isBotActive = false; let botQueue = []; let isProcessingQueue = false;
+      if (snapshot.empty) {
+        reemplazar(rejilla, el('div', { clase: 'vacio', texto: 'Todo al dia. No hay nada esperando revision.' }));
+        return;
+      }
 
-        document.getElementById('bot-switch').addEventListener('change', (e) => {
-            isBotActive = e.target.checked;
-            if(isBotActive) { document.querySelectorAll('.bot-status').forEach(el => el.style.display = 'block'); processBotQueue(); } 
-            else { document.querySelectorAll('.bot-status').forEach(el => { el.style.display = 'none'; el.className = 'bot-status'; }); }
+      reemplazar(rejilla, snapshot.docs.map((doc) => tarjetaViaje(doc.id, doc.data())));
+    } catch (error) {
+      reemplazar(rejilla, el('div', { clase: 'vacio', texto: `Error al cargar: ${error.message}` }));
+    }
+  }
+
+  /**
+   * Tarjeta de un viaje.
+   * Todo el texto entra por textContent y los botones por addEventListener.
+   * La version anterior construia esto con `innerHTML +=` interpolando
+   * `email_real` y `foto_url` — dos campos que controlaba quien subia el viaje —
+   * tanto dentro del HTML como dentro de atributos onclick. Registrandose con un
+   * nombre preparado se ejecutaba JavaScript aqui, en la sesion del admin.
+   */
+  function tarjetaViaje(viajeId, viaje) {
+    const auditoria = viaje.auditoria || {};
+    const riesgo = auditoria.riesgo || 0;
+    const clase = riesgo >= 50 ? 'riesgo-alto' : riesgo >= 25 ? 'riesgo-medio' : '';
+
+    const botonAprobar = el('button', {
+      clase: 'btn-aprobar', texto: 'Aprobar',
+      on: { click: () => decidir(viajeId, 'aprobar', botonAprobar) },
+    });
+    const botonRechazar = el('button', {
+      clase: 'btn-rechazar', texto: 'Rechazar',
+      on: { click: () => decidir(viajeId, 'rechazar', botonRechazar) },
+    });
+
+    return el('article', { clase: `tarjeta ${clase}`, attrs: { 'data-viaje': viajeId } }, [
+      el('div', { clase: 'cabecera' }, [
+        el('span', { texto: nombreRuta(viaje.ruta) }),
+        el('span', { texto: formatearTiempo(viaje.tiempoSegundos) }),
+      ]),
+
+      el('p', { clase: 'meta' }, [
+        el('strong', { texto: viaje.username || 'Sin nombre' }),
+        ` · ${formatearFecha(viaje.fechaViaje)}`,
+        el('br'),
+        auditoria.metros ? `${auditoria.metros} m estimados · ${auditoria.kmh} km/h de media` : '',
+      ]),
+
+      el('div', { clase: 'veredicto' }, [
+        el('strong', { texto: `Riesgo ${riesgo} — ${auditoria.resumen || 'sin analisis'}` }),
+        auditoria.señales?.length
+          ? el('ul', {}, auditoria.señales.map((s) => el('li', { texto: `[${s.gravedad}] ${s.mensaje}` })))
+          : null,
+      ]),
+
+      el('button', {
+        clase: 'btn-ver', texto: 'Ver captura',
+        on: { click: (e) => abrirCaptura(viajeId, e.currentTarget) },
+      }),
+
+      el('div', { clase: 'acciones' }, [botonRechazar, botonAprobar]),
+    ]);
+  }
+
+  async function decidir(viajeId, accion, boton) {
+    const confirmado = await confirmar(
+      accion === 'aprobar'
+        ? 'Aprobar este viaje y anadirlo al ranking?'
+        : 'Rechazar este viaje? Dejara de contar para el ranking.',
+      { textoAceptar: accion === 'aprobar' ? 'Aprobar' : 'Rechazar', peligroso: accion === 'rechazar' }
+    );
+    if (!confirmado) return;
+
+    boton.disabled = true;
+    boton.textContent = 'Guardando...';
+    try {
+      await resolverViaje(viajeId, accion);
+      document.querySelector(`[data-viaje="${CSS.escape(viajeId)}"]`)?.remove();
+      const contador = id('cuenta-revision');
+      contador.textContent = Math.max(0, Number(contador.textContent) - 1);
+    } catch (error) {
+      boton.disabled = false;
+      boton.textContent = accion === 'aprobar' ? 'Aprobar' : 'Rechazar';
+      alert(error.message);
+    }
+  }
+
+  /** Pide al servidor una URL firmada de 10 minutos y la muestra. */
+  async function abrirCaptura(viajeId, boton) {
+    const original = boton.textContent;
+    boton.disabled = true;
+    boton.textContent = 'Abriendo...';
+    try {
+      const url = await verCaptura(viajeId);
+      const visor = id('visor');
+      reemplazar(visor, imagen(url, { attrs: { alt: 'Captura del viaje' } }));
+      visor.style.display = 'flex';
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      boton.disabled = false;
+      boton.textContent = original;
+    }
+  }
+
+  const visor = id('visor');
+  visor.addEventListener('click', () => { visor.style.display = 'none'; });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') visor.style.display = 'none';
+  });
+
+  // --- Reportes ---
+  async function cargarReportes() {
+    const rejilla = id('rejilla-reportes');
+    try {
+      const snapshot = await getDocs(query(
+        collection(db, 'reportes'),
+        where('estado', '==', 'pendiente'),
+        orderBy('creado', 'desc')
+      ));
+
+      id('cuenta-reportes').textContent = snapshot.size;
+
+      if (snapshot.empty) {
+        reemplazar(rejilla, el('div', { clase: 'vacio', texto: 'No hay reportes pendientes.' }));
+        return;
+      }
+
+      reemplazar(rejilla, snapshot.docs.map((doc) => {
+        const reporte = doc.data();
+        const botonBorrar = el('button', {
+          clase: 'btn-rechazar', texto: 'Eliminar viaje',
+          on: { click: () => resolver(doc.id, 'eliminar_viaje', botonBorrar, reporte.viajeId) },
+        });
+        const botonIgnorar = el('button', {
+          clase: 'btn-ver', texto: 'Falsa alarma',
+          on: { click: () => resolver(doc.id, 'ignorar', botonIgnorar, reporte.viajeId) },
         });
 
-        // ------------------ SECRETOS Y GEMINI (POCKETBASE) ------------------
-        async function getGeminiApiKey() {
+        return el('article', { clase: 'tarjeta riesgo-alto', attrs: { 'data-reporte': doc.id } }, [
+          el('div', { clase: 'cabecera' }, [el('span', { texto: `Reporte en ${nombreRuta(reporte.ruta)}` })]),
+          el('p', { clase: 'meta', texto: reporte.motivo || 'Sin motivo indicado.' }),
+          el('button', {
+            clase: 'btn-ver', texto: 'Ver captura reportada',
+            on: { click: (e) => abrirCaptura(reporte.viajeId, e.currentTarget) },
+          }),
+          el('div', { clase: 'acciones' }, [botonIgnorar, botonBorrar]),
+        ]);
+      }));
+    } catch (error) {
+      reemplazar(rejilla, el('div', { clase: 'vacio', texto: `Error: ${error.message}` }));
+    }
+  }
+
+  async function resolver(reporteId, accion, boton, viajeId) {
+    const confirmado = await confirmar(
+      accion === 'ignorar' ? 'Marcar este reporte como falsa alarma?' : 'Eliminar el viaje reportado del ranking?',
+      { peligroso: accion !== 'ignorar' }
+    );
+    if (!confirmado) return;
+
+    boton.disabled = true;
+    try {
+      await resolverReporte(reporteId, accion, viajeId);
+      document.querySelector(`[data-reporte="${CSS.escape(reporteId)}"]`)?.remove();
+      const contador = id('cuenta-reportes');
+      contador.textContent = Math.max(0, Number(contador.textContent) - 1);
+    } catch (error) {
+      boton.disabled = false;
+      alert(error.message);
+    }
+  }
+
+  // --- Ruta destacada ---
+  id('btn-destacar').addEventListener('click', async () => {
+    const boton = id('btn-destacar');
+    boton.disabled = true;
+    try {
+      const ruta = `${normalizarEstacion(id('ruta-origen').value)}-${normalizarEstacion(id('ruta-destino').value)}`;
+      await destacarRuta(ruta);
+      estado(id('msg-destacar'), `Ruta ${ruta} destacada y puntuaciones recalculadas.`, 'exito');
+    } catch (error) {
+      estado(id('msg-destacar'), error.message, 'error');
+    } finally {
+      boton.disabled = false;
+    }
+  });
+
+  // --- Insignias ---
+  let objetivos = [];
+  let objetivoActual = null;
+
+  async function cargarObjetivos() {
+    const [usuarios, clanes] = await Promise.all([
+      getDocs(collection(db, 'usuarios')),
+      getDocs(collection(db, 'clanes')),
+    ]);
+    objetivos = [
+      ...usuarios.docs.map((d) => ({ id: d.id, tipo: 'usuarios', nombre: d.data().username || d.id, logros: d.data().logros || [] })),
+      ...clanes.docs.map((d) => ({ id: d.id, tipo: 'clanes', nombre: d.data().nombre || d.id, logros: d.data().logros || [] })),
+    ];
+  }
+
+  id('busca-objetivo').addEventListener('input', (evento) => {
+    const termino = evento.target.value.trim().toLowerCase();
+    const caja = id('resultados-busqueda');
+
+    if (!termino) { caja.style.display = 'none'; return; }
+
+    const encontrados = objetivos
+      .filter((o) => o.nombre.toLowerCase().includes(termino))
+      .slice(0, 10);
+
+    reemplazar(caja, encontrados.length
+      ? encontrados.map((o) => el('div', {
+        on: { click: () => seleccionar(o) },
+      }, [
+        el('span', { texto: o.nombre }),
+        el('span', { texto: o.tipo === 'usuarios' ? 'Piloto' : 'Clan', estilo: { color: 'var(--text-muted)' } }),
+      ]))
+      : [el('div', { texto: 'Sin resultados', estilo: { color: 'var(--text-muted)' } })]);
+
+    caja.style.display = 'block';
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target.id !== 'busca-objetivo') id('resultados-busqueda').style.display = 'none';
+  });
+
+  function seleccionar(objetivo) {
+    objetivoActual = objetivo;
+    id('busca-objetivo').value = '';
+    id('resultados-busqueda').style.display = 'none';
+    id('objetivo-actual').textContent =
+      `Editando: ${objetivo.nombre} (${objetivo.tipo === 'usuarios' ? 'piloto' : 'clan'})`;
+
+    const rejilla = id('rejilla-insignias');
+    reemplazar(rejilla, Object.entries(DICCIONARIO_INSIGNIAS).map(([clave, info]) => {
+      const casilla = el('input', {
+        attrs: { type: 'checkbox', checked: objetivo.logros.includes(clave) ? '' : null },
+        estilo: { width: '18px', height: '18px', accentColor: 'var(--primary)' },
+        on: {
+          change: async (e) => {
+            const otorgar = e.target.checked;
+            e.target.disabled = true;
             try {
-                const secret = await pb.collection('secrets').getFirstListItem('clave="api_keys"');
-                return secret.valor; 
-            } catch(e) {
-                // Fallback Firebase por si no está migrado
-                const secretDoc = await getDoc(doc(db, "secrets", "api_keys"));
-                if (!secretDoc.exists()) throw new Error("API Key no encontrada en la base de datos.");
-                return secretDoc.data().gemini; 
-            }
-        }
-
-        async function processBotQueue() {
-            if(isProcessingQueue || !isBotActive || botQueue.length === 0) return;
-            isProcessingQueue = true;
-
-            const trip = botQueue.shift();
-            const statusEl = document.getElementById(`bot-${trip.id}`);
-            
-            if(statusEl && isBotActive) {
-                statusEl.className = 'bot-status loading';
-                statusEl.innerHTML = '🤖 Analizando imagen con Gemini IA (Modo Auditor Forense Integral)...';
-                
-                try {
-                    const apiKey = await getGeminiApiKey(); 
-                    
-                    const base64Data = trip.foto_url.split(',')[1];
-                    const mimeType = trip.foto_url.match(/data:(.*?);/)[1];
-
-                    const prompt = `Eres un auditor forense digital experto en detectar manipulación de imágenes de la app BiciMAD. Analiza la captura de pantalla minuciosamente.
-                    1. INSPECCIÓN VISUAL OBLIGATORIA (Píxeles y Diseño):
-                       - Examina las fuentes (fonts) del texto gris de las horas y fechas. ¿El renderizado de los píxeles y el grosor de la letra son idénticos al resto del texto gris estable de la interfaz, o parecen texto superpuesto posteriormente?
-                       - Revisa la alineación. ¿Están las horas perfectamente centradas bajo los pins, o hay desviaciones sospechosas?
-                       - Acepta como VÁLIDO el formato redundante de estación "Número - Nombre (Número)".
-                    2. EXTRACCIÓN DE DATOS (Solo si la inspección visual es aprobada):
-                       - Extrae número estación origen.
-                       - Extrae número estación destino.
-                       - Extrae duración total azul en segundos.
-                       - Extrae hora salida gris (HH:MM:SS).
-                       - Extrae hora llegada gris (HH:MM:SS).
-                    3. RESPUESTA:
-                       Devuelve ÚNICAMENTE un objeto JSON válido.
-                       Estructura si la imagen es falsa VISUALMENTE:
-                       {"visual_integrity": false, "manipulation_details": "Detalles cortos de lo detectado"}
-                       Estructura si la imagen parece genuina visualmente:
-                       {"visual_integrity": true, "origen": "numero", "destino": "numero", "segundos_azul": numero, "hora_salida": "HH:MM:SS", "hora_llegada": "HH:MM:SS", "es_bicimad": true}
-                       Si no parece ser un ticket de BiciMAD:
-                       {"es_bicimad": false, "visual_integrity": false}`;
-
-                    const requestBody = {
-                        contents: [{
-                            parts: [
-                                { text: prompt },
-                                { inline_data: { mime_type: mimeType, data: base64Data } }
-                            ]
-                        }]
-                    };
-
-                    const modelsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-                    if (!modelsResponse.ok) throw new Error("Error obteniendo la lista de modelos de Google.");
-                    
-                    const modelsData = await modelsResponse.json();
-                    const availableModels = modelsData.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent") && m.name.includes("flash"));
-
-                    if (availableModels.length === 0) throw new Error("Google no ha habilitado ningún modelo 'flash' para esta API Key.");
-                    const exactModelName = availableModels[0].name; 
-
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${exactModelName}:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(requestBody)
-                    });
-
-                    if (!response.ok) {
-                        const errData = await response.json();
-                        throw new Error(errData.error?.message || "Error HTTP " + response.status);
-                    }
-
-                    const data = await response.json();
-                    let jsonText = data.candidates[0].content.parts[0].text;
-                    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
-                    const aiResult = JSON.parse(jsonText);
-
-                    if (aiResult.es_bicimad === false) {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>FALSO:</b> La IA determina que la imagen no es de BiciMAD.`;
-                    } else if (aiResult.visual_integrity === false) {
-                        statusEl.className = 'bot-status danger';
-                        statusEl.innerHTML = `🔴 <b>FALSIFICACIÓN VISUAL DETECTADA:</b><br>Motivo: <b>${escapeHtml(aiResult.manipulation_details)}</b>.`;
-                    } else if (aiResult.visual_integrity === true) {
-                        const parseTime = (timeStr) => {
-                            if (!timeStr || !timeStr.includes(':')) return 0;
-                            const [h, m, s] = timeStr.split(':').map(Number);
-                            return (h * 3600) + (m * 60) + s;
-                        };
-
-                        const secSalida = parseTime(aiResult.hora_salida);
-                        const secLlegada = parseTime(aiResult.hora_llegada);
-                        let diferencia_matematica = secLlegada - secSalida;
-                        if (diferencia_matematica < 0) diferencia_matematica += 24 * 3600;
-
-                        const discrepancia_foto = Math.abs(diferencia_matematica - aiResult.segundos_azul);
-                        const origClaimed = String(trip.ruta.split('-')[0]).replace(/^0+/, '').trim();
-                        const destClaimed = String(trip.ruta.split('-')[1]).replace(/^0+/, '').trim();
-
-                        const origMatches = String(aiResult.origen).trim() === origClaimed;
-                        const destMatches = String(aiResult.destino).trim() === destClaimed;
-                        const timeDiffUser = Math.abs(aiResult.segundos_azul - trip.tiempo_segundos);
-                        const timeMatchesUser = timeDiffUser <= 5; 
-
-                        if (discrepancia_foto > 2) {
-                            statusEl.className = 'bot-status danger';
-                            statusEl.innerHTML = `🔴 <b>FALSIFICACIÓN MATEMÁTICA DETECTADA:</b><br>Diferencia real entre horas: <b>${diferencia_matematica}s</b>.<br>El recuadro azul ha sido manipulado a <b>${aiResult.segundos_azul}s</b>.`;
-                        } else if (origMatches && destMatches && timeMatchesUser) {
-                            statusEl.className = 'bot-status success';
-                            statusEl.innerHTML = `🟢 <b>VERIFICADO (AUDITORÍA COMPLETA):</b> Ruta ${escapeHtml(aiResult.origen)}-${escapeHtml(aiResult.destino)} en ${Number(aiResult.segundos_azul) || 0}s.`;
-                        } else {
-                            statusEl.className = 'bot-status danger';
-                            statusEl.innerHTML = `🔴 <b>DISCREPANCIA CON EL USUARIO:</b><br>La IA ha leído en la foto: Ruta <b>${escapeHtml(aiResult.origen)}-${escapeHtml(aiResult.destino)}</b> en <b>${Number(aiResult.segundos_azul) || 0}s</b>.<br>El usuario introdujo: Ruta <b>${escapeHtml(origClaimed)}-${escapeHtml(destClaimed)}</b> en <b>${Number(trip.tiempo_segundos) || 0}s</b>.`;
-                        }
-                    }
-
-                } catch (error) {
-                    console.error("Error en Bot IA:", error);
-                    statusEl.className = 'bot-status warning';
-                    statusEl.innerHTML = '🟠 <b>Error:</b> ' + escapeHtml(error.message);
-                }
-            }
-            isProcessingQueue = false; if(isBotActive) processBotQueue(); 
-        }
-
-        // ------------------ AUTENTICACIÓN E INICIO DE ADMIN ------------------
-        onAuthStateChanged(auth, async (user) => {
-            if (!user) { window.location.href = "../home/"; return; }
-            
-            let isAdmin = false;
-            try {
-                const pbUser = await pb.collection('usuarios').getFirstListItem(`email="${user.email}"`);
-                isAdmin = pbUser.isAdmin;
-            } catch(e) {
-                const userDoc = await getDoc(doc(db, "usuarios", user.email));
-                isAdmin = userDoc.exists() && userDoc.data().isAdmin;
-            }
-
-            if (isAdmin) {
-                if(!pb.authStore.isValid) alert("Aviso: Token PocketBase no válido. Algunas funciones de admin pueden fallar si no re-inicias sesión.");
-                loadPendingTrips(); 
-                loadCurrentHighlighted();
-                loadAllForSearch();
-                loadReports(); 
-            } else { alert("Acceso denegado."); window.location.href = "../home/"; }
-        });
-
-        // ------------------ LÓGICA GESTOR DE INSIGNIAS ------------------
-        let globalAdminUsers = [];
-        let globalAdminClans = [];
-        let currentBadgeTargetId = null; // ID Firebase
-        let currentBadgeTargetPbId = null; // ID Pocketbase
-        let currentBadgeTargetType = null;
-        let targetLogrosData = [];
-
-        async function loadAllForSearch() {
-            try {
-                const users = await pb.collection('usuarios').getFullList();
-                globalAdminUsers = users.map(d => ({ id: d.email, pbId: d.id, name: d.username || d.email, type: 'usuarios', data: d }));
-                
-                const clanes = await pb.collection('clanes').getFullList();
-                globalAdminClans = clanes.map(d => ({ id: d.nombre_id || d.id, pbId: d.id, name: d.nombre || d.id, type: 'clanes', data: d }));
-            } catch(e) {
-                console.log("Error cargando usuarios/clanes PB para búsqueda", e);
-            }
-        }
-
-        document.getElementById('badge-live-search').addEventListener('input', (e) => {
-            const term = e.target.value.trim().toLowerCase();
-            const resDiv = document.getElementById('badge-search-results');
-            if(!term) { resDiv.style.display = 'none'; return; }
-
-            let results = [];
-            globalAdminUsers.forEach(u => { if(u.name.toLowerCase().includes(term)) results.push(u); });
-            globalAdminClans.forEach(c => { if(c.name.toLowerCase().includes(term)) results.push(c); });
-
-            resDiv.innerHTML = '';
-            if(results.length === 0) {
-                resDiv.innerHTML = '<div style="padding:10px; color:#888;">No hay resultados</div>';
-            } else {
-                results.slice(0, 10).forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'search-item';
-                    const icon = item.type === 'usuarios' ? '👤 Piloto' : '🛡️ Clan';
-                    div.innerHTML = `<span>${escapeHtml(item.name)}</span><span style="color:#888; font-size:0.8rem;">${icon}</span>`;
-                    div.onclick = () => selectBadgeTarget(item);
-                    resDiv.appendChild(div);
-                });
-            }
-            resDiv.style.display = 'block';
-        });
-
-        document.addEventListener('click', (e) => {
-            if(e.target.id !== 'badge-live-search') {
-                document.getElementById('badge-search-results').style.display = 'none';
-            }
-        });
-
-        async function selectBadgeTarget(item) {
-            document.getElementById('badge-live-search').value = '';
-            document.getElementById('badge-search-results').style.display = 'none';
-            
-            currentBadgeTargetId = item.id;
-            currentBadgeTargetPbId = item.pbId;
-            currentBadgeTargetType = item.type;
-            
-            targetLogrosData = item.data.logros || [];
-
-            const nameLabel = document.getElementById('badge-target-name');
-            nameLabel.innerHTML = `Editando a: <span>${escapeHtml(item.name)}</span> <span style="font-size:0.8rem; color:#888;">(${item.type === 'usuarios' ? 'Piloto' : 'Clan'})</span>`;
-            nameLabel.style.display = 'block';
-
-            const grid = document.getElementById('badges-grid');
-            grid.innerHTML = '';
-            for (const [badgeId, badgeInfo] of Object.entries(DICCIONARIO_INSIGNIAS)) {
-                const isChecked = targetLogrosData.includes(badgeId);
-                grid.innerHTML += `
-                    <div class="badge-row">
-                        <div class="badge-info">
-                            <i class="${badgeInfo.icono} badge-icon" style="color: ${badgeInfo.color};"></i>
-                            <span>${badgeInfo.titulo}</span>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" class="badge-toggle" data-badge-id="${badgeId}" ${isChecked ? 'checked' : ''}>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                `;
-            }
-
-            document.querySelectorAll('.badge-toggle').forEach(chk => {
-                chk.addEventListener('change', async (e) => {
-                    const bId = e.target.getAttribute('data-badge-id');
-                    const isAdding = e.target.checked;
-                    
-                    try {
-                        let newArray = [...targetLogrosData];
-                        if (isAdding && !newArray.includes(bId)) newArray.push(bId);
-                        else if (!isAdding) newArray = newArray.filter(i => i !== bId);
-
-                        // Dual Write
-                        if (currentBadgeTargetPbId) await pb.collection(currentBadgeTargetType).update(currentBadgeTargetPbId, { logros: newArray });
-                        await updateDoc(doc(db, currentBadgeTargetType, currentBadgeTargetId), { logros: newArray });
-                        
-                        targetLogrosData = newArray; 
-                    } catch(err) {
-                        alert("Error al guardar la insignia. ¿Tienes sesión en PB?");
-                        e.target.checked = !isAdding; 
-                    }
-                });
-            });
-
-            grid.style.display = 'grid';
-        }
-
-        // ------------------ RADAR DE INSIGNIAS AUTOMÁTICO ------------------
-        document.getElementById('scan-badges-btn').addEventListener('click', async (e) => {
-            const btn = e.target;
-            const resultsDiv = document.getElementById('scan-results');
-            btn.disabled = true;
-            btn.innerText = "Escaneando base de datos...";
-            resultsDiv.innerHTML = "";
-
-            try {
-                const users = await pb.collection('usuarios').getFullList();
-                let pendientes = [];
-
-                const REGLAS = [
-                    { id: "trotamundos", nombre: "Trotamundos (>25 rutas)", condicion: (u) => Object.keys(u.puntos_por_ruta || {}).length >= 25 }
-                ];
-
-                users.forEach(user => {
-                    const email = user.email;
-                    const userLogros = user.logros || [];
-
-                    REGLAS.forEach(regla => {
-                        if (regla.condicion(user) && !userLogros.includes(regla.id)) {
-                            pendientes.push({
-                                pbId: user.id,
-                                email: email,
-                                username: user.username || email,
-                                badgeId: regla.id,
-                                badgeName: regla.nombre
-                            });
-                        }
-                    });
-                });
-
-                if (pendientes.length === 0) {
-                    resultsDiv.innerHTML = `<div style="text-align:center; padding:15px; color:#888; background:var(--bg-input); border-radius:8px;">Todo al día. Ningún piloto cumple las condiciones automatizables en este momento.</div>`;
-                } else {
-                    pendientes.forEach((item, index) => {
-                        const rowId = `badge-alert-${index}`;
-                        resultsDiv.innerHTML += `
-                            <div id="${rowId}" style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:12px; border-radius:8px; border:1px solid var(--border);">
-                                <div style="font-size:0.9rem;">
-                                    <b>${escapeHtml(item.username)}</b> merece: <span style="color:#FFD700; font-weight:700;">${item.badgeName}</span>
-                                </div>
-                                <button onclick="window.otorgarInsigniaRapida('${item.email}', '${item.pbId}', '${item.badgeId}', '${rowId}')" style="background:#00C851; color:#003311; padding:6px 12px; font-size:0.8rem; width:auto;">Otorgar</button>
-                            </div>
-                        `;
-                    });
-                }
+              await gestionarInsignia(objetivo.tipo, objetivo.id, clave, otorgar);
+              objetivo.logros = otorgar
+                ? [...objetivo.logros, clave]
+                : objetivo.logros.filter((l) => l !== clave);
             } catch (error) {
-                console.error(error);
-                resultsDiv.innerHTML = `<div style="color:#ff4444;">Error al escanear: ${error.message}</div>`;
+              e.target.checked = !otorgar;
+              alert(error.message);
+            } finally {
+              e.target.disabled = false;
             }
-
-            btn.disabled = false;
-            btn.innerText = "Escanear de nuevo";
-        });
-
-        window.otorgarInsigniaRapida = async function(email, pbId, badgeId, rowId) {
-            const row = document.getElementById(rowId);
-            const btn = row.querySelector('button');
-            btn.disabled = true;
-            btn.innerText = "...";
-
-            try {
-                // PB
-                const u = await pb.collection('usuarios').getOne(pbId);
-                let logros = u.logros || [];
-                if(!logros.includes(badgeId)) logros.push(badgeId);
-                await pb.collection('usuarios').update(pbId, { logros: logros });
-                
-                // FB Backup
-                await updateDoc(doc(db, "usuarios", email), { logros: arrayUnion(badgeId) });
-                
-                row.style.opacity = "0.5";
-                btn.innerText = "¡Otorgada!";
-                btn.style.background = "transparent";
-                btn.style.border = "1px solid #00C851";
-                btn.style.color = "#00C851";
-            } catch(e) {
-                alert("Error al otorgar la insignia: " + e.message);
-                btn.disabled = false;
-                btn.innerText = "Otorgar";
-            }
-        };
-
-        // ------------------ DESTACAR RUTA ------------------
-        async function loadCurrentHighlighted() { 
-            try {
-                const confDoc = await pb.collection('config').getFirstListItem('clave="general"');
-                if(confDoc && confDoc.ruta_destacada) document.getElementById('highlight-input').value = confDoc.ruta_destacada; 
-            } catch(e) {}
-        }
-
-        document.getElementById('highlight-btn').addEventListener('click', async () => { 
-            const btn = document.getElementById('highlight-btn');
-            btn.disabled = true; btn.innerText = "Aplicando...";
-            
-            const newRuta = document.getElementById('highlight-input').value.trim();
-            if(!newRuta) { btn.disabled = false; btn.innerText = "Destacar Ruta"; return; }
-
-            let historicas = [];
-            let oldDestacada = null;
-            let pbConfigId = null;
-
-            try {
-                const confDoc = await pb.collection('config').getFirstListItem('clave="general"');
-                pbConfigId = confDoc.id;
-                oldDestacada = confDoc.ruta_destacada;
-                historicas = confDoc.rutas_historicas || [];
-                if (oldDestacada && oldDestacada !== newRuta && !historicas.includes(oldDestacada)) {
-                    historicas.push(oldDestacada);
-                }
-            } catch(e) {}
-            
-            // Dual write config
-            if(pbConfigId) await pb.collection('config').update(pbConfigId, { ruta_destacada: newRuta, rutas_historicas: historicas });
-            await setDoc(doc(db, "config", "general"), { ruta_destacada: newRuta, rutas_historicas: historicas }, { merge: true });
-
-            if (oldDestacada) await recalcularRutaBiciRating(oldDestacada);
-            await recalcularRutaBiciRating(newRuta);
-
-            alert("Ruta destacada actualizada y rankings de jugadores recalculados.");
-            btn.disabled = false; btn.innerText = "Destacar Ruta";
-        });
-
-        // ------------------ CARGAR PENDIENTES ------------------
-        async function loadPendingTrips() {
-            const grid = document.getElementById('pending-grid');
-            
-            try {
-                const records = await pb.collection('tiempos_viaje').getFullList({ filter: 'verificado=false' });
-                grid.innerHTML = ''; let count = 0; botQueue = []; 
-
-                records.forEach((data) => {
-                    count++; const pbTripId = data.id;
-                    botQueue.push({ id: pbTripId, foto_url: data.foto_url, ruta: data.ruta, tiempo_segundos: data.tiempo_segundos, email_real: data.email_real });
-
-                    grid.innerHTML += `
-                        <div class="admin-card" id="card-${pbTripId}">
-                            <div class="card-header"><span>Ruta ${data.ruta}</span><span>${data.tiempo_formateado}</span></div>
-                            <div style="font-size:0.8rem; color:#888;">Email: ${data.email_real}</div>
-                            <div class="bot-status loading" id="bot-${pbTripId}" style="${isBotActive ? 'display:block;' : 'display:none;'}">🤖 En cola...</div>
-                            <button class="btn-view view-photo" data-url="${data.foto_url}" style="margin-top:10px;">Ver Captura</button>
-                            <div class="actions">
-                                <button class="btn-reject reject-btn" data-id="${pbTripId}" data-email="${data.email_real}" data-ruta="${data.ruta}" data-fecha="${data.fecha}">Rechazar</button>
-                                <button class="btn-approve approve-btn" data-id="${pbTripId}" data-email="${data.email_real}" data-ruta="${data.ruta}" data-fecha="${data.fecha}">Aprobar</button>
-                            </div>
-                        </div>`;
-                });
-                document.getElementById('pending-count').innerText = count;
-                if (count === 0) grid.innerHTML = `<div style="grid-column:1/-1; color:#888;">Todo al día.</div>`;
-                else { attachEvents(); if(isBotActive) processBotQueue(); }
-            } catch(e) { grid.innerHTML = `<div style="grid-column:1/-1; color:red;">Error cargando viajes pendientes.</div>`; }
-        }
-
-        // ------------------ CARGAR REPORTES DE USUARIOS ------------------
-        async function loadReports() {
-            const grid = document.getElementById('reports-grid');
-            try {
-                // OPTIMIZACIÓN: Descargamos reportes y viajes en paralelo para evitar N+1
-                const [reports, allTrips] = await Promise.all([
-                    pb.collection('reportes').getFullList({ filter: 'status="pendiente"' }),
-                    pb.collection('tiempos_viaje').getFullList() // O filtrar por los IDs de los reportes si son muchos
-                ]);
-
-                const tripsMap = {};
-                allTrips.forEach(t => tripsMap[t.id] = t);
-
-                grid.innerHTML = '';
-                let count = 0;
-
-                for (const data of reports) {
-                    count++;
-                    const repId = data.id; 
-                    const tripData = tripsMap[data.tripId] || allTrips.find(t => t.email_real === data.reportedEmail && t.ruta === data.ruta);
-
-                    let tripInfo = '';
-                    if (tripData) {
-                        const tiempoStr = tripData.tiempo_formateado || Math.floor(tripData.tiempo_segundos/60) + ":" + (tripData.tiempo_segundos%60).toString().padStart(2, '0');
-                        const d = new Date(tripData.fecha);
-                        const fechaStr = d.toLocaleDateString();
-
-                        tripInfo = `
-                            <div style="background: var(--bg-input); padding: 12px; border-radius: 8px; margin: 10px 0; border: 1px solid var(--border);">
-                                <p style="margin: 0; color: #FFD700; font-weight: 700; font-size: 0.9rem;">📸 Datos del Viaje Reportado:</p>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; font-size: 0.8rem;">
-                                    <div><b>⏱️ Tiempo:</b> ${tiempoStr}</div>
-                                    <div><b>📅 Fecha:</b> ${fechaStr}</div>
-                                    <div style="grid-column: span 2;"><b>👤 Email:</b> ${tripData.email_real || 'N/A'}</div>
-                                    <div style="grid-column: span 2;"><b>✅ Estado:</b> ${tripData.verificado ? 'Verificado' : 'Pendiente'}</div>
-                                </div>
-                                ${tripData.foto_url ? `
-                                    <div style="margin-top: 10px; text-align: center;">
-                                        <img src="${tripData.foto_url}" style="max-width: 100%; max-height: 150px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer;" onclick="window.openImageModal('${tripData.foto_url}')" alt="Imagen del viaje">
-                                        <p style="margin: 5px 0 0 0; font-size: 0.75rem; color: #888; cursor: pointer;" onclick="window.openImageModal('${tripData.foto_url}')">🔍 Click para ampliar</p>
-                                    </div>
-                                ` : '<p style="margin: 8px 0 0 0; font-size: 0.75rem; color: #ff6666;">📷 Sin imagen</p>'}
-                            </div>
-                        `;
-                    } else {
-                        tripInfo = '<p style="margin: 10px 0; color: #ff6666; font-size: 0.8rem;">❌ El viaje ya fue eliminado o no existe.</p>';
-                    }
-
-                    grid.innerHTML += `
-                        <div class="admin-card" style="border-color: #ff4444; background: rgba(255, 68, 68, 0.05);">
-                            <div class="card-header" style="color: #ff4444;">
-                                <span>🚨 Alerta en Ruta ${data.ruta}</span>
-                            </div>
-                            <div style="font-size:0.85rem; color:#ccc; margin-top: 10px; line-height: 1.6;">
-                                <p style="margin: 0;"><b>Sospechoso:</b> <span style="color:#FFD700">${data.reportedEmail}</span></p>
-                                <p style="margin: 0;"><b>Chivato:</b> ${data.reporterEmail}</p>
-                            </div>
-                            ${tripInfo}
-                            <div class="actions" style="margin-top: 15px;">
-                                <button class="btn-reject" onclick="window.deleteReportedTrip('${repId}', '${tripData ? tripData.id : ''}', '${data.reportedEmail}', '${data.ruta}', '${tripData ? tripData.fecha : ''}')" style="background:#ff4444; color:white; font-size:0.85rem;">Eliminar Viaje Falso</button>
-                                <button class="btn-approve" onclick="window.ignoreReport('${repId}', '${data.reportedEmail}', '${data.ruta}')" style="background:#333; color:white; font-size:0.85rem;">Ignorar Falsa Alarma</button>
-                            </div>
-                        </div>`;
-                }
-
-                document.getElementById('reports-count').innerText = count;
-                if (count === 0) grid.innerHTML = `<div style="grid-column:1/-1; color:#888;">No hay reportes pendientes.</div>`;
-            } catch(e) { console.log(e); }
-        }
-        window.ignoreReport = async function(pbRepId, reportedEmail, ruta) {
-            if(!confirm("¿Estás seguro de que quieres ignorar este reporte?")) return;
-            try {
-                // PB
-                await pb.collection('reportes').update(pbRepId, { status: "ignorado" });
-                // FB
-                const qRep = query(collection(db, "reportes"), where("reportedEmail", "==", reportedEmail), where("ruta", "==", ruta), where("status", "==", "pendiente"));
-                const snapRep = await getDocs(qRep);
-                snapRep.forEach(d => updateDoc(doc(db, "reportes", d.id), { status: "ignorado" }));
-                
-                loadReports();
-            } catch(e) {
-                alert("Error al actualizar el reporte: " + e.message);
-            }
-        };
-
-        window.deleteReportedTrip = async function(pbRepId, pbTripId, reportedEmail, ruta, fecha) {
-            if(!confirm("⚠️ CUIDADO: Esto borrará el viaje de la base de datos para siempre. ¿Estás seguro?")) return;
-            try {
-                // 1. Delete Trip
-                if(pbTripId) await pb.collection('tiempos_viaje').delete(pbTripId);
-                const qTrip = query(collection(db, "tiempos_viaje"), where("email_real", "==", reportedEmail), where("ruta", "==", ruta), where("fecha", "==", fecha));
-                const snapTrip = await getDocs(qTrip);
-                snapTrip.forEach(d => deleteDoc(doc(db, "tiempos_viaje", d.id)));
-
-                // 2. Update Report
-                await pb.collection('reportes').update(pbRepId, { status: "borrado_tramposo" });
-                const qRep = query(collection(db, "reportes"), where("reportedEmail", "==", reportedEmail), where("ruta", "==", ruta), where("status", "==", "pendiente"));
-                const snapRep = await getDocs(qRep);
-                snapRep.forEach(d => updateDoc(doc(db, "reportes", d.id), { status: "borrado_tramposo" }));
-
-                // 3. Update User Stats
-                let pbUser = await pb.collection('usuarios').getFirstListItem(`email="${reportedEmail}"`);
-                let vvt = (pbUser.viajes_verificados_totales || 1) - 1;
-                if(vvt < 0) vvt = 0;
-                
-                let dictRutas = pbUser.puntos_por_ruta || {};
-                dictRutas[ruta] = 0; 
-                
-                let sumMedallas = 0;
-                for (let r in dictRutas) sumMedallas += dictRutas[r];
-                let finalBiciRating = (vvt * 5) + sumMedallas;
-
-                await pb.collection('usuarios').update(pbUser.id, { viajes_verificados_totales: vvt, puntos_por_ruta: dictRutas, biciRating: finalBiciRating });
-                await updateDoc(doc(db, "usuarios", reportedEmail), { viajes_verificados_totales: vvt, puntos_por_ruta: dictRutas, biciRating: finalBiciRating });
-                
-                if (pbUser.clanId) await recalcularBiciRatingClan(pbUser.clanId);
-
-                await recalcularRutaBiciRating(ruta);
-
-                const parts = ruta.split('-');
-                const orig = parts[0].replace(/^0+/, '') || "0";
-                const dest = parts[1].replace(/^0+/, '') || "0";
-                
-                const [allTrips, allUsers] = await Promise.all([
-                    pb.collection('tiempos_viaje').getFullList({ filter: 'verificado=true' }),
-                    pb.collection('usuarios').getFullList()
-                ]);
-                await recalcularEstacion(orig, allTrips, allUsers);
-                await recalcularEstacion(dest, allTrips, allUsers);
-
-                alert("Viaje eliminado con éxito. BiciRating general y territorios recalculados.");
-                loadReports();
-            } catch(e) {
-                console.error("Error al borrar viaje:", e);
-                alert("Error al borrar el viaje: " + e.message);
-            }
-        };
-
-        // ------------------ CALCULAR BICIRATING DEL CLAN ------------------
-        async function recalcularBiciRatingClan(clanId) {
-            if (!clanId) return;
-            const users = await pb.collection('usuarios').getFullList({ filter: `clanId="${clanId}"` });
-            let total = 0;
-            users.forEach(u => total += (u.biciRating || 0));
-            
-            try {
-                const c = await pb.collection('clanes').getFirstListItem(`nombre_id="${clanId}"`);
-                await pb.collection('clanes').update(c.id, { biciRating: total });
-            }catch(e){}
-            await updateDoc(doc(db, "clanes", clanId), { biciRating: total });
-        }
-
-
-        // ------------------ EL CEREBRO: CÁLCULO DE BICIRATING (USUARIOS) ------------------
-        async function recalcularRutaBiciRating(rutaString) {
-            let multiplier = 1;
-            try {
-                const confDoc = await pb.collection('config').getFirstListItem('clave="general"');
-                if (confDoc.ruta_destacada === rutaString) multiplier = 2; 
-                else if (confDoc.rutas_historicas && confDoc.rutas_historicas.includes(rutaString)) multiplier = 1.5;
-            } catch(e) {}
-
-            const [trips, allUsers] = await Promise.all([
-                pb.collection('tiempos_viaje').getFullList({ filter: `ruta="${rutaString}" && verificado=true` }),
-                pb.collection('usuarios').getFullList()
-            ]);
-
-            const usersMap = {};
-            allUsers.forEach(u => usersMap[u.email] = u);
-
-            let userBestTimes = {};
-            let usersInvolved = new Set();
-
-            trips.forEach(data => {
-                const email = data.email_real;
-                usersInvolved.add(email);
-                if(!userBestTimes[email] || data.tiempo_segundos < userBestTimes[email].tiempo) {
-                    userBestTimes[email] = { tiempo: data.tiempo_segundos };
-                }
-            });
-
-            let topList = Object.entries(userBestTimes).map(([email, data]) => ({ email, ...data }));
-            topList.sort((a, b) => a.tiempo - b.tiempo);
-
-            let pointsMap = {};
-            topList.forEach((u, index) => {
-                let pts = 0;
-                if (index === 0) pts = 80;
-                else if (index === 1) pts = 65;
-                else if (index === 2) pts = 55;
-                else if (index === 3 || index === 4) pts = 35;
-                else if (index === 5 || index === 6) pts = 20;
-                pointsMap[u.email] = Math.round(pts * multiplier);
-            });
-
-            let clanesAfectados = new Set();
-            for (let email of usersInvolved) {
-                const routePoints = pointsMap[email] || 0;
-                const pbUser = usersMap[email];
-
-                if (pbUser) {
-                    let dictRutas = pbUser.puntos_por_ruta || {};
-                    let totalViajes = pbUser.viajes_verificados_totales || 0;
-                    if (pbUser.clanId) clanesAfectados.add(pbUser.clanId);
-
-                    dictRutas[rutaString] = routePoints;
-                    let sumMedallas = 0;
-                    for (let r in dictRutas) sumMedallas += dictRutas[r];
-
-                    let finalBiciRating = (totalViajes * 5) + sumMedallas;
-
-                    await pb.collection('usuarios').update(pbUser.id, {
-                        puntos_por_ruta: dictRutas,
-                        biciRating: finalBiciRating
-                    });
-                    await updateDoc(doc(db, "usuarios", email), {
-                        puntos_por_ruta: dictRutas,
-                        biciRating: finalBiciRating
-                    });
-                }
-            }
-
-            for (let cId of clanesAfectados) {
-                await recalcularBiciRatingClan(cId);
-            }
-        }
-
-        // ------------------ EL CEREBRO 2: DUEÑOS DE ESTACIONES (CLANES) ------------------
-        async function recalcularEstacion(numEstacion, preloadedRecords = null, preloadedUsers = null) {
-            const records = preloadedRecords || await pb.collection('tiempos_viaje').getFullList({ filter: 'verificado=true' });
-            const allUsers = preloadedUsers || await pb.collection('usuarios').getFullList();
-
-            const usersMap = {};
-            allUsers.forEach(u => usersMap[u.email] = u);
-
-            let viajesPorRuta = {};
-            records.forEach(data => {
-                const parts = data.ruta.split('-');
-                const orig = parts[0].replace(/^0+/, '') || "0";
-                const dest = parts[1].replace(/^0+/, '') || "0";
-
-                if (orig === numEstacion || dest === numEstacion) {
-                    if (!viajesPorRuta[data.ruta]) viajesPorRuta[data.ruta] = [];
-                    viajesPorRuta[data.ruta].push(data);
-                }
-            });
-
-            let puntosClan = {};
-
-            for (const [ruta, viajes] of Object.entries(viajesPorRuta)) {
-                viajes.sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
-                const top10 = viajes.slice(0, 10);
-
-                for (let i = 0; i < top10.length; i++) {
-                    const email = top10[i].email_real;
-                    const u = usersMap[email];
-                    const clanId = u ? u.clanId : null;
-                    if (clanId) {
-                        let pts = 0;
-                        if (i === 0) pts = 7;
-                        else if (i === 1) pts = 5;
-                        else if (i === 2) pts = 3;
-                        else if (i >= 3 && i <= 9) pts = 1;
-                        puntosClan[clanId] = (puntosClan[clanId] || 0) + pts;
-                    }
-                }
-            }
-            let dominante = null; let maxPts = 0; let sumTotal = 0;
-            for (const [clan, pts] of Object.entries(puntosClan)) {
-                sumTotal += pts;
-                if (pts > maxPts) { maxPts = pts; dominante = clan; }
-            }
-
-            const dataToSave = { estacion_id: numEstacion, clan_dominante: dominante, total_puntos: sumTotal, puntos_detalle: puntosClan };
-            
-            try {
-                let st = null;
-                try { st = await pb.collection('estaciones_stats').getFirstListItem(`estacion_id="${numEstacion}"`); } catch(e){}
-                if(st) await pb.collection('estaciones_stats').update(st.id, dataToSave);
-                else await pb.collection('estaciones_stats').create(dataToSave);
-                
-                await setDoc(doc(db, "estaciones_stats", numEstacion), dataToSave, { merge: true });
-            } catch(e){}
-        }
-
-
-        // ------------------ EVENTOS DE BOTONES (APROBAR/RECHAZAR) ------------------
-        function attachEvents() {
-            document.querySelectorAll('.view-photo').forEach(b => b.onclick = e => window.openImageModal(e.target.getAttribute('data-url')));
-            
-            document.querySelectorAll('.approve-btn').forEach(b => b.onclick = async e => { 
-                e.target.disabled = true; e.target.innerText = "Calculando Ratings..."; 
-                
-                const pbTripId = e.target.getAttribute('data-id');
-                const ruta = e.target.getAttribute('data-ruta');
-                const email = e.target.getAttribute('data-email');
-                const fecha = e.target.getAttribute('data-fecha');
-
-                try {
-                    // PB Update
-                    await pb.collection('tiempos_viaje').update(pbTripId, { verificado: true }); 
-                    // FB Update (Buscando por datos porque el ID no cuadra)
-                    const qTrip = query(collection(db, "tiempos_viaje"), where("email_real", "==", email), where("ruta", "==", ruta), where("fecha", "==", fecha));
-                    const snapTrip = await getDocs(qTrip);
-                    snapTrip.forEach(d => updateDoc(doc(db, "tiempos_viaje", d.id), { verificado: true }));
-
-                    let pbUser = await pb.collection('usuarios').getFirstListItem(`email="${email}"`);
-                    let vvt = (pbUser.viajes_verificados_totales || 0) + 1;
-                    
-                    await pb.collection('usuarios').update(pbUser.id, { viajes_verificados_totales: vvt });
-                    await updateDoc(doc(db, "usuarios", email), { viajes_verificados_totales: vvt });
-
-                    await recalcularRutaBiciRating(ruta);
-
-                    const parts = ruta.split('-');
-                    const estOrigen = parts[0].replace(/^0+/, '') || "0";
-                    const estDestino = parts[1].replace(/^0+/, '') || "0";
-                    
-                    const [allTrips, allUsers] = await Promise.all([
-                        pb.collection('tiempos_viaje').getFullList({ filter: 'verificado=true' }),
-                        pb.collection('usuarios').getFullList()
-                    ]);
-                    await recalcularEstacion(estOrigen, allTrips, allUsers);
-                    await recalcularEstacion(estDestino, allTrips, allUsers);
-
-                    loadPendingTrips(); 
-                } catch(err) {
-                    alert("Error al aprobar: " + err.message);
-                    e.target.disabled = false; e.target.innerText = "Aprobar";
-                }
-            });
-
-            document.querySelectorAll('.reject-btn').forEach(b => b.onclick = async e => { 
-                if(confirm("¿Seguro que quieres borrar este récord?")) { 
-                    e.target.disabled = true; e.target.innerText = "Borrando..."; 
-                    const pbTripId = e.target.getAttribute('data-id');
-                    const email = e.target.getAttribute('data-email');
-                    const ruta = e.target.getAttribute('data-ruta');
-                    const fecha = e.target.getAttribute('data-fecha');
-
-                    // PB
-                    await pb.collection('tiempos_viaje').delete(pbTripId); 
-                    // FB
-                    const qTrip = query(collection(db, "tiempos_viaje"), where("email_real", "==", email), where("ruta", "==", ruta), where("fecha", "==", fecha));
-                    const snapTrip = await getDocs(qTrip);
-                    snapTrip.forEach(d => deleteDoc(doc(db, "tiempos_viaje", d.id)));
-
-                    loadPendingTrips(); 
-                } 
-            });
-        }
-        
-        window.openImageModal = function(imageUrl) {
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.9);
-                z-index: 10000;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                cursor: pointer;
-            `;
-            
-            const img = document.createElement('img');
-            img.src = imageUrl;
-            img.style.cssText = `
-                max-width: 90%;
-                max-height: 90vh;
-                border-radius: 8px;
-                box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            `;
-            
-            modal.appendChild(img);
-            modal.onclick = () => document.body.removeChild(modal);
-            document.body.appendChild(modal);
-        };
-
-        document.getElementById('close-modal').onclick = () => document.getElementById('photo-modal').style.display = 'none';
-
-        // ------------------ SISTEMA DE NOTIFICACIONES ------------------
-        import { registerForNotifications, listenForNewTrips, showLocalNotification, playNotificationSound } from '../notifications.js';
-        import { registerEmailNotification, listenForNewTripsWithEmail, toggleEmailNotifications, getEmailNotificationStatus } from '../email-notifications.js';
-
-        async function initNotifications() {
-            const registered = await registerForNotifications();
-            if (registered) {
-                console.log('✅ Notificaciones push registradas');
-            }
-
-            await setupEmailNotifications();
-
-            listenForNewTrips((newTrip, tripId) => {
-                const userName = newTrip.nombre_usuario || 'Usuario';
-                const route = newTrip.ruta;
-                
-                showLocalNotification(
-                    '🚴 Nuevo Viaje Pendiente',
-                    `${userName} ha subido un viaje en la ruta ${route}`,
-                    '/admin/'
-                );
-
-                playNotificationSound();
-
-                const currentCount = parseInt(document.getElementById('pending-count').innerText) || 0;
-                document.getElementById('pending-count').innerText = currentCount + 1;
-
-                showPendingIndicator();
-            });
-
-            listenForNewTripsWithEmail();
-        }
-
-        async function setupEmailNotifications() {
-            const registered = await registerEmailNotification();
-            if (registered) {
-                console.log('✅ Notificaciones por email activadas automáticamente');
-                showEmailStatus(true, 'bicifastness@gmail.com');
-            } else {
-                console.log('❌ Error activando notificaciones automáticas');
-            }
-        }
-
-        function showEmailStatus(enabled, email) {
-            const statusDiv = document.createElement('div');
-            statusDiv.id = 'email-status';
-            statusDiv.style.cssText = `
-                position: fixed;
-                bottom: 20px;
-                left: 20px;
-                background: ${enabled ? '#00C851' : '#ff4444'};
-                color: white;
-                padding: 10px 15px;
-                border-radius: 8px;
-                z-index: 9999;
-            `;
-            statusDiv.innerHTML = enabled ? `📧 Email activo: ${email}` : `❌ Error en email`;
-            document.body.appendChild(statusDiv);
-        }
-
-        function showPendingIndicator() {
-            const indicator = document.createElement('div');
-            indicator.id = 'new-trip-indicator';
-            indicator.style.cssText = `
-                position: fixed;
-                top: 80px;
-                right: 20px;
-                background: #ff4444;
-                color: white;
-                padding: 15px 20px;
-                border-radius: 8px;
-                font-weight: 700;
-                z-index: 10000;
-                animation: slideIn 0.3s ease-out;
-                box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
-                cursor: pointer;
-            `;
-            indicator.innerHTML = '🚨 ¡Nuevo viaje pendiente! Click para ver';
-            indicator.onclick = () => {
-                loadPendingTrips();
-                document.body.removeChild(indicator);
-            };
-            
-            if (!document.getElementById('notification-animations')) {
-                const style = document.createElement('style');
-                style.id = 'notification-animations';
-                style.textContent = `
-                    @keyframes slideIn {
-                        from { transform: translateX(100%); opacity: 0; }
-                        to { transform: translateX(0); opacity: 1; }
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-
-            document.body.appendChild(indicator);
-
-            setTimeout(() => {
-                if (document.getElementById('new-trip-indicator')) {
-                    document.body.removeChild(indicator);
-                }
-            }, 10000);
-        }
-
-        function addNotificationButton() {
-            const btnContainer = document.querySelector('.nav-right'); 
-            if (btnContainer && !document.getElementById('notif-btn')) {
-                const notifBtn = document.createElement('button');
-                notifBtn.id = 'notif-btn';
-                notifBtn.className = 'btn-icon';
-                notifBtn.style.cssText = "background:transparent; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer; margin-right:15px;";
-                notifBtn.innerHTML = '<i class="fi fi-br-bell"></i>';
-                notifBtn.title = 'Activar notificaciones';
-                notifBtn.onclick = async () => {
-                    const registered = await registerForNotifications();
-                    if (registered) {
-                        notifBtn.innerHTML = '<i class="fi fi-br-bell-ring"></i>';
-                        notifBtn.title = 'Notificaciones activadas';
-                        showLocalNotification('×', 'Notificaciones activadas correctamente');
-                    }
-                };
-                btnContainer.insertBefore(notifBtn, btnContainer.querySelector('.info-icon'));
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initNotifications();
-            addNotificationButton();
-        });
-    </script>
+          },
+        },
+      });
+
+      return el('div', { clase: 'fila-insignia' }, [
+        el('span', { estilo: { display: 'flex', gap: '8px', alignItems: 'center' } }, [
+          el('i', { clase: info.icono, estilo: { color: info.color } }),
+          el('span', { texto: info.titulo }),
+        ]),
+        casilla,
+      ]);
+    }));
+    rejilla.style.display = 'grid';
+  }
+
+</script>
 </body>
 </html>

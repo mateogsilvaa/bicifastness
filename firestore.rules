@@ -1,37 +1,267 @@
 rules_version = '2';
+
+// =============================================================================
+// BiciFastness — reglas de Firestore
+//
+// MODELO: no hay servidor HTTP delante. El navegador escribe directamente en
+// Firestore, asi que estas reglas SON el control de acceso, no un complemento.
+// El worker de GitHub Actions usa el Admin SDK y se las salta por diseno: es
+// quien decide si un viaje se aprueba.
+//
+// Regla de oro: el cliente puede PROPONER (crear un viaje pendiente), nunca
+// DECIDIR (marcarlo como verificado, darse puntos o hacerse administrador).
+//
+// La version que provoco el hackeo tenia `allow read, write: if request.auth != null`
+// en usuarios, tiempos_viaje, config, reportes y secrets. Con una cuenta recien
+// creada y la consola del navegador se podia uno hacer admin (el id del
+// documento era el email), autoverificarse los tiempos, leer las API keys y
+// borrar los records de los demas.
+// =============================================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthed() {
+
+    // --- Ayudantes ---------------------------------------------------------
+    function autenticado() {
       return request.auth != null;
     }
 
-    // Lectura pública para datos del mapa
-    match /clanes/{docId} {
-      allow read: if true; // Lectura pública para el mapa
-      allow write: if isAuthed();
-    }
-    match /estaciones_stats/{docId} {
-      allow read: if true; // Lectura pública para el mapa
-      allow write: if isAuthed();
-    }
-    
-    // Colecciones que requieren autenticación
-    match /usuarios/{docId} {
-      allow read, write: if isAuthed();
-    }
-    match /tiempos_viaje/{docId} {
-      allow read, write: if isAuthed();
-    }
-    match /reportes/{docId} {
-      allow read, write: if isAuthed();
-    }
-    match /config/{docId} {
-      allow read, write: if isAuthed();
-    }
-    match /secrets/{docId} {
-      allow read, write: if isAuthed();
+    function esYo(uid) {
+      return autenticado() && request.auth.uid == uid;
     }
 
+    // El rol vive en un custom claim firmado dentro del token de Firebase Auth,
+    // que solo puede escribir el Admin SDK. NO en un documento que el propio
+    // usuario pueda modificar.
+    function esAdmin() {
+      return autenticado() && request.auth.token.admin == true;
+    }
+
+    function datos() { return request.resource.data; }
+    function previo() { return resource.data; }
+
+    // Campos que cambian entre el documento viejo y el nuevo.
+    function cambia() {
+      return datos().diff(previo()).affectedKeys();
+    }
+
+    // --- Perfiles ----------------------------------------------------------
+    match /usuarios/{uid} {
+      // Publico: los rankings y los perfiles de piloto se ven sin sesion.
+      allow read: if true;
+
+      // El alta la hace el propio usuario, pero con TODOS los contadores a cero
+      // y sin poder inventarse el rol. Si se pudiera crear con biciRating alto o
+      // con esAdmin, volveriamos al agujero original.
+      allow create: if esYo(uid)
+        && datos().uid == uid
+        && datos().keys().hasOnly([
+          'uid', 'email', 'username', 'usernameLower', 'avatarUrl',
+          'biciRating', 'viajesVerificados', 'puntosPorRuta', 'logros',
+          'clanId', 'favoritas', 'suspendido', 'creado', 'consentimiento'
+        ])
+        && datos().username is string
+        && datos().username.size() >= 3 && datos().username.size() <= 24
+        && datos().biciRating == 0
+        && datos().viajesVerificados == 0
+        && datos().puntosPorRuta.size() == 0
+        && datos().logros.size() == 0
+        && datos().clanId == null
+        && datos().suspendido == false
+        && datos().consentimiento is map;
+
+      // Solo se puede tocar lo cosmetico y las rutas ancladas. La puntuacion,
+      // las insignias y el estado de la cuenta los escribe unicamente el worker.
+      allow update: if esYo(uid)
+        && cambia().hasOnly(['favoritas', 'avatarUrl', 'consentimiento'])
+        && (!('favoritas' in datos()) || datos().favoritas.size() <= 3);
+
+      // La administracion concede insignias y suspende cuentas. No puede tocar
+      // la puntuacion: esa la calcula el worker a partir de los tiempos, y
+      // dejarla editable a mano reabriria la puerta a inflarla.
+      allow update: if esAdmin()
+        && cambia().hasOnly(['logros', 'suspendido', 'motivoSuspension']);
+
+      allow delete: if false;
+    }
+
+    // Peticiones de borrado de cuenta (RGPD art. 17).
+    // Borrar el usuario de Firebase Auth exige el Admin SDK, que en el navegador
+    // no existe: el piloto deja la peticion aqui y el worker la ejecuta.
+    match /solicitudes_borrado/{uid} {
+      allow read: if esYo(uid) || esAdmin();
+      allow create: if esYo(uid)
+        && datos().keys().hasOnly(['uid', 'creado', 'confirmacion'])
+        && datos().uid == uid
+        && datos().confirmacion == 'BORRAR MI CUENTA';
+      allow update, delete: if false;
+    }
+
+    match /nombres_usuario/{nombre} {
+      // Se consulta para avisar de que un nombre esta cogido, pero la unicidad
+      // real la garantiza el worker: las reglas no pueden hacer transacciones.
+      allow read: if autenticado();
+      allow create: if esYo(datos().uid);
+      allow update, delete: if false;
+    }
+
+    // --- Viajes ------------------------------------------------------------
+    match /tiempos_viaje/{viajeId} {
+      // Los verificados son publicos (alimentan el ranking). Los pendientes y
+      // los rechazados solo los ve su dueno y la administracion.
+      allow read: if previo().verificado == true
+                  || esAdmin()
+                  || esYo(previo().uid);
+
+      // El piloto PROPONE un viaje. Nace siempre pendiente y sin verificar: el
+      // veredicto lo pone el worker, que se salta estas reglas.
+      allow create: if esYo(datos().uid)
+        && datos().keys().hasOnly([
+          'uid', 'username', 'ruta', 'tiempoSegundos', 'tiempoFormateado',
+          'fechaViaje', 'estado', 'verificado', 'creado'
+        ])
+        && datos().estado == 'pendiente'
+        && datos().verificado == false
+        && datos().ruta is string
+        && datos().ruta.matches('^[0-9]{3}[A-Z]?-[0-9]{3}[A-Z]?$')
+        && datos().tiempoSegundos is int
+        && datos().tiempoSegundos >= 30
+        && datos().tiempoSegundos <= 7200
+        && datos().fechaViaje is string
+        && datos().fechaViaje.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && datos().creado == request.time;
+
+      // El dueno solo puede pedir revision humana de un rechazo automatico
+      // (art. 22.3 RGPD). No puede tocar el tiempo, la ruta ni el veredicto.
+      allow update: if esYo(previo().uid)
+        && previo().estado == 'rechazado'
+        && previo().revisadoPor == 'automatico'
+        && previo().impugnado != true
+        && cambia().hasOnly(['estado', 'impugnado', 'alegacion', 'impugnadoEn'])
+        && datos().estado == 'revision'
+        && datos().impugnado == true
+        && datos().alegacion is string
+        && datos().alegacion.size() >= 15
+        && datos().alegacion.size() <= 600;
+
+      // La administracion resuelve la cola. `recalculoPendiente` avisa al worker
+      // de que tiene que rehacer la clasificacion: hacerlo desde el navegador
+      // costaria cientos de lecturas de la cuota diaria.
+      allow update: if esAdmin()
+        && cambia().hasOnly([
+          'estado', 'verificado', 'revisadoPor', 'revisadoEn',
+          'motivoRevision', 'recalculoPendiente'
+        ])
+        && datos().estado in ['aprobado', 'rechazado', 'revision'];
+
+      allow delete: if false;
+    }
+
+    // --- Capturas -----------------------------------------------------------
+    // En el plan Spark no hay Cloud Storage, asi que la imagen viaja aqui. Vive
+    // en su propia coleccion, separada del viaje, para que el ranking no arrastre
+    // megas de fotos en cada lectura y para poder cerrarla del todo.
+    match /capturas/{viajeId} {
+      // Ni siquiera su autor la relee: no le hace falta y asi no se puede raspar
+      // la coleccion. La administracion la ve desde el panel.
+      allow read: if esAdmin();
+
+      allow create: if autenticado()
+        && esYo(datos().uid)
+        && datos().keys().hasOnly(['uid', 'datos', 'creado'])
+        && datos().datos is string
+        && datos().datos.matches('^data:image/(jpeg|png|webp);base64,.*')
+        // 700 KB de base64 (~500 KB de imagen). El limite duro de un documento
+        // de Firestore es 1 MiB; dejamos margen para el resto de campos.
+        && datos().datos.size() < 700000;
+
+      allow update, delete: if false;
+    }
+
+    // Material antifraude: publicarlo permitiria saber que imagenes estan ya
+    // quemadas antes de intentar subirlas.
+    match /huellas_captura/{hash} {
+      allow read, write: if false;
+    }
+
+    // --- Clanes -------------------------------------------------------------
+    match /clanes/{clanId} {
+      allow read: if true;
+
+      allow create: if autenticado()
+        && datos().lider == request.auth.uid
+        && datos().miembros == [request.auth.uid]
+        && datos().solicitudes.size() == 0
+        && datos().biciRating == 0
+        && datos().logros.size() == 0
+        && datos().nombre is string
+        && datos().nombre.size() >= 3 && datos().nombre.size() <= 28
+        && datos().color.matches('^#[0-9a-fA-F]{6}$');
+
+      // El lider gestiona la plantilla; cualquiera puede meter o sacar su propia
+      // solicitud. Las insignias y la puntuacion solo las toca el worker.
+      allow update: if autenticado() && (
+        (
+          previo().lider == request.auth.uid
+          && cambia().hasOnly(['miembros', 'solicitudes', 'numMiembros', 'descripcion', 'color', 'lider'])
+        )
+        || (
+          cambia().hasOnly(['solicitudes'])
+          && datos().solicitudes.hasOnly(previo().solicitudes.concat([request.auth.uid]))
+          && previo().solicitudes.hasOnly(datos().solicitudes.concat([request.auth.uid]))
+        )
+      );
+
+      allow delete: if autenticado() && previo().lider == request.auth.uid;
+    }
+
+    match /estaciones_stats/{estacionId} {
+      allow read: if true;
+      allow write: if false;   // lo calcula el worker
+    }
+
+    // --- Configuracion ------------------------------------------------------
+    match /config/general {
+      allow read: if true;     // ruta destacada
+      allow write: if esAdmin();
+    }
+
+    match /config/{otro} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
+
+    // --- Moderacion ---------------------------------------------------------
+    match /reportes/{reporteId} {
+      allow read: if esAdmin();
+
+      allow create: if autenticado()
+        && esYo(datos().reportanteUid)
+        && datos().keys().hasOnly(['viajeId', 'reportanteUid', 'reportadoUid', 'ruta', 'motivo', 'estado', 'creado'])
+        && datos().estado == 'pendiente'
+        && datos().motivo is string
+        && datos().motivo.size() <= 300
+        // No vale denunciarse a uno mismo para inflar el contador.
+        && datos().reportadoUid != request.auth.uid;
+
+      allow update: if esAdmin() && cambia().hasOnly(['estado', 'resueltoPor', 'resueltoEn']);
+      allow delete: if false;
+    }
+
+    match /auditoria_admin/{registroId} {
+      allow read: if esAdmin();
+      allow create: if esAdmin();
+      allow update, delete: if false;   // el rastro no se reescribe
+    }
+
+    // La coleccion `secrets` ya no existe: las claves viven en GitHub Secrets.
+    // Se deja la regla explicita por si queda algun documento suelto del sistema
+    // antiguo, para que siga siendo ilegible hasta que se borre.
+    match /secrets/{doc} {
+      allow read, write: if false;
+    }
+
+    // --- Cierre por defecto -------------------------------------------------
     match /{document=**} {
       allow read, write: if false;
     }

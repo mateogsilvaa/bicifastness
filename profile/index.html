@@ -18,11 +18,11 @@
   .datos h2 { border: none; padding: 0; margin: 0 0 4px; display: block; }
   .datos p { margin: 0; color: var(--text-muted); font-size: .85rem; }
   .cifras { display: flex; gap: 14px; margin: 24px 0; flex-wrap: wrap; }
-  .cifra { flex: 1; min-width: 120px; background: var(--bg-input); border-radius: 12px; padding: 16px; text-align: center; }
+  .cifra { flex: 1; min-width: 120px; background: var(--bg-input); border-radius: var(--radio); padding: 16px; text-align: center; }
   .cifra strong { display: block; font-size: 1.6rem; color: var(--primary); }
   .cifra span { font-size: .75rem; color: var(--text-muted); }
   .insignias { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
-  .viaje { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+  .viaje { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radio); padding: 14px 16px; margin-bottom: 10px; }
   .viaje-info strong { display: block; font-size: .92rem; }
   .viaje-info span { font-size: .75rem; color: var(--text-muted); }
   .viaje-marca { text-align: right; }
@@ -34,6 +34,14 @@
   .zona-peligro button { background: transparent; border: 1px solid var(--error); color: var(--error); }
   .fila-botones { display: flex; gap: 10px; flex-wrap: wrap; }
   .fila-botones button { flex: 1; min-width: 160px; }
+
+  .cifra { border: 1px solid var(--border); background: var(--bg-input); }
+  .cifra strong { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+  .viaje { transition: border-color var(--transicion); }
+  .viaje:hover { border-color: var(--border-fuerte); }
+  .viaje-marca strong { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; font-size: 1.02rem; }
+  #avatar { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-tenue); }
+  .zona-peligro h2::before { background: var(--error); }
 </style>
 </head>
 <body>

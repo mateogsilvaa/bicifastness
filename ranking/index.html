@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="/assets/css/app.css">
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-rounded/css/uicons-bold-rounded.css">
 <style>
   .buscador { margin-bottom: 18px; }
   .rutas { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; }
@@ -21,10 +20,10 @@
   .titulo-ranking h2 { margin: 0; }
   #btn-fijar { width: auto; margin: 0; padding: 8px 12px; background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
   #btn-fijar.fijada { color: var(--primary); border-color: var(--primary); }
-  .fila { display: flex; align-items: center; gap: 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; }
+  .fila { display: flex; align-items: center; gap: 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radio); padding: 12px 16px; margin-bottom: 10px; }
   .fila.p1 { border-color: var(--oro); }
-  .fila.p2 { border-color: #c0c0c0; }
-  .fila.p3 { border-color: #cd7f32; }
+  .fila.p2 { border-color: var(--plata); }
+  .fila.p3 { border-color: var(--bronce); }
   .puesto { font-weight: 900; font-size: 1.1rem; min-width: 38px; color: var(--text-muted); }
   .fila.p1 .puesto { color: var(--oro); }
   .avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--bg-input); cursor: pointer; }
@@ -36,12 +35,26 @@
   .marca span { font-size: .75rem; color: var(--text-muted); }
   .btn-reportar { width: auto; margin: 0 0 0 8px; padding: 8px 10px; background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
   .btn-reportar:hover { border-color: var(--error); color: var(--error); background: transparent; }
-  #modal-piloto { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 9500; display: none; align-items: center; justify-content: center; padding: 20px; }
-  .ficha { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; max-width: 380px; width: 100%; text-align: center; }
+  #modal-piloto { position: fixed; inset: 0; background: rgba(4,6,10,.86); z-index: 9500; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .ficha { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radio-xl); padding: 28px; max-width: 380px; width: 100%; text-align: center; }
   .ficha img { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; }
   .cifras { display: flex; justify-content: space-around; margin: 20px 0; }
   .cifras div strong { display: block; font-size: 1.4rem; color: var(--primary); }
   .cifras div span { font-size: .75rem; color: var(--text-muted); }
+
+  /* Tabla de tiempos: se comporta como un panel de crono. */
+  .fila { transition: transform var(--transicion), border-color var(--transicion); }
+  .fila:hover { transform: translateX(2px); border-color: var(--border-fuerte); }
+  .puesto { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; font-size: 1rem; }
+  .marca strong { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; font-size: 1.05rem; letter-spacing: -.03em; }
+  .marca span { font-family: var(--fuente-mono); font-size: .68rem; }
+  .fila.p1 { background: linear-gradient(100deg, rgba(255,207,61,.07), transparent 55%), var(--bg-card); }
+  .fila.p1 .puesto { text-shadow: 0 0 14px rgba(255,207,61,.5); }
+  .avatar { border: 1px solid var(--border); }
+  .ruta-btn { border-radius: 100px; transition: all var(--transicion); }
+  .ruta-btn.activa { background: var(--primary-tenue); }
+  .ruta-btn.destacada { background: rgba(255,207,61,.08); }
+  .cifras div strong { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -63,7 +76,7 @@
     <div class="titulo-ranking">
       <h2 id="titulo-ruta"></h2>
       <button id="btn-fijar" title="Anclar esta ruta a tus favoritas" aria-label="Anclar ruta">
-        <i class="fi fi-br-bookmark"></i>
+        <i class="fi fi-rr-bookmark"></i>
       </button>
     </div>
     <div id="lista"></div>
@@ -178,7 +191,7 @@
     const fijar = id('btn-fijar');
     const fijada = favoritas.includes(ruta);
     fijar.classList.toggle('fijada', fijada);
-    reemplazar(fijar, el('i', { clase: fijada ? 'fi fi-sr-bookmark' : 'fi fi-br-bookmark' }));
+    reemplazar(fijar, el('i', { clase: fijada ? 'fi fi-sr-bookmark' : 'fi fi-rr-bookmark' }));
 
     // Solo el mejor tiempo de cada piloto entra en la clasificacion.
     const mejorPorPiloto = new Map();

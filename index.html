@@ -7,23 +7,48 @@
 <title>Iniciar sesion | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
 <link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <style>
-  body { justify-content: center; align-items: center; padding-bottom: 0; }
-  .card { width: 100%; max-width: 360px; text-align: center; }
-  h1 { color: var(--primary); margin: 0 0 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
-  h2.sub { border: none; color: var(--text-muted); font-weight: 600; font-size: .9rem; margin: 0 0 25px; display: block; padding: 0; }
-  input { margin: 10px 0; text-align: left; }
-  .enlace { display: block; margin-top: 15px; font-size: .85rem; color: var(--text-muted); text-decoration: none; font-weight: 600; }
-  .enlace:hover { color: var(--primary); }
-  .invitado { display: block; margin-top: 15px; font-size: .9rem; font-weight: 700; color: var(--primary); text-decoration: none; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
-  .invitado:hover { background: rgba(0,113,195,.1); border-color: var(--primary); }
-  #pie-legal { border: none; margin-top: 24px; padding: 0; }
+  body { justify-content: center; align-items: center; padding: 24px 16px; }
+  .card { width: 100%; max-width: 380px; text-align: center; }
+  .marca {
+    display: inline-flex; align-items: center; gap: 9px; margin-bottom: 4px;
+  }
+  .marca span {
+    width: 7px; height: 26px; border-radius: 4px;
+    background: linear-gradient(180deg, var(--primary-claro), var(--primary));
+    box-shadow: 0 0 16px rgba(30,144,255,.7);
+  }
+  h1 {
+    font-size: 1.55rem; color: var(--text-main); margin: 0;
+    letter-spacing: .01em; font-stretch: 88%;
+  }
+  .sub {
+    color: var(--text-tenue); font-family: var(--fuente-mono); font-size: .68rem;
+    text-transform: uppercase; letter-spacing: .2em; margin: 0 0 26px;
+  }
+  input { margin: 9px 0; text-align: left; }
+  .enlace {
+    display: block; margin-top: 14px; font-size: .85rem;
+    color: var(--text-muted); text-decoration: none; font-weight: 600;
+    transition: color var(--transicion);
+  }
+  .enlace:hover { color: var(--primary-claro); }
+  .invitado {
+    display: block; margin-top: 18px; font-size: .88rem; font-weight: 700;
+    color: var(--primary-claro); text-decoration: none; padding: 13px;
+    border: 1px solid var(--border-fuerte); border-radius: var(--radio-s);
+    transition: all var(--transicion);
+  }
+  .invitado:hover { background: var(--primary-tenue); border-color: var(--primary); }
+  #pie-legal { border: none; margin-top: 26px; padding: 0; }
 </style>
 </head>
 <body>
 <main class="card">
-  <h1>BiciFastness</h1>
-  <h2 class="sub">Iniciar sesion</h2>
+  <div class="marca"><span></span><h1>BiciFastness</h1></div>
+  <p class="sub">Iniciar sesion</p>
 
   <form id="form-login" novalidate>
     <label class="solo-lectores" for="email">Correo electronico</label>

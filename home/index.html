@@ -8,18 +8,106 @@
 <link rel="icon" href="/images/logo.png" type="image/png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <style>
-  .hero { text-align: center; margin-bottom: 50px; }
-  .hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 900; margin: 0; text-transform: uppercase; line-height: 1.1; }
-  .hero h1 span { color: var(--primary); }
-  .hero p { color: var(--text-muted); font-size: 1.05rem; max-width: 600px; margin: 15px auto 0; }
-  .rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
-  .acceso { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 28px 20px; text-align: center; text-decoration: none; color: var(--text-main); transition: .3s; display: block; }
-  .acceso:hover { transform: translateY(-4px); border-color: var(--primary); box-shadow: 0 10px 25px rgba(0,113,195,.12); }
-  .acceso i { font-size: 2.4rem; color: var(--primary); display: block; margin-bottom: 14px; }
-  .acceso h2 { margin: 0 0 8px; font-weight: 800; font-size: 1.15rem; text-transform: uppercase; border: none; padding: 0; display: block; }
-  .acceso p { color: var(--text-muted); margin: 0; font-size: .88rem; }
+  /* --- Portada: el titular manda ---------------------------------------- */
+  .hero { position: relative; margin: 8px 0 40px; }
+
+  .hero .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--fuente-mono); font-size: .68rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .18em; color: var(--velocidad);
+    background: var(--velocidad-tenue); border: 1px solid rgba(200,247,81,.25);
+    padding: 6px 12px; border-radius: 100px; margin-bottom: 18px;
+  }
+  .hero .kicker::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--velocidad); box-shadow: 0 0 8px var(--velocidad);
+    animation: latido 2.4s ease-in-out infinite;
+  }
+  @keyframes latido { 50% { opacity: .35; } }
+
+  .hero h1 { font-size: clamp(2.6rem, 15vw, 6rem); font-stretch: 88%; letter-spacing: -.035em; }
+  /* La segunda linea sale en hueco: el contorno pesa menos y deja respirar
+     al bloque solido de arriba. */
+  .hero h1 .hueco {
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--primary);
+    display: block;
+  }
+  .hero h1 .lleno { color: var(--primary-claro); display: block; }
+  .hero p { color: var(--text-muted); font-size: 1rem; max-width: 46ch; margin: 18px 0 0; }
+
+  /* Marcas de carril, como las del asfalto. Decoracion pura. */
+  .hero::after {
+    content: ''; position: absolute; right: -16px; top: 10px;
+    width: 74px; height: 128px; pointer-events: none; opacity: .5;
+    background: repeating-linear-gradient(112deg,
+      var(--primary) 0 3px, transparent 3px 13px);
+    mask-image: linear-gradient(200deg, #000, transparent 78%);
+    -webkit-mask-image: linear-gradient(200deg, #000, transparent 78%);
+  }
+
+  /* --- Accesos ---------------------------------------------------------- */
+  .rejilla { display: grid; grid-template-columns: 1fr; gap: 12px; }
+
+  .acceso {
+    position: relative; display: flex; align-items: center; gap: 16px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radio); padding: 18px;
+    text-decoration: none; color: var(--text-main);
+    box-shadow: var(--sombra-media); overflow: hidden;
+    transition: transform var(--transicion), border-color var(--transicion), box-shadow var(--transicion);
+  }
+  .acceso::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, var(--primary-claro), var(--primary));
+    transform: scaleY(0); transform-origin: top;
+    transition: transform var(--transicion);
+  }
+  .acceso:hover, .acceso:focus-visible {
+    transform: translateY(-2px); border-color: var(--border-fuerte);
+    box-shadow: var(--sombra-alta);
+  }
+  .acceso:hover::before, .acceso:focus-visible::before { transform: scaleY(1); }
+
+  .acceso > i:first-child {
+    flex: none; width: 46px; height: 46px; border-radius: 13px;
+    display: grid; place-items: center; font-size: 1.25rem;
+    color: var(--primary-claro); background: var(--primary-tenue);
+    border: 1px solid rgba(30,144,255,.2);
+    transition: transform var(--transicion);
+  }
+  .acceso:hover > i:first-child { transform: scale(1.06) rotate(-3deg); }
+  .acceso .txt { min-width: 0; }
+  .acceso h2 {
+    margin: 0 0 3px; font-size: .98rem; text-transform: uppercase;
+    letter-spacing: .02em; display: block; border: none; padding: 0;
+  }
+  .acceso h2::before { display: none; }
+  .acceso p { color: var(--text-muted); margin: 0; font-size: .82rem; line-height: 1.45; }
+  .acceso .flecha {
+    margin-left: auto; color: var(--text-tenue); flex: none; font-size: .9rem;
+    transition: transform var(--transicion), color var(--transicion);
+  }
+  .acceso:hover .flecha { transform: translateX(3px); color: var(--primary-claro); }
+
+  /* El acceso a subir es la accion principal: se distingue del resto. */
+  .acceso.principal {
+    border-color: rgba(30,144,255,.35);
+    background: linear-gradient(140deg, rgba(30,144,255,.09), transparent 60%), var(--bg-card);
+  }
+  .acceso.principal > i:first-child {
+    background: linear-gradient(150deg, var(--primary-claro), var(--primary-hover));
+    color: #fff; border-color: transparent;
+    box-shadow: 0 4px 14px -4px rgba(30,144,255,.7);
+  }
+
+  @media (min-width: 700px) {
+    .rejilla { grid-template-columns: 1fr 1fr; gap: 16px; }
+    .acceso.principal { grid-column: 1 / -1; }
+    .hero::after { width: 110px; height: 170px; right: 0; }
+  }
 </style>
 </head>
 <body>
@@ -29,8 +117,14 @@
 
 <main class="container" id="principal">
   <div class="hero">
-    <h1 id="titulo">El circuito <br><span>urbano</span></h1>
-    <p>Compite contra la ciudad. Registra tus tiempos y domina el asfalto madrileno.</p>
+    <span class="kicker entra entra-1">Temporada 1 en curso</span>
+    <h1 id="titulo" class="entra entra-2">
+      <span class="lleno">El circuito</span><span class="hueco">urbano</span>
+    </h1>
+    <p class="entra entra-3">
+      Compite contra la ciudad. Registra tus tiempos entre estaciones y domina
+      el asfalto madrileno.
+    </p>
   </div>
 
   <!-- Solo aparece si la cuenta existe en Auth pero se quedo sin perfil. -->
@@ -54,25 +148,53 @@
   </section>
 
   <div class="rejilla">
-    <a href="/ranking/" class="acceso">
-      <i class="fi fi-sr-ranking-star"></i>
-      <h2>Rankings</h2>
-      <p>Descubre los records actuales y mira quien lidera cada ruta.</p>
-    </a>
-    <a href="/subir/" class="acceso">
+    <a href="/subir/" class="acceso principal entra entra-1">
       <i class="fi fi-sr-add"></i>
-      <h2>Subir tiempo</h2>
-      <p>Verificacion automatica: si la captura cuadra, entras al ranking al momento.</p>
+      <div class="txt">
+        <h2>Subir tiempo</h2>
+        <p>Sube la captura y el sistema la verifica solo: estaciones, crono y autenticidad.</p>
+      </div>
+      <i class="fi fi-rr-arrow-right flecha" aria-hidden="true"></i>
     </a>
-    <a href="/mapa/" class="acceso">
-      <i class="fi fi-ss-map-marker"></i>
-      <h2>Mapa</h2>
-      <p>Mira que clan domina cada estacion de la ciudad.</p>
+    <a href="/ranking/" class="acceso entra entra-2">
+      <i class="fi fi-sr-ranking-star"></i>
+      <div class="txt">
+        <h2>Rankings</h2>
+        <p>Los records de cada ruta y quien los tiene.</p>
+      </div>
+      <i class="fi fi-rr-arrow-right flecha" aria-hidden="true"></i>
     </a>
-    <a href="/profile/" class="acceso">
+    <a href="/mapa/" class="acceso entra entra-2">
+      <i class="fi fi-sr-marker"></i>
+      <div class="txt">
+        <h2>Mapa</h2>
+        <p>Que clan domina cada estacion.</p>
+      </div>
+      <i class="fi fi-rr-arrow-right flecha" aria-hidden="true"></i>
+    </a>
+    <a href="/bicirating/" class="acceso entra entra-3">
+      <i class="fi fi-sr-medal"></i>
+      <div class="txt">
+        <h2>BiciRating</h2>
+        <p>Clasificacion global de pilotos y clanes.</p>
+      </div>
+      <i class="fi fi-rr-arrow-right flecha" aria-hidden="true"></i>
+    </a>
+    <a href="/clanes/" class="acceso entra entra-3">
+      <i class="fi fi-sr-team-check-alt"></i>
+      <div class="txt">
+        <h2>Clanes</h2>
+        <p>Unete a un equipo y conquistad territorio.</p>
+      </div>
+      <i class="fi fi-rr-arrow-right flecha" aria-hidden="true"></i>
+    </a>
+    <a href="/profile/" class="acceso entra entra-4">
       <i class="fi fi-sr-user"></i>
-      <h2>Mi perfil</h2>
-      <p>Tu historial, tus insignias y tus datos.</p>
+      <div class="txt">
+        <h2>Mi perfil</h2>
+        <p>Tu historial, tus insignias y tus datos.</p>
+      </div>
+      <i class="fi fi-rr-arrow-right flecha" aria-hidden="true"></i>
     </a>
   </div>
 </main>
@@ -111,9 +233,8 @@
 
       // Con nodos de texto, no con innerHTML: el nombre lo elige el usuario.
       reemplazar(id('titulo'),
-        'Hola, ',
-        el('br'),
-        el('span', { texto: nombre.toUpperCase() }));
+        el('span', { clase: 'lleno', texto: 'Hola,' }),
+        el('span', { clase: 'hueco', texto: nombre.toUpperCase() }));
     } catch (error) {
       console.debug('No se ha podido cargar el perfil', error);
     }

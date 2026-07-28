@@ -7,24 +7,29 @@
 <link rel="icon" href="/images/logo.png" type="image/png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css">
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <style>
   .estacion { font-size: .75rem; margin-top: 4px; font-weight: 600; min-height: 16px; }
   .estacion.ok { color: var(--primary); }
   .estacion.mal { color: var(--error); }
-  .zona-foto { position: relative; display: flex; align-items: center; justify-content: center; padding: 25px; border: 2px dashed var(--border); border-radius: 8px; background: var(--bg-input); cursor: pointer; text-align: center; transition: .3s; }
-  .zona-foto:hover, .zona-foto.encima { border-color: var(--primary); background: rgba(0,113,195,.06); }
+  .zona-foto { position: relative; display: flex; align-items: center; justify-content: center; padding: 25px; border: 2px dashed var(--border); border-radius: var(--radio-s); background: var(--bg-input); cursor: pointer; text-align: center; transition: .3s; }
+  .zona-foto:hover, .zona-foto.encima { border-color: var(--primary); background: var(--primary-tenue); }
   .zona-foto input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-  #vista-previa { max-width: 100%; max-height: 220px; border-radius: 8px; margin-top: 12px; display: none; }
+  #vista-previa { max-width: 100%; max-height: 220px; border-radius: var(--radio-s); margin-top: 12px; display: none; }
   .cupo { font-size: .8rem; color: var(--text-muted); text-align: center; margin-top: 12px; }
-  .resultado { margin-top: 20px; padding: 16px; border-radius: 12px; border: 1px solid var(--border); display: none; }
+  .resultado { margin-top: 20px; padding: 16px; border-radius: var(--radio); border: 1px solid var(--border); display: none; }
   .resultado h3 { margin: 0 0 8px; font-size: 1rem; }
   .resultado ul { margin: 10px 0 0; padding-left: 20px; font-size: .85rem; color: var(--text-muted); line-height: 1.6; }
-  .resultado.aprobado { border-color: var(--exito); background: rgba(0,200,81,.07); }
-  .resultado.revision { border-color: var(--aviso); background: rgba(255,187,51,.07); }
-  .resultado.rechazado { border-color: var(--error); background: rgba(255,68,68,.07); }
+  .resultado.aprobado { border-color: var(--exito); background: rgba(52,217,123,.09); }
+  .resultado.revision { border-color: var(--aviso); background: rgba(255,176,32,.09); }
+  .resultado.rechazado { border-color: var(--error); background: rgba(255,90,90,.09); }
   .aviso-seguridad { font-size: .8rem; color: var(--text-muted); background: var(--bg-input); border-left: 3px solid var(--primary); padding: 12px; border-radius: 6px; margin-bottom: 20px; line-height: 1.5; }
+
+  .zona-foto { border-radius: var(--radio); border-color: var(--border-fuerte); transition: all var(--transicion); }
+  .zona-foto:hover, .zona-foto.encima { background: var(--primary-tenue); }
+  .aviso-seguridad { border-radius: var(--radio-s); border-left-width: 3px; }
+  #min, #sec { font-size: 20px; text-align: center; letter-spacing: .04em; }
+  .resultado { border-radius: var(--radio); }
 </style>
 </head>
 <body>

@@ -11,17 +11,23 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <style>
   .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
-  .clan { background: var(--bg-card); border: 1px solid var(--border); border-left: 5px solid var(--primary); border-radius: 12px; padding: 18px; }
+  .clan { background: var(--bg-card); border: 1px solid var(--border); border-left: 5px solid var(--primary); border-radius: var(--radio); padding: 18px; }
   .clan h3 { margin: 0 0 6px; font-size: 1.05rem; }
   .clan p { margin: 0 0 10px; font-size: .82rem; color: var(--text-muted); line-height: 1.5; }
   .clan-cifras { display: flex; gap: 16px; font-size: .78rem; color: var(--text-muted); margin-bottom: 12px; }
   .clan-cifras strong { color: var(--primary); }
-  .miembro { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--bg-input); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: .88rem; }
+  .miembro { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--bg-input); border-radius: var(--radio-s); padding: 10px 14px; margin-bottom: 8px; font-size: .88rem; }
   .miembro button { width: auto; margin: 0; padding: 6px 12px; font-size: .75rem; background: transparent; border: 1px solid var(--error); color: var(--error); }
   .pestanas { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
   .pestanas button { width: auto; margin: 0; padding: 10px 18px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); font-size: .88rem; }
   .pestanas button.activa { border-color: var(--primary); color: var(--primary); }
-  .lider { font-size: .7rem; background: rgba(255,215,0,.15); color: var(--oro); padding: 2px 8px; border-radius: 10px; }
+  .lider { font-size: .7rem; background: rgba(255,207,61,.15); color: var(--oro); padding: 2px 8px; border-radius: 10px; }
+
+  .clan { transition: transform var(--transicion), border-color var(--transicion); box-shadow: var(--sombra-media); }
+  .clan:hover { transform: translateY(-2px); border-color: var(--border-fuerte); }
+  .clan-cifras strong { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; }
+  .pestanas button { border-radius: 100px; transition: all var(--transicion); }
+  .pestanas button.activa { background: var(--primary-tenue); }
 </style>
 </head>
 <body>

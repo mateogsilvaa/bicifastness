@@ -74,9 +74,9 @@ export function formatearFecha(valor) {
 const SECCIONES = [
   { href: 'home', texto: 'Inicio', icono: 'fi fi-sr-home', movil: true },
   { href: 'ranking', texto: 'Rankings', textoCorto: 'Rankings', icono: 'fi fi-sr-ranking-star', movil: true },
-  { href: 'bicirating', texto: 'BiciRating', icono: 'fi fi-ss-medal' },
+  { href: 'bicirating', texto: 'BiciRating', icono: 'fi fi-sr-medal' },
   { href: 'subir', texto: 'Subir', icono: 'fi fi-sr-add', movil: true, destacado: true },
-  { href: 'mapa', texto: 'Mapa', icono: 'fi fi-ss-map-marker', movil: true },
+  { href: 'mapa', texto: 'Mapa', icono: 'fi fi-sr-marker', movil: true },
   { href: 'clanes', texto: 'Clanes', icono: 'fi fi-sr-team-check-alt' },
   { href: 'profile', texto: 'Perfil', icono: 'fi fi-sr-user', movil: true },
 ];
@@ -104,7 +104,7 @@ export function montarNavegacion(activa) {
         }))),
         el('a', {
           clase: 'info-icon', attrs: { href: '/info/', title: 'Como funciona', 'aria-label': 'Como funciona' },
-        }, [el('i', { clase: 'fi fi-bs-info' })]),
+        }, [el('i', { clase: 'fi fi-sr-info' })]),
       ]));
   }
 

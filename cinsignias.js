@@ -9,7 +9,7 @@ export const DICCIONARIO_INSIGNIAS = {
         color: "#ffffff" // Verde
     },
     "racha_fuego": {
-        icono: "fi fi-ss-fire-flame-curved",
+        icono: "fi fi-sr-flame",
         titulo: "Racha",
         descripcion: "Viajes verificados 10 días seguidos.",
         color: "#ffffff" // Naranja fuego
@@ -21,25 +21,25 @@ export const DICCIONARIO_INSIGNIAS = {
         color: "#ffffff" // Azul tierra
     },
     "top_5_temp": {
-        icono: "fi fi-br-tire",
+        icono: "fi fi-sr-tire",
         titulo: "Top",
         descripcion: "Clan Top 4 o 5 en el ranking de BiciRating en una temporada.",
         color: "#ffffff" // Gris
     },
     "oro_temp": {
-        icono: "fi fi-bs-first-laurel",
+        icono: "fi fi-sr-laurel-wreath",
         titulo: "Oro",
         descripcion: "Primer clan en el ranking de BiciRating en una temporada.",
         color: "#FFD700" // Oro
     },
     "plata_temp": {
-        icono: "fi fi-bs-second-laurel",
+        icono: "fi fi-sr-laurel-wreath",
         titulo: "Plata",
         descripcion: "Segundo clan en el ranking de BiciRating en una temporada.",
         color: "#C0C0C0" // Plata
     },
     "bronce_temp": {
-        icono: "fi fi-bs-third-laurel",
+        icono: "fi fi-sr-laurel-wreath",
         titulo: "Bronce",
         descripcion: "Tercer clan en el ranking de BiciRating en una temporada.",
         color: "#CD7F32" // Bronce
@@ -51,19 +51,19 @@ export const DICCIONARIO_INSIGNIAS = {
         color: "#ffffff" // Morado
     },
     "pionero": {
-        icono: "fi fi-br-hourglass-start",
+        icono: "fi fi-sr-hourglass-start",
         titulo: "Desde el principio",
         descripcion: "Top 10 primeros clanes creados en BiciFastness.",
         color: "#ffffff" // Cyan
     },
     "diamante": {
-        icono: "fi fi-rs-diamond",
+        icono: "fi fi-sr-diamond",
         titulo: "VIP",
         descripcion: "Insignia exclusiva y clasificada.",
         color: "#ffffff" // Rosa brillante
     },
     "mecenas": {
-        icono: "fi fi-br-circle-heart",
+        icono: "fi fi-sr-heart",
         titulo: "Mecenas",
         descripcion: "Ha apoyado económicamente al proyecto.",
         color: "#ffffff" // Rojo/Rosa corazón

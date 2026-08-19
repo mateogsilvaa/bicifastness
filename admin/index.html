@@ -134,7 +134,7 @@
 
   // --- Control de acceso ---
   onAuthStateChanged(auth, async (usuario) => {
-    if (!usuario) { window.location.replace('/'); return; }
+    if (!usuario) { window.location.replace('/entrar/'); return; }
 
     // El rol se lee del token, que va firmado por Firebase. La version anterior
     // lo leia de un documento de Firestore que el propio usuario podia escribir,

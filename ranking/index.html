@@ -253,7 +253,7 @@
   }
 
   async function reportar(viaje, boton) {
-    if (!usuarioActual) { window.location.href = '/'; return; }
+    if (!usuarioActual) { window.location.href = '/entrar/'; return; }
 
     const confirmado = await confirmar(
       'Vas a reportar este tiempo como sospechoso. Los reportes sin fundamento repetidos pueden acarrear la suspension de tu cuenta. Continuar?',
@@ -272,7 +272,7 @@
   }
 
   id('btn-fijar').addEventListener('click', async () => {
-    if (!usuarioActual) { window.location.href = '/'; return; }
+    if (!usuarioActual) { window.location.href = '/entrar/'; return; }
     if (!rutaSeleccionada) return;
 
     const nuevas = favoritas.includes(rutaSeleccionada)

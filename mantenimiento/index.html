@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="BiciFastness esta en obras. Volvemos pronto.">
+<!-- Mientras dure el mantenimiento no queremos que se indexe esta pagina en
+     lugar del sitio real. -->
+<meta name="robots" content="noindex">
+<title>Volvemos pronto | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Pagina autocontenida a proposito: no depende de app.css, ni de Firebase, ni
+     de ningun modulo. Si algo del sitio se rompe, esta tiene que seguir en pie. */
+  :root {
+    --fondo: #080a0e;
+    --tarjeta: #0d1017;
+    --borde: #232a37;
+    --texto: #eef2f7;
+    --apagado: #8b94a7;
+    --tenue: #5a6376;
+    --azul: #1e90ff;
+    --azul-claro: #5cb3ff;
+    --lima: #c8f751;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: Archivo, system-ui, sans-serif;
+    line-height: 1.55;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Luz de farola y grano, igual que en el resto del sitio: aunque este en
+     obras, se tiene que reconocer que es BiciFastness. */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(60ch 50ch at 20% -10%, rgba(30,144,255,.16), transparent 70%),
+      radial-gradient(46ch 38ch at 88% 8%, rgba(200,247,81,.06), transparent 70%);
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  main { position: relative; z-index: 1; width: 100%; max-width: 560px; }
+
+  .marca {
+    display: inline-flex; align-items: center; gap: 10px; margin-bottom: 30px;
+  }
+  .marca span:first-child {
+    width: 7px; height: 26px; border-radius: 4px;
+    background: linear-gradient(180deg, var(--azul-claro), var(--azul));
+    box-shadow: 0 0 18px rgba(30,144,255,.75);
+  }
+  .marca span:last-child {
+    font-weight: 900; font-size: 1.05rem; letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .estado {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: 'IBM Plex Mono', monospace; font-size: .68rem;
+    text-transform: uppercase; letter-spacing: .18em; color: var(--lima);
+    background: rgba(200,247,81,.1); border: 1px solid rgba(200,247,81,.28);
+    padding: 7px 14px; border-radius: 100px; margin-bottom: 24px;
+  }
+  .estado::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--lima); box-shadow: 0 0 10px var(--lima);
+    animation: latido 2s ease-in-out infinite;
+  }
+  @keyframes latido { 50% { opacity: .3; } }
+
+  h1 {
+    font-size: clamp(2.4rem, 12vw, 4.4rem);
+    font-weight: 900; text-transform: uppercase; line-height: 1.02;
+    letter-spacing: -.035em; margin: 0 0 20px;
+  }
+  h1 .hueco {
+    display: block; color: transparent;
+    -webkit-text-stroke: 1.5px var(--azul);
+  }
+
+  .entradilla { color: var(--apagado); font-size: 1.02rem; margin: 0 0 30px; max-width: 44ch; }
+
+  .tarjeta {
+    background: var(--tarjeta); border: 1px solid var(--borde);
+    border-radius: 16px; padding: 22px; margin-bottom: 26px;
+  }
+  .tarjeta h2 {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .14em;
+    color: var(--tenue); margin: 0 0 14px; font-weight: 700;
+  }
+  .tarjeta ul { margin: 0; padding: 0; list-style: none; }
+  .tarjeta li {
+    display: flex; gap: 12px; align-items: flex-start;
+    font-size: .9rem; color: var(--apagado); padding: 9px 0;
+    border-bottom: 1px solid var(--borde);
+  }
+  .tarjeta li:last-child { border-bottom: 0; padding-bottom: 0; }
+  .tarjeta li::before {
+    content: ''; flex: none; width: 6px; height: 6px; margin-top: 8px;
+    border-radius: 50%; background: var(--azul);
+  }
+  .tarjeta strong { color: var(--texto); font-weight: 700; }
+
+  /* Barra de progreso indeterminada: no promete un porcentaje que no sabemos. */
+  .barra {
+    height: 4px; border-radius: 2px; background: var(--borde);
+    overflow: hidden; margin-bottom: 26px;
+  }
+  .barra span {
+    display: block; height: 100%; width: 36%; border-radius: 2px;
+    background: linear-gradient(90deg, var(--azul), var(--azul-claro));
+    animation: avanzar 2.6s cubic-bezier(.65,0,.35,1) infinite;
+  }
+  @keyframes avanzar {
+    0% { transform: translateX(-105%); }
+    100% { transform: translateX(320%); }
+  }
+
+  footer { font-size: .78rem; color: var(--tenue); }
+  footer a { color: var(--apagado); text-decoration: none; }
+  footer a:hover { color: var(--azul-claro); }
+  .aparte { margin-top: 10px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before { animation: none !important; }
+    .barra span { width: 100%; transform: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="marca"><span></span><span>BiciFastness</span></div>
+
+  <p class="estado">Mantenimiento en curso</p>
+
+  <h1>Estamos<span class="hueco">en obras</span></h1>
+
+  <p class="entradilla">
+    Estamos reconstruyendo BiciFastness de arriba abajo. Volvemos pronto, y
+    volvemos mejor.
+  </p>
+
+  <div class="barra" role="progressbar" aria-label="Trabajos en curso"><span></span></div>
+
+  <div class="tarjeta">
+    <h2>En que estamos trabajando</h2>
+    <ul>
+      <li><strong>Seguridad.</strong> Hemos reconstruido el sistema entero desde los cimientos.</li>
+      <li><strong>Verificacion automatica.</strong> Los tiempos se comprobaran solos, sin esperar a que alguien los revise a mano.</li>
+      <li><strong>Una web nueva.</strong> Rehecha pensando primero en el movil, que es donde se usa.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <p style="margin:0;">Gracias por la paciencia. Nos vemos en el asfalto.</p>
+    <p class="aparte" style="margin:0;">
+      Proyecto independiente, sin relacion con BiciMAD, la EMT ni el Ayuntamiento de Madrid.
+    </p>
+  </footer>
+</main>
+</body>
+</html>

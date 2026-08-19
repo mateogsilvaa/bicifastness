@@ -119,7 +119,7 @@
   let usuario = null;
 
   onAuthStateChanged(auth, async (u) => {
-    if (!u) { window.location.replace('/'); return; }
+    if (!u) { window.location.replace('/entrar/'); return; }
     usuario = u;
     id('email').textContent = u.email;
     await cargarPerfil();
@@ -244,7 +244,7 @@
   id('btn-tema').addEventListener('click', alternarTema);
   id('btn-salir').addEventListener('click', async () => {
     await signOut(auth);
-    window.location.replace('/');
+    window.location.replace('/entrar/');
   });
 
   id('btn-exportar').addEventListener('click', async () => {
@@ -286,7 +286,7 @@
 
     try {
       await solicitarBorradoCuenta('BORRAR MI CUENTA');
-      window.location.replace('/');
+      window.location.replace('/entrar/');
     } catch (error) {
       estado(id('msg-datos'), error.message, 'error');
     }

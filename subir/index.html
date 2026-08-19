@@ -118,7 +118,7 @@
   let perfil = null;
 
   onAuthStateChanged(auth, async (usuario) => {
-    if (!usuario) { window.location.replace('/'); return; }
+    if (!usuario) { window.location.replace('/entrar/'); return; }
     const snap = await getDoc(doc(db, 'usuarios', usuario.uid));
     if (!snap.exists()) {
       estado(mensaje, 'Termina de crear tu perfil antes de subir viajes.', 'aviso');

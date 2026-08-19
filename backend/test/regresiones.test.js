@@ -252,3 +252,48 @@ test('los objetivos tactiles llegan al minimo accesible', () => {
   // Menos de 16px en un input hace que Safari en iOS haga zoom al enfocarlo.
   assert.match(css, /font-size: 16px/);
 });
+
+// --- Modo mantenimiento -----------------------------------------------------
+
+test('el modo mantenimiento no publica ninguna pagina de la app', () => {
+  const conf = JSON.parse(leer('firebase.mantenimiento.json'));
+  const ignorados = conf.hosting.ignore;
+
+  // Firebase sirve primero el fichero estatico que exista: si una pagina se
+  // publica, sigue accesible escribiendo su URL por mucho rewrite que haya.
+  const secciones = ['home', 'ranking', 'bicirating', 'mapa', 'clanes',
+    'subir', 'profile', 'info', 'admin', 'statssss', 'register', 'entrar'];
+  for (const seccion of secciones) {
+    assert.ok(ignorados.includes(`${seccion}/**`), `/${seccion}/ seguiria publicada`);
+  }
+  assert.ok(ignorados.includes('index.html'), 'la landing seguiria publicada en /');
+
+  // Y todo lo demas cae en la pagina de obras.
+  assert.deepStrictEqual(conf.hosting.rewrites, [
+    { source: '**', destination: '/mantenimiento/index.html' },
+  ]);
+});
+
+test('la pagina de obras no depende de nada del sitio', () => {
+  const html = leerCodigo('mantenimiento/index.html');
+  // Si algo del sitio se rompe, esta tiene que seguir en pie.
+  assert.ok(!/<script/.test(html), 'la pagina de obras no debe llevar scripts');
+  assert.ok(!/href="\/assets\//.test(html), 'no debe depender de los assets del sitio');
+  assert.match(html, /name="robots" content="noindex"/,
+    'no debe indexarse en lugar del sitio real');
+});
+
+test('el interruptor de mantenimiento esta cableado en el CI', () => {
+  const flujo = leer('.github/workflows/ci.yml');
+  assert.match(flujo, /MANTENIMIENTO: \$\{\{ vars\.MANTENIMIENTO \}\}/);
+  assert.match(flujo, /--config firebase\.mantenimiento\.json/);
+});
+
+test('la landing no es el formulario de acceso', () => {
+  const landing = leer('index.html');
+  assert.ok(!/type="password"/.test(landing), 'la raiz no debe ser el login');
+  assert.match(landing, /href="\/register\/"/, 'falta la llamada a registrarse');
+  assert.match(landing, /href="\/entrar\/"/, 'falta el acceso para quien ya tiene cuenta');
+  // El login vive ahora en su propia ruta.
+  assert.match(leer('entrar/index.html'), /type="password"/);
+});

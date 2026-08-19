@@ -140,17 +140,70 @@ Revisa la salida y, si cuadra, repite con `--aplicar`.
 
 ---
 
+## Modo mantenimiento
+
+Para dejar el sitio en obras (util mientras se rota lo comprometido, o ante
+cualquier incidente):
+
+1. En GitHub: **Settings -> Secrets and variables -> Actions -> Variables**
+2. Crea la variable `MANTENIMIENTO` con valor `true`
+3. Lanza el workflow o haz push a `main`
+
+Se publica unicamente `mantenimiento/index.html`. **El resto del sitio no se
+sube**, asi que ninguna URL antigua sigue accesible: Firebase Hosting sirve
+primero el fichero estatico que exista, de modo que un simple redirect no
+bastaria para ocultar `/home/` o `/admin/`.
+
+Para volver a la normalidad, pon la variable a `false` (o borrala) y vuelve a
+desplegar.
+
+La pagina de obras es autocontenida a proposito: sin scripts, sin depender de
+`app.css` ni de ningun modulo. Si algo del sitio se rompe, tiene que seguir en pie.
+
+---
+
+## Rutas
+
+| Ruta | Que es |
+|---|---|
+| `/` | Landing publica: que es esto, como funciona y por que no se puede hacer trampa |
+| `/entrar/` | Iniciar sesion |
+| `/register/` | Crear cuenta |
+| `/home/` | Panel del piloto (accesible tambien sin cuenta) |
+| `/ranking/`, `/bicirating/`, `/mapa/`, `/clanes/` | Competicion |
+| `/subir/`, `/profile/` | Requieren sesion |
+| `/admin/` | Requiere el custom claim de administrador |
+| `/legal/*` | Aviso legal, privacidad, terminos y cookies |
+| `/mantenimiento/` | Pagina de obras |
+
+---
+
 ## Desarrollo local
 
 ```bash
 firebase emulators:start --only auth,firestore,hosting
 ```
 
-Tests (51: motor de verificacion, reglas de seguridad y navegacion movil):
+Comprobacion completa (datos generados, analisis estatico, enlaces y 55 tests):
 
 ```bash
-cd backend && npm test
+npm test
 ```
+
+Por partes:
+
+```bash
+npm run lint
+```
+
+```bash
+npm run validar
+```
+
+`npm run lint` extrae el JavaScript incrustado en las paginas y lo pasa por
+ESLint: ese codigo vive dentro del HTML, asi que sin esto no lo miraba nada.
+`npm run validar` comprueba imports y recursos rotos, que es el fallo mas facil
+de colar al mover ficheros (el HTML sigue siendo valido y los tests pasan).
 
 `test/regresiones.test.js` verifica sobre las REGLAS de Firestore que ninguna de
 las puertas del hackeo siga abierta: que nadie pueda autoverificarse un viaje,

@@ -10,7 +10,7 @@
  */
 
 const admin = require('firebase-admin');
-const { HttpsError } = require('firebase-functions/v2/https');
+const { ErrorApp } = require('./errores');
 const { inicioDelDiaMadrid } = require('./util');
 
 const db = () => admin.firestore();
@@ -40,20 +40,20 @@ async function consumirCupo(uid, accion, opciones) {
     const ultimo = sellos.length ? Math.max(...sellos) : 0;
     if (opciones.segundosEntre && ahora - ultimo < opciones.segundosEntre * 1000) {
       const faltan = Math.ceil((opciones.segundosEntre * 1000 - (ahora - ultimo)) / 1000);
-      throw new HttpsError('resource-exhausted',
+      throw new ErrorApp('resource-exhausted',
         `Vas demasiado rapido. Espera ${faltan} s antes de volver a intentarlo.`);
     }
 
     const hoy = sellos.filter((t) => t >= inicioHoy).length;
     if (hoy >= opciones.porDia) {
-      throw new HttpsError('resource-exhausted',
+      throw new ErrorApp('resource-exhausted',
         `Has alcanzado el limite de ${opciones.porDia} al dia. Vuelve manana.`);
     }
 
     if (opciones.porSemana) {
       const semana = sellos.filter((t) => t >= inicioSemana).length;
       if (semana >= opciones.porSemana) {
-        throw new HttpsError('resource-exhausted',
+        throw new ErrorApp('resource-exhausted',
           `Has alcanzado el limite de ${opciones.porSemana} en 7 dias.`);
       }
     }

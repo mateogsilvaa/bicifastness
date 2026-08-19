@@ -15,7 +15,7 @@
 
 import {
   db, auth, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
-  query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove, writeBatch,
+  query, where, serverTimestamp, arrayUnion, arrayRemove, writeBatch,
   avatarPorDefecto,
 } from './firebase.js';
 import { VERSION_LEGAL } from './ui.js';

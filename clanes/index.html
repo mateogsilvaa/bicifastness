@@ -78,7 +78,7 @@
     collection, getDocs, doc, getDoc,
   } from '/assets/js/firebase.js';
   import { iniciarPagina } from '/assets/js/ui.js';
-  import { id, el, estado, reemplazar, confirmar } from '/assets/js/dom.js';
+  import { id, el, estado, reemplazar, confirmar, avisar, esqueleto } from '/assets/js/dom.js';
   import { generarNodosInsignias } from '/cinsignias.js';
   import {
     crearClan, solicitarEntrada, responderSolicitud,
@@ -106,7 +106,7 @@
   });
 
   async function cargar() {
-    estado(id('mensaje'), 'Cargando clanes...');
+    reemplazar(id('vista-lista'), el('div', { clase: 'rejilla' }, esqueleto(4, 170)));
     try {
       const [clanesSnap, usuariosSnap] = await Promise.all([
         getDocs(collection(db, 'clanes')),
@@ -126,10 +126,7 @@
 
   function pintarLista() {
     if (!clanes.length) {
-      reemplazar(id('vista-lista'), el('p', {
-        texto: 'Aun no hay ningun clan. Se el primero en fundar uno.',
-        estilo: { color: 'var(--text-muted)', textAlign: 'center', padding: '30px' },
-      }));
+      reemplazar(id('vista-lista'), el('div', { clase: 'vacio', texto: 'Aun no hay ningun clan. Se el primero en fundar uno.' }));
       return;
     }
 
@@ -164,7 +161,7 @@
 
   function pintarMio() {
     const vista = id('vista-mio');
-    const aviso = (texto) => reemplazar(vista, el('p', { texto, estilo: { color: 'var(--text-muted)', padding: '20px' } }));
+    const aviso = (texto) => reemplazar(vista, el('div', { clase: 'vacio', texto }));
 
     if (!usuario) return aviso('Inicia sesion para gestionar tu clan.');
     if (!perfil?.clanId) return aviso('No perteneces a ningun clan todavia.');
@@ -268,7 +265,7 @@
       estado(id('mensaje'), 'Hecho.', 'exito');
     } catch (error) {
       if (boton) boton.disabled = false;
-      estado(id('mensaje'), error.message, 'error');
+      avisar(error.message);
     }
   }
 

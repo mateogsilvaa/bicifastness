@@ -100,7 +100,7 @@ async function auditarCaptura({ buffer, mime, apiKey }) {
     let veredicto;
     try {
       veredicto = JSON.parse(texto);
-    } catch (err) {
+    } catch {
       return { disponible: false, error: 'La respuesta de Gemini no es JSON valido.' };
     }
 

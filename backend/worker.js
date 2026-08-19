@@ -54,7 +54,7 @@ function arrancar() {
   let cuenta;
   try {
     cuenta = JSON.parse(credenciales);
-  } catch (error) {
+  } catch {
     console.error('FIREBASE_SERVICE_ACCOUNT no es un JSON valido.');
     process.exit(1);
   }
@@ -77,7 +77,7 @@ const AHORA = () => admin.firestore.FieldValue.serverTimestamp();
 async function validarBasico(viaje, uid) {
   try {
     construirRuta(...String(viaje.ruta || '').split('-'));
-  } catch (error) {
+  } catch {
     return 'La ruta declarada no existe.';
   }
 

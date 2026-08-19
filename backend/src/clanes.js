@@ -11,7 +11,7 @@
  */
 
 const admin = require('firebase-admin');
-const { HttpsError } = require('firebase-functions/v2/https');
+const { ErrorApp } = require('./errores');
 const { limpiarTexto } = require('./util');
 const { contienePalabrasProhibidas } = require('./badwords');
 
@@ -32,34 +32,34 @@ function idDesdeNombre(nombre) {
 
 async function perfilDe(uid) {
   const snap = await db().doc(`usuarios/${uid}`).get();
-  if (!snap.exists) throw new HttpsError('failed-precondition', 'Tu perfil no existe.');
+  if (!snap.exists) throw new ErrorApp('failed-precondition', 'Tu perfil no existe.');
   return { ref: snap.ref, ...snap.data() };
 }
 
 async function crear(uid, { nombre, color, descripcion }) {
   const perfil = await perfilDe(uid);
-  if (perfil.clanId) throw new HttpsError('failed-precondition', 'Ya perteneces a un clan.');
+  if (perfil.clanId) throw new ErrorApp('failed-precondition', 'Ya perteneces a un clan.');
 
   if (perfil.penalizadoHasta && perfil.penalizadoHasta.toMillis() > Date.now()) {
-    throw new HttpsError('failed-precondition',
+    throw new ErrorApp('failed-precondition',
       `Has disuelto un clan hace poco. Podras crear otro el ${perfil.penalizadoHasta.toDate().toLocaleDateString('es-ES')}.`);
   }
 
   const nombreLimpio = limpiarTexto(nombre, 28);
-  if (nombreLimpio.length < 3) throw new HttpsError('invalid-argument', 'El nombre del clan necesita al menos 3 caracteres.');
-  if (!/^[\p{L}\p{N}_\- ]+$/u.test(nombreLimpio)) throw new HttpsError('invalid-argument', 'El nombre del clan tiene caracteres no permitidos.');
-  if (contienePalabrasProhibidas(nombreLimpio)) throw new HttpsError('invalid-argument', 'Ese nombre de clan no esta permitido.');
+  if (nombreLimpio.length < 3) throw new ErrorApp('invalid-argument', 'El nombre del clan necesita al menos 3 caracteres.');
+  if (!/^[\p{L}\p{N}_\- ]+$/u.test(nombreLimpio)) throw new ErrorApp('invalid-argument', 'El nombre del clan tiene caracteres no permitidos.');
+  if (contienePalabrasProhibidas(nombreLimpio)) throw new ErrorApp('invalid-argument', 'Ese nombre de clan no esta permitido.');
 
   // Solo colores hexadecimales: cualquier otra cosa acabaria inyectada en un
   // estilo del mapa.
   const colorLimpio = /^#[0-9a-f]{6}$/i.test(String(color)) ? color : '#0071c3';
   const clanId = idDesdeNombre(nombreLimpio);
-  if (!clanId) throw new HttpsError('invalid-argument', 'Ese nombre no es valido.');
+  if (!clanId) throw new ErrorApp('invalid-argument', 'Ese nombre no es valido.');
 
   await db().runTransaction(async (tx) => {
     const ref = db().doc(`clanes/${clanId}`);
     if ((await tx.get(ref)).exists) {
-      throw new HttpsError('already-exists', 'Ya existe un clan con ese nombre.');
+      throw new ErrorApp('already-exists', 'Ya existe un clan con ese nombre.');
     }
     tx.set(ref, {
       clanId,
@@ -82,17 +82,17 @@ async function crear(uid, { nombre, color, descripcion }) {
 
 async function solicitar(uid, { clanId }) {
   const perfil = await perfilDe(uid);
-  if (perfil.clanId) throw new HttpsError('failed-precondition', 'Ya perteneces a un clan.');
+  if (perfil.clanId) throw new ErrorApp('failed-precondition', 'Ya perteneces a un clan.');
 
   await db().runTransaction(async (tx) => {
     const ref = db().doc(`clanes/${clanId}`);
     const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpsError('not-found', 'Ese clan no existe.');
+    if (!snap.exists) throw new ErrorApp('not-found', 'Ese clan no existe.');
 
     const clan = snap.data();
-    if (clan.miembros.includes(uid)) throw new HttpsError('already-exists', 'Ya eres miembro.');
-    if (clan.solicitudes.includes(uid)) throw new HttpsError('already-exists', 'Ya has enviado una solicitud.');
-    if (clan.miembros.length >= MAX_MIEMBROS) throw new HttpsError('failed-precondition', 'El clan esta lleno.');
+    if (clan.miembros.includes(uid)) throw new ErrorApp('already-exists', 'Ya eres miembro.');
+    if (clan.solicitudes.includes(uid)) throw new ErrorApp('already-exists', 'Ya has enviado una solicitud.');
+    if (clan.miembros.length >= MAX_MIEMBROS) throw new ErrorApp('failed-precondition', 'El clan esta lleno.');
 
     tx.update(ref, { solicitudes: admin.firestore.FieldValue.arrayUnion(uid) });
   });
@@ -105,20 +105,20 @@ async function responderSolicitud(uid, { clanId, candidatoUid, aceptar }) {
   await db().runTransaction(async (tx) => {
     const ref = db().doc(`clanes/${clanId}`);
     const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpsError('not-found', 'Ese clan no existe.');
+    if (!snap.exists) throw new ErrorApp('not-found', 'Ese clan no existe.');
 
     const clan = snap.data();
-    if (clan.lider !== uid) throw new HttpsError('permission-denied', 'Solo el lider gestiona las solicitudes.');
-    if (!clan.solicitudes.includes(candidatoUid)) throw new HttpsError('not-found', 'Esa solicitud ya no existe.');
+    if (clan.lider !== uid) throw new ErrorApp('permission-denied', 'Solo el lider gestiona las solicitudes.');
+    if (!clan.solicitudes.includes(candidatoUid)) throw new ErrorApp('not-found', 'Esa solicitud ya no existe.');
 
     const cambios = { solicitudes: admin.firestore.FieldValue.arrayRemove(candidatoUid) };
 
     if (aceptar) {
-      if (clan.miembros.length >= MAX_MIEMBROS) throw new HttpsError('failed-precondition', 'El clan esta lleno.');
+      if (clan.miembros.length >= MAX_MIEMBROS) throw new ErrorApp('failed-precondition', 'El clan esta lleno.');
       const candidatoRef = db().doc(`usuarios/${candidatoUid}`);
       const candidato = await tx.get(candidatoRef);
-      if (!candidato.exists) throw new HttpsError('not-found', 'Ese piloto ya no existe.');
-      if (candidato.data().clanId) throw new HttpsError('failed-precondition', 'Ese piloto ya se ha unido a otro clan.');
+      if (!candidato.exists) throw new ErrorApp('not-found', 'Ese piloto ya no existe.');
+      if (candidato.data().clanId) throw new ErrorApp('failed-precondition', 'Ese piloto ya se ha unido a otro clan.');
 
       cambios.miembros = admin.firestore.FieldValue.arrayUnion(candidatoUid);
       cambios.numMiembros = clan.miembros.length + 1;
@@ -133,13 +133,13 @@ async function responderSolicitud(uid, { clanId, candidatoUid, aceptar }) {
 
 /** Expulsa a un miembro. Solo el lider, y no a si mismo. */
 async function expulsar(uid, { clanId, miembroUid }) {
-  if (uid === miembroUid) throw new HttpsError('invalid-argument', 'Para salirte usa "abandonar clan".');
+  if (uid === miembroUid) throw new ErrorApp('invalid-argument', 'Para salirte usa "abandonar clan".');
 
   await db().runTransaction(async (tx) => {
     const ref = db().doc(`clanes/${clanId}`);
     const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpsError('not-found', 'Ese clan no existe.');
-    if (snap.data().lider !== uid) throw new HttpsError('permission-denied', 'Solo el lider puede expulsar.');
+    if (!snap.exists) throw new ErrorApp('not-found', 'Ese clan no existe.');
+    if (snap.data().lider !== uid) throw new ErrorApp('permission-denied', 'Solo el lider puede expulsar.');
 
     tx.update(ref, {
       miembros: admin.firestore.FieldValue.arrayRemove(miembroUid),
@@ -153,14 +153,14 @@ async function expulsar(uid, { clanId, miembroUid }) {
 
 async function abandonar(uid) {
   const perfil = await perfilDe(uid);
-  if (!perfil.clanId) throw new HttpsError('failed-precondition', 'No perteneces a ningun clan.');
+  if (!perfil.clanId) throw new ErrorApp('failed-precondition', 'No perteneces a ningun clan.');
 
   await db().runTransaction(async (tx) => {
     const ref = db().doc(`clanes/${perfil.clanId}`);
     const snap = await tx.get(ref);
     if (snap.exists) {
       if (snap.data().lider === uid) {
-        throw new HttpsError('failed-precondition',
+        throw new ErrorApp('failed-precondition',
           'Eres el lider. Cede el liderazgo o disuelve el clan antes de irte.');
       }
       tx.update(ref, {
@@ -180,8 +180,8 @@ async function abandonar(uid) {
 /** Disuelve el clan. Solo el lider, y con penalizacion para evitar el abuso. */
 async function disolver(uid, { clanId }) {
   const snap = await db().doc(`clanes/${clanId}`).get();
-  if (!snap.exists) throw new HttpsError('not-found', 'Ese clan no existe.');
-  if (snap.data().lider !== uid) throw new HttpsError('permission-denied', 'Solo el lider puede disolver el clan.');
+  if (!snap.exists) throw new ErrorApp('not-found', 'Ese clan no existe.');
+  if (snap.data().lider !== uid) throw new ErrorApp('permission-denied', 'Solo el lider puede disolver el clan.');
 
   const lote = db().batch();
   for (const miembroUid of snap.data().miembros || []) {
@@ -201,11 +201,11 @@ async function cederLiderazgo(uid, { clanId, nuevoLiderUid }) {
   await db().runTransaction(async (tx) => {
     const ref = db().doc(`clanes/${clanId}`);
     const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpsError('not-found', 'Ese clan no existe.');
+    if (!snap.exists) throw new ErrorApp('not-found', 'Ese clan no existe.');
 
     const clan = snap.data();
-    if (clan.lider !== uid) throw new HttpsError('permission-denied', 'Solo el lider puede ceder el liderazgo.');
-    if (!clan.miembros.includes(nuevoLiderUid)) throw new HttpsError('invalid-argument', 'Ese piloto no es miembro del clan.');
+    if (clan.lider !== uid) throw new ErrorApp('permission-denied', 'Solo el lider puede ceder el liderazgo.');
+    if (!clan.miembros.includes(nuevoLiderUid)) throw new ErrorApp('invalid-argument', 'Ese piloto no es miembro del clan.');
 
     tx.update(ref, { lider: nuevoLiderUid });
   });

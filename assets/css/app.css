@@ -640,3 +640,22 @@ button:hover:not(:disabled)::after { transform: translateX(120%); }
   .container { padding: 44px 32px 72px; }
   .card { padding: 30px; }
 }
+
+/* --- Esqueletos de carga ---------------------------------------------------
+   Un bloque con la forma aproximada de lo que va a llegar. Evita el salto de
+   maquetacion y el "Cargando..." que no informa de nada. */
+.esqueleto {
+  border-radius: var(--radio);
+  margin-bottom: 10px;
+  background: linear-gradient(100deg,
+    var(--bg-card) 30%, var(--bg-elevado) 50%, var(--bg-card) 70%);
+  background-size: 220% 100%;
+  animation: barrido 1.4s ease-in-out infinite;
+}
+@keyframes barrido {
+  from { background-position: 180% 0; }
+  to { background-position: -60% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto { animation: none; background: var(--bg-card); }
+}

@@ -26,7 +26,20 @@ jobs:
       - name: Comprobar que los datos generados estan al dia
         run: git diff --exit-code assets/data backend/lib
 
-      - name: Instalar dependencias
+      - name: Instalar utillaje
+        run: npm install --no-audit --no-fund
+
+      # Detecta variables fuera de ambito en el JavaScript incrustado en las
+      # paginas, que es codigo que ninguna otra herramienta del proyecto mira.
+      - name: Analisis estatico
+        run: npm run lint
+
+      # Enlaces e imports rotos: el HTML sigue siendo valido y los tests pasan,
+      # asi que sin esto se cuelan al mover ficheros de sitio.
+      - name: Validar paginas
+        run: npm run validar
+
+      - name: Instalar dependencias del worker
         working-directory: backend
         run: npm ci
 

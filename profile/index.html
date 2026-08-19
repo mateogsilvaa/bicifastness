@@ -109,7 +109,7 @@
     collection, getDocs, query, where, orderBy, doc, getDoc,
   } from '/assets/js/firebase.js';
   import { iniciarPagina, alternarTema, nombreRuta, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
-  import { id, el, estado, reemplazar, confirmar } from '/assets/js/dom.js';
+  import { id, el, estado, reemplazar, confirmar, pedirTexto, esqueleto } from '/assets/js/dom.js';
   import { generarNodosInsignias } from '/insignias.js';
   import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta } from '/assets/js/acciones.js';
 
@@ -146,6 +146,7 @@
 
   async function cargarHistorial() {
     const contenedor = id('historial');
+    reemplazar(contenedor, esqueleto(3, 74));
     try {
       const snapshot = await getDocs(query(
         collection(db, 'tiempos_viaje'),
@@ -156,10 +157,11 @@
       id('total-viajes').textContent = snapshot.size;
 
       if (snapshot.empty) {
-        reemplazar(contenedor, el('p', {
-          texto: 'Aun no has subido ningun viaje.',
-          estilo: { color: 'var(--text-muted)', textAlign: 'center', padding: '24px' },
-        }));
+        reemplazar(contenedor, el('div', { clase: 'vacio' }, [
+          el('p', { texto: 'Aun no has subido ningun viaje.', estilo: { margin: '0 0 12px', fontWeight: '700' } }),
+          el('a', { texto: 'Subir mi primer tiempo', attrs: { href: '/subir/' },
+            estilo: { color: 'var(--primary-claro)', fontWeight: '700', textDecoration: 'none' } }),
+        ]));
         return;
       }
 
@@ -214,10 +216,12 @@
    * privacidad lo promete y hasta ahora no habia forma de ejercerlo.
    */
   async function impugnar(viajeId, boton) {
-    const alegacion = window.prompt(
-      'Explica en unas lineas por que crees que el rechazo es un error. Lo leera un administrador.'
+    const alegacion = await pedirTexto(
+      'Explica por que crees que el rechazo es un error. Lo leera un administrador.',
+      { etiqueta: 'Tu explicacion', textoAceptar: 'Pedir revision', minimo: 15,
+        marcador: 'Por ejemplo: la captura es autentica, el trayecto lo hice el...' }
     );
-    if (alegacion === null) return;
+    if (!alegacion) return;
 
     boton.disabled = true;
     boton.textContent = 'Enviando...';
@@ -270,9 +274,13 @@
     );
     if (!confirmado) return;
 
-    const escrito = window.prompt('Para confirmar, escribe exactamente: BORRAR MI CUENTA');
+    const escrito = await pedirTexto(
+      'Esto es irreversible. Escribe la frase exacta para confirmar.',
+      { etiqueta: 'Confirmacion', textoAceptar: 'Eliminar definitivamente',
+        multilinea: false, exacto: 'BORRAR MI CUENTA', marcador: 'BORRAR MI CUENTA' }
+    );
     if (escrito !== 'BORRAR MI CUENTA') {
-      estado(id('msg-datos'), 'Confirmacion incorrecta. No se ha borrado nada.', 'aviso');
+      estado(id('msg-datos'), 'No se ha borrado nada.', 'aviso');
       return;
     }
 

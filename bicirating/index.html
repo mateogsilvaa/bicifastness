@@ -61,7 +61,7 @@
 <script type="module">
   import { db, collection, getDocs } from '/assets/js/firebase.js';
   import { iniciarPagina } from '/assets/js/ui.js';
-  import { id, el, estado, reemplazar, imagen } from '/assets/js/dom.js';
+  import { id, el, estado, reemplazar, imagen, esqueleto } from '/assets/js/dom.js';
 
   iniciarPagina('bicirating');
 
@@ -72,7 +72,7 @@
   cargar();
 
   async function cargar() {
-    estado(id('mensaje'), 'Cargando clasificacion...');
+    reemplazar(id('lista'), esqueleto(6, 66));
     try {
       // Lectura publica directa de Firestore. Antes venia de PocketBase a traves
       // de un tunel de ngrok, que ademas era un punto unico de fallo.
@@ -101,10 +101,7 @@
     const datos = vista === 'pilotos' ? pilotos : clanes;
 
     if (!datos.length) {
-      reemplazar(id('lista'), el('p', {
-        texto: 'Todavia no hay nadie clasificado.',
-        estilo: { color: 'var(--text-muted)', textAlign: 'center', padding: '30px' },
-      }));
+      reemplazar(id('lista'), el('div', { clase: 'vacio', texto: 'Todavia no hay nadie clasificado.' }));
       return;
     }
 

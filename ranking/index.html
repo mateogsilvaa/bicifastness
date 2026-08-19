@@ -94,7 +94,7 @@
     collection, getDocs, query, where, doc, getDoc,
   } from '/assets/js/firebase.js';
   import { iniciarPagina, nombreRuta, nombreEstacion, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
-  import { id, el, estado, reemplazar, imagen, confirmar } from '/assets/js/dom.js';
+  import { id, el, estado, reemplazar, imagen, confirmar, avisar, esqueleto } from '/assets/js/dom.js';
   import { generarNodosInsignias } from '/insignias.js';
   import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 
@@ -119,7 +119,8 @@
   });
 
   async function cargar() {
-    estado(id('mensaje'), 'Cargando rankings...');
+    reemplazar(id('lista'), esqueleto(5, 70));
+    id('seccion-ranking').classList.remove('oculto');
     try {
       const [usuariosSnap, viajesSnap, confSnap] = await Promise.all([
         getDocs(collection(db, 'usuarios')),
@@ -203,10 +204,10 @@
     const clasificacion = [...mejorPorPiloto.values()].sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
 
     if (!clasificacion.length) {
-      reemplazar(id('lista'), el('p', {
-        texto: 'Aun no hay tiempos en esta ruta. Se el primero en dominarla.',
-        estilo: { textAlign: 'center', color: 'var(--text-muted)', padding: '24px' },
-      }));
+      reemplazar(id('lista'), el('div', { clase: 'vacio' }, [
+        el('p', { texto: 'Aun no hay tiempos en esta ruta.', estilo: { margin: '0 0 6px', fontWeight: '700' } }),
+        el('p', { texto: 'Se el primero en dominarla.', estilo: { margin: '0' } }),
+      ]));
       return;
     }
 
@@ -246,12 +247,12 @@
       el('button', {
         clase: 'btn-reportar',
         attrs: { title: 'Reportar tiempo sospechoso', 'aria-label': `Reportar el tiempo de ${nombre}` },
-        on: { click: (e) => reportar(viaje.viajeId, e.currentTarget) },
+        on: { click: (e) => reportar(viaje, e.currentTarget) },
       }, [el('i', { clase: 'fi fi-rr-flag' })]),
     ]);
   }
 
-  async function reportar(viajeId, boton) {
+  async function reportar(viaje, boton) {
     if (!usuarioActual) { window.location.href = '/'; return; }
 
     const confirmado = await confirmar(
@@ -266,7 +267,7 @@
       estado(id('mensaje'), 'Reporte enviado. Un administrador lo revisara.', 'exito');
     } catch (error) {
       boton.disabled = false;
-      estado(id('mensaje'), error.message, 'error');
+      avisar(error.message);
     }
   }
 

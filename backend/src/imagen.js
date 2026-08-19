@@ -1,49 +1,48 @@
 'use strict';
 
 const crypto = require('crypto');
-const { HttpsError } = require('firebase-functions/v2/https');
+const { ErrorApp } = require('./errores');
 const { LIMITES } = require('./config');
 
 // sharp trae binarios nativos. Si el entorno no lo tiene, seguimos funcionando
 // con el hash exacto en vez de tirar el pipeline entero abajo.
 let sharp = null;
 try {
-  // eslint-disable-next-line global-require
   sharp = require('sharp');
-} catch (err) {
+} catch {
   console.warn('sharp no disponible: se degrada a deteccion de duplicado exacto.');
 }
 
 /**
  * Decodifica un data URL "data:image/jpeg;base64,..." validando tipo y tamano.
- * Lanza HttpsError si algo no cuadra: nunca confiamos en lo que manda el cliente.
+ * Lanza ErrorApp si algo no cuadra: nunca confiamos en lo que manda el cliente.
  */
 function decodificarDataUrl(dataUrl) {
   const texto = String(dataUrl ?? '');
   const match = texto.match(/^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i);
   if (!match) {
-    throw new HttpsError('invalid-argument', 'La captura no tiene un formato valido.');
+    throw new ErrorApp('invalid-argument', 'La captura no tiene un formato valido.');
   }
 
   const [, mime, base64] = match;
   if (!LIMITES.MIMES_IMAGEN.includes(mime.toLowerCase())) {
-    throw new HttpsError('invalid-argument', `Formato de imagen no admitido: ${mime}.`);
+    throw new ErrorApp('invalid-argument', `Formato de imagen no admitido: ${mime}.`);
   }
 
   // Comprobamos el tamano ANTES de reservar el buffer.
   const bytesAprox = Math.floor((base64.length * 3) / 4);
   if (bytesAprox > LIMITES.MAX_BYTES_IMAGEN) {
-    throw new HttpsError('invalid-argument', 'La captura pesa demasiado.');
+    throw new ErrorApp('invalid-argument', 'La captura pesa demasiado.');
   }
 
   const buffer = Buffer.from(base64, 'base64');
   if (buffer.length === 0) {
-    throw new HttpsError('invalid-argument', 'La captura esta vacia.');
+    throw new ErrorApp('invalid-argument', 'La captura esta vacia.');
   }
 
   // El mime declarado por el cliente no vale nada: verificamos los magic bytes.
   if (!coincideFirma(buffer, mime)) {
-    throw new HttpsError('invalid-argument', 'El contenido de la imagen no coincide con su formato.');
+    throw new ErrorApp('invalid-argument', 'El contenido de la imagen no coincide con su formato.');
   }
 
   return { buffer, mime: mime.toLowerCase() };
@@ -138,7 +137,7 @@ async function inspeccionar(buffer) {
     }
 
     return { ancho: meta.width || null, alto: meta.height || null, sospechaEdicion, software };
-  } catch (err) {
+  } catch {
     return { ancho: null, alto: null, sospechaEdicion: false, software: null };
   }
 }

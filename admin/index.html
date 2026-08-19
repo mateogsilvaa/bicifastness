@@ -122,7 +122,7 @@
     collection, getDocs, query, where, orderBy,
   } from '/assets/js/firebase.js';
   import { iniciarPagina, nombreRuta, formatearFecha, formatearTiempo, normalizarEstacion } from '/assets/js/ui.js';
-  import { id, el, estado, reemplazar, imagen, confirmar } from '/assets/js/dom.js';
+  import { id, el, estado, reemplazar, imagen, confirmar, avisar, esqueleto } from '/assets/js/dom.js';
   import { DICCIONARIO_INSIGNIAS } from '/insignias.js';
   import {
     resolverViaje, resolverReporte, verCaptura,
@@ -156,7 +156,7 @@
   // --- Viajes en revision ---
   async function cargarRevision() {
     const rejilla = id('rejilla-revision');
-    reemplazar(rejilla, el('div', { clase: 'vacio', texto: 'Cargando...' }));
+    reemplazar(rejilla, esqueleto(3, 200));
 
     try {
       const snapshot = await getDocs(query(
@@ -248,7 +248,7 @@
     } catch (error) {
       boton.disabled = false;
       boton.textContent = accion === 'aprobar' ? 'Aprobar' : 'Rechazar';
-      alert(error.message);
+      avisar(error.message);
     }
   }
 
@@ -263,7 +263,7 @@
       reemplazar(visor, imagen(url, { attrs: { alt: 'Captura del viaje' } }));
       visor.style.display = 'flex';
     } catch (error) {
-      alert(error.message);
+      avisar(error.message);
     } finally {
       boton.disabled = false;
       boton.textContent = original;
@@ -334,7 +334,7 @@
       contador.textContent = Math.max(0, Number(contador.textContent) - 1);
     } catch (error) {
       boton.disabled = false;
-      alert(error.message);
+      avisar(error.message);
     }
   }
 
@@ -355,7 +355,6 @@
 
   // --- Insignias ---
   let objetivos = [];
-  let objetivoActual = null;
 
   async function cargarObjetivos() {
     const [usuarios, clanes] = await Promise.all([
@@ -395,7 +394,6 @@
   });
 
   function seleccionar(objetivo) {
-    objetivoActual = objetivo;
     id('busca-objetivo').value = '';
     id('resultados-busqueda').style.display = 'none';
     id('objetivo-actual').textContent =
@@ -417,7 +415,7 @@
                 : objetivo.logros.filter((l) => l !== clave);
             } catch (error) {
               e.target.checked = !otorgar;
-              alert(error.message);
+              avisar(error.message);
             } finally {
               e.target.disabled = false;
             }

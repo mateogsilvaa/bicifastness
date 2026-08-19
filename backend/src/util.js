@@ -1,6 +1,6 @@
 'use strict';
 
-const { HttpsError } = require('firebase-functions/v2/https');
+const { ErrorApp } = require('./errores');
 const ESTACIONES = require('../lib/estaciones.json');
 
 /**
@@ -28,13 +28,13 @@ function construirRuta(origenRaw, destinoRaw) {
   const destino = normalizarEstacion(destinoRaw);
 
   if (!ESTACIONES[origen]) {
-    throw new HttpsError('invalid-argument', `La estacion de salida "${origenRaw}" no existe.`);
+    throw new ErrorApp('invalid-argument', `La estacion de salida "${origenRaw}" no existe.`);
   }
   if (!ESTACIONES[destino]) {
-    throw new HttpsError('invalid-argument', `La estacion de meta "${destinoRaw}" no existe.`);
+    throw new ErrorApp('invalid-argument', `La estacion de meta "${destinoRaw}" no existe.`);
   }
   if (origen === destino) {
-    throw new HttpsError('invalid-argument', 'La salida y la meta no pueden ser la misma estacion.');
+    throw new ErrorApp('invalid-argument', 'La salida y la meta no pueden ser la misma estacion.');
   }
   return { origen, destino, ruta: `${origen}-${destino}` };
 }
@@ -76,11 +76,11 @@ function limpiarTexto(raw, maxLongitud = 200) {
   return salida.trim().slice(0, maxLongitud);
 }
 
-/** Entero dentro de un rango o HttpsError. */
+/** Entero dentro de un rango o ErrorApp. */
 function enteroEnRango(valor, min, max, campo) {
   const n = Number(valor);
   if (!Number.isInteger(n) || n < min || n > max) {
-    throw new HttpsError('invalid-argument', `${campo} debe ser un entero entre ${min} y ${max}.`);
+    throw new ErrorApp('invalid-argument', `${campo} debe ser un entero entre ${min} y ${max}.`);
   }
   return n;
 }
@@ -88,7 +88,7 @@ function enteroEnRango(valor, min, max, campo) {
 /** Exige sesion iniciada y email verificado; devuelve el uid. */
 function exigirAuth(request) {
   if (!request.auth || !request.auth.uid) {
-    throw new HttpsError('unauthenticated', 'Debes iniciar sesion.');
+    throw new ErrorApp('unauthenticated', 'Debes iniciar sesion.');
   }
   return request.auth.uid;
 }
@@ -97,7 +97,7 @@ function exigirAuth(request) {
 function exigirAdmin(request) {
   const uid = exigirAuth(request);
   if (request.auth.token.admin !== true) {
-    throw new HttpsError('permission-denied', 'Necesitas permisos de administrador.');
+    throw new ErrorApp('permission-denied', 'Necesitas permisos de administrador.');
   }
   return uid;
 }

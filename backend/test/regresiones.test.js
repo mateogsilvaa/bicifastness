@@ -297,3 +297,26 @@ test('la landing no es el formulario de acceso', () => {
   // El login vive ahora en su propia ruta.
   assert.match(leer('entrar/index.html'), /type="password"/);
 });
+
+test('el modo mantenimiento de Vercel tapa tambien las paginas existentes', () => {
+  const conf = JSON.parse(leer('vercel.json'));
+  const redir = (conf.redirects || [])[0];
+
+  assert.ok(redir, 'sin redirect no hay modo mantenimiento');
+  assert.strictEqual(redir.destination, '/mantenimiento/');
+  // En Vercel los redirects se evaluan antes del sistema de ficheros: por eso
+  // tapan /admin/ y /home/, que existen como fichero.
+  assert.match(redir.source, /\(\?!/, 'el patron debe excluir la propia pagina de obras');
+  assert.match(redir.source, /mantenimiento/);
+  assert.strictEqual(redir.permanent, false, 'un 308 se cachearia en el navegador');
+});
+
+test('el despliegue no publica el backend ni los scripts', () => {
+  const ignorados = leer('.vercelignore').split('\n').map((l) => l.trim());
+  for (const carpeta of ['backend/', 'scripts/', '.github/']) {
+    assert.ok(ignorados.includes(carpeta), `${carpeta} acabaria publicado en la web`);
+  }
+  assert.ok(ignorados.includes('firestore.rules'));
+  // El mapa lee /data/emt.geojson: eso SI tiene que publicarse.
+  assert.ok(!ignorados.includes('data/'), 'el mapa se quedaria sin estaciones');
+});

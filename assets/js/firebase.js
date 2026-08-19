@@ -1,0 +1,109 @@
+/**
+ * Punto unico de arranque de Firebase.
+ *
+ * Antes la configuracion estaba copiada literalmente en 8 ficheros HTML, junto
+ * con un cliente de PocketBase apuntando a un tunel de ngrok.
+ *
+ * Nota sobre la apiKey: en Firebase Web NO es un secreto, es un identificador
+ * publico del proyecto. Lo que protege los datos son las reglas de Firestore
+ * (que en este montaje SON el control de acceso, porque no hay servidor HTTP
+ * delante) mas App Check.
+ */
+
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signOut, sendPasswordResetEmail,
+  sendEmailVerification, setPersistence, browserLocalPersistence,
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import {
+  getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
+  deleteDoc, query, where, orderBy, limit, serverTimestamp, increment,
+  arrayUnion, arrayRemove, writeBatch, Timestamp,
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import {
+  initializeAppCheck, ReCaptchaV3Provider,
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js';
+
+const configuracion = {
+  apiKey: 'AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk',
+  authDomain: 'bicifastness.firebaseapp.com',
+  projectId: 'bicifastness',
+  messagingSenderId: '656116731421',
+  appId: '1:656116731421:web:a4154d028fe9721c5800f4',
+};
+
+/**
+ * Clave de sitio de reCAPTCHA v3 para App Check.
+ *
+ * Aqui importa mas que en un montaje con servidor: como el cliente escribe
+ * directamente en Firestore, App Check es lo que impide que alguien use la
+ * apiKey desde un script suelto en vez de desde la web.
+ * Se rellena desde la consola de Firebase (Compilacion > App Check).
+ */
+const RECAPTCHA_SITE_KEY = '__PON_AQUI_TU_CLAVE_DE_RECAPTCHA_V3__';
+
+export const app = initializeApp(configuracion);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('__')) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled: true,
+  });
+} else {
+  console.warn('App Check sin configurar: rellena RECAPTCHA_SITE_KEY en assets/js/firebase.js');
+}
+
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+export {
+  onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signOut, sendPasswordResetEmail, sendEmailVerification,
+  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  query, where, orderBy, limit, serverTimestamp, increment,
+  arrayUnion, arrayRemove, writeBatch, Timestamp,
+};
+
+/**
+ * Traduce los errores de Firestore a algo que una persona entienda.
+ *
+ * `permission-denied` es el caso interesante: con este modelo significa que las
+ * reglas han rechazado la escritura, casi siempre por intentar mandar un campo
+ * que el cliente no puede tocar.
+ */
+export function traducirError(error) {
+  const mensajes = {
+    'permission-denied': 'No tienes permiso para hacer esto.',
+    unauthenticated: 'Tienes que iniciar sesion.',
+    'not-found': 'No se ha encontrado.',
+    'already-exists': 'Esto ya existe.',
+    'resource-exhausted': 'Se ha alcanzado el limite de uso. Intentalo mas tarde.',
+    'failed-precondition': 'Falta algun requisito previo.',
+    'invalid-argument': 'Los datos enviados no son validos.',
+    'deadline-exceeded': 'La operacion ha tardado demasiado.',
+    unavailable: 'No hay conexion con el servidor. Revisa tu red.',
+  };
+  return mensajes[error?.code] || error?.message || 'Ha ocurrido un error.';
+}
+
+/** Errores de Firebase Auth, tambien en castellano. */
+export function traducirErrorAuth(error) {
+  const mensajes = {
+    'auth/invalid-credential': 'Correo o contrasena incorrectos.',
+    'auth/invalid-email': 'El correo no tiene un formato valido.',
+    'auth/user-disabled': 'Esta cuenta esta deshabilitada.',
+    'auth/email-already-in-use': 'Ese correo ya tiene cuenta.',
+    'auth/weak-password': 'La contrasena es demasiado debil.',
+    'auth/too-many-requests': 'Demasiados intentos. Espera unos minutos.',
+    'auth/network-request-failed': 'Sin conexion. Revisa tu red.',
+    'auth/requires-recent-login': 'Por seguridad, vuelve a iniciar sesion antes de hacer esto.',
+  };
+  return mensajes[error?.code] || 'No se ha podido completar la operacion.';
+}
+
+/** Avatar por defecto, generado a partir del nombre de piloto. */
+export function avatarPorDefecto(nombre) {
+  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nombre || 'Piloto')}&backgroundColor=0071c3`;
+}

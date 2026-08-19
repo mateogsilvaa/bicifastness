@@ -1,547 +1,331 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-    <title>Rankings | BiciFastness</title>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-straight/css/uicons-solid-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-channeled/css/uicons-solid-channeled.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-straight/css/uicons-bold-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-bold-rounded/css/uicons-bold-rounded.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-straight/css/uicons-regular-straight.css'>
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
-    <link rel="icon" href="../images/logo.png" type="image/png">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        :root { --bg-main: #121212; --bg-card: #1a1a1a; --bg-input: #222; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
-        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --bg-input: #f0f0f0; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
-        
-        body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s;}
-        
-        /* NAVBAR CON LOGO Y CENTRADO DE INFO */
-        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { display: flex; align-items: center; text-decoration: none; color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px;}
-        nav .brand img { height: 35px; width: auto; display: block; }
-        .nav-right { display: flex; align-items: center; gap: 20px; line-height: 1; }
-        nav .links { display: flex; align-items: center; }
-        nav .links a { color: var(--text-muted); text-decoration: none; font-weight: 600; margin-left: 20px; transition: color 0.3s; }
-        nav .links a.active, nav .links a:hover { color: var(--text-main); }
-        .info-icon { color: var(--text-muted); font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: color 0.3s; text-decoration: none; line-height: 0; margin-top: -3px; }
-        .info-icon:hover { color: var(--primary); }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Rankings por ruta de BiciFastness: los mejores tiempos verificados de BiciMAD en Madrid.">
+<title>Rankings | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
+<style>
+  .buscador { margin-bottom: 18px; }
+  .rutas { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; }
+  .ruta-btn { flex-shrink: 0; width: auto; margin: 0; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); font-size: .85rem; font-weight: 600; white-space: nowrap; }
+  .ruta-btn:hover { background: var(--bg-input); }
+  .ruta-btn.activa { border-color: var(--primary); color: var(--primary); }
+  .ruta-btn.destacada { border-color: var(--oro); color: var(--oro); }
+  .titulo-ranking { display: flex; align-items: center; gap: 12px; margin: 26px 0 16px; flex-wrap: wrap; }
+  .titulo-ranking h2 { margin: 0; }
+  #btn-fijar { width: auto; margin: 0; padding: 8px 12px; background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  #btn-fijar.fijada { color: var(--primary); border-color: var(--primary); }
+  .fila { display: flex; align-items: center; gap: 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radio); padding: 12px 16px; margin-bottom: 10px; }
+  .fila.p1 { border-color: var(--oro); }
+  .fila.p2 { border-color: var(--plata); }
+  .fila.p3 { border-color: var(--bronce); }
+  .puesto { font-weight: 900; font-size: 1.1rem; min-width: 38px; color: var(--text-muted); }
+  .fila.p1 .puesto { color: var(--oro); }
+  .avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--bg-input); cursor: pointer; }
+  .piloto { flex: 1; min-width: 0; cursor: pointer; }
+  .piloto strong { display: block; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .piloto span { font-size: .75rem; color: var(--text-muted); }
+  .marca { text-align: right; }
+  .marca strong { display: block; font-size: 1rem; }
+  .marca span { font-size: .75rem; color: var(--text-muted); }
+  .btn-reportar { width: auto; margin: 0 0 0 8px; padding: 8px 10px; background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  .btn-reportar:hover { border-color: var(--error); color: var(--error); background: transparent; }
+  #modal-piloto { position: fixed; inset: 0; background: rgba(4,6,10,.86); z-index: 9500; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .ficha { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radio-xl); padding: 28px; max-width: 380px; width: 100%; text-align: center; }
+  .ficha img { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; }
+  .cifras { display: flex; justify-content: space-around; margin: 20px 0; }
+  .cifras div strong { display: block; font-size: 1.4rem; color: var(--primary); }
+  .cifras div span { font-size: .75rem; color: var(--text-muted); }
 
-        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
-        
-        .search-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; }
-        .search-input { width: 100%; padding: 15px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; box-sizing: border-box; }
-        .search-input:focus { border-color: var(--primary); }
-        
-        .routes-wrapper { position: relative; display: flex; align-items: center; margin-top: 15px; }
-        .scroll-btn { display: none; position: absolute; z-index: 10; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); border-radius: 50%; width: 40px; height: 40px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); align-items: center; justify-content: center; top: 50%; transform: translateY(-50%); transition: 0.2s; opacity: 0.6; backdrop-filter: blur(2px); }
-        .scroll-btn:hover { color: var(--primary); border-color: var(--primary); opacity: 1; }
-        .scroll-btn.left { left: -15px; }
-        .scroll-btn.right { right: -15px; }
-        
-        .routes-container { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding: 5px 0; white-space: nowrap; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; width: 100%;}
-        .routes-container::-webkit-scrollbar { display: none; }
-        
-        .route-btn { flex: 0 0 auto; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
-        .route-btn.active { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; }
-        
-        .glowing-btn { border-color: #FFD700 !important; color: #FFD700 !important; font-weight: 800; box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); animation: pulse 2s infinite; }
-        .glowing-btn.active { background: #FFD700 !important; color: #111 !important; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(255, 215, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); } }
-
-        .ranking-section { background: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); display: none; }
-        
-        .ranking-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-bottom: 15px; }
-        .ranking-header h2 { margin: 0; font-size: 1.1rem; color: var(--primary); }
-        .pin-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; line-height: 1; }
-        .pin-btn:hover { transform: scale(1.1); color: var(--primary); }
-        .pin-btn.pinned { color: var(--primary); }
-
-        .rank-row { display: grid; grid-template-columns: 35px 40px minmax(0, 1fr) max-content; gap: 10px; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; cursor: pointer; transition: 0.2s; }
-        .rank-row:hover { border-color: var(--primary); transform: translateX(5px); }
-        
-        .rank-pos { font-size: 1.2rem; font-weight: 800; color: var(--text-muted); text-align: center; }
-        .rank-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
-        .rank-user-container { overflow: hidden; }
-        .rank-user { font-weight: 700; font-size: 1rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
-        .rank-date { font-size: 0.75rem; color: var(--text-muted); display: block; font-weight: 400; }
-        
-        .rank-stats { display: flex; align-items: center; gap: 10px; justify-content: flex-end; min-width: 85px; }
-        .stats-text { text-align: right; }
-        .rank-time { font-weight: 800; color: var(--primary); font-size: 1.1rem; }
-        .rank-delta { font-size: 0.8rem; font-weight: 700; color: #ff4444; } 
-        .delta-leader { color: #00C851; font-size: 0.8rem; font-weight: 700; } 
-        
-        .report-btn { background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; padding: 5px; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
-        .report-btn:hover { color: #ff4444; transform: scale(1.1); }
-
-        .rank-1 { border-color: #FFD700; background: rgba(255, 215, 0, 0.05); } .rank-1 .rank-pos { color: #FFD700; }
-        .rank-2 { border-color: #C0C0C0; background: rgba(192, 192, 192, 0.05); } .rank-2 .rank-pos { color: #C0C0C0; }
-        .rank-3 { border-color: #CD7F32; background: rgba(205, 127, 50, 0.05); } .rank-3 .rank-pos { color: #CD7F32; }
-
-        .bottom-nav { display: none; }
-        
-        @media (max-width: 850px) { 
-            nav .links { display: none; } 
-            
-            .rank-row { 
-                grid-template-columns: 22px 35px minmax(0, 1fr) max-content; 
-                gap: 10px;
-                padding: 12px 10px;
-            }
-            .rank-pos { font-size: 1rem; text-align: left; }
-            .rank-avatar { width: 35px; height: 35px; margin: 0; }
-            
-            .rank-user-container { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; margin: 0; }
-            .rank-user { font-size: 0.9rem; width: 100%; }
-            .rank-date { margin: 0; font-size: 0.7rem; }
-            
-            .rank-stats { border: none; padding: 0; margin: 0; flex-direction: row; justify-content: flex-end; align-items: center; gap: 8px;}
-            .stats-text { display: flex; flex-direction: column; align-items: flex-end; gap: 0; text-align: right;}
-            .rank-time { font-size: 0.95rem; }
-            .rank-delta { font-size: 0.75rem; }
-            .report-btn { padding: 0; font-size: 1.2rem;}
-
-            .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-between; padding: 8px 5px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); box-sizing: border-box;} 
-            .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.6rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; text-align: center; } 
-            .bottom-nav a.active { color: var(--primary); } 
-            .bottom-nav a i { font-size: 1.25rem; line-height: 1; } 
-        }
-
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
-        .modal-content { background: var(--bg-card); padding: 30px; border-radius: 20px; border: 1px solid var(--border); text-align: center; width: 320px; color: var(--text-main); position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.5);}
-        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer; color: var(--text-muted); font-weight: 800; line-height: 1; transition: 0.2s;}
-        .modal-close:hover { color: var(--primary); }
-        .modal-avatar { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--primary); margin-bottom: 10px; object-fit: cover; }
-        .modal-username { font-size: 1.4rem; font-weight: 800; margin: 0 0 5px 0;}
-        .modal-clan { font-size: 0.8rem; background: var(--border); padding: 3px 8px; border-radius: 12px; display: inline-block; margin-bottom: 20px; font-weight: 600; color: var(--text-main);}
-        
-        .modal-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;}
-        .modal-stat { background: var(--bg-input); padding: 10px; border-radius: 8px; border: 1px solid var(--border);}
-        .modal-stat-val { font-size: 1.3rem; font-weight: 800; color: var(--primary);}
-        .modal-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;}
-        
-        .modal-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);}
-
-        .contenedor-insignias { justify-content: center !important; }
-    </style>
+  /* Tabla de tiempos: se comporta como un panel de crono. */
+  .fila { transition: transform var(--transicion), border-color var(--transicion); }
+  .fila:hover { transform: translateX(2px); border-color: var(--border-fuerte); }
+  .puesto { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; font-size: 1rem; }
+  .marca strong { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; font-size: 1.05rem; letter-spacing: -.03em; }
+  .marca span { font-family: var(--fuente-mono); font-size: .68rem; }
+  .fila.p1 { background: linear-gradient(100deg, rgba(255,207,61,.07), transparent 55%), var(--bg-card); }
+  .fila.p1 .puesto { text-shadow: 0 0 14px rgba(255,207,61,.5); }
+  .avatar { border: 1px solid var(--border); }
+  .ruta-btn { border-radius: 100px; transition: all var(--transicion); }
+  .ruta-btn.activa { background: var(--primary-tenue); }
+  .ruta-btn.destacada { background: rgba(255,207,61,.08); }
+  .cifras div strong { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; }
+</style>
 </head>
 <body>
-    <nav>
-        <a href="../home/" class="brand">BICIFASTNESS</a>
-        <div class="nav-right">
-            <div class="links">
-                <a href="../home/">Inicio</a>
-                <a href="../ranking/" class="active">Rankings</a>
-                <a href="../bicirating/">BiciRating</a>
-                <a href="../mapa/">Mapa</a>
-                <a href="../clanes/">Clanes</a>
-                <a href="../subir/">Subir</a>
-                <a href="../profile/">Perfil</a>
-            </div>
-            <a href="../info/" class="info-icon" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
-        </div>
-    </nav>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+<div class="bottom-nav" id="nav-inferior"></div>
 
-    <div class="bottom-nav">
-        <a href="../home/"><i class="fi fi-sr-home"></i>Inicio</a>
-        <a href="../ranking/" class="active"><i class="fi fi-sr-ranking-star"></i>Rankings</a>
-        <a href="../bicirating/"><i class="fi fi-ss-medal"></i>Rating</a>
-        <a href="../subir/"><i class="fi fi-sr-add"></i>Subir</a>
-        <a href="../mapa/"><i class="fi fi-ss-map-marker"></i>Mapa</a>
-        <a href="../clanes/"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
-        <a href="../profile/"><i class="fi fi-sr-user"></i>Perfil</a>
+<main class="container" id="principal">
+  <h2>Rankings por ruta</h2>
+
+  <div class="buscador">
+    <label class="solo-lectores" for="busca-ruta">Buscar una ruta</label>
+    <input type="search" id="busca-ruta" placeholder="Busca por nombre de estacion o numero" autocomplete="off">
+  </div>
+
+  <div class="rutas" id="rutas"></div>
+
+  <section id="seccion-ranking" class="oculto">
+    <div class="titulo-ranking">
+      <h2 id="titulo-ruta"></h2>
+      <button id="btn-fijar" title="Anclar esta ruta a tus favoritas" aria-label="Anclar ruta">
+        <i class="fi fi-rr-bookmark"></i>
+      </button>
     </div>
+    <div id="lista"></div>
+  </section>
 
-    <div class="container">
-        <div class="search-section" id="search-section">
-            <h2 style="margin:0 0 10px 0; color:var(--text-main);">Buscar Trayecto</h2>
-            <input type="text" id="search-input" class="search-input" placeholder="Buscar nombre de estación o número...">
-            
-            <div class="routes-wrapper">
-                <button class="scroll-btn left" id="scroll-left"><i class="fi fi-rr-angle-left"></i></button>
-                <div class="routes-container" id="routes-container">Cargando datos...</div>
-                <button class="scroll-btn right" id="scroll-right"><i class="fi fi-rr-angle-right"></i></button>
-            </div>
-        </div>
-        <div class="ranking-section" id="ranking-section">
-            <div class="ranking-header">
-                <h2 id="ranking-title">Ruta --</h2>
-                <button id="pin-btn" class="pin-btn" title="Anclar como favorita"><i class="fi fi-sr-bookmark"></i></button>
-            </div>
-            <div id="ranking-list"></div>
-        </div>
-    </div>
+  <p class="mensaje" id="mensaje"></p>
+</main>
 
-    <div class="modal" id="user-profile-modal">
-        <div class="modal-content">
-            <span class="modal-close" onclick="document.getElementById('user-profile-modal').style.display='none'">&times;</span>
-            <img src="" id="um-avatar" class="modal-avatar">
-            <h3 class="modal-username" id="um-username">Usuario</h3>
-            <div id="um-clan-container"></div>
-            
-            <div class="modal-stats-grid">
-                <div class="modal-stat">
-                    <div class="modal-stat-val" id="um-rating">0</div>
-                    <div class="modal-stat-label">BiciRating</div>
-                </div>
-                <div class="modal-stat">
-                    <div class="modal-stat-val" id="um-pos">#0</div>
-                    <div class="modal-stat-label">Ranking</div>
-                </div>
-                <div class="modal-stat" style="grid-column: span 2;">
-                    <div class="modal-stat-val" id="um-trips">...</div>
-                    <div class="modal-stat-label">Viajes Subidos</div>
-                </div>
-            </div>
+<div id="modal-piloto" role="dialog" aria-modal="true" aria-label="Perfil del piloto"></div>
+<footer id="pie-legal"></footer>
 
-            <div class="modal-badges" id="um-badges">
-            </div>
+<script type="module">
+  import {
+    auth, db, onAuthStateChanged,
+    collection, getDocs, query, where, doc, getDoc,
+  } from '/assets/js/firebase.js';
+  import { iniciarPagina, nombreRuta, nombreEstacion, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
+  import { id, el, estado, reemplazar, imagen, confirmar, avisar, esqueleto } from '/assets/js/dom.js';
+  import { generarNodosInsignias } from '/insignias.js';
+  import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 
-            <div id="badge-desc-box" style="margin-top: 15px; font-size: 0.85rem; color: var(--text-main); display: none; background: rgba(0, 113, 195, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--primary); font-weight: 600;"></div>
-        </div>
-    </div>
+  iniciarPagina('ranking');
 
-    <script type="module">
-        import PocketBase from 'https://cdn.jsdelivr.net/npm/pocketbase@0.22.0/+esm';
-        const pb = new PocketBase('https://vicinity-unfrozen-washout.ngrok-free.dev'); // <-- PON TU URL DE NGROK AQUÍ
+  
+  let usuarioActual = null;
+  let favoritas = [];
+  let viajes = [];
+  let pilotos = new Map();
+  let rutas = [];
+  let rutaDestacada = null;
+  let rutaSeleccionada = null;
 
-        // --- PASE VIP PARA NGROK ---
-        pb.beforeSend = function (url, options) {
-            options.headers = Object.assign({}, options.headers, {
-                'ngrok-skip-browser-warning': 'true'
-            });
-            return { url, options };
-        };
+  onAuthStateChanged(auth, async (usuario) => {
+    usuarioActual = usuario;
+    if (usuario) {
+      const perfil = await getDoc(doc(db, 'usuarios', usuario.uid));
+      favoritas = perfil.exists() ? (perfil.data().favoritas || []) : [];
+    }
+    cargar();
+  });
 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs, doc, setDoc, addDoc, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        
-        import { generarHTMLInsignias } from '../insignias.js';
+  async function cargar() {
+    reemplazar(id('lista'), esqueleto(5, 70));
+    id('seccion-ranking').classList.remove('oculto');
+    try {
+      const [usuariosSnap, viajesSnap, confSnap] = await Promise.all([
+        getDocs(collection(db, 'usuarios')),
+        getDocs(query(collection(db, 'tiempos_viaje'), where('verificado', '==', true))),
+        getDoc(doc(db, 'config', 'general')),
+      ]);
 
-        const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
-        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
-        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-        const safeHTML = (html) => DOMPurify.sanitize(String(html ?? ''));
+      const ordenados = usuariosSnap.docs
+        .map((d) => ({ uid: d.id, ...d.data() }))
+        .sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0));
+      ordenados.forEach((u, i) => pilotos.set(u.uid, { ...u, puesto: i + 1 }));
 
-        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+      viajes = viajesSnap.docs.map((d) => ({ viajeId: d.id, ...d.data() }));
+      rutas = [...new Set(viajes.map((v) => v.ruta))].sort();
+      rutaDestacada = confSnap.exists() ? confSnap.data().rutaDestacada : null;
+      if (rutaDestacada && !rutas.includes(rutaDestacada)) rutas.push(rutaDestacada);
 
-        const rawStations = `2 - Metro Callao\n3 - Plaza Conde Suchil\n4 - Malasaña\n5 - Fuencarral\n6 - Colegio de Arquitectos\n7 - Hortaleza, 75\n8 - Metro Alonso Martínez\n9 - Plaza de San Miguel\n10 - Marqués de la Ensenada\n11 - Plaza del Dos de Mayo\n12 - San Hermenegildo\n13 - Conde Duque\n14 - Ventura Rodríguez\n15 - Norte\n16 - San Bernardo\n17 - Plaza de Carlos Cambronero\n18 - Plaza de Pedro Zerolo\n19 - Prim\n20 - Banco de España\n23 - Santo Domingo\n24 - Palacio de Oriente\n25A - Plaza de Celenque A\n25B - Plaza de Celenque B\n26 - Plaza de las Salesas\n27 - Huertas\n29 - Marqués de Cubas\n30 - San Quintín\n31 - Mayor\n32 - Plaza de la Provincia\n33 - Puerta del Sol\n34 - Jacinto Benavente\n35 - Doctor Letamendi, 3\n36 - Plaza Ramales\n37 - Calatrava, 38\n38 - Plaza de los Carros\n39 - Plaza de la Cebada\n40 - Conde de Romanones\n41 - Metro Antón Martín\n42 - Santa Isabel\n43 - Jesús y María\n44 - Plaza de Nelson Mandela\n45 - Metro Puerta de Toledo\n46 - Ribera de Curtidores\n47 - Renfe/Cercanías Embajadores\n48 - Juan Sebastián Elcano\n49 - Casa Encendida\n50 - Museo Reina Sofía\n51 - Ronda de Atocha\n52 - Plaza de Santa Ana\n53 - Plaza de Lavapiés\n54 - Metro Tribunal\n55 - Plaza de San Ildefonso\n56 - Plaza del Carmen\n57 - Santa Cruz de Marcenado\n58 - Metro Chueca\n59 - Plaza de Juan Pujol\n60 - Puerta de Alcalá\n61 - O Donnell - Narváez\n62 - Hospital M. Infantil Gregorio Marañón\n63 - Hospital Gral. Uni. Gregorio Marañón\n65 - Parque del Retiro - Calle Antonio Maura\n67 - CaixaForum Madrid\n68 - Espalter - Ruiz de Alarcón\n69 - Parque del Retiro - Puerta Ángel Caído\n70 - Hospital Uni. Infantil Niño Jesús\n71 - Plaza del Doctor Laguna\n72 - Metro Sáinz de Baranda\n73 - Plaza de los Astros\n74 - Parque Retiro - Jardines Cecilio Rguez\n75 - Parque del Retiro - Plaza Mariano Cavia\n76 - Avenida del Mediterráneo, 19\n77 - Plaza del Conde de Casal\n78 - Metro Pacífico\n79 - Metro Menéndez Pelayo\n81 - Cuesta de Moyano\n82 - Doctor Esquerdo - Metro Conde de Casal\n83 - Pío Baroja\n84 - Biblioteca Pública Elena Fortún\n85 - Parque del Retiro - Puerta de O´Donnell\n86 - Cibeles\n87 - Ayala - Velázquez\n88 - Velázquez-Padilla\n89 - Ayala - Conde de Peñalver\n90 - Metro Velázquez\n91 - Hermosilla - General Pardiñas\n92 - Claudio Coello - Hermosilla\n93 - Plaza de Margaret Thatcher\n94 - Estación de tren de Recoletos\n95 - Claudio Coello - Villanueva\n96 - Alcalá - Castelló\n97 - Metro Príncipe de Vergara\n98 - Plaza de Felipe II\n99 - Alcántara - Hermosilla\n100 - Wizink Center\n101 - Metro O Donnell\n102 - Metro Retiro\n103 - Ortega y Gasset - Serrano\n104 - Castellana - Hermosilla\n105 - Serrano, 46\n106B - Plaza de Colón B\n107 - Serrano - Conde de Aranda\n108 - Mártires Concepcionistas - Alcalá\n109 - Marqués de Salamanca\n110 - Intercambiador de Moncloa\n111A - Metro Moncloa A\n111B - Metro Moncloa B\n112 - Paseo de Moret - Parque del Oeste\n113 - Teleférico Madrid - Estación Rosales\n114 - Quintana - Juan Álvarez de Mendizábal\n115 - Ferraz - Templo de Debod\n116A - Plaza de España - Martín de los Heros\n116B - Metro Plaza de España\n117 - Altamirano  - Martín de los Heros\n118 - OFICINA DEL SER, APR Y BICIREGISTRO\n119 - Méndez Álvaro\n120 - Metro Palos de la Frontera\n121 - Glorieta de Santa María de la Cabeza\n122 - Santa Engracia - Zurbarán\n123 - Metro Argüelles\n124 - Metro Bilbao\n125 - Fdez. de la Hoz - Gral. Martínez Campos\n126 - General Álvarez de Castro\n127 - Mercado Municipal de Vallehermoso\n128 - Metro Islas Filipinas\n129 - Metro Alonso Cano\n130 - Metro Ríos Rosas\n131 - Plaza de Juan Zorrilla\n132 - Glorieta de Cuatro Caminos\n133 - Raimundo Fdez. Villaverde - Dulcinea\n134 - María de Guzmán - Agustín de Betancourt\n135 - Plaza de San Juan de la Cruz\n136 - Metro Nuevos Ministerios\n137 - Plaza de la República Argentina\n138 - Estación de tren Nuevos Ministerios\n139 - José Gutiérrez Abascal - Castellana\n140 - Velázquez - López de Hoyos\n141 - Plaza de Emilio Castelar\n142 - Bajo elevado de Eduardo Dato\n186 - General Pardiñas - Don Ramón de la Cruz\n144 - Metro Diego de León\n145 - Ortega y Gasset 87\n146 - María Francisca, 3\n147 - Doctor Arce 45\n148 - Serrano 210\n149 - Plaza de Quito\n151 - Orense 12\n152 - General Perón, 4\n153 - General Perón - Poeta Joan Maragall\n154 - Orense 36\n155 - San Germán 57\n156 - Sor Ángela de la Cruz-Paseo Castellana\n158 - Alberto Alcocer - Padre Damián\n159 - Paseo de la Habana 63\n160 - Metro Colombia\n161 - Intercambiador de Príncipe Pío A\n162 - Metro Pirámides\n163 - Metro Acacias\n164 - Paseo de las Delicias - Tomás Bretón\n165 - Entrada Matadero - Paseo de la Chopera\n166 - Viaducto de Segovia\n167 - Segovia 45\n168 - Santa María Cabeza - Batalla del Salado\n169 - Glorieta de Pirámides\n170 - Paseo de la Esperanza, 21\n171 - Embajadores-Cáceres\n172 - Estación de tren de Delicias\n173 - Paseo Esperanza - Santa María Cabeza\n174 - Paseo de las Yeserías, 45\n175 - Jaime el Conquistador - Divino Vallés\n177 - Metro Legazpi\n178 - Junta Municipal Distrito de Retiro\n180 - Estación Sur Méndez Álvaro B\n181 - Ibiza - Narváez\n182 - Parque Roma\n183 - Hermosilla - Doctor Esquerdo\n184 - Marqués de Zafra, 24\n185 - Parque Quinta de la Fuente del Berro\n143 - Diego de León - General Pardiñas\n187 - Alejandro González - Alcalá\n188 - Puente de Ventas\n189 - Virgen de la Alegría\n190 - Velázquez - Diego de León\n191 - Metro Diego de León\n192 - Avda. de los Toreros - Fco. Silvela\n193 - Plaza de las Ventas\n194 - Intercambiador de Avenida de América\n195 - Indalecio Hernández - Mataelpino\n196 - Metro Prosperidad\n197 - Parque de Berlín\n198 - Metro Rubén Darío\n199 - Fernando el Católico, 61\n200 - Metro Quevedo\n201 - Metro Canal\n202 - Parque de Santander\n203 - General Ampudia - San Francisco Sales\n204 - Doctor Santero - Bravo Murillo\n205 - Metro Estrecho\n206 - Metro Tetuán\n207 - Plaza de la Remonta\n208 - Intercambiador de Plaza de Castilla\n209 - Plaza de Castilla - Fundación Canal\n210 - Calle de las Tres Cruces - Gran Vía\n211 - Desengaño - Valverde\n212 - Metro Marqués de Vadillo\n213 - Glorieta de Cádiz\n214 - Condesa de Venadito - Albacete\n215 - Gutierre de Cetina - Ascao\n216 - Plaza de Puerta del Ángel\n217 - Hospital Universitario La Paz\n218 - Camino de los Vinateros A\n219 - Camino de los Vinateros B\n220 - Plaza del Encuentro\n221 - Metro Pavones\n222 - Eugenio Caxes - Antonio López\n223 - Ermita del Santo\n224 - Parque de Caramuel\n225 - Sierra Toledana - Doctor Lozano\n226 - Sierra Toledana - Camino de Valderribas\n227 - Arroyo del Olivar\n228 - San Delfín - Antonio López\n229 - Centro Deportivo Municipal Concepción\n230 - Carlota O´Neill - Agastia\n231 - Derechos Humanos - Verdaguer y García\n232 - José María de Pereda - Alcalá\n233 - El dragón de La Elipa\n234 - Metro La Elipa\n235 - Sodio - Embajadores\n236 - Paseo Imperial\n238 - San Germán, 5\n239 - Francos Rodríguez - José Calvo\n240 - Brasilia - Parque Breogán\n241 - Camilo José Cela\n242 - Metro Parque de las Avenidas\n243 - Cartagena\n244 - Hospital Clínico San Carlos\n245 - Galileo - Donoso Cortés\n246 - Metro Iglesia\n247 - Zurbano - José Abascal\n248 - Sinesio Delgado - Cuatro Torres\n249 - Castellana - Cuatro Torres\n250 - Serrano - CSIC\n251 - Santa Hortensia - Corazón de María\n252 - Est. tren Chamartín - Clara Campoamor\n253 - Doctor Fleming - Estadio S. Bernabéu\n254 - Plaza del Perú\n255 - General López Pozas - Apolonio Morales\n256 - Reina Victoria - Beatriz de Bobadilla\n257 - Ciudad Universitaria - INEF\n258 - Metro Ciudad Universitaria A\n259 - Metro Ciudad Universitaria B\n260 - Ciudad Universitaria - Fac. de Biología\n261 - Ciudad Universitaria - Facultad Derecho\n384 - Metro Usera\n388 - Estación tren - Hospital 12 de Octubre\n385 - Estación de tren Orcasitas\n387 - Isabelita Usera, 44\n383 - Metro San Fermín-Orcasur\n386 - Avenida de los Poblados, 130\n476 - Metro Avenida de la Paz\n477 - Metro Ciudad Lineal\n478 - José del Hierro - Misterios\n479 - Metro Arturo Soria\n480 - Vicente Muzas - Arturo Soria\n481 - Diego Ayllón - Arturo Soria\n554 - Metro El Capricho\n284 - Avenida de Burgos, 17\n482 - Metro Pueblo Nuevo\n483 - Marcelino Álvarez - Daroca\n484 - Metro García Noblejas\n523 - Carretera de Canillas\n285 - Santa María Magdalena - La Drácena\n286 - Plaza Duque de Pastrana\n287 - Metro Bambú\n288 - Caídos de la División Azul\n524 - Glorieta Luis Rosales\n460 - Fuente Carrantona - Doctor García Tapia\n455 - Luis de Hoyos Sainz,  198\n456 - Encomienda de Palacios, 8\n416 - Ramírez Tomé\n417 - Romeo y Julieta, 13\n418 - Puerto de Arlabán - San Diego\n496 - Cronos\n501 - Metro Alsacia\n498 - Metro Torre Arias\n499 - Biblioteca Pública Municipal Canillejas\n500 - Aracne, 17\n497 - Metro Suances\n265 - Puerto Serrano - Embajadores\n351 - Comandante Fontanes - General Ricardos\n350 - Ervigio - Amalarico\n389 - Julio Merino - Pilarica\n390 - Avena - Mijo\n556 - Cantabria, 6\n555 - Parque del Capricho\n485 - Francisco Villaespesa - Ledesma\n570 - Uni. Autónoma Madrid - Facul. Medicina\n295 - Hernani - Edgar Neville\n296 - Costa Verde\n297 - Simancas - Pinos Alta\n323 - Centro Deportivo Municipal Gallur\n324 - Metro Lucero\n457 - Hacienda de Pavones, 148\n432 - Maquinilla - Tranvía Blanco\n298 - Marques de Viana - Bellver\n437 - Metro Sierra de Guadalupe\n358 - Verdad\n352 - Algorta  - General Ricardos\n492 - Metro La Almudena\n322 - Ps. Jesuitas - Mercado Alto Extremadura\n392 - Metro Almendrales\n420 - Candilejas, 5\n419 - Estación de tren de El Pozo\n439 - Cabeza Mesada - Parque de Valdeperdices\n398 - Orovilla - Felicidad\n569 - C. Deportivo Mpal. Vicente del Bosque\n571 - Melchor Fernández Almagro - Plaza Tuy\n304 - Valle de Mena, 5\n268 - Metro Arganzuela-Planetario\n305 - Intercambiador de Príncipe Pío B\n306 - Centro Deportivo Mpal Fernando Martín\n486 - Serrano Galvache - Arturo Soria\n502 - Puertollano - Veinticinco de Septiembre\n462 - Gallegos - Lavadero Viejo\n421 - Arroyo del Olivar - Buenos Aires\n487 - Manuel Uribe - Arturo Soria\n422 - Travesia de Palomeras, 7\n423 - Estación de tren Asamblea de Madrid\n424 - Camino de Valderribas, 47\n425 - Ramón Perez Ayala - Pque. Cerro Tío Pío\n426 - Humanes - Benjamín Palencia\n427 - Andaluces, 2\n428 - Estadio de Vallecas\n393 - Manuel Noya , 29\n489 - Serrano Galvache - Yerma\n490 - Hnos.García Noblejas-FcoLargo Caballero\n488 - Ricardo Ortiz, 33\n525 - Metro Manoteras\n504 - Biblioteca Pública Municipal San Blas\n503 - Zaldívar - Valdecanillas\n404 - Junta Municipal Distrito de Villaverde\n353 - Mercedes Arteaga, 21\n355 - Intercambiador de Plaza Elíptica\n326 - Metro Alto de Extremadura\n327 - El Greco, 27 - C. Cultural El Greco\n458 - Metro Vinateros\n459 - Moratalaz\n461 - Plaza Corregidor Ldo. Antonio de Mena\n356 - Portalegre - Tinamús\n572 - Junta Mpal. Dtto. Fuencarral - El Pardo\n573 - Melchor Fernández Almagro - Villa Marín\n575 - Metro Barrio del Pilar\n574 - Chantada\n440 - Metro Villa de Vallecas\n507 - Seis - Sexta\n299 - Rosario Pino - Joan Maragall\n300 - Capitan Blanco Argibay - Alfalfa\n301 - Muller - Capitan Blanco Argibay\n396 - Gran Avenida, 27\n394 - Periana, 24\n397 - Centro Deportivo Municipal Orcasur\n399 - Bohemios - Gigantes y Cabezudos\n430 - Torremolinos - Rafael Alberti\n269 - Ariel - Parque Enrique Tierno Galván\n491 - Esteban Collantes - José Arcones Gil\n527 - Velacho Alto - Trinquete\n526 - Plaza del Liceo\n431 - Puerto Canfranc, 18\n429 - Carlos M. Alvarez - Javier de Miguel\n357 - Sorbe - Baleares\n270 - Teresa L. Valcárcel - Tte. Cnel. Noreña\n493 - Arturo Soria - San Luis\n433 - Villalobos, 28\n436 - Campus Sur UPM\n434 - Charleroi - Cocherón de la Villa\n506 - Albarracín - Julián Camarillo\n505 - Castillo de Uclés, 37\n435 - San Claudio\n508-old - Alcala\n302 - Ps. Dirección B - Pque A. Rguez Sahagún\n463 - Casalarreina, 18\n464 - Univ. Rey Juan Carlos - Campus Madrid\n400 - Metro Ciudad de los Ángeles\n307 - Metro Valdezarza\n303 - Ps. Dirección A - Pque A. Rguez Sahagún\n576 - El Ferrol, 18\n577 - Monforte de Lemos - Plaza de Mondariz\n309 - Ofelia Nieto - Villaamil\n308 - María Auxiliadora - Francos Rodríguez\n510 - Metro Avenida de Guadalajara\n511 - Aquitania 31\n512 - Semilla - Aparejadores\n513 - Centro Deportivo Mpal. Pepu Hernández\n514 - María Sevilla Diago\n515 - Avenida de Hellin, 13\n359 - El Toboso - Zaida\n360 - Ntra. Sra. Fátima - Ntra. Sra. de Luz\n361 - Metro Pan Bendito\n441 - Estación de tren de Santa Eugenia\n442 - Santa Eugenia - Zazuar\n443 - Fuentespina, 33\n362 - Hilario Herranz Establos, 36\n557 - Metro Alameda de Osuna\n290 - Francisco Suárez - Paseo de La Habana\n529 - Lopez de Hoyos , 478\n530 - Metro Mar de Cristal\n531 - Metro Parque de Santa María\n532 - Metro San Lorenzo\n533 - San Luis, 23\n106A - Plaza de Colón A\n582 - Isla Graciosa - Isla de Java\n583 - Ángel Múgica - Marcos de Orueta\n584 - Metro Montecarmelo\n585 - Metro Fuencarral\n586 - Caldas Estrach - San Cugat del Vallés\n534 - Mesena, 102\n273 - Delicias - General Lacy\n587 - Metro Paco de Lucía\n588 - Campo Calatrava - Rda Ingenioso Hidalgo\n589 - Monast. Silos - Monast. Montesclaros\n535 - Metro Canillas\n328 - Cebreros, 97\n329 - Metro Laguna\n330 - Duquesa de Parcent - Marcelino Castillo\n331 - Valmojado\n332 - Los Yébenes, 159\n363 - Metro Oporto\n364 - Metro Opañel\n536 - Boj\n537 - Plaza López de la Plata\n538 - Haendel, 8\n333 - Illescas - Camarena\n365 - Palacio Vistalegre Arena\n366 - Metro Carabanchel\n291 - Plaza José María Soler\n292 - Centro Deportivo Municipal Pradillo\n494 - Metro Pinar de Chamartín\n516 - Juan Ignacio Luca Tena - Quinta Molinos\n368 - Eugenia de Montijo\n370 - Avefría - Plaza de Tarifa\n590 - Metro Arroyofresno\n517 - San Mariano - Circe\n518 - Tampico - Plaza Barbados\n371 - Joaquin Turina, 49\n372 - Lonja de la Seda, 33\n373 - Metro La Peseta\n374 - Dinero - La Peseta\n375 - Calderilla, 4\n591 - Metro Mirasierra\n592 - Estación de tren de Pitis\n376 - Metro Carpetana\n377 - Metro Abrantes\n539 - Mota del Cuervo\n334 - Metro Campamento\n335 - Cardaño, 10\n519 - Troya, 11\n378 - Eugenia de Montijo, 83\n379 - Antonia Rodríguez Sacristán - Valeriana\n495 - Caleruega\n593 - Metro Avenida de la Ilustración\n594 - Pedro Rico, 49\n595 - Betanzos - Fermín Caballero\n596 - Metro Lacoma\n540 - Estación de tren Fuente de la Mora\n336 - Calle Oliva de Plasencia, 1\n337 - Metro Aluche\n338 - Guareña - Luis Chamizo\n339 - Estación de tren Las Águilas\n597 - Foresta, 8\n445 - C. Deportivo Mpal. Juan de Dios Román\n599 - Instalación Deportiva La Cabrera\n343 - Metro Aviación Española\n344 - Ocaña, 103\n313 - Juan XXIII, 24\n314 - Av. Valladolid - Parque de la Bombilla\n315 - Caroli\n316 - C. Deportivo Mpal. Ciudad De Los Poetas\n317 - Antonio Machado, 30\n345 - Fuente del Tiro - Avd. de las Águilas\n449 - Metro Congosto\n450 - Camino de las Hormigueras, 161\n294 - Edificio Torres Blancas\n604 - Metro Las Tablas\n348 - José de Cadalso - Rafael Finat\n438 - Biblioteca Pública Luis Martín Santos\n451 -  La Granja de San Ildefonso, 14\n452 - Las Suertes, 15\n453 - Metro La Gavia\n454 - Gran Vía del Sureste - Las Suertes\n267 - Paseo de la Chopera - Fernando Poo\n580 - Metro Herrera Oria\n150 - Castellana - Hermanos Pinzón\n157 - Plaza de Cuzco\n395 - Guetaria, 84B\n548 - Eduardo Mazón - Guadalajara\n293 - Santa Rita - Clara del Rey\n520 - Niza - Plaza de Grecia\n558 - Biblioteca Pública Mpal. Gloria Fuertes\n561 - Plaza Nuestra Señora de Loreto\n562 - Tomillar - Tintín y Milú\n560 - Playa de Zarauz - Playa de la Caleta\n568 - IFEMA A\n405 - Paseo Alberto Palacios, 42\n401 - Estación de tren de Villaverde Bajo\n406 - La Nave de Madrid\n403 - Auñón, 16\n280 - Ps de los Melancólicos - San Epifanio\n367 - Metro San Francisco\n325 - Ps. Jesuitas - Pza. Cerro Bermejo\n578 - Sierra de Atapuerca - Viloria de Rioja\n446 - C. Deportivo Mpal. Miguel Guillén Prim\n382 -Parque Eugenia de Montijo, 2\n410 - Est. de tren de S. Cristóbal Industrial\n319 - Valdesangil\n579 - Maria Tubau - Isabel Colbrand\n602 - Monasterio Sobrado - Monasterio Silos\n600 - Centro Deportivo Municipal La Masó\n566 - Avenida de Logroño\n565 - Metro Barajas\n467 - Univ. Rey Juan Carlos - Facultad  CJS\n469 - C. Deportivo Mpal Faustina Valladolid\n470 - Avenida Real - Galeote\n471 - Molino Viejo - Minerva\n271 - Amaltea-Meneses\n466 - Villablanca - Vereda del Pinar\n275 - Juan Antonio Vallejo-Nájera Botas, 25\n475 - Aurora Boreal - Minerva\n274 - Estación Sur Méndez Álvaro A\n605 - Nuria - Peña Sirio\n522 - Metro Estadio Metropolitano\n521 - Metro Las Rosas\n508 - Metro Canillejas\n80A - Estación de Atocha A\n80B - Estación de Atocha B\n447 - Adolfo Bioy Casares - Las Suertes\n412 - Estación de tren de Puente de Alcocer\n415 - Diamante - Delmira Agustini\n413 - Doctor Martín Arévalo\n545 - Zapatoca, 8\n567 - Plaza Mayor de Barajas\n563 - Soto Hidalgo\n281 - Reina Cristina - Julián Gayarre\n609 - Metro Ronda de la Comunicación\n408 - Metro San Cristóbal\n409 - Eduardo Barreiros, 114\n606 - Fermín Caballero - Sangenjo\n349 - Huerta de Castañeda 26\n544 - Gregorio Sánchez Herráez 14\n551 - Oña\n552 - Ana de Austria - Ignacio Aldecoa\n542 - Intercambiador de Valdebebas\n320 - Metro Lago\n608 - Estella - Camino de Santiago\n278 - Paseo los Pontones - Ps. Melancólicos\n289 - Luis de Salazar - Padre Claret\n547 - Rafaela Aparicio - Maruja Mallo\n402 - Berrocal, 9\n543 - Tomas Redondo\n277 - Virgen del Puerto\n272 - Tejo - Parque La Ronda\n282 - Parque Retiro - Puerta Reina Mercedes\n1 - Metro Sol\n263 - Gran Vía de San Francisco\n559 - Calle Babilonia, 19\n581 - Metro Peñagrande\n598 - Hospital Ramón y Cajal\n341 - Escalona - Seseña\n346 - Metro Empalme\n347 - Est. tren Mtra Justa Freire-Poli Aluche\n528 - Albelda - Torrelaguna\n312 - Metro Batán\n321 - Metro Casa de Campo\n310 - Estación de tren de Aravaca\n311 - C. Universitaria - F. Geografía e Histo\n283 - Museo Nacional del Prado\n564 - IFEMA B\n468 - Caños de San Pedro - San Cipriano\n465 - Cordel de Pavones - Bulevar José Prat\n414 - Metro Villaverde Bajo-Cruce\n380 - Oca\n411 - Estación de tren de Villaverde Alto\n354 - Jacinto Verdaguer - Lola de Membrives\n318 - C. Deportivo Mpal. José María Cagigal\n549 - Francisco Pi y Maragall\n279 - Paseo de los Melancólicos, 1\n407 - Carmen de Burgos, 4\n276 - Paseo de las Yeserías, 15\n340 - Illescas - Seseña\n342 - Osa de la Vega - Rafael Finat\n381 - Alfredo Aleix - Mercedes Rodríguez\n444 - Valderrebollo, 18\n448 - Metro Las Suertes\n472 - Metro Valdebernardo\n473 - Villablanca - Parque Forestal Vicálvaro\n474 - Estación de tren de Vicálvaro\n541 - Metro Pinar del Rey\n546 - Andorra - Canillas\n550 - Príncipe Carlos, 54\n553 - María Portugal - Niceto Alcalá Zamora\n601 - Estación de tren de Fuencarral\n603 - Castiello de Jaca, 14\n607 - Metro Ligero - Palas de Rey\n610 - Bardegueral\n237 - Acueducto de Amaniel\n262 - María de las Mercedes de Borbón B\n611 - María de las Mercedes de Borbón A\n176 - Plaza de la Beata María Ana de Jesús\n630 - Calle de Febrero 4\n629 - Avda de Fermina Sevillano 23\n620 - Calle Cazorla 79\n621 - Calle Montiel 27\n622 - Calle Sierra de Albarracin 2\n617 - Calle Eduardo Barreiros\n626 - Avenida Victoria Kent 9\n627 - Alcalde Andrés Madrid Dávila 92\n624  - Avenida Blas de Lezo 33\n625 - Avenida de Miguel Delibes 49\n612 - Calle Rosalia de Castro 1\n613 - Facultad de informática\n615 - Avenida Juan de Andrés 21\n616 - Alcalde Martín de Alzaga\n628  - Calle Arcaute 13\n619 - Cooperativa Electrica 13\n623  -  Ronda del Sur, esq Santa Rafaela\n614 - Biblioteca central de la UNED\n618 - Calle Paterna 55\n632 - Avda. Campus Sur, 11\n631 -  CAMPUS SUR 2\n22 - Jacometrezo 3\n8000 - EV Puente de Vallecas\n8001 - EV JMD Carabanchel\n633 - HUB Plaza de España`;
+      estado(id('mensaje'), '');
+      pintarRutas();
+    } catch (error) {
+      estado(id('mensaje'), `No se han podido cargar los rankings: ${error.message}`, 'error');
+    }
+  }
 
-        // 1. AÑADIMOS LA FUNCIÓN PARA CAPITALIZAR (Título)
-        function toTitleCase(str) {
-            return str.replace(
-                /\w\S*/g,
-                function(txt) {
-                    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-                }
-            );
-        }
+  function botonRuta(ruta) {
+    const clases = ['ruta-btn'];
+    if (ruta === rutaDestacada) clases.push('destacada');
+    if (ruta === rutaSeleccionada) clases.push('activa');
+    return el('button', {
+      clase: clases.join(' '),
+      texto: `${ruta === rutaDestacada ? '🔥 ' : ''}${nombreRuta(ruta)}`,
+      on: { click: () => seleccionar(ruta) },
+    });
+  }
 
-        const estacionesMap = {};
-        rawStations.split('\n').forEach(line => {
-            if(!line.trim()) return;
-            let parts = line.split(' - '); let rawNum = parts[0].trim(); let name = parts.slice(1).join(' - ').trim();
-            
-            // Removemos los ceros iniciales del número crudo
-            let cleanNum = rawNum.replace(/^0+/, '') || "0"; 
-            estacionesMap[cleanNum] = name.toLowerCase(); 
-            // Guardamos el nombre en minúsculas para comparaciones exactas
-        });
+  function pintarRutas() {
+    const destacadas = [rutaDestacada, ...favoritas].filter(Boolean);
+    const unicas = [...new Set(destacadas)];
 
-        let allTrips = [], uniqueRoutes = [], usersMap = {};
-        let highlightedRoute = null;
-        let currentU = null;
-        let userFavorites = [];
-        let selectedRouteId = null;
+    reemplazar(id('rutas'), unicas.length
+      ? unicas.map(botonRuta)
+      : [el('span', {
+        texto: 'Busca una ruta arriba y anclala para tenerla siempre a mano.',
+        estilo: { color: 'var(--text-muted)', fontSize: '.88rem', padding: '10px 0' },
+      })]);
+  }
 
-        onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                // MODO INVITADO
-                currentU = null;
-                userFavorites = [];
-                load();
-            } else {
-                currentU = user;
-                const userDoc = await getDoc(doc(db, "usuarios", user.email));
-                if(userDoc.exists()) userFavorites = userDoc.data().favoriteRoutes || [];
-                load();
-            }
-        });
+  id('busca-ruta').addEventListener('input', (evento) => {
+    const termino = evento.target.value.trim().toLowerCase();
+    if (!termino) { pintarRutas(); return; }
 
-        async function load() {
-            // Lectura Optimizada: PocketBase en lugar de Firebase
-            const tempUsers = await pb.collection('usuarios').getFullList();
-            
-            tempUsers.sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0));
-            tempUsers.forEach((u, idx) => {
-                u.globalRank = idx + 1;
-                usersMap[u.email] = u;
-            });
+    const coincide = rutas.filter((ruta) => {
+      const [o, d] = ruta.split('-');
+      return ruta.toLowerCase().includes(termino)
+        || (nombreEstacion(o) || '').toLowerCase().includes(termino)
+        || (nombreEstacion(d) || '').toLowerCase().includes(termino);
+    });
 
-            try {
-                // Config sigue siendo ligero en Firebase, o podrías pasarlo a PB si quieres
-                const confDoc = await getDoc(doc(db, "config", "general"));
-                if(confDoc.exists()) highlightedRoute = confDoc.data().ruta_destacada;
-            } catch(e) {}
+    reemplazar(id('rutas'), coincide.length
+      ? coincide.slice(0, 40).map(botonRuta)
+      : [el('span', { texto: 'Ninguna ruta coincide.', estilo: { color: 'var(--text-muted)', padding: '10px 0' } })]);
+  });
 
-            // Lectura Optimizada: PocketBase en lugar de Firebase
-            const pbTrips = await pb.collection('tiempos_viaje').getFullList({ filter: 'verificado = true' });
-            const rSet = new Set();
-            pbTrips.forEach(d => { allTrips.push(d); rSet.add(d.ruta); });
-            uniqueRoutes = Array.from(rSet).sort();
-            
-            if (highlightedRoute && !uniqueRoutes.includes(highlightedRoute)) uniqueRoutes.push(highlightedRoute);
-            renderDefaultBtns();
-        }
-        
-        function updateArrows() {
-            const c = document.getElementById('routes-container');
-            const lBtn = document.getElementById('scroll-left');
-            const rBtn = document.getElementById('scroll-right');
-            if(window.innerWidth <= 768 || c.scrollWidth <= c.clientWidth) {
-                lBtn.style.display = 'none'; rBtn.style.display = 'none';
-            } else {
-                lBtn.style.display = 'flex'; rBtn.style.display = 'flex';
-            }
-        }
+  function seleccionar(ruta) {
+    rutaSeleccionada = ruta;
+    id('seccion-ranking').classList.remove('oculto');
+    reemplazar(id('titulo-ruta'), nombreRuta(ruta));
 
-        document.getElementById('scroll-left').onclick = () => document.getElementById('routes-container').scrollBy({ left: -250, behavior: 'smooth' });
-        document.getElementById('scroll-right').onclick = () => document.getElementById('routes-container').scrollBy({ left: 250, behavior: 'smooth' });
-        window.addEventListener('resize', updateArrows);
+    const fijar = id('btn-fijar');
+    const fijada = favoritas.includes(ruta);
+    fijar.classList.toggle('fijada', fijada);
+    reemplazar(fijar, el('i', { clase: fijada ? 'fi fi-sr-bookmark' : 'fi fi-rr-bookmark' }));
 
-        function renderDefaultBtns() {
-            const c = document.getElementById('routes-container'); c.innerHTML = '';
-            
-            if (highlightedRoute) {
-                const b = document.createElement('button'); b.className = 'route-btn glowing-btn';
-                b.innerHTML = `🔥 ${getRouteName(highlightedRoute)}`;
-                b.onclick = () => select(highlightedRoute, b); c.appendChild(b);
-            }
-            
-            userFavorites.forEach(r => {
-                if (r !== highlightedRoute) {
-                    const b = document.createElement('button'); b.className = 'route-btn';
-                    b.innerHTML = `<i class="fi fi-sr-bookmark" style="font-size:0.9em; color:var(--primary);"></i> ${getRouteName(r)}`; 
-                    b.style.borderColor = 'var(--primary)';
-                    b.onclick = () => select(r, b); c.appendChild(b);
-                }
-            });
+    // Solo el mejor tiempo de cada piloto entra en la clasificacion.
+    const mejorPorPiloto = new Map();
+    for (const viaje of viajes.filter((v) => v.ruta === ruta)) {
+      const previo = mejorPorPiloto.get(viaje.uid);
+      if (!previo || viaje.tiempoSegundos < previo.tiempoSegundos) mejorPorPiloto.set(viaje.uid, viaje);
+    }
 
-            if(!highlightedRoute && userFavorites.length === 0) {
-                c.innerHTML = "<span style='color:var(--text-muted); font-size:0.9rem; padding: 10px 0;'>Busca una ruta en la barra de arriba y ánclala para verla aquí.</span>";
-            }
-            setTimeout(updateArrows, 100);
-        }
+    const clasificacion = [...mejorPorPiloto.values()].sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
 
-        document.getElementById('search-input').addEventListener('input', e => {
-            const term = e.target.value.trim().toLowerCase();
-            if (!term) { renderDefaultBtns(); return; }
+    if (!clasificacion.length) {
+      reemplazar(id('lista'), el('div', { clase: 'vacio' }, [
+        el('p', { texto: 'Aun no hay tiempos en esta ruta.', estilo: { margin: '0 0 6px', fontWeight: '700' } }),
+        el('p', { texto: 'Se el primero en dominarla.', estilo: { margin: '0' } }),
+      ]));
+      return;
+    }
 
-            const filtered = uniqueRoutes.filter(r => r.toLowerCase().includes(term) || (estacionesMap[r.split('-')[0]]||"").toLowerCase().includes(term) || (estacionesMap[r.split('-')[1]]||"").toLowerCase().includes(term));
-            const c = document.getElementById('routes-container'); c.innerHTML = '';
-            filtered.forEach(r => {
-                const b = document.createElement('button'); b.className = 'route-btn'; 
-                b.innerHTML = getRouteName(r);
-                b.onclick = () => select(r, b); c.appendChild(b);
-            });
-            setTimeout(updateArrows, 100);
-        });
+    const mejor = clasificacion[0].tiempoSegundos;
+    reemplazar(id('lista'), clasificacion.map((viaje, indice) => fila(viaje, indice, mejor)));
+  }
 
-        document.getElementById('pin-btn').addEventListener('click', async () => {
-            // MODO INVITADO: Bloqueamos si no hay sesión
-            if (!currentU) {
-                window.location.href = "../";
-                return;
-            }
+  function fila(viaje, indice, mejor) {
+    const puesto = indice + 1;
+    const piloto = pilotos.get(viaje.uid) || {};
+    const nombre = piloto.username || 'Piloto';
+    const diferencia = viaje.tiempoSegundos - mejor;
 
-            if(!selectedRouteId) return;
-            const btn = document.getElementById('pin-btn');
+    const avatar = imagen(
+      piloto.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nombre)}&backgroundColor=0071c3`,
+      { clase: 'avatar', attrs: { alt: `Avatar de ${nombre}`, loading: 'lazy' }, on: { click: () => abrirFicha(viaje.uid) } }
+    );
 
-            if(userFavorites.includes(selectedRouteId)) {
-                userFavorites = userFavorites.filter(r => r !== selectedRouteId);
-                btn.classList.remove('pinned'); 
-                btn.innerHTML = '<i class="fi fi-br-bookmark"></i>';
-            } else {
-                if(userFavorites.length >= 3) { alert("Límite de 3 rutas favoritas alcanzado."); return; }
-                userFavorites.push(selectedRouteId);
-                btn.classList.add('pinned'); 
-                btn.innerHTML = '<i class="fi fi-sr-bookmark"></i>';
-            }
+    return el('div', { clase: `fila ${puesto <= 3 ? `p${puesto}` : ''}` }, [
+      el('div', { clase: 'puesto', texto: `#${puesto}` }),
+      avatar,
+      el('div', {
+        clase: 'piloto',
+        attrs: { role: 'button', tabindex: '0' },
+        on: {
+          click: () => abrirFicha(viaje.uid),
+          keydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirFicha(viaje.uid); } },
+        },
+      }, [
+        el('strong', { texto: nombre }),
+        el('span', { texto: formatearFecha(viaje.fechaViaje) }),
+      ]),
+      el('div', { clase: 'marca' }, [
+        el('strong', { texto: formatearTiempo(viaje.tiempoSegundos) }),
+        el('span', { texto: puesto === 1 ? 'Lider' : `+${formatearTiempo(diferencia)}` }),
+      ]),
+      el('button', {
+        clase: 'btn-reportar',
+        attrs: { title: 'Reportar tiempo sospechoso', 'aria-label': `Reportar el tiempo de ${nombre}` },
+        on: { click: (e) => reportar(viaje, e.currentTarget) },
+      }, [el('i', { clase: 'fi fi-rr-flag' })]),
+    ]);
+  }
 
-            await setDoc(doc(db, "usuarios", currentU.email), { favoriteRoutes: userFavorites }, { merge: true });
-            if(!document.getElementById('search-input').value.trim()) renderDefaultBtns();
-        });
+  async function reportar(viaje, boton) {
+    if (!usuarioActual) { window.location.href = '/entrar/'; return; }
 
-        // 2. MODIFICAMOS getRouteName PARA QUE USE EL toTitleCase Y QUITE LOS NÚMEROS A LA HORA DE BUSCAR EN EL MAPA
-        function getRouteName(rutaId) {
-            const [o, d] = rutaId.split('-');
-            // Le quitamos los ceros a la izquierda al ID original para que encuentre la estación
-            const cleanO = o.replace(/^0+/, '') || "0";
-            const cleanD = d.replace(/^0+/, '') || "0";
-            
-            // Buscamos el nombre (ahora ignorando el número original si no lo encuentra) y capitalizamos
-            const nameO = estacionesMap[cleanO] ? toTitleCase(estacionesMap[cleanO]) : cleanO;
-            const nameD = estacionesMap[cleanD] ? toTitleCase(estacionesMap[cleanD]) : cleanD;
-            
-            return `<div style="display:flex; align-items:center; gap:5px;"><span>${nameO}</span> <i class="fi fi-rr-arrow-right" style="font-size:0.8em; margin-top:2px;"></i> <span>${nameD}</span></div>`;
-        }
+    const confirmado = await confirmar(
+      'Vas a reportar este tiempo como sospechoso. Los reportes sin fundamento repetidos pueden acarrear la suspension de tu cuenta. Continuar?',
+      { textoAceptar: 'Reportar', peligroso: true }
+    );
+    if (!confirmado) return;
 
-        function select(ruta, btn) {
-            selectedRouteId = ruta;
-            document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
-            document.getElementById('ranking-section').style.display = 'block'; 
-            document.getElementById('ranking-title').innerHTML = safeHTML(getRouteName(ruta));
-            
-            const pinBtn = document.getElementById('pin-btn');
-            if(userFavorites.includes(ruta)) { pinBtn.classList.add('pinned'); pinBtn.innerHTML = '<i class="fi fi-sr-bookmark"></i>'; }
-            else { pinBtn.classList.remove('pinned'); pinBtn.innerHTML = '<i class="fi fi-br-bookmark"></i>'; }
-            
-            let rawTrips = allTrips.filter(t => t.ruta === ruta).sort((a,b) => a.tiempo_segundos - b.tiempo_segundos);
-            let trips = [];
-            let seenUsers = new Set();
-            
-            for (let t of rawTrips) {
-                if (!seenUsers.has(t.email_real)) {
-                    seenUsers.add(t.email_real);
-                    
-                    // Almacenamos el ID del viaje también para usarlo en el reporte
-                    trips.push({ ...t, tripId: t.id || t.tripId || (t.email_real + '-' + t.ruta) }); 
-                }
-            }
+    boton.disabled = true;
+    try {
+      await reportarViaje(viaje);
+      estado(id('mensaje'), 'Reporte enviado. Un administrador lo revisara.', 'exito');
+    } catch (error) {
+      boton.disabled = false;
+      avisar(error.message);
+    }
+  }
 
-            const list = document.getElementById('ranking-list'); list.innerHTML = '';
-            
-            if(trips.length === 0) {
-                list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-weight:600;">Aún no hay tiempos para esta ruta. ¡Sé el primero en dominarla! 🚴💨</div>`;
-                return;
-            }
+  id('btn-fijar').addEventListener('click', async () => {
+    if (!usuarioActual) { window.location.href = '/entrar/'; return; }
+    if (!rutaSeleccionada) return;
 
-            const best = trips[0].tiempo_segundos;
-            trips.forEach((t, i) => {
-                const pos = i + 1;
-                const rClass = pos === 1 ? 'rank-1' : pos === 2 ? 'rank-2' : pos === 3 ? 'rank-3' : '';
-                
-                let deltaHtml = "";
-                if(pos === 1) deltaHtml = `<div class="delta-leader">Líder 👑</div>`;
-                else {
-                    let diff = t.tiempo_segundos - best;
-                    let dm = Math.floor(diff / 60); let ds = diff % 60;
-                    let text = dm > 0 ? `+${dm}m ${ds}s` : `+${ds}s`;
-                    deltaHtml = `<div class="rank-delta">${text}</div>`;
-                }
-                
-                const userData = usersMap[t.email_real] || {};
-                const avatar = userData.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${t.email_real}&backgroundColor=0071c3`;
-                const username = userData.username || "Piloto";
-                const safeUsername = escapeHtml(username);
-                const safeEmail = String(t.email_real || '').replace(/'/g, "\\'");
-                const safeTripId = String(t.tripId || '').replace(/'/g, "\\'");
-                const safeRuta = String(t.ruta || '').replace(/'/g, "\\'");
-                
-                const d = new Date(t.fecha);
-                const month = d.toLocaleString('es-ES', { month: 'long' });
-                const dateString = `${d.getDate()} de ${month.charAt(0).toUpperCase() + month.slice(1)} ${d.getFullYear()}`;
-                
-                // NUEVO: Botón de reporte añadido
-                list.innerHTML += `
-                    <div class="rank-row ${rClass}">
-                        <div class="rank-pos">#${pos}</div>
-                        <img src="${avatar}" class="rank-avatar" onclick="openUserProfile('${safeEmail}')" title="Ver perfil de ${safeUsername}">
-                        <div class="rank-user-container" onclick="openUserProfile('${safeEmail}')" title="Ver perfil de ${safeUsername}">
-                            <div class="rank-user">${safeUsername}</div>
-                            <span class="rank-date">${dateString}</span>
-                        </div>
-                        <div class="rank-stats">
-                            <div class="stats-text">
-                                <div class="rank-time">${t.tiempo_formateado}</div>
-                                ${deltaHtml}
-                            </div>
-                            <button class="report-btn" title="Reportar tiempo sospechoso" onclick="reportTrip('${safeTripId}', '${safeEmail}', '${safeRuta}')">
-                                <i class="fi fi-rr-flag"></i>
-                            </button>
-                        </div>
-                    </div>`;
-            });
-        }
+    const nuevas = favoritas.includes(rutaSeleccionada)
+      ? favoritas.filter((r) => r !== rutaSeleccionada)
+      : [...favoritas, rutaSeleccionada];
 
-        // --- NUEVO: FUNCIÓN PARA REPORTAR VIAJES ---
-        window.reportTrip = async function(tripId, reportedEmail, ruta) {
-            if (!currentU || !pb.authStore.isValid) {
-                alert("Debes iniciar sesión para poder reportar un viaje.");
-                window.location.href = "../";
-                return;
-            }
+    if (nuevas.length > 3) {
+      estado(id('mensaje'), 'Solo puedes anclar 3 rutas.', 'aviso');
+      return;
+    }
 
-            if (currentU.email === reportedEmail) {
-                alert("No puedes reportar tu propio viaje.");
-                return;
-            }
+    try {
+      await guardarFavoritas(nuevas);
+      favoritas = nuevas;
+      seleccionar(rutaSeleccionada);
+      if (!id('busca-ruta').value.trim()) pintarRutas();
+    } catch (error) {
+      estado(id('mensaje'), error.message, 'error');
+    }
+  });
 
-            const confirmReport = confirm("⚠️ ATENCIÓN ⚠️\n\nEstás a punto de reportar este tiempo como sospechoso o falso. Si se demuestra que estás reportando tiempos legítimos sin motivo, tu cuenta podrá ser suspendida.\n\n¿Estás seguro de que quieres enviar este reporte a los administradores?");
+  // --- Ficha del piloto ---
+  function abrirFicha(uid) {
+    const piloto = pilotos.get(uid);
+    if (!piloto) return;
 
-            if (!confirmReport) return;
+    const nombre = piloto.username || 'Piloto';
+    const modal = id('modal-piloto');
 
-            try {
-                // Dual Write para reportes (primero PocketBase, luego Firebase)
-                const reportData = {
-                    tripId: tripId,
-                    reportedEmail: reportedEmail,
-                    ruta: ruta,
-                    reporterEmail: currentU.email,
-                    status: "pendiente"
-                };
+    reemplazar(modal, el('div', { clase: 'ficha' }, [
+      imagen(piloto.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nombre)}&backgroundColor=0071c3`,
+        { attrs: { alt: `Avatar de ${nombre}` } }),
+      el('h3', { texto: nombre, estilo: { margin: '14px 0 4px' } }),
+      piloto.clanId ? el('p', { texto: `Clan: ${piloto.clanId}`, estilo: { color: 'var(--text-muted)', fontSize: '.85rem', margin: '0' } }) : null,
+      el('div', { clase: 'cifras' }, [
+        el('div', {}, [el('strong', { texto: String(piloto.biciRating || 0) }), el('span', { texto: 'BiciRating' })]),
+        el('div', {}, [el('strong', { texto: `#${piloto.puesto}` }), el('span', { texto: 'Puesto global' })]),
+        el('div', {}, [el('strong', { texto: String(piloto.viajesVerificados || 0) }), el('span', { texto: 'Viajes' })]),
+      ]),
+      el('div', { estilo: { display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' } },
+        generarNodosInsignias(piloto.logros || [])),
+      el('button', { texto: 'Cerrar', on: { click: () => { modal.style.display = 'none'; } } }),
+    ]));
 
-                await pb.collection('reportes').create(reportData);
-                await addDoc(collection(db, "reportes"), { ...reportData, timestamp: serverTimestamp() });
-                
-                alert("Reporte enviado con éxito. Un administrador lo revisará pronto.");
-            } catch (error) {
-                console.error("Error al reportar:", error);
-                alert("Hubo un error al enviar el reporte. Por favor, inténtalo de nuevo.");
-            }
-        };
+    modal.style.display = 'flex';
+  }
 
-        // --- FUNCIÓN PARA ABRIR EL PERFIL ---
-        window.openUserProfile = async function(email) {
-            document.getElementById('badge-desc-box').style.display = 'none'; // Ocultar al abrir nuevo perfil
-            const user = usersMap[email];
-            if(!user) return;
-            
-            document.getElementById('um-avatar').src = user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}&backgroundColor=0071c3`;
-            document.getElementById('um-username').innerText = user.username || "Piloto";
-            document.getElementById('um-clan-container').innerHTML = user.clanId ? safeHTML(`<div class="modal-clan">Clan: ${escapeHtml(user.clanId)}</div>`) : '';
-            document.getElementById('um-rating').innerText = user.biciRating || 0;
-            document.getElementById('um-pos').innerText = `#${user.globalRank || '--'}`;
-            
-            document.getElementById('um-badges').innerHTML = safeHTML(generarHTMLInsignias(user.logros || []));
-            document.getElementById('um-trips').innerText = "..."; 
-            document.getElementById('user-profile-modal').style.display = 'flex';
-            
-            try {
-                // Lectura optimizada con PocketBase para contar los viajes del usuario
-                const userTrips = await pb.collection('tiempos_viaje').getList(1, 1, { filter: `email_real = "${email}"` });
-                document.getElementById('um-trips').innerText = userTrips.totalItems; 
-            } catch (e) {
-                document.getElementById('um-trips').innerText = "0";
-            }
-        };
-
-        // --- EVENTO PARA MOSTRAR DESCRIPCIÓN DE LAS INSIGNIAS AL CLICAR ---
-        document.getElementById('um-badges').addEventListener('click', (e) => {
-            const badge = e.target.closest('.insignia-badge');
-            if (badge) {
-                const descBox = document.getElementById('badge-desc-box');
-                // El atributo title viene como "Titulo: Descripcion", lo mostramos
-                descBox.innerText = badge.getAttribute('title');
-                descBox.style.display = 'block';
-            }
-        });
-    </script>
+  id('modal-piloto').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-piloto') e.target.style.display = 'none';
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') id('modal-piloto').style.display = 'none';
+  });
+</script>
 </body>
 </html>

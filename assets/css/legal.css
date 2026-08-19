@@ -1,0 +1,39 @@
+/* Estilos comunes de los documentos legales: pensados para leerse, no para lucir. */
+
+.legal { max-width: 780px; margin: 40px auto; padding: 0 20px; flex: 1 0 auto; }
+.legal h1 { font-size: 1.7rem; font-weight: 800; margin: 0 0 6px; }
+.legal .version { color: var(--text-muted); font-size: .82rem; margin: 0 0 30px; }
+.legal h2 { font-size: 1.1rem; margin: 34px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; display: block; }
+.legal h3 { font-size: .95rem; margin: 22px 0 8px; color: var(--text-main); }
+.legal p, .legal li { line-height: 1.75; color: var(--text-muted); font-size: .92rem; }
+.legal ul, .legal ol { padding-left: 24px; }
+.legal li { margin-bottom: 8px; }
+.legal strong { color: var(--text-main); }
+.legal a { color: var(--primary); }
+
+.legal table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: .86rem; }
+.legal th, .legal td { text-align: left; padding: 10px; border: 1px solid var(--border); vertical-align: top; }
+.legal th { background: var(--bg-input); color: var(--text-main); font-size: .78rem; text-transform: uppercase; }
+.legal td { color: var(--text-muted); }
+.legal .tabla-scroll { overflow-x: auto; }
+
+/* Los datos del responsable estan sin rellenar: que se vean a la legua. */
+.pendiente {
+  background: rgba(255, 187, 51, .12);
+  border: 1px dashed var(--aviso);
+  color: var(--aviso);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-family: monospace;
+  font-size: .85em;
+}
+
+.recuadro { background: var(--bg-card); border-left: 4px solid var(--primary); border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+.recuadro.alerta { border-left-color: var(--aviso); background: rgba(255, 187, 51, .07); }
+.recuadro p:last-child { margin-bottom: 0; }
+.recuadro p:first-child { margin-top: 0; }
+
+.indice { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 24px; margin-bottom: 30px; }
+.indice ol { margin: 0; }
+.indice li { margin-bottom: 4px; }

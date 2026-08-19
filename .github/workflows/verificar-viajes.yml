@@ -1,0 +1,56 @@
+name: Verificar viajes
+
+# El worker es el servidor de confianza de la app. Se despierta cada 5 minutos,
+# coge los viajes que esperan analisis y los aprueba, los rechaza o los manda a
+# revision humana.
+#
+# Va aqui y no en Cloud Functions porque desplegar funciones en Firebase exige
+# el plan Blaze (tarjeta), mientras que Actions es gratis e ilimitado en
+# repositorios publicos.
+
+on:
+  schedule:
+    # Cada 5 minutos. GitHub puede retrasar las ejecuciones programadas cuando
+    # hay mucha carga, asi que el retardo real ronda los 5-15 minutos.
+    - cron: '*/5 * * * *'
+  # Para poder lanzarlo a mano desde la pestana Actions sin esperar al reloj.
+  workflow_dispatch:
+    inputs:
+      simular:
+        description: 'Analizar sin escribir nada en la base de datos'
+        type: boolean
+        default: false
+
+# Si una ejecucion se solapa con la anterior, se descarta: dos workers a la vez
+# procesarian los mismos viajes.
+concurrency:
+  group: verificar-viajes
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: npm ci
+
+      - name: Regenerar datos compartidos
+        run: node scripts/build-estaciones.js
+
+      - name: Procesar la cola
+        working-directory: backend
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node worker.js ${{ inputs.simular && '--simular' || '' }}

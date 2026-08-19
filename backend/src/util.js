@@ -1,0 +1,172 @@
+'use strict';
+
+const { ErrorApp } = require('./errores');
+const ESTACIONES = require('../lib/estaciones.json');
+
+/**
+ * Normaliza un id de estacion al formato canonico: 3 digitos + sufijo opcional.
+ * Acepta "2", "02", "002", "25a" y devuelve "002" / "025A".
+ */
+function normalizarEstacion(raw) {
+  const val = String(raw ?? '').trim().toUpperCase();
+  const match = val.match(/^(\d+)([A-Z]?)$/);
+  if (!match) return val;
+  return match[1].padStart(3, '0') + (match[2] || '');
+}
+
+/** Devuelve la estacion o null. Nunca lanza. */
+function buscarEstacion(raw) {
+  return ESTACIONES[normalizarEstacion(raw)] || null;
+}
+
+/**
+ * Construye el id de ruta canonico "ORIGEN-DESTINO" validando ambos extremos.
+ * Lanza si alguna estacion no existe o si origen y destino coinciden.
+ */
+function construirRuta(origenRaw, destinoRaw) {
+  const origen = normalizarEstacion(origenRaw);
+  const destino = normalizarEstacion(destinoRaw);
+
+  if (!ESTACIONES[origen]) {
+    throw new ErrorApp('invalid-argument', `La estacion de salida "${origenRaw}" no existe.`);
+  }
+  if (!ESTACIONES[destino]) {
+    throw new ErrorApp('invalid-argument', `La estacion de meta "${destinoRaw}" no existe.`);
+  }
+  if (origen === destino) {
+    throw new ErrorApp('invalid-argument', 'La salida y la meta no pueden ser la misma estacion.');
+  }
+  return { origen, destino, ruta: `${origen}-${destino}` };
+}
+
+/** Distancia en metros entre dos puntos (haversine). */
+function distanciaMetros(a, b) {
+  const R = 6371000;
+  const rad = (g) => (g * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Saneado de texto libre que va a acabar mostrandose a otros usuarios.
+ * Quita caracteres de control e invisibles (incluido el bidi override, que se
+ * usa para disfrazar texto) y recorta a una longitud maxima.
+ */
+/**
+ * Rangos de codepoints que nunca deben sobrevivir en texto de usuario:
+ * controles C0/C1, espacios de ancho cero, marcas bidi (sirven para colar
+ * nombres que se renderizan al reves) y el BOM.
+ */
+const INVISIBLES = [
+  [0x0000, 0x001f], [0x007f, 0x009f], [0x200b, 0x200f],
+  [0x2060, 0x2064], [0x2066, 0x2069], [0x202a, 0x202e], [0xfeff, 0xfeff],
+];
+
+function limpiarTexto(raw, maxLongitud = 200) {
+  let salida = '';
+  for (const ch of String(raw ?? '')) {
+    const cp = ch.codePointAt(0);
+    if (INVISIBLES.some(([lo, hi]) => cp >= lo && cp <= hi)) continue;
+    salida += ch;
+  }
+  return salida.trim().slice(0, maxLongitud);
+}
+
+/** Entero dentro de un rango o ErrorApp. */
+function enteroEnRango(valor, min, max, campo) {
+  const n = Number(valor);
+  if (!Number.isInteger(n) || n < min || n > max) {
+    throw new ErrorApp('invalid-argument', `${campo} debe ser un entero entre ${min} y ${max}.`);
+  }
+  return n;
+}
+
+/** Exige sesion iniciada y email verificado; devuelve el uid. */
+function exigirAuth(request) {
+  if (!request.auth || !request.auth.uid) {
+    throw new ErrorApp('unauthenticated', 'Debes iniciar sesion.');
+  }
+  return request.auth.uid;
+}
+
+/** Exige que el llamante tenga el custom claim de administrador. */
+function exigirAdmin(request) {
+  const uid = exigirAuth(request);
+  if (request.auth.token.admin !== true) {
+    throw new ErrorApp('permission-denied', 'Necesitas permisos de administrador.');
+  }
+  return uid;
+}
+
+const TZ = 'Europe/Madrid';
+
+/**
+ * Desfase de la zona horaria en ese instante concreto, en ms.
+ * Formatea la fecha en Madrid y reinterpreta el resultado como si fuera UTC:
+ * la diferencia con el instante original es justo el offset (+1h o +2h segun
+ * si rige el horario de verano).
+ */
+function desfaseZona(fecha) {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(fecha);
+
+  const p = {};
+  for (const { type, value } of partes) p[type] = value;
+  const hora = p.hour === '24' ? 0 : Number(p.hour);
+
+  const comoUTC = Date.UTC(
+    Number(p.year), Number(p.month) - 1, Number(p.day),
+    hora, Number(p.minute), Number(p.second)
+  );
+  return comoUTC - fecha.getTime();
+}
+
+/**
+ * Instante (epoch ms) de la medianoche de Madrid del dia al que pertenece
+ * `fecha`. Es lo que define "hoy" para el limite diario de subidas: si usaramos
+ * UTC, entre medianoche y las 02:00 de Madrid el contador se reiniciaria antes
+ * de tiempo y se podrian colar subidas de mas.
+ */
+function inicioDelDiaMadrid(fecha = new Date()) {
+  const desfase = desfaseZona(fecha);
+  const local = new Date(fecha.getTime() + desfase);
+  const medianocheIngenua = Date.UTC(
+    local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()
+  );
+  // El desfase en la medianoche puede no ser el mismo que ahora (los dias del
+  // cambio de hora), asi que lo recalculamos sobre el instante aproximado.
+  return medianocheIngenua - desfaseZona(new Date(medianocheIngenua - desfase));
+}
+
+/** "HH:MM:SS" -> segundos desde medianoche. Devuelve null si no parsea. */
+function horaASegundos(texto) {
+  const m = String(texto ?? '').trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  const s = Number(m[3] || 0);
+  if (h > 23 || min > 59 || s > 59) return null;
+  return h * 3600 + min * 60 + s;
+}
+
+module.exports = {
+  ESTACIONES,
+  normalizarEstacion,
+  buscarEstacion,
+  construirRuta,
+  distanciaMetros,
+  limpiarTexto,
+  enteroEnRango,
+  exigirAuth,
+  exigirAdmin,
+  inicioDelDiaMadrid,
+  horaASegundos,
+};

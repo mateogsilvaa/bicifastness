@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Politica de cookies | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
+<link rel="stylesheet" href="/assets/css/legal.css">
+</head>
+<body>
+<nav id="nav-principal"></nav>
+<div class="bottom-nav" id="nav-inferior"></div>
+
+<main class="legal">
+  <h1>Politica de cookies</h1>
+  <p class="version">Version 1.0.0 &middot; Ultima actualizacion: 26 de julio de 2026</p>
+
+  <h2>1. Que usamos</h2>
+  <div class="recuadro">
+    <p>
+      <strong>BiciFastness no utiliza cookies publicitarias, de analitica ni de
+      seguimiento.</strong> No hay Google Analytics, ni pixeles de redes sociales,
+      ni perfilado de ningun tipo.
+    </p>
+    <p>
+      Lo unico que guardamos en tu navegador es lo estrictamente necesario para
+      que puedas mantener la sesion iniciada y para recordar si prefieres el modo
+      claro u oscuro.
+    </p>
+  </div>
+
+  <h2>2. Detalle de lo que se almacena</h2>
+  <p>
+    Tecnicamente, la mayor parte no son cookies sino <em>almacenamiento local</em>
+    e <em>IndexedDB</em>, pero se documentan igualmente por transparencia:
+  </p>
+
+  <div class="tabla-scroll">
+    <table>
+      <thead>
+        <tr><th>Nombre</th><th>Tipo</th><th>Finalidad</th><th>Duracion</th><th>Titular</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>firebase:authUser:*</code></td>
+          <td>IndexedDB</td>
+          <td>Mantener tu sesion iniciada para que no tengas que escribir la contrasena en cada visita.</td>
+          <td>Hasta que cierres sesion</td>
+          <td>Propia (Firebase)</td>
+        </tr>
+        <tr>
+          <td><code>firebase-heartbeat-*</code></td>
+          <td>IndexedDB</td>
+          <td>Control interno de versiones del SDK de Firebase.</td>
+          <td>30 dias</td>
+          <td>Propia (Firebase)</td>
+        </tr>
+        <tr>
+          <td><code>firebase-app-check-*</code></td>
+          <td>IndexedDB</td>
+          <td>Testigo de App Check: acredita que la peticion procede de esta web y no de un script automatizado.</td>
+          <td>Sesion</td>
+          <td>Propia (Firebase)</td>
+        </tr>
+        <tr>
+          <td><code>theme</code></td>
+          <td>localStorage</td>
+          <td>Recordar si prefieres el modo claro u oscuro.</td>
+          <td>Persistente</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>bf_cookies_v1</code></td>
+          <td>localStorage</td>
+          <td>Recordar que ya has visto el aviso de cookies para no volver a mostrartelo.</td>
+          <td>Persistente</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>_GRECAPTCHA</code></td>
+          <td>Cookie</td>
+          <td>reCAPTCHA de Google, empleado por App Check para distinguir personas de bots. Es una medida de seguridad, no de seguimiento.</td>
+          <td>6 meses</td>
+          <td>Terceros (Google)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>3. Por que no te pedimos consentimiento previo</h2>
+  <p>
+    El articulo 22.2 de la Ley 34/2002 (LSSI-CE) exime del consentimiento previo a
+    aquellos elementos <strong>estrictamente necesarios para prestar un servicio
+    expresamente solicitado por la persona usuaria</strong>. Todos los elementos
+    de la tabla anterior son tecnicos o de seguridad y encajan en esa excepcion,
+    tal y como interpreta la <em>Guia sobre el uso de las cookies</em> de la
+    Agencia Espanola de Proteccion de Datos.
+  </p>
+  <p>
+    Por eso el aviso que ves al entrar es <strong>informativo</strong> y no
+    bloquea la navegacion: no hay nada que rechazar, porque no cargamos nada
+    opcional.
+  </p>
+  <div class="recuadro">
+    <p>
+      Si en el futuro incorporasemos analitica o cualquier elemento no
+      imprescindible, cambiariamos este aviso por un sistema de consentimiento
+      real, con la opcion de <strong>rechazar tan accesible como la de
+      aceptar</strong> y sin carga previa de nada hasta obtenerlo.
+    </p>
+  </div>
+
+  <h2>4. Como eliminarlos</h2>
+  <p>
+    Puedes borrar el almacenamiento de este sitio desde la configuracion de tu
+    navegador. Ten en cuenta que al hacerlo se cerrara tu sesion y se olvidara tu
+    preferencia de tema.
+  </p>
+  <ul>
+    <li><strong>Chrome:</strong> Configuracion &rarr; Privacidad y seguridad &rarr; Cookies y otros datos de sitios.</li>
+    <li><strong>Firefox:</strong> Ajustes &rarr; Privacidad y seguridad &rarr; Cookies y datos del sitio.</li>
+    <li><strong>Safari:</strong> Ajustes &rarr; Privacidad &rarr; Gestionar datos de sitios web.</li>
+    <li><strong>Edge:</strong> Configuracion &rarr; Cookies y permisos del sitio.</li>
+  </ul>
+
+  <h2>5. Mas informacion</h2>
+  <p>
+    Consulta la <a href="/legal/privacidad/">politica de privacidad</a> para saber
+    como tratamos tus datos personales.
+  </p>
+</main>
+
+<footer id="pie-legal"></footer>
+<script type="module">
+  import { iniciarPagina } from '/assets/js/ui.js';
+  iniciarPagina('');
+</script>
+</body>
+</html>

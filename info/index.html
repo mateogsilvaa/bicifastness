@@ -1,175 +1,142 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-    <title>Info | BiciFastness</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --nav-bg: rgba(10,10,10,0.9); }
-        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --nav-bg: rgba(255,255,255,0.9); }
-        
-        body { margin: 0; padding: 0; padding-bottom: 70px; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; transition: all 0.3s; }
-        
-        /* NAVBAR */
-        nav { background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        nav .brand { color: var(--primary); font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; display: flex; align-items: center; }
-        nav .links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; transition: color 0.3s; }
-        nav .links a:hover, nav .links a.active { color: var(--text-main); }
-        
-        .container { max-width: 800px; margin: 40px auto; padding: 0 20px; }
-        .card { background: var(--bg-card); padding: 2.5rem; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        .card-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px;}
-        .card-header i { font-size: 1.5rem; color: var(--primary); }
-        
-        h2 { color: var(--primary); font-weight: 800; margin: 0; border-bottom: 2px solid var(--border); padding-bottom: 10px; width: 100%;}
-        h3 { color: var(--text-main); font-weight: 700; margin-top: 30px;}
-        p { color: var(--text-muted); line-height: 1.6; }
-        
-        .step-list { list-style: none; padding: 0; }
-        .step-list li { background: var(--bg-main); margin-bottom: 15px; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary); color: var(--text-main); font-weight: 600;}
-        .step-list li span { color: var(--primary); margin-right: 10px; font-size: 1.2rem;}
-
-        .highlight-box { background: rgba(0, 113, 195, 0.1); border: 1px solid var(--primary); padding: 15px; border-radius: 8px; margin-top: 20px;}
-        .highlight-box p:first-child { color: var(--primary); font-weight: 700; margin: 0; }
-        
-        .danger-box { background: rgba(255, 68, 68, 0.1); border: 1px solid #ff4444; padding: 15px; border-radius: 8px; margin-top: 20px;}
-        .danger-box p:first-child { color: #ff4444; font-weight: 700; margin: 0; }
-
-        .support-box h3 { margin-top: 0; display: flex; align-items: center; gap: 10px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;}
-
-        /* CONTACT LINK */
-        .contact-link { color: var(--primary); text-decoration: none; font-weight: 700; transition: color 0.3s; }
-        .contact-link:hover { text-decoration: underline; color: #0099ff; }
-
-        .bottom-nav { display: none; }
-        @media (max-width: 768px) { nav .links { display: none; } .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 1000; justify-content: space-around; padding: 10px 0; padding-bottom: env(safe-area-inset-bottom); } .bottom-nav a { color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; } .bottom-nav a.active { color: var(--primary); } .bottom-nav a i { font-size: 1.4rem; line-height:1; } }
-    </style>
-<link rel="icon" href="../images/logo.png" type="image/png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Como funciona BiciFastness: subida de tiempos, verificacion automatica, rankings y clanes.">
+<title>Como funciona | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
+<style>
+  .container { max-width: 760px; }
+  section { margin-bottom: 36px; }
+  h3 { font-size: 1.05rem; margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
+  h3 i { color: var(--primary); }
+  p, li { line-height: 1.7; color: var(--text-muted); font-size: .92rem; }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  strong { color: var(--text-main); }
+  a { color: var(--primary); }
+  .destacado { background: var(--bg-card); border-left: 4px solid var(--primary); border-radius: var(--radio-s); padding: 16px 20px; }
+  .aviso { background: rgba(255,187,51,.08); border-left: 4px solid var(--aviso); border-radius: var(--radio-s); padding: 16px 20px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .88rem; }
+  th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-main); font-size: .8rem; text-transform: uppercase; }
+  td { color: var(--text-muted); }
+</style>
 </head>
 <body>
-    <nav>
-        <div class="brand">BiciFastness</div>
-        <div class="nav-right">
-            <div class="links">
-                <a href="../home/">Inicio</a>
-                <a href="../ranking/">Rankings</a>
-                <a href="../bicirating/">BiciRating</a>
-                <a href="../mapa/">Mapa</a>
-                <a href="../clanes/">Clanes</a>
-                <a href="../subir/">Subir</a>
-                <a href="../profile/">Perfil</a>
-            </div>
-            <a href="../info/" class="info-icon active" title="Cómo funciona"><i class="fi fi-bs-info"></i></a>
-        </div>
-    </nav>
-    
-    <div class="container">
-        
-        <div class="card">
-            <div class="card-header">
-                <i class="fi fi-sr-stopwatch"></i>
-                <h2>Subir Tiempos y Verificación</h2>
-            </div>
-            <p>BiciFastness es la plataforma definitiva para los reyes del asfalto. Se registran tus viajes en BiciMAD para ver quién domina la ciudad.</p>
-            
-            <ul class="step-list">
-                <li><span>1.</span> Haz tu viaje en BiciMAD.</li>
-                <li><span>2.</span> Abre la app oficial de BiciMAD, entra en tus viajes y haz una <strong>captura de pantalla clara</strong> donde se vean las estaciones, la fecha y el tiempo.</li>
-                <li><span>3.</span> Ve a la sección "Subir" de esta web e introduce los datos del viaje y adjunta la foto.</li>
-            </ul>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+<div class="bottom-nav" id="nav-inferior"></div>
 
-            <div class="highlight-box">
-                <p><i class="fi fi-sr-robot"></i> SOBRE EL BOT VERIFICADOR</p>
-                <p style="margin-top: 5px; font-weight: 400; color: var(--text-main);">Contamos con un <strong>Bot de Inteligencia Artificial (OCR)</strong> que lee las imágenes para evitar trampas. Si tu captura está borrosa, cortada o tiene notificaciones encima, es muy probable que el bot la marque como errónea. ¡Sube fotos limpias!</p>
-            </div>
+<main class="container" id="principal">
+  <h2>Como funciona</h2>
 
-            <div style="margin-top: 25px; padding: 20px; background: var(--bg-main); border-radius: 12px; border: 2px solid var(--primary);">
-                <h3 style="color: var(--primary); margin-top: 0; text-align: center; font-size: 1.1rem;">
-                    <i class="fi fi-sr-image" style="margin-right: 8px;"></i>
-                    IMAGEN PERFECTA - EJEMPLO
-                </h3>
-                <div style="text-align: center; margin: 15px 0;">
-                    <img src="../images/ejemplo.jpg" alt="Ejemplo de captura perfecta" style="max-width: 100%; height: auto; border-radius: 8px; border: 3px solid var(--primary); box-shadow: 0 4px 15px rgba(0, 113, 195, 0.3);">
-                </div>
-                <p style="margin: 15px 0 0 0; font-size: 0.9rem; color: var(--text-muted); text-align: center; font-style: italic;">
-                    Esta es la imagen perfecta que debes subir: clara, sin recortes, sin notificaciones y con todos los datos visibles.
-                </p>
-            </div>
+  <section class="aviso">
+    <h3><i class="fi fi-sr-triangle-warning"></i> Antes de nada: la seguridad manda</h3>
+    <p style="margin: 0;">
+      BiciFastness es un juego sobre calles reales, con trafico real. <strong>No es
+      una invitacion a correr.</strong> Respeta siempre las normas de circulacion,
+      los semaforos, los pasos de peatones y los limites de velocidad. Ningun
+      puesto en un ranking justifica un accidente: si un tiempo solo se consigue
+      saltandose las normas, ese tiempo no vale la pena.
+    </p>
+  </section>
 
-            <div class="danger-box">
-                <p><i class="fi fi-sr-engine-warning"></i> CERO TRAMPAS</p>
-                <p style="margin-top: 5px; font-weight: 400; color: var(--text-main);">Cualquier intento de subir capturas falsas, editadas con Photoshop u otro tipo de trampas resultará en el <strong>baneo permanente</strong> de tu cuenta y la eliminación de todos tus récords.</p>
-            </div>
-        </div>
+  <section>
+    <h3><i class="fi fi-sr-add"></i> Subir un tiempo</h3>
+    <p>
+      Al terminar un trayecto, la app de BiciMAD muestra el resumen con las
+      estaciones, las horas y la duracion. Haz una captura de esa pantalla y
+      subela junto con los datos del viaje.
+    </p>
+  </section>
 
-        <div class="card">
-            <div class="card-header">
-                <i class="fi fi-sr-leaderboard-trophy"></i>
-                <h2>El BiciRating: Tu Nivel Real</h2>
-            </div>
-            <p>El BiciRating no es una puntuación que sube para siempre. Es un <strong>sistema vivo y competitivo</strong> que mide tu habilidad actual. Puedes ganar puntos... y perderlos.</p>
-            
-            <h3>¿Cómo se ganan puntos?</h3>
-            <ul class="step-list">
-                <li><span>Constancia:</span> +5 puntos automáticos por cada viaje verificado que subas.</li>
-                <li><span>Habilidad:</span> Entrar en el Top 7 de cualquier ruta otorga una medalla oculta: <br><strong>1º (80pts) | 2º (65pts) | 3º (55pts) | 4º/5º (35pts) | 6º/7º (20pts)</strong></li>
-            </ul>
-
-            <h3>🔥 Las Rutas Destacadas e Históricas</h3>
-            <p>Cada dos semanas, se destacará una ruta específica. Mientras esté destacada, los puntos de esa ruta <strong>valen el doble (x2)</strong>. Cuando las semanas terminan, la ruta pasa a ser una "Ruta Histórica" y mantendrá un multiplicador de <strong>x1.5 para siempre</strong>. ¡Pelea por esos puntos!</p>
-
-            <div class="danger-box" style="border-color: var(--primary); background: rgba(0, 113, 195, 0.1);">
-                <p style="color: var(--primary);"><i class="fi fi-sr-swords"></i> DEFIENDE TU TRONO</p>
-                <p style="color: var(--text-main); margin-top: 5px; font-weight: 400;">Si estás en el Top 1 de una ruta y alguien hace un tiempo mejor, te empujará a la posición 2. <strong>El sistema restará la diferencia de puntos de tu BiciRating automáticamente.</strong> Tienes que mantenerte rápido para no caer en el ranking global.</p>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <i class="fi fi-sr-map-marker"></i>
-                <h2>Clanes y Territorios</h2>
-            </div>
-            <p>No tienes por qué correr solo. Funda un clan con hasta 5 integrantes y dominad los barrios de Madrid.</p>
-            
-            <ul class="step-list">
-                <li><span>Rating del Clan:</span> Es la suma exacta del BiciRating de todos sus miembros. Si un miembro es expulsado o abandona, se lleva sus puntos consigo.</li>
-                <li><span>Control del Mapa:</span> El mapa de la ciudad está vivo. Las estaciones se pintan del color del clan dominante.</li>
-                <li><span>¿Cómo se conquista?</span> Para dominar una estación, el sistema revisa TODAS las rutas que salen o llegan a ella. Si un miembro de tu clan entra en el Top 10 de esa ruta, suma puntos para la estación (1º suma 7pts, el 2º suma 5pts, etc.). El clan con más puntos sumados en una estación, se la queda.</li>
-            </ul>
-        </div>
-
-        <div class="card support-box">
-            <h3><i class="fi fi-sr-time-fast"></i> Un poco de paciencia</h3>
-            <p>Los tiempos tardan un poco en verificarse. Aunque el Bot ayuda, la validación final tarda para garantizar que los rankings sean 100% justos.</p>
-            
-            <p style="font-weight: 400; font-size: 0.95rem; margin-top: 20px;">Este es un proyecto totalmente independiente creado por y para la comunidad, sin financiación externa ni ningún tipo de apoyo. Los servidores y el mantenimiento cuestan tiempo y dinero.</p>
-            
-            <p style="font-weight: 400; font-size: 0.95rem;">Si te gusta lo que se está haciendo y quieres que la plataforma siga viva, puedes ayudar desde la sección de tu Perfil. Toda ayuda, por pequeña que sea, permite mantener la rueda girando.</p>
-            
-            <div style="margin-top: 25px; padding-top: 15px; border-top: 1px dashed var(--border);">
-                <p style="font-weight: 400; font-size: 0.95rem; margin-bottom: 5px;">¿Tienes alguna duda, problema o sugerencia?</p>
-                <p style="font-weight: 400; font-size: 0.95rem; margin-top: 0;">Escríbenos a: <a href="mailto:bicifastness@gmail.com" class="contact-link">bicifastness@gmail.com</a></p>
-            </div>
-
-            <strong style="display:block; margin-top: 25px; color: var(--primary); font-size: 1.1rem; text-align: center;">¡Nos vemos en las calles!</strong>
-        </div>
-
+  <section>
+    <h3><i class="fi fi-sr-shield-check"></i> Verificacion automatica</h3>
+    <p>Cada captura se analiza en el servidor nada mas subirla. Estas son las comprobaciones que pasa:</p>
+    <ul>
+      <li><strong>Coherencia interna:</strong> la resta entre la hora de llegada y la de salida tiene que dar la duracion del recuadro. Si solo se retoca el numero grande, la resta lo delata.</li>
+      <li><strong>Coincidencia con lo declarado:</strong> las estaciones y el tiempo leidos en la imagen se comparan con lo que has escrito en el formulario.</li>
+      <li><strong>Plausibilidad fisica:</strong> se calcula la distancia real entre las dos estaciones y la velocidad media que implica tu tiempo. Las BiciMAD cortan la asistencia a 25 km/h, asi que hay un suelo de tiempo que ningun trayecto puede bajar.</li>
+      <li><strong>Integridad de la imagen:</strong> se examina el renderizado del texto para detectar cifras superpuestas y se revisan los metadatos en busca de rastros de editores.</li>
+      <li><strong>Reutilizacion:</strong> se guarda una huella de cada captura. La misma imagen no se puede usar dos veces, ni recortandola, ni reescalandola, ni volviendola a comprimir.</li>
+    </ul>
+    <div class="destacado">
+      <p style="margin: 0;">
+        Si todo cuadra, tu tiempo entra al ranking <strong>al instante</strong>. Si
+        hay algo raro pero no concluyente, pasa a revision humana. Solo se rechaza
+        en automatico lo que es demostrablemente imposible o falso.
+      </p>
     </div>
+  </section>
 
-    <div class="bottom-nav">
-        <a href="../home/"><i class="fi fi-sr-home"></i>Inicio</a>
-        <a href="../ranking/"><i class="fi fi-sr-leaderboard"></i>Rankings</a>
-        <a href="../bicirating/"><i class="fi fi-ss-medal"></i>Rating</a>
-        <a href="../subir/"><i class="fi fi-sr-add"></i>Subir</a>
-        <a href="../mapa/"><i class="fi fi-ss-map-marker"></i>Mapa</a>
-        <a href="../clanes/"><i class="fi fi-sr-team-check-alt"></i>Clanes</a>
-        <a href="../profile/"><i class="fi fi-sr-user"></i>Perfil</a>
-    </div>
+  <section>
+    <h3><i class="fi fi-sr-ranking-star"></i> Puntuacion</h3>
+    <p>De cada ruta solo cuenta tu mejor tiempo verificado.</p>
+    <table>
+      <thead><tr><th>Concepto</th><th>Puntos</th></tr></thead>
+      <tbody>
+        <tr><td>Cada viaje verificado</td><td>5</td></tr>
+        <tr><td>1.&ordm; de una ruta</td><td>80</td></tr>
+        <tr><td>2.&ordm; de una ruta</td><td>65</td></tr>
+        <tr><td>3.&ordm; de una ruta</td><td>55</td></tr>
+        <tr><td>4.&ordm; y 5.&ordm;</td><td>35</td></tr>
+        <tr><td>6.&ordm; y 7.&ordm;</td><td>20</td></tr>
+        <tr><td>Ruta destacada de la temporada</td><td>puntos &times;2</td></tr>
+        <tr><td>Rutas que ya fueron destacadas</td><td>puntos &times;1,5</td></tr>
+      </tbody>
+    </table>
+  </section>
 
-    <script>
-        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
-    </script>
+  <section>
+    <h3><i class="fi fi-sr-team-check-alt"></i> Clanes y territorio</h3>
+    <p>
+      Puedes fundar un clan o pedir entrar en uno. En cada ruta, los diez mejores
+      tiempos reparten puntos entre los clanes de sus pilotos, y el clan con mas
+      puntos en una estacion la <strong>domina</strong>: se pinta de su color en el mapa.
+    </p>
+  </section>
+
+  <section>
+    <h3><i class="fi fi-sr-flag"></i> Reportes</h3>
+    <p>
+      Si un tiempo te parece imposible, puedes reportarlo desde el ranking. Los
+      reportes estan limitados y quedan registrados: denunciar en falso de forma
+      repetida puede suponer la suspension de la cuenta.
+    </p>
+  </section>
+
+  <section>
+    <h3><i class="fi fi-sr-document"></i> Tus datos y tus derechos</h3>
+    <p>
+      Desde <a href="/profile/">tu perfil</a> puedes descargar todo lo que
+      guardamos sobre ti o eliminar tu cuenta. Consulta la
+      <a href="/legal/privacidad/">Politica de Privacidad</a> y los
+      <a href="/legal/terminos/">Terminos de Uso</a>.
+    </p>
+  </section>
+
+  <section>
+    <h3><i class="fi fi-sr-info"></i> Sobre BiciMAD</h3>
+    <p>
+      BiciFastness es un proyecto independiente hecho por aficionados.
+      <strong>No tiene ninguna relacion, patrocinio ni respaldo de BiciMAD, de la
+      EMT de Madrid ni del Ayuntamiento de Madrid.</strong> "BiciMAD" es una marca
+      de sus titulares y se menciona aqui unicamente para describir el servicio
+      publico al que se refieren los tiempos.
+    </p>
+  </section>
+</main>
+
+<footer id="pie-legal"></footer>
+
+<script type="module">
+  import { iniciarPagina } from '/assets/js/ui.js';
+  iniciarPagina('info');
+</script>
 </body>
 </html>

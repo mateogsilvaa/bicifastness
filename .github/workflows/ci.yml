@@ -1,0 +1,93 @@
+name: Tests y despliegue
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Regenerar datos compartidos
+        run: node scripts/build-estaciones.js
+
+      # Si los ficheros generados no coinciden con sus fuentes, alguien ha
+      # editado a mano un fichero generado y el frontend y el backend van a
+      # divergir.
+      - name: Comprobar que los datos generados estan al dia
+        run: git diff --exit-code assets/data backend/lib
+
+      - name: Instalar utillaje
+        run: npm install --no-audit --no-fund
+
+      # Detecta variables fuera de ambito en el JavaScript incrustado en las
+      # paginas, que es codigo que ninguna otra herramienta del proyecto mira.
+      - name: Analisis estatico
+        run: npm run lint
+
+      # Enlaces e imports rotos: el HTML sigue siendo valido y los tests pasan,
+      # asi que sin esto se cuelan al mover ficheros de sitio.
+      - name: Validar paginas
+        run: npm run validar
+
+      - name: Instalar dependencias del worker
+        working-directory: backend
+        run: npm ci
+
+      - name: Tests
+        working-directory: backend
+        run: npm test
+
+  desplegar:
+    needs: tests
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Regenerar datos compartidos
+        run: node scripts/build-estaciones.js
+
+      # Despliega el sitio estatico y las reglas de seguridad. En el plan Spark
+      # esto es gratis: Hosting y Firestore entran en la cuota sin coste.
+      - name: Desplegar en Firebase Hosting
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/cuenta-servicio.json
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          MANTENIMIENTO: ${{ vars.MANTENIMIENTO }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "Sin FIREBASE_SERVICE_ACCOUNT: me salto el despliegue."
+            exit 0
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > cuenta-servicio.json
+          npm install -g firebase-tools
+
+          # Con MANTENIMIENTO=true se publica SOLO la pagina de obras. El resto
+          # del sitio no se sube, asi que ninguna URL antigua sigue accesible:
+          # Firebase sirve primero el fichero estatico que exista, de modo que
+          # un rewrite por si solo no bastaria para ocultar /home/ o /admin/.
+          if [ "$MANTENIMIENTO" = "true" ]; then
+            echo "::notice::Modo mantenimiento: se publica solo la pagina de obras."
+            firebase deploy --only hosting \
+              --config firebase.mantenimiento.json \
+              --project bicifastness --non-interactive
+          else
+            firebase deploy \
+              --only hosting,firestore:rules,firestore:indexes \
+              --project bicifastness --non-interactive
+          fi
+
+          rm -f cuenta-servicio.json

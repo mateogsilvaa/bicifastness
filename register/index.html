@@ -1,127 +1,193 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-    <title>Registro | BiciFastness</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-        :root { --bg-main: #121212; --bg-card: #1a1a1a; --text-main: #f1efeb; --text-muted: #888; --border: #333; --primary: #0071c3; --primary-hover: #005a9e; }
-        [data-theme="light"] { --bg-main: #f0f2f5; --bg-card: #ffffff; --text-main: #111; --text-muted: #555; --border: #ddd; --primary: #0071c3; --primary-hover: #005a9e; }
-        body { margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: background 0.3s, color 0.3s; }
-        .card { background: var(--bg-card); padding: 2.5rem 2rem; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 100%; max-width: 350px; text-align: center; box-sizing: border-box;}
-        h1 { color: var(--primary); margin-top: 0; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
-        h3 { margin-top: 0; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; margin: 8px 0; background: var(--bg-main); border: 1px solid var(--border); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-family: inherit; transition: border 0.3s; }
-        input:focus { border-color: var(--primary); outline: none; }
-        button { width: 100%; padding: 14px; margin-top: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.3s, transform 0.1s; }
-        button:active { transform: scale(0.98); }
-        button:disabled { opacity: 0.6; cursor: not-allowed; }
-        .toggle { margin-top: 20px; font-size: 0.85em; }
-        .toggle a { color: var(--text-muted); text-decoration: none; font-weight: 600; transition: color 0.3s; }
-        .toggle a:hover { color: var(--primary); }
-        .guest-link { margin-top: 15px; display: block; font-size: 0.9em; font-weight: 700; color: var(--primary); text-decoration: none; padding: 10px; border: 1px solid var(--border); border-radius: 8px; transition: 0.2s;}
-        .guest-link:hover { background: rgba(0, 113, 195, 0.1); border-color: var(--primary);}
-        #error-msg { color: #ff4444; font-size: 0.85em; margin-top: 10px; min-height: 20px; font-weight: 600; }
-    </style>
-<link rel="icon" href="../images/logo.png" type="image/png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crear cuenta | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
+<style>
+  body { justify-content: center; align-items: center; padding: 20px 0; }
+  .card { width: 100%; max-width: 380px; text-align: center; }
+  h1 { font-size: 1.5rem; color: var(--text-main); margin: 0 0 4px; letter-spacing: .01em; font-stretch: 88%; }
+  h2.sub { border: none; color: var(--text-tenue); font-family: var(--fuente-mono); font-weight: 500; font-size: .66rem; text-transform: uppercase; letter-spacing: .2em; margin: 0 0 22px; display: block; padding: 0; }
+  h2.sub::before { display: none; }
+  input { margin: 8px 0; text-align: left; }
+  .pista { font-size: .75rem; color: var(--text-muted); text-align: left; margin: -4px 0 8px; min-height: 16px; }
+  .pista.mal { color: var(--error); }
+  .legal { text-align: left; font-size: .8rem; color: var(--text-muted); margin: 18px 0 4px; line-height: 1.5; }
+  .legal label { display: flex; gap: 10px; align-items: flex-start; text-transform: none; font-size: .8rem; font-weight: 400; color: var(--text-muted); margin-bottom: 10px; cursor: pointer; }
+  .legal input[type=checkbox] { width: 18px; height: 18px; margin: 2px 0 0; flex-shrink: 0; accent-color: var(--primary); }
+  .legal a { color: var(--primary-claro); font-weight: 600; }
+  .legal input[type=checkbox] { accent-color: var(--primary); }
+  .enlace { display: block; margin-top: 15px; font-size: .85rem; color: var(--text-muted); text-decoration: none; font-weight: 600; }
+  .enlace:hover { color: var(--primary); }
+  #pie-legal { border: none; margin-top: 24px; padding: 0; }
+</style>
 </head>
 <body>
-    <div class="card">
-        <h1>BiciFastness</h1>
-        <h3>Crear Cuenta</h3>
-        <input type="text" id="username" placeholder="Nombre de usuario (Rider)">
-        <input type="email" id="email" placeholder="Correo electrónico">
-        <input type="password" id="password" placeholder="Contraseña (mín. 6 chars)">
-        <input type="password" id="confirm-password" placeholder="Repite contraseña">
-        <button id="register-btn">Empezar a competir</button>
-        <div id="error-msg"></div>
-        <div class="toggle"><a href="../">¿Ya tienes cuenta? Inicia sesión</a></div>
-        <a href="../home/" class="guest-link">👀 Explorar sin cuenta</a>
+<main class="card">
+  <h1>BiciFastness</h1>
+  <h2 class="sub">Crear cuenta</h2>
+
+  <form id="form-registro" novalidate>
+    <label class="solo-lectores" for="username">Nombre de piloto</label>
+    <input type="text" id="username" placeholder="Nombre de piloto" autocomplete="nickname"
+           minlength="3" maxlength="24" required>
+    <p class="pista" id="pista-username"></p>
+
+    <label class="solo-lectores" for="email">Correo electronico</label>
+    <input type="email" id="email" placeholder="Correo electronico" autocomplete="email" required>
+
+    <label class="solo-lectores" for="password">Contrasena</label>
+    <input type="password" id="password" placeholder="Contrasena (minimo 8 caracteres)"
+           autocomplete="new-password" minlength="8" required>
+    <p class="pista" id="pista-password"></p>
+
+    <label class="solo-lectores" for="password2">Repite la contrasena</label>
+    <input type="password" id="password2" placeholder="Repite la contrasena"
+           autocomplete="new-password" required>
+
+    <!-- Consentimiento explicito, separado y sin marcar por defecto: es lo que
+         exige el RGPD (art. 7) para poder acreditarlo despues. -->
+    <div class="legal">
+      <label>
+        <input type="checkbox" id="acepta-terminos">
+        <span>He leido y acepto los <a href="/legal/terminos/" target="_blank" rel="noopener">Terminos de Uso</a>.</span>
+      </label>
+      <label>
+        <input type="checkbox" id="acepta-privacidad">
+        <span>He leido la <a href="/legal/privacidad/" target="_blank" rel="noopener">Politica de Privacidad</a> y acepto el tratamiento de mis datos descrito en ella.</span>
+      </label>
+      <label>
+        <input type="checkbox" id="acepta-edad">
+        <span>Confirmo que tengo 14 anos o mas.</span>
+      </label>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        import PocketBase from 'https://cdn.jsdelivr.net/npm/pocketbase@0.22.0/+esm';
-        import { containsBadWords } from '../badwords.js';
+    <button type="submit" id="btn-registro">Empezar a competir</button>
+  </form>
 
-        const pb = new PocketBase('https://vicinity-unfrozen-washout.ngrok-free.dev');
-        
-        // Pase VIP para saltar advertencia de Ngrok
-        pb.beforeSend = function (url, options) {
-            options.headers = Object.assign({}, options.headers, {
-                'ngrok-skip-browser-warning': 'true'
-            });
-            return { url, options };
-        };
-        const firebaseConfig = { apiKey: "AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk", authDomain: "bicifastness.firebaseapp.com", projectId: "bicifastness", messagingSenderId: "656116731421", appId: "1:656116731421:web:a4154d028fe9721c5800f4" };
-        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
+  <p class="mensaje" id="mensaje"></p>
 
-        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
-        let isRegistering = false;
+  <a href="/entrar/" class="enlace">Ya tengo cuenta. Iniciar sesion</a>
+  <a href="/home/" class="enlace">Explorar sin cuenta</a>
 
-        onAuthStateChanged(auth, (user) => { 
-            if (user && !isRegistering) window.location.href = "../home/"; 
-        });
+  <footer id="pie-legal"></footer>
+</main>
 
-        const btn = document.getElementById('register-btn');
-        const errorMsg = document.getElementById('error-msg');
+<script type="module">
+  import {
+    auth, onAuthStateChanged, createUserWithEmailAndPassword,
+    sendEmailVerification, traducirErrorAuth,
+  } from '/assets/js/firebase.js';
+  import { aplicarTema, montarPieLegal, montarAvisoCookies } from '/assets/js/ui.js';
+  import { id, estado } from '/assets/js/dom.js';
+  import { PALABRAS_PROHIBIDAS } from '/assets/data/palabras-prohibidas.js';
+  import { crearPerfil } from '/assets/js/acciones.js';
 
-        btn.addEventListener('click', async () => {
-            const username = document.getElementById('username').value.trim();
-            const email = document.getElementById('email').value.trim().toLowerCase();
-            const pass = document.getElementById('password').value;
-            const confirmPass = document.getElementById('confirm-password').value;
-            
-            errorMsg.innerText = "";
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if(!username || !email || !pass || !confirmPass) { errorMsg.innerText = "Rellena todos los campos."; return; }
-            if (!emailRegex.test(email)) { errorMsg.innerText = "Correo no válido."; return; }
-            if (username.length < 3 || username.length > 24) { errorMsg.innerText = "El nombre debe tener entre 3 y 24 caracteres."; return; }
-            if (!/^[\p{L}\p{N}_\-\s]+$/u.test(username)) { errorMsg.innerText = "El nombre contiene caracteres no válidos."; return; }
-            if (pass.length < 6 || pass.length > 128) { errorMsg.innerText = "La contraseña no cumple requisitos."; return; }
-            if(pass !== confirmPass) { errorMsg.innerText = "Las contraseñas no coinciden."; return; }
-            if (containsBadWords(username)) { errorMsg.innerText = "El nombre de usuario contiene palabras no permitidas."; return; }
+  aplicarTema();
+  montarPieLegal();
+  montarAvisoCookies();
 
-            try {
-                btn.innerText = "Creando..."; btn.disabled = true;
-                isRegistering = true; 
-                
-                const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=0071c3`;
-                
-                // 1. Auth con Firebase
-                await createUserWithEmailAndPassword(auth, email, pass);
-                
-                // 2. Auth con PocketBase y Write Dual
-                await pb.collection('usuarios').create({
-                    email: email,
-                    password: pass,
-                    passwordConfirm: pass,
-                    username: username,
-                    avatar: avatarUrl,
-                    isAdmin: false
-                });
-                await pb.collection('usuarios').authWithPassword(email, pass);
+  const mensaje = id('mensaje');
+  const boton = id('btn-registro');
+  let registrando = false;
 
-                // 3. Backup en Firestore
-                await setDoc(doc(db, "usuarios", email), {
-                    username: username,
-                    email: email,
-                    isAdmin: false,
-                    avatar: avatarUrl
-                });
-                
-                window.location.href = "../home/";
-            } catch (error) {
-                isRegistering = false; 
-                btn.disabled = false; btn.innerText = "Empezar a competir";
-                if(error.code === 'auth/email-already-in-use') errorMsg.innerText = "Correo ya registrado.";
-                else errorMsg.innerText = "Error: " + (error.message || "Error conectando a PB");
-            }
-        });
-    </script>
+  onAuthStateChanged(auth, (usuario) => {
+    if (usuario && !registrando) window.location.replace('/home/');
+  });
+
+  // Misma normalizacion que en el servidor: lista y entrada, los dos lados.
+  const normalizar = (t) => String(t ?? '').toLowerCase().normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '').replace(/[\s\-_.]+/g, '');
+  const PROHIBIDAS = [...new Set(PALABRAS_PROHIBIDAS.map(normalizar))].filter(Boolean);
+
+  /**
+   * Validacion en el cliente: sirve para dar respuesta inmediata, NO para
+   * proteger nada. El servidor vuelve a comprobarlo todo en completarRegistro.
+   */
+  function validarNombre(valor) {
+    const nombre = valor.trim();
+    if (nombre.length < 3) return 'Minimo 3 caracteres.';
+    if (nombre.length > 24) return 'Maximo 24 caracteres.';
+    if (!/^[\p{L}\p{N}_\- ]+$/u.test(nombre)) return 'Solo letras, numeros, guion y espacio.';
+    const limpio = normalizar(nombre);
+    if (PROHIBIDAS.some((p) => limpio.includes(p))) return 'Ese nombre no esta permitido.';
+    return null;
+  }
+
+  function validarClave(clave) {
+    if (clave.length < 8) return 'Minimo 8 caracteres.';
+    if (clave.length > 128) return 'Demasiado larga.';
+    // Las listas de contrasenas filtradas empiezan siempre por estas.
+    const obvias = ['12345678', 'password', 'contrasena', 'qwertyui', 'bicimad1', '11111111'];
+    if (obvias.some((o) => clave.toLowerCase().includes(o))) return 'Esa contrasena es demasiado facil de adivinar.';
+    return null;
+  }
+
+  const pistaUsuario = id('pista-username');
+  id('username').addEventListener('input', (e) => {
+    const error = e.target.value ? validarNombre(e.target.value) : null;
+    pistaUsuario.textContent = error || '';
+    pistaUsuario.className = `pista${error ? ' mal' : ''}`;
+    e.target.setAttribute('aria-invalid', error ? 'true' : 'false');
+  });
+
+  const pistaClave = id('pista-password');
+  id('password').addEventListener('input', (e) => {
+    const error = e.target.value ? validarClave(e.target.value) : null;
+    pistaClave.textContent = error || '';
+    pistaClave.className = `pista${error ? ' mal' : ''}`;
+    e.target.setAttribute('aria-invalid', error ? 'true' : 'false');
+  });
+
+  id('form-registro').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+
+    const username = id('username').value.trim();
+    const email = id('email').value.trim().toLowerCase();
+    const clave = id('password').value;
+    const clave2 = id('password2').value;
+
+    const fallo = validarNombre(username)
+      || (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? 'El correo no es valido.' : null)
+      || validarClave(clave)
+      || (clave !== clave2 ? 'Las contrasenas no coinciden.' : null)
+      || (!id('acepta-terminos').checked ? 'Debes aceptar los Terminos de Uso.' : null)
+      || (!id('acepta-privacidad').checked ? 'Debes aceptar la Politica de Privacidad.' : null)
+      || (!id('acepta-edad').checked ? 'Debes confirmar que tienes 14 anos o mas.' : null);
+
+    if (fallo) { estado(mensaje, fallo, 'error'); return; }
+
+    boton.disabled = true;
+    boton.textContent = 'Creando cuenta...';
+    estado(mensaje, '');
+    registrando = true;
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, clave);
+
+      // El perfil lo crea el servidor. Antes lo escribia el navegador con
+      // `isAdmin: false` en el objeto, lo que dejaba claro que ese campo era
+      // manipulable desde el cliente: bastaba con enviarlo a true.
+      await crearPerfil({ username, email });
+
+      await sendEmailVerification(auth.currentUser).catch(() => {});
+      window.location.replace('/home/');
+    } catch (error) {
+      registrando = false;
+      boton.disabled = false;
+      boton.textContent = 'Empezar a competir';
+
+      // Si Auth creo la cuenta pero el perfil fallo, la dejamos utilizable:
+      // al volver a entrar se reintenta el alta del perfil.
+      const texto = error.code ? traducirErrorAuth(error) : error.message;
+      estado(mensaje, texto, 'error');
+    }
+  });
+</script>
 </body>
 </html>

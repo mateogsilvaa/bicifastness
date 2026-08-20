@@ -28,7 +28,28 @@
   </div>
   <p class="mensaje" id="msg-avatar" aria-live="polite"></p>
 
-  <!-- Cifras -->
+  <!--
+    Los tres modos, cada uno con su cifra. Es lo que hace que cada quien sepa en
+    que es bueno en vez de mirar un solo numero y sentirse mediocre.
+  -->
+  <div class="rejilla tres seccion">
+    <div class="bloque">
+      <p class="etiqueta">Sprint</p>
+      <p class="cifra" id="modo-sprint" style="margin: 0;">0</p>
+      <p class="clan">puntos por tramo</p>
+    </div>
+    <div class="bloque">
+      <p class="etiqueta">Fondo</p>
+      <p class="cifra" id="modo-fondo" style="margin: 0;">0</p>
+      <p class="clan">kilometros</p>
+    </div>
+    <div class="bloque">
+      <p class="etiqueta">Constancia</p>
+      <p class="cifra" id="modo-constancia" style="margin: 0;">0</p>
+      <p class="clan" id="racha-actual">mejor racha</p>
+    </div>
+  </div>
+
   <div class="rejilla tres seccion">
     <div class="bloque">
       <p class="etiqueta">BiciRating</p>
@@ -43,6 +64,8 @@
       <p class="cifra" id="verificados" style="margin: 0;">0</p>
     </div>
   </div>
+
+  <div id="temporadas" class="seccion"></div>
 
   <section class="seccion">
     <h2 class="h2">Insignias</h2>

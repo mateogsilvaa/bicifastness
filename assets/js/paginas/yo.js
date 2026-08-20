@@ -46,6 +46,72 @@ async function cargarPerfil() {
   // Activados salvo que se hayan apagado a proposito: `undefined` significa que
   // nunca se ha tocado la preferencia, no que este desactivada.
   id('avisos-correo').checked = perfil.avisosCorreo !== false;
+
+  pintarModos(perfil);
+  await cargarTemporadas();
+}
+
+/**
+ * Las tres cifras de los modos.
+ *
+ * Se calculan aqui, del propio documento del usuario, y no se leen de un
+ * agregado: el agregado solo trae a quien puntua, y quien acaba de empezar no
+ * sale en ninguno. Verse con ceros propios es mejor que no verse.
+ */
+function pintarModos(perfil) {
+  const sprint = Object.values(perfil.puntosPorRuta || {}).reduce((t, p) => t + p, 0);
+
+  id('modo-sprint').textContent = String(sprint);
+  id('modo-fondo').textContent = ((perfil.metrosTotales || 0) / 1000).toFixed(1);
+  id('modo-constancia').textContent = String(perfil.mejorRacha || 0);
+
+  // La racha viva importa mas que la mejor historica cuando esta activa: es la
+  // que se puede perder hoy.
+  const viva = perfil.racha || 0;
+  id('racha-actual').textContent = viva > 0
+    ? `mejor racha · ${viva} ${viva === 1 ? 'dia' : 'dias'} ahora`
+    : 'mejor racha';
+}
+
+/**
+ * Historial de temporadas cerradas.
+ *
+ * Vive en una subcoleccion del propio usuario, asi que se borra con su cuenta
+ * sin tener que ir a buscarlo a otro sitio.
+ */
+async function cargarTemporadas() {
+  const destino = id('temporadas');
+
+  try {
+    const snap = await getDocs(collection(db, 'usuarios', usuario.uid, 'temporadas'));
+    if (snap.empty) { reemplazar(destino, el('div', {})); return; }
+
+    const filas = snap.docs
+      .map((d) => d.data())
+      .sort((a, b) => String(b.temporada).localeCompare(String(a.temporada)));
+
+    reemplazar(destino,
+      el('h2', { clase: 'h2', texto: 'Temporadas anteriores' }),
+      el('div', { clase: 'tabla-scroll' }, [
+        el('table', { clase: 'tabla' }, [
+          el('thead', {}, [el('tr', {}, [
+            el('th', { texto: 'Temporada', attrs: { scope: 'col' } }),
+            el('th', { texto: 'Puesto', clase: 'col-marca', attrs: { scope: 'col' } }),
+            el('th', { texto: 'Puntos', clase: 'col-fecha', attrs: { scope: 'col' } }),
+          ])]),
+          el('tbody', {}, filas.map((t) => el('tr', {}, [
+            el('th', { texto: t.temporada, attrs: { scope: 'row' }, clase: 'nombre' }),
+            el('td', { clase: 'col-marca' }, [
+              el('span', { clase: 'marca', texto: t.posicion ? `${t.posicion}` : '—' }),
+            ]),
+            el('td', { clase: 'col-fecha menor apagado', texto: String(t.puntos || 0) }),
+          ]))),
+        ]),
+      ]));
+  } catch (error) {
+    console.debug('No se han podido cargar las temporadas', error);
+    reemplazar(destino, el('div', {}));
+  }
 }
 
 async function cargarHistorial() {

@@ -748,6 +748,32 @@ test('el cierre de temporada no borra lo conseguido', () => {
     'se estan borrando totales historicos');
 });
 
+test('el historial de temporadas lo lee su dueño', () => {
+  // Las subcolecciones NO heredan las reglas del padre: sin bloque propio, esto
+  // cae en el cierre por defecto y ni su dueño puede leerlo.
+  const bloque = REGLAS.slice(REGLAS.indexOf('match /usuarios/{uid}/temporadas/'));
+  const hasta = bloque.slice(0, bloque.indexOf('match /', 10));
+
+  assert.match(hasta, /allow read: if esYo\(uid\) \|\| esAdmin\(\)/);
+  assert.match(hasta, /allow write: if false/, 'el usuario podria falsear su historial');
+});
+
+test('hay un ranking por cada modo del juego', () => {
+  // Que existan por separado es lo que hace que un fondista se vea primero en
+  // Fondo aunque este el ultimo en Sprint. Sin eso, el juego vuelve a ser solo
+  // de velocistas.
+  const codigo = leerCodigo('backend/src/agregados.js');
+  for (const modo of ['general', 'sprint', 'fondo', 'constancia']) {
+    assert.match(codigo, new RegExp(`${modo}: \{`), `falta el modo ${modo}`);
+  }
+
+  // Y la pantalla los ofrece los cuatro.
+  const pagina = leer('clasificacion/index.html');
+  for (const modo of ['general', 'sprint', 'fondo', 'constancia']) {
+    assert.match(pagina, new RegExp(`value="${modo}"`), `la pantalla no ofrece ${modo}`);
+  }
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

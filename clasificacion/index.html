@@ -39,7 +39,21 @@
 
   <!-- PILOTOS -->
   <section id="panel-pilotos" role="tabpanel" aria-labelledby="tab-pilotos" class="oculto">
-    <p class="menor apagado">Suma de los puntos de cada piloto en todas sus rutas.</p>
+    <!--
+      Los tres modos del juego. Existen para que un fondista se vea primero en
+      Fondo aunque este el ultimo en Sprint: es lo que hace que el juego no sea
+      solo de velocistas.
+    -->
+    <div class="campo" style="max-width: 440px;">
+      <label for="selector-modo">Modo</label>
+      <select id="selector-modo">
+        <option value="general">General &mdash; suma de todo</option>
+        <option value="sprint">Sprint &mdash; puntos por tramo</option>
+        <option value="fondo">Fondo &mdash; kilometros</option>
+        <option value="constancia">Constancia &mdash; mejor racha</option>
+      </select>
+    </div>
+    <p class="menor apagado" id="explica-modo"></p>
     <p class="mensaje" id="msg-pilotos" aria-live="polite"></p>
     <div id="tabla-pilotos"></div>
   </section>

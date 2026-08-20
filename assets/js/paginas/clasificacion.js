@@ -23,6 +23,23 @@ iniciarPagina('clasificacion');
 
 const PESTANAS = ['rutas', 'pilotos', 'clanes'];
 
+/**
+ * Que mide cada modo y con que unidad.
+ *
+ * La unidad importa: "120" no dice nada, "120 km" si. Y la explicacion evita
+ * que alguien mire Sprint pensando que es el ranking general y se crea ultimo.
+ */
+const MODOS = {
+  general: { unidad: '', columna: 'BiciRating', extra: 'Viajes',
+    explica: 'Todo lo que has sumado: distancia, velocidad, constancia y puestos en tramos.' },
+  sprint: { unidad: '', columna: 'Puntos', extra: 'Tramos',
+    explica: 'Solo los puntos por posicion en los tramos. Premia ir rapido.' },
+  fondo: { unidad: ' km', columna: 'Kilometros', extra: 'Viajes',
+    explica: 'Kilometros recorridos. Premia usar la bici, no correr.' },
+  constancia: { unidad: ' dias', columna: 'Mejor racha', extra: 'Racha actual',
+    explica: 'La racha mas larga que has mantenido. Premia aparecer.' },
+};
+
 /** Agregados ya pedidos, para no volver a pedirlos al cambiar de pestaña. */
 const cache = new Map();
 
@@ -168,14 +185,20 @@ async function pintarRuta(ruta) {
 
 async function pintarPilotos() {
   const destino = id('tabla-pilotos');
+  const modo = id('selector-modo').value || 'general';
+  const config = MODOS[modo];
+
+  id('explica-modo').textContent = config.explica;
   reemplazar(destino, esqueleto());
 
-  const agregado = await traer('ranking-pilotos');
+  const agregado = await traer(`ranking-${modo}`);
 
   if (!agregado || !agregado.filas?.length) {
     reemplazar(destino, vacio(
-      'Todavia no hay pilotos con puntos',
-      'Los puntos salen de los trayectos verificados.'));
+      'Todavia no hay nadie en esta tabla',
+      modo === 'constancia'
+        ? 'Las rachas empiezan con el primer trayecto verificado.'
+        : 'Los puntos salen de los trayectos verificados.'));
     avisarSiFallo('pilotos');
     return;
   }
@@ -186,14 +209,14 @@ async function pintarPilotos() {
         cabecera([
           { texto: 'Pos', clase: 'col-puesto' },
           { texto: 'Piloto' },
-          { texto: 'BiciRating', clase: 'col-marca' },
-          { texto: 'Viajes', clase: 'col-fecha' },
+          { texto: config.columna, clase: 'col-marca' },
+          { texto: config.extra, clase: 'col-fecha' },
         ]),
         el('tbody', {}, agregado.filas.map((f) => fila({
           pos: f.pos,
           nombre: f.nombre,
           debajo: f.clan,
-          marca: String(f.puntos),
+          marca: `${f.puntos}${config.unidad}`,
           extra: String(f.viajes ?? ''),
           esRecord: f.pos === 1,
         }))),
@@ -263,6 +286,13 @@ for (const p of PESTANAS) {
   id(`tab-${p}`).addEventListener('click', () => mostrar(p));
 }
 
+id('selector-modo').addEventListener('change', (evento) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('modo', evento.target.value);
+  window.history.replaceState({}, '', url);
+  pintarPilotos();
+});
+
 id('selector-ruta').addEventListener('change', (evento) => {
   const ruta = evento.target.value;
   const url = new URL(window.location.href);
@@ -303,6 +333,9 @@ async function cargar() {
       'Apareceran en cuanto se verifique el primer trayecto.'));
     avisarSiFallo('rutas');
   }
+
+  const modo = parametros.get('modo');
+  if (modo && MODOS[modo]) id('selector-modo').value = modo;
 
   mostrar(parametros.get('tab') || 'rutas', { recordar: false });
 }

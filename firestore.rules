@@ -104,6 +104,18 @@ service cloud.firestore {
     // Peticiones de borrado de cuenta (RGPD art. 17).
     // Borrar el usuario de Firebase Auth exige el Admin SDK, que en el navegador
     // no existe: el piloto deja la peticion aqui y el worker la ejecuta.
+    // Historial de temporadas cerradas. Las subcolecciones NO heredan las
+    // reglas del documento padre, asi que sin este bloque caeria en el cierre
+    // por defecto y ni su dueño podria leerlo.
+    //
+    // Vive colgando del usuario a proposito: asi se borra con su cuenta, sin
+    // tener que acordarse de ir a limpiarlo a otro sitio.
+    match /usuarios/{uid}/temporadas/{temporada} {
+      allow read: if esYo(uid) || esAdmin();
+      // Lo escribe el worker al cerrar la temporada.
+      allow write: if false;
+    }
+
     match /solicitudes_borrado/{uid} {
       allow read: if esYo(uid) || esAdmin();
       allow create: if esYo(uid)

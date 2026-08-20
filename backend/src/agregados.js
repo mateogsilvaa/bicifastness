@@ -88,20 +88,59 @@ async function escribirAgregado(nombre, filas, extra = {}) {
 async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones = new Map() }) {
   const escritos = {};
 
-  // --- Pilotos ---------------------------------------------------------------
-  const pilotos = usuarios
-    .filter((u) => (u.biciRating || 0) > 0)
-    .sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0))
-    .map((u, i) => ({
-      pos: i + 1,
-      nombre: u.username || 'Piloto',
-      avatar: u.avatarUrl || null,
-      clan: u.clanId || null,
-      puntos: u.biciRating || 0,
-      viajes: u.viajesVerificados || 0,
-    }));
+  // --- Pilotos, por modo -----------------------------------------------------
+  //
+  // Los tres modos de docs/JUEGO.md. Que existan por separado es el cambio que
+  // hace que el juego deje de ser solo de velocistas: un fondista se ve primero
+  // en Fondo aunque este el ultimo en Sprint, y por eso se queda.
+  //
+  // El de la pestaña "Pilotos" del diseño es el general; los otros tres son un
+  // filtro dentro de esa misma pestaña.
+  const MODOS = {
+    general: {
+      // Suma de todo: es el numero publico del piloto.
+      valor: (u) => u.biciRating || 0,
+      extra: (u) => u.viajesVerificados || 0,
+    },
+    sprint: {
+      // Solo los puntos por posicion en tramos: premia el tiempo.
+      valor: (u) => Object.values(u.puntosPorRuta || {}).reduce((t, p) => t + p, 0),
+      extra: (u) => Object.keys(u.puntosPorRuta || {}).length,
+    },
+    fondo: {
+      // Kilometros, redondeados: el numero que mira un fondista.
+      valor: (u) => Math.round((u.metrosTotales || 0) / 1000),
+      extra: (u) => u.viajesVerificados || 0,
+    },
+    constancia: {
+      // La mejor racha, no la actual: premia haber sostenido el habito, no el
+      // momento concreto en que se mire la tabla.
+      valor: (u) => u.mejorRacha || 0,
+      extra: (u) => u.racha || 0,
+    },
+  };
 
-  escritos.pilotos = await escribirAgregado('ranking-pilotos', pilotos);
+  let pilotos = [];
+
+  for (const [modo, { valor, extra }] of Object.entries(MODOS)) {
+    const tabla = usuarios
+      .map((u) => ({ u, puntos: valor(u) }))
+      .filter(({ puntos }) => puntos > 0)
+      .sort((a, b) => b.puntos - a.puntos)
+      .map(({ u, puntos }, i) => ({
+        pos: i + 1,
+        nombre: u.username || 'Piloto',
+        avatar: u.avatarUrl || null,
+        clan: u.clanId || null,
+        puntos,
+        viajes: extra(u),
+      }));
+
+    await escribirAgregado(`ranking-${modo}`, tabla, { modo });
+    if (modo === 'general') pilotos = tabla;
+  }
+
+  escritos.modos = Object.keys(MODOS).length;
 
   // --- Clanes ----------------------------------------------------------------
   const dominadas = new Map();

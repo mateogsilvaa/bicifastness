@@ -56,6 +56,16 @@
 
   <section class="seccion">
     <h2 class="h2">Ajustes</h2>
+
+    <label class="fila" style="margin-bottom: var(--e4);">
+      <input type="checkbox" id="avisos-correo">
+      <span>
+        Avisarme por correo de lo que pase con mis trayectos
+        <span class="clan">Rechazos, anulaciones y trayectos verificados.</span>
+      </span>
+    </label>
+    <p class="mensaje" id="msg-avisos" aria-live="polite"></p>
+
     <div class="fila" style="flex-wrap: wrap;">
       <button class="btn secundario" id="btn-tema" type="button">Cambiar tema</button>
       <button class="btn secundario" id="btn-salir" type="button">Cerrar sesion</button>

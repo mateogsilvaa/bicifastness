@@ -100,6 +100,17 @@ export async function guardarFavoritas(favoritas) {
   await updateDoc(doc(db, 'usuarios', uidActual()), { favoritas });
 }
 
+/**
+ * Activa o desactiva los avisos por correo.
+ *
+ * La preferencia la escribe el propio usuario y solo el: darse de baja no puede
+ * depender de que un administrador lo haga por ti. El enlace de los correos
+ * hace lo mismo sin necesidad de iniciar sesion (ver /baja/).
+ */
+export async function guardarAvisosCorreo(activados) {
+  await updateDoc(doc(db, 'usuarios', uidActual()), { avisosCorreo: Boolean(activados) });
+}
+
 // --- Viajes --------------------------------------------------------------------
 
 /**

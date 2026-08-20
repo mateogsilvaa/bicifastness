@@ -3,4 +3,4 @@
 // Identifica la version desplegada. Viaja con cada error que se recoge, para
 // poder responder si un fallo es nuevo o llevaba ahi desde antes.
 
-export const VERSION_APP = 'e5c7e224';
+export const VERSION_APP = '25a9342e';

@@ -204,3 +204,67 @@ test('el token viaja escapado en la URL', () => {
   assert.ok(!html.includes('t=a b&c'), 'el token va crudo en la URL');
   assert.ok(html.includes('a%20b%26c'));
 });
+
+// --- Reintentos --------------------------------------------------------------
+
+const AHORA = new Date('2026-08-20T10:00:00Z');
+
+test('un envio correcto no se reintenta', () => {
+  const d = correo.decidirReintento({ intentos: 0 }, { enviado: true }, AHORA);
+
+  assert.strictEqual(d.estado, 'enviado');
+  assert.ok(!d.reintentarTras, 'no deberia programar otro intento');
+});
+
+test('un error definitivo no se reintenta', () => {
+  // Un 422 por direccion invalida no mejora reintentando: solo gasta cupo.
+  const d = correo.decidirReintento(
+    { intentos: 0 },
+    { enviado: false, reintentable: false, error: 'Resend HTTP 422' },
+    AHORA);
+
+  assert.strictEqual(d.estado, 'fallido');
+  assert.strictEqual(d.intentos, 1);
+});
+
+test('un error temporal se reintenta con espera creciente', () => {
+  // Reintentar cada minuto contra un servicio saturado solo empuja mas.
+  let entrada = { intentos: 0 };
+  const esperas = [];
+
+  for (let i = 0; i < 3; i++) {
+    const d = correo.decidirReintento(entrada, { enviado: false, reintentable: true }, AHORA);
+    assert.strictEqual(d.estado, 'pendiente');
+    esperas.push(Math.round((d.reintentarTras - AHORA) / 60000));
+    entrada = { intentos: d.intentos };
+  }
+
+  assert.deepStrictEqual(esperas, [5, 20, 90]);
+  for (let i = 1; i < esperas.length; i++) {
+    assert.ok(esperas[i] > esperas[i - 1], 'la espera deberia crecer');
+  }
+});
+
+test('se abandona tras agotar los intentos', () => {
+  const d = correo.decidirReintento(
+    { intentos: correo.MAX_INTENTOS - 1 },
+    { enviado: false, reintentable: true },
+    AHORA);
+
+  assert.strictEqual(d.estado, 'fallido');
+  assert.match(d.error, /agotados/);
+});
+
+test('una direccion que rebota deja de recibir intentos', () => {
+  // Seguir escribiendo a direcciones muertas hunde la reputacion del dominio, y
+  // con ella la entregabilidad de todos los demas correos.
+  assert.strictEqual(correo.debeDejarDeIntentar({ rebotes: 0 }), false);
+  assert.strictEqual(correo.debeDejarDeIntentar({ rebotes: 1 }), false);
+  assert.strictEqual(correo.debeDejarDeIntentar({ rebotes: 2 }), true);
+});
+
+test('el ultimo intento cae mas de una hora despues', () => {
+  // Da margen a que una caida corta se arregle sin que nadie intervenga.
+  const total = [0, 1, 2, 3].reduce((t, i) => t + correo.esperaMinutos(i), 0);
+  assert.ok(total > 60, `los reintentos se agotan en ${total} min`);
+});

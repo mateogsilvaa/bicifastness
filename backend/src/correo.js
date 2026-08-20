@@ -150,11 +150,75 @@ function generarTokenBaja() {
   return require('crypto').randomBytes(32).toString('base64url');
 }
 
+// --- Reintentos --------------------------------------------------------------
+
+/** Cuantas veces se reintenta antes de darlo por perdido. */
+const MAX_INTENTOS = 4;
+
+/**
+ * Cuanto esperar antes del siguiente intento, en minutos.
+ *
+ * Espera creciente: si Resend esta saturado, reintentar cada minuto solo empuja
+ * mas. Y el ultimo intento cae mas de una hora despues, que da margen a que se
+ * arregle una caida corta sin intervencion.
+ */
+function esperaMinutos(intento) {
+  return [1, 5, 20, 90][Math.min(intento, 3)];
+}
+
+/**
+ * Decide que hacer con un correo de la cola.
+ *
+ * Se separa del envio a proposito: asi la politica de reintentos se puede
+ * probar entera sin red, que es donde estan los errores de este tipo de codigo.
+ *
+ * @param {object} entrada     documento de la cola
+ * @param {object} resultado   lo que devolvio `enviar`
+ * @param {Date}   ahora
+ */
+function decidirReintento(entrada, resultado, ahora = new Date()) {
+  if (resultado.enviado) {
+    return { estado: 'enviado', enviadoEn: ahora };
+  }
+
+  const intentos = (entrada.intentos || 0) + 1;
+
+  // Un 422 por direccion invalida no mejora reintentando: solo gasta cupo.
+  if (!resultado.reintentable) {
+    return { estado: 'fallido', intentos, error: resultado.error || 'error definitivo' };
+  }
+
+  if (intentos >= MAX_INTENTOS) {
+    return { estado: 'fallido', intentos, error: `agotados ${MAX_INTENTOS} intentos` };
+  }
+
+  return {
+    estado: 'pendiente',
+    intentos,
+    error: resultado.error || null,
+    reintentarTras: new Date(ahora.getTime() + esperaMinutos(intentos) * 60000),
+  };
+}
+
+/**
+ * Una direccion que rebota siempre deja de recibir intentos.
+ *
+ * No es cortesia: seguir escribiendo a direcciones muertas hunde la reputacion
+ * del dominio, y con ella la entregabilidad de todos los demas correos.
+ */
+function debeDejarDeIntentar(entrada) {
+  return (entrada.rebotes || 0) >= 2;
+}
+
 module.exports = {
   enviar,
   escapar,
   repartirCupo,
   generarTokenBaja,
+  decidirReintento,
+  debeDejarDeIntentar,
+  esperaMinutos,
   PRIORIDAD,
   MAX_DIARIO,
+  MAX_INTENTOS,
 };

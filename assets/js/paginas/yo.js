@@ -11,7 +11,7 @@ import {
 import { iniciarPagina, alternarTema, nombreRuta, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar, confirmar, pedirTexto, esqueleto } from '/assets/js/dom.js';
 import { generarNodosInsignias } from '/insignias.js';
-import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta } from '/assets/js/acciones.js';
+import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo } from '/assets/js/acciones.js';
 
 iniciarPagina('yo');
 
@@ -42,6 +42,10 @@ async function cargarPerfil() {
     || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(perfil.username || 'P')}&backgroundColor=0071c3`;
 
   reemplazar(id('insignias'), generarNodosInsignias(perfil.logros || []));
+
+  // Activados salvo que se hayan apagado a proposito: `undefined` significa que
+  // nunca se ha tocado la preferencia, no que este desactivada.
+  id('avisos-correo').checked = perfil.avisosCorreo !== false;
 }
 
 async function cargarHistorial() {
@@ -149,6 +153,32 @@ async function impugnar(viajeId, boton) {
 // todos los perfiles. El avatar se genera a partir del nombre de piloto.
 
 // --- Acciones ---
+
+/**
+ * Interruptor de avisos por correo.
+ *
+ * Por defecto ACTIVADOS: los avisos son sobre los propios trayectos de quien los
+ * recibe (un rechazo hay que poder arreglarlo), asi que es informacion del
+ * servicio, no promocion. Quien no los quiera los apaga aqui o desde el enlace
+ * de cualquier correo, sin tener que iniciar sesion.
+ */
+id('avisos-correo').addEventListener('change', async (evento) => {
+  const casilla = evento.currentTarget;
+  casilla.disabled = true;
+  try {
+    await guardarAvisosCorreo(casilla.checked);
+    estado(id('msg-avisos'),
+      casilla.checked ? 'Te avisaremos por correo.' : 'No volveremos a escribirte.', 'ok');
+  } catch (error) {
+    // Se devuelve la casilla a donde estaba: dejarla marcada cuando no se ha
+    // guardado hace creer que si.
+    casilla.checked = !casilla.checked;
+    estado(id('msg-avisos'), error.message, 'error');
+  } finally {
+    casilla.disabled = false;
+  }
+});
+
 id('btn-tema').addEventListener('click', alternarTema);
 id('btn-salir').addEventListener('click', async () => {
   await signOut(auth);

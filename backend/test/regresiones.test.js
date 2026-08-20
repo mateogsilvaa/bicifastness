@@ -174,7 +174,7 @@ test('la CSP de la cabecera y la del <meta> no divergen', () => {
     .map(([d, origenes]) => [d, ...origenes].join(' ').trim())
     .join('; ');
 
-  const enPagina = leer('home/index.html')
+  const enPagina = leer('clasificacion/index.html')
     .match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
   assert.strictEqual(enPagina, esperada);
 
@@ -294,7 +294,7 @@ test('el registro exige aceptacion expresa y sin casillas premarcadas', () => {
 
 test('se puede impugnar un rechazo automatico (RGPD art. 22.3)', () => {
   assert.match(leerCodigo('assets/js/acciones.js'), /export async function impugnarViaje/);
-  assert.match(leerCodigo('assets/js/paginas/profile.js'), /impugnarViaje\(/);
+  assert.match(leerCodigo('assets/js/paginas/yo.js'), /impugnarViaje\(/);
   assert.match(bloque('tiempos_viaje'), /previo\(\)\.revisadoPor == 'automatico'/);
 });
 
@@ -332,7 +332,7 @@ test('el sistema de diseno no admite sombras', () => {
   // `inset` en la fila propia es un borde de 3 px, no una sombra: es la unica
   // forma de pintar un borde dentro de una celda de tabla sin descuadrar la
   // rejilla de columnas.
-  const decorativas = sombras.filter((s) => !s.includes('inset'));
+  const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none'));
   assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
 });
 
@@ -348,14 +348,8 @@ test('el sistema de diseno no admite sombras', () => {
  */
 const PENDIENTES_DE_REDISENIO = [
   'admin/index.html',
-  'bicirating/index.html',
-  'clanes/index.html',
   'entrar/index.html',
-  'home/index.html',
   'info/index.html',
-  'mapa/index.html',
-  'profile/index.html',
-  'ranking/index.html',
   'register/index.html',
   'statssss/index.html',
 ];
@@ -387,6 +381,32 @@ test('los avisos fijos no tapan la barra inferior', () => {
   // Y solo cuando la barra existe: subirlo siempre deja un hueco de 64 px en
   // entrar, registro, legales y la baja de correo, que no la llevan.
   assert.match(css, /body:has\(\.nav-inf\) \.cookies \{\s*bottom: calc\(var\(--alto-barra\)/);
+});
+
+test('las rutas viejas siguen llegando a algun sitio', () => {
+  // Los directorios se han borrado, pero las URLs estan enlazadas desde fuera.
+  // Sin redireccion, cada una es un 404 y se pierde lo que hubiera indexado.
+  const redirecciones = JSON.parse(leer('vercel.json')).redirects || [];
+  const destino = (origen) => (redirecciones.find((r) => r.source === origen) || {}).destination;
+
+  const esperadas = {
+    '/home': '/',
+    '/ranking': '/clasificacion/',
+    '/mapa': '/territorio/',
+    '/profile': '/yo/',
+  };
+
+  for (const [vieja, nueva] of Object.entries(esperadas)) {
+    assert.strictEqual(destino(vieja), nueva, `${vieja} no redirige a ${nueva}`);
+    const regla = redirecciones.find((r) => r.source === vieja);
+    assert.strictEqual(regla.permanent, true, `${vieja} deberia ser un 301`);
+  }
+
+  // Y los directorios ya no existen: si existieran, Vercel serviria el fichero
+  // en vez de redirigir.
+  for (const viejo of ['home', 'ranking', 'bicirating', 'mapa', 'clanes', 'profile']) {
+    assert.ok(!fs.existsSync(path.join(RAIZ, viejo)), `el directorio ${viejo}/ sigue ahi`);
+  }
 });
 
 test('el CSS es mobile-first', () => {
@@ -455,7 +475,7 @@ test('el despliegue no publica el backend ni los scripts', () => {
 
   // El mapa hace fetch('/data/emt.geojson'): eso SI tiene que publicarse.
   assert.ok(!ignorados.includes('data/'), 'el mapa se quedaria sin estaciones');
-  assert.match(leerCodigo('assets/js/paginas/mapa.js'), /\/data\/emt\.geojson/);
+  assert.match(leerCodigo('assets/js/paginas/territorio.js'), /\/data\/emt\.geojson/);
 });
 
 test('el service worker no se queda cacheado', () => {

@@ -20,7 +20,7 @@ const boton = id('btn-entrar');
 const mensaje = id('mensaje');
 
 onAuthStateChanged(auth, (usuario) => {
-  if (usuario) window.location.replace('/home/');
+  if (usuario) window.location.replace('/');
 });
 
 form.addEventListener('submit', async (evento) => {
@@ -43,7 +43,7 @@ form.addEventListener('submit', async (evento) => {
     // existia alli, la CREABA con la clave introducida, lo que permitia
     // apropiarse de la cuenta de otro con solo conocer su correo.
     await signInWithEmailAndPassword(auth, email, clave);
-    window.location.replace('/home/');
+    window.location.replace('/');
   } catch (error) {
     boton.disabled = false;
     boton.textContent = 'Entrar';

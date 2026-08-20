@@ -22,7 +22,7 @@ const boton = id('btn-registro');
 let registrando = false;
 
 onAuthStateChanged(auth, (usuario) => {
-  if (usuario && !registrando) window.location.replace('/home/');
+  if (usuario && !registrando) window.location.replace('/');
 });
 
 // Misma normalizacion que en el servidor: lista y entrada, los dos lados.
@@ -101,7 +101,7 @@ id('form-registro').addEventListener('submit', async (evento) => {
     await crearPerfil({ username, email });
 
     await sendEmailVerification(auth.currentUser).catch(() => {});
-    window.location.replace('/home/');
+    window.location.replace('/');
   } catch (error) {
     registrando = false;
     boton.disabled = false;

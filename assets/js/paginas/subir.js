@@ -211,7 +211,7 @@ function mostrarEnCola() {
     }),
     el('a', {
       texto: 'Ver mi historial',
-      attrs: { href: '/profile/' },
+      attrs: { href: '/yo/' },
       estilo: {
         display: 'inline-block', background: 'var(--primary)', color: '#fff',
         padding: '12px 20px', borderRadius: '10px', textDecoration: 'none', fontWeight: '700',

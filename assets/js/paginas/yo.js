@@ -1,4 +1,4 @@
-// Modulo de la pagina /profile/
+// Modulo de la pagina /yo/
 //
 // Vive en un fichero propio y no incrustado en el HTML porque la CSP
 // declara `script-src 'self'`: un <script> en linea quedaria bloqueado.
@@ -13,7 +13,7 @@ import { id, el, estado, reemplazar, confirmar, pedirTexto, esqueleto } from '/a
 import { generarNodosInsignias } from '/insignias.js';
 import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta } from '/assets/js/acciones.js';
 
-iniciarPagina('profile');
+iniciarPagina('yo');
 
 
 let usuario = null;
@@ -67,41 +67,49 @@ async function cargarHistorial() {
 
     reemplazar(contenedor, snapshot.docs.map((d) => {
       const viaje = d.data();
+      // El chip lleva SIEMPRE la palabra: el color no puede ser el unico
+      // portador del estado.
       const estados = {
-        aprobado: ['badge-verificado', 'Verificado'],
-        revision: ['badge-revision', 'En revision'],
-        rechazado: ['badge-rechazado', 'Rechazado'],
+        aprobado: ['verificado', 'Verificado'],
+        revision: ['revision', 'En revision'],
+        rechazado: ['rechazado', 'Rechazado'],
       };
-      const [clase, texto] = estados[viaje.estado] || ['badge-revision', 'Pendiente'];
+      const [clase, texto] = estados[viaje.estado] || ['pendiente', 'Pendiente'];
 
-      return el('div', {}, [
-        el('div', { clase: 'viaje' }, [
-          el('div', { clase: 'viaje-info' }, [
-            el('strong', { texto: nombreRuta(viaje.ruta) }),
-            el('span', { texto: formatearFecha(viaje.fechaViaje) }),
+      return el('div', { clase: 'bloque' }, [
+        el('div', { clase: 'fila separada' }, [
+          el('div', {}, [
+            el('div', { clase: 'nombre', texto: nombreRuta(viaje.ruta) }),
+            el('div', { clase: 'clan', texto: formatearFecha(viaje.fechaViaje) }),
           ]),
-          el('div', { clase: 'viaje-marca' }, [
-            el('strong', { texto: formatearTiempo(viaje.tiempoSegundos) }),
-            el('span', { clase: `badge ${clase}`, texto }),
+          el('div', { estilo: { textAlign: 'right' } }, [
+            el('div', { clase: 'marca', texto: formatearTiempo(viaje.tiempoSegundos) }),
+            el('span', { clase: `chip ${clase}`, texto }),
           ]),
         ]),
+
         // Si se ha rechazado, el piloto merece saber por que.
         viaje.estado === 'rechazado' && (viaje.motivoRevision || viaje.auditoria?.resumen)
-          ? el('p', { clase: 'motivo', texto: `Motivo: ${viaje.motivoRevision || viaje.auditoria.resumen}` })
+          ? el('div', { clase: 'aviso error', estilo: { marginTop: 'var(--e3)', marginBottom: '0' } }, [
+            el('p', { clase: 'etiqueta', texto: 'Motivo' }),
+            el('p', { texto: viaje.motivoRevision || viaje.auditoria.resumen }),
+          ])
           : null,
 
         // Derecho a que una persona revise una decision automatica
         // (art. 22.3 RGPD). Solo tiene sentido si quien rechazo fue la maquina.
         viaje.estado === 'rechazado' && viaje.revisadoPor === 'automatico' && !viaje.impugnado
           ? el('button', {
-            clase: 'btn-impugnar',
+            clase: 'btn plano',
             texto: 'Pedir revision humana',
+            attrs: { type: 'button' },
             on: { click: (e) => impugnar(d.id, e.currentTarget) },
           })
           : null,
 
         viaje.impugnado
-          ? el('p', { clase: 'motivo', texto: 'Has pedido revision humana. Un administrador lo mirara.' })
+          ? el('p', { clase: 'menor apagado', estilo: { marginTop: 'var(--e3)', marginBottom: '0' },
+              texto: 'Has pedido revision humana. Un administrador lo mirara.' })
           : null,
       ]);
     }));
@@ -127,7 +135,7 @@ async function impugnar(viajeId, boton) {
   boton.textContent = 'Enviando...';
   try {
     await impugnarViaje(viajeId, alegacion);
-    estado(id('msg-datos'), 'Revision solicitada. Te responderemos por el estado del viaje.', 'exito');
+    estado(id('msg-datos'), 'Revision solicitada. Te responderemos por el estado del viaje.', 'ok');
     await cargarHistorial();
   } catch (error) {
     boton.disabled = false;

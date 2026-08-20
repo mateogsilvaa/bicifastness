@@ -29,7 +29,7 @@ onAuthStateChanged(auth, async (usuario) => {
   const token = await usuario.getIdTokenResult(true);
   if (token.claims.admin !== true) {
     id('cargando').textContent = 'No tienes permisos de administrador.';
-    setTimeout(() => window.location.replace('/home/'), 1500);
+    setTimeout(() => window.location.replace('/'), 1500);
     return;
   }
 

@@ -605,6 +605,69 @@ input[type='checkbox'] {
 .pestanas button:hover { color: var(--tinta); }
 .pestanas button[aria-selected='true'] { color: var(--tinta); border-bottom-color: var(--azul); }
 
+/* --- Territorio ------------------------------------------------------------
+ * El mapa manda: ocupa la pantalla y el panel se apoya al lado en escritorio o
+ * debajo en movil. En movil el mapa se lleva la mitad de alto: menos que eso no
+ * se orienta uno, y mas deja la ficha fuera de la vista.
+ */
+
+.sin-desplazamiento { overflow: hidden; }
+
+.territorio {
+  display: grid;
+  grid-template-rows: 45vh 1fr;
+  height: calc(100dvh - var(--alto-barra));
+}
+
+#mapa { width: 100%; height: 100%; background: var(--papel-2); }
+
+.panel-territorio {
+  overflow-y: auto;
+  padding: var(--e4);
+  border-top: var(--borde);
+}
+
+@media (min-width: 900px) {
+  .territorio {
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr 380px;
+    height: calc(100dvh - var(--alto-barra));
+  }
+  .panel-territorio { border-top: 0; border-left: var(--borde); padding: var(--e5); }
+}
+
+/* Cuadrado del color del clan. El color se valida antes de asignarlo. */
+.marca-clan {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border: 1px solid var(--linea);
+}
+
+/* Leaflet trae sus propios colores; estos son los que chocan con el sistema. */
+.leaflet-container { font-family: var(--tipo); background: var(--papel-2); }
+.leaflet-tooltip {
+  background: var(--papel);
+  color: var(--tinta);
+  border: var(--borde);
+  border-radius: var(--radio);
+  box-shadow: none;
+  font-size: 13px;
+}
+.leaflet-tooltip::before { display: none; }
+.leaflet-bar a {
+  background: var(--papel);
+  color: var(--tinta);
+  border-bottom-color: var(--linea);
+}
+.leaflet-bar a:hover { background: var(--papel-2); color: var(--tinta); }
+.leaflet-control-attribution {
+  background: var(--papel);
+  color: var(--tinta-3);
+  font-size: 10px;
+}
+.leaflet-control-attribution a { color: var(--tinta-3); }
+
 /* --- Aviso de cookies ------------------------------------------------------
  * Va ANCLADO SOBRE la barra inferior, no encima de ella: a `bottom: 0` tapaba
  * las cuatro pestañas y el boton de subir justo mientras se lee el aviso.

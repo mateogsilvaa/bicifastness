@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Mapa de dominio territorial: que clan controla cada estacion de BiciMAD en Madrid.">
+<title>Territorio | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+</head>
+<body class="sin-desplazamiento">
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<!--
+  Aqui el mapa manda: ocupa la pantalla y la lista de clanes se apoya a un lado
+  (escritorio) o se abre desde abajo (movil). Antes eran dos paginas, /mapa/ y
+  /clanes/, y ninguna de las dos contaba la historia entera.
+-->
+<main id="principal" class="territorio">
+  <div id="mapa" role="application" aria-label="Mapa de dominio por estacion"></div>
+
+  <aside class="panel-territorio" aria-label="Clanes">
+    <div class="pestanas" role="tablist" aria-label="Vista del territorio">
+      <button type="button" role="tab" id="tab-estaciones" aria-controls="panel-estaciones" aria-selected="true">Estacion</button>
+      <button type="button" role="tab" id="tab-clanes" aria-controls="panel-clanes" aria-selected="false">Clanes</button>
+    </div>
+
+    <div id="panel-estaciones" role="tabpanel" aria-labelledby="tab-estaciones">
+      <div id="ficha-estacion"></div>
+    </div>
+
+    <div id="panel-clanes" role="tabpanel" aria-labelledby="tab-clanes" class="oculto">
+      <div id="lista-clanes"></div>
+    </div>
+
+    <p class="mensaje" id="mensaje" aria-live="polite"></p>
+  </aside>
+</main>
+
+<div id="nav-inferior"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script type="module" src="/assets/js/paginas/territorio.js"></script>
+</body>
+</html>

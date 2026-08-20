@@ -12,9 +12,9 @@
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {
-  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  initializeAuth, onAuthStateChanged, signInWithEmailAndPassword,
   createUserWithEmailAndPassword, signOut, sendPasswordResetEmail,
-  sendEmailVerification, setPersistence, browserLocalPersistence,
+  sendEmailVerification, browserLocalPersistence,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
@@ -44,7 +44,28 @@ const configuracion = {
 const RECAPTCHA_SITE_KEY = '__PON_AQUI_TU_CLAVE_DE_RECAPTCHA_V3__';
 
 export const app = initializeApp(configuracion);
-export const auth = getAuth(app);
+
+/**
+ * `initializeAuth` y no `getAuth`, y sin resolutor de popup/redirect.
+ *
+ * `getAuth()` arrastra el resolutor de OAuth por defecto, y ese carga
+ * `https://apis.google.com/js/api.js` para montar el iframe de los flujos con
+ * proveedor externo. Aqui NO hay proveedores externos: se entra solo con correo
+ * y contrasena. Consecuencias de dejarlo:
+ *
+ *   - la CSP lo bloquea (y con razon: es un dominio que no necesitamos), y el
+ *     navegador llena la consola de errores en cada carga del login
+ *   - o se mete `apis.google.com` en la CSP para nada
+ *
+ * Al declarar la persistencia aqui tampoco hace falta `setPersistence` despues,
+ * que era una promesa suelta cuyo fallo se tragaba un `.catch(() => {})`.
+ *
+ * Si algun dia se anade "entrar con Google", habra que pasarle
+ * `popupRedirectResolver: browserPopupRedirectResolver` y anadir el dominio.
+ */
+export const auth = initializeAuth(app, {
+  persistence: browserLocalPersistence,
+});
 export const db = getFirestore(app);
 
 if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('__')) {
@@ -55,8 +76,6 @@ if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('__')) {
 } else {
   console.warn('App Check sin configurar: rellena RECAPTCHA_SITE_KEY en assets/js/firebase.js');
 }
-
-setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 export {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,

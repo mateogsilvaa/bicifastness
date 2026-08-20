@@ -64,7 +64,6 @@ jobs:
         working-directory: backend
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           # Mientras no haya credenciales no hay nada que verificar, y el cron
           # se despierta igual. Sin esta salida limpia, cada ejecucion cuenta

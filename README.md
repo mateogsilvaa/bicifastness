@@ -18,7 +18,7 @@ ya no las use:
 | Credencial | Donde estaba | Quien podia verla | Accion |
 |---|---|---|---|
 | Contrasena de aplicacion de Gmail | `functions/index.js`, en claro y commiteada | Cualquiera con acceso al repositorio, y sigue en el historial de git | Revocar en la cuenta de Google y generar otra |
-| API key de Gemini | Coleccion `secrets` de Firestore | **Cualquier usuario registrado**: `subir/index.html` la leia en el navegador de cada usuario | Borrar la clave en Google AI Studio y crear otra |
+| API key de Gemini | Coleccion `secrets` de Firestore | **Cualquier usuario registrado**: `subir/index.html` la leia en el navegador de cada usuario | Borrar la clave en Google AI Studio. El proyecto ya no usa Gemini. |
 | Token del bot de Telegram | Coleccion `secrets` de Firestore | **Cualquier usuario registrado** | `/revoke` en @BotFather y generar otro |
 | Contrasenas de la instancia de PocketBase | Enviadas al tunel de ngrok desde el login | Quien controlase ese tunel | Apagar la instancia; forzar cambio de contrasena |
 
@@ -38,7 +38,7 @@ Navegador ──lectura──▶ Firestore
     └──escritura──────────┘   (SOLO propuestas: viaje "pendiente", nunca "verificado")
                           │
    GitHub Actions ────────┘   worker cada 5 min: analiza, decide y recalcula
-   (Node + sharp + Gemini)     — es el unico con credenciales de administrador
+   (Node + sharp + OCR)        — es el unico con credenciales de administrador
 ```
 
 **Regla invariable: el navegador puede PROPONER, nunca DECIDIR.** Puede crear un
@@ -56,7 +56,7 @@ un viaje tarda unos minutos en resolverse en vez de segundos.
 - Frontend: HTML + CSS + JavaScript con modulos ES. Sin framework ni build. Mobile-first.
 - Alojamiento: Vercel, conectado a la rama `main`. El sitio es estatico y habla con Firestore desde el navegador.
 - Datos: Firebase Auth + Firestore, en el plan Spark (gratis, sin tarjeta).
-- Worker: Node 20 en GitHub Actions, con `sharp` y Gemini 2.0 Flash.
+- Worker: Node 20 en GitHub Actions, con `sharp` y OCR local (`tesseract.js`). **Sin IA ni servicios externos.**
 - Mapa: Leaflet + GeoJSON de estaciones.
 
 ### Lo que cuesta el plan gratuito
@@ -98,8 +98,11 @@ En el repositorio: **Settings → Secrets and variables → Actions → New repo
 
 | Secreto | De donde sale |
 |---|---|
-| `FIREBASE_SERVICE_ACCOUNT` | Firebase → Configuracion del proyecto → Cuentas de servicio → Generar nueva clave privada. Pega el JSON entero. |
-| `GEMINI_API_KEY` | aistudio.google.com → Get API key |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase → Configuracion del proyecto → **SDK de Firebase Admin** → *Generar nueva clave privada*. Pega el JSON entero. |
+
+Es el **unico** secreto que hace falta. No lo confundas con **Secretos de la base
+de datos**, que esta en esa misma pantalla: son los tokens heredados de Realtime
+Database, estan obsoletos y no sirven para esto.
 
 Nunca en el codigo ni en Firestore: ahi es donde estaban cuando robaron las claves.
 
@@ -270,7 +273,6 @@ en el worker (`backend/src/verificacion.js`):
 | Plausibilidad fisica | Distancia real entre estaciones frente al tiempo declarado. Por encima de 25 km/h de media (el corte de asistencia de una bicicleta electrica) el trayecto es imposible. |
 | Coherencia interna de la captura | `hora_llegada − hora_salida` debe coincidir con la duracion mostrada. Delata retocar solo el numero grande. |
 | Coincidencia con lo declarado | Estaciones y tiempo leidos en la imagen frente a lo escrito en el formulario. |
-| Integridad grafica (Gemini) | Texto superpuesto, tipografias que no encajan, restos de clonado. |
 | Metadatos EXIF | Rastros de Photoshop, Snapseed, Picsart y similares. Una captura autentica no pasa por un editor. |
 | Huella exacta (SHA-256) | Reenvio literal del mismo fichero. |
 | Huella perceptual (dHash) | La misma imagen recomprimida, recortada o reescalada. Sobrevive a los intentos de "disimularla". |
@@ -280,6 +282,28 @@ en el worker (`backend/src/verificacion.js`):
 Las señales suman riesgo. Menos de 20 → aprobado solo. 70 o mas → rechazado solo. En
 medio → cola de revision manual. Algunas señales son concluyentes por si mismas y
 deciden sin pasar por la suma.
+
+### Por que no hay IA
+
+La verificacion no depende de ningun modelo externo. Eso quita una clave que
+rotar, una cuota que agotar, un servicio que puede caerse y una llamada de red
+de hasta 45 s por viaje.
+
+Lo que se pierde con ello, dicho claro: **la deteccion de retoque visual**
+(tipografia que no encaja, restos de clonado) no tiene sustituto directo sin IA.
+
+Lo que la cubre, y son comprobaciones deterministas, o sea que no opinan ni
+fallan distinto cada vez:
+
+- **Coherencia interna.** `llegada - salida` tiene que dar la duracion del
+  recuadro. Quien retoca una captura cambia el numero grande y se deja las
+  horas: esa resta lo delata, y es mas fiable que un juicio visual.
+- **Plausibilidad fisica.** La geografia no negocia.
+- **Huellas exacta y perceptual.** Reenvios, recortes y recompresiones.
+- **EXIF.** Rastros de Photoshop, Snapseed y compania.
+
+Y la regla que lo sostiene: **lo que no se lee con claridad no se aprueba solo**,
+va a la cola de revision humana.
 
 **Ajustar la sensibilidad:** todos los umbrales estan en `backend/src/config.js`.
 Si entra demasiado a la cola manual, sube `RIESGO.UMBRAL_APROBACION`; si se cuela
@@ -339,7 +363,7 @@ backend/
   src/config.js             todos los umbrales de negocio y antifraude
   src/verificacion.js       motor de decision
   src/imagen.js             huellas y limpieza de EXIF
-  src/gemini.js             auditoria forense
+  src/ocr.js                lectura de la captura, sin IA
   src/puntuacion.js         BiciRating y dominio de estaciones
   test/                     pruebas de regresion y del motor de decision
 .github/workflows/
@@ -395,7 +419,7 @@ contrasena.
 3. - [ ] Borrar la coleccion `secrets` de Firestore
 4. - [ ] Apagar la instancia de PocketBase y el tunel de ngrok
 5. - [ ] **Solo entonces**: hacer publico el repositorio
-6. - [ ] Crear los dos secretos de GitHub (`FIREBASE_SERVICE_ACCOUNT` y `GEMINI_API_KEY`)
+6. - [ ] Crear el secreto de GitHub `FIREBASE_SERVICE_ACCOUNT`
 7. - [ ] Comprobar que el proyecto de Vercel apunta a `main` (issue #2)
 8. - [ ] Autorizar el dominio de Vercel en Firebase Auth y en reCAPTCHA (issue #4)
 9. - [ ] Poner `RECAPTCHA_SITE_KEY` en `assets/js/firebase.js`

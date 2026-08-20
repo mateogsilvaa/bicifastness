@@ -13,13 +13,15 @@
  * publicos, y aqui es donde vive el codigo de todas formas.
  *
  * Lo unico que se pierde frente a un servidor HTTP es la inmediatez: un viaje
- * tarda entre 5 y 10 minutos en resolverse en vez de segundos. A cambio, la
- * clave de Gemini y las credenciales de administrador NUNCA tocan el navegador,
- * que es lo que provoco el compromiso anterior.
+ * tarda entre 5 y 10 minutos en resolverse en vez de segundos. A cambio, las
+ * credenciales de administrador NUNCA tocan el navegador, que es lo que provoco
+ * el compromiso anterior.
+ *
+ * No depende de ningun servicio de IA: la captura se lee con OCR local
+ * (src/ocr.js). Ver ahi que se gana y que se pierde.
  *
  * Variables de entorno (GitHub Secrets):
  *   FIREBASE_SERVICE_ACCOUNT  JSON de la cuenta de servicio
- *   GEMINI_API_KEY            clave de la API de Gemini
  *
  * Uso:
  *   node backend/worker.js              procesa la cola
@@ -32,7 +34,7 @@ const admin = require('firebase-admin');
 const { LIMITES, TIEMPO } = require('./src/config');
 const { construirRuta, inicioDelDiaMadrid } = require('./src/util');
 const imagen = require('./src/imagen');
-const { auditarCaptura } = require('./src/gemini');
+const { leerCaptura } = require('./src/ocr');
 const { evaluar, distanciaCalleMetros } = require('./src/verificacion');
 const puntuacion = require('./src/puntuacion');
 const distancias = require('./src/distancias');
@@ -74,7 +76,7 @@ const AHORA = () => admin.firestore.FieldValue.serverTimestamp();
  * Las reglas de Firestore validan la forma del documento y que el dueno sea
  * quien dice ser, pero no saben contar cuantos viajes ha subido alguien hoy ni
  * si la ruta existe de verdad. Eso se comprueba aqui, y lo que no cuadra se
- * rechaza sin llegar a gastar una llamada a Gemini.
+ * rechaza sin llegar a gastar una pasada de OCR, que es lo mas lento del pipeline.
  */
 async function validarBasico(viaje, uid) {
   try {
@@ -189,15 +191,15 @@ async function procesar(doc) {
     imagen.inspeccionar(buffer),
   ]);
 
-  // 4. Contexto y auditoria con IA.
+  // 4. Contexto competitivo y lectura de la captura.
   const contexto = await reunirContexto(viaje, uid);
-  const ia = await auditarCaptura({ buffer, mime, apiKey: process.env.GEMINI_API_KEY });
+  const lectura = await leerCaptura({ buffer, mime });
 
   // 5. Veredicto.
   const veredicto = evaluar({
     ruta: viaje.ruta,
     tiempoSegundos: viaje.tiempoSegundos,
-    ia,
+    lectura,
     hashSha,
     hashPerceptual,
     edicionSospechosa: inspeccion.sospechaEdicion,

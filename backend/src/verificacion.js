@@ -85,49 +85,49 @@ function comprobarFisica({ ruta, tiempoSegundos }) {
 
 // --- Comprobacion 2: coherencia de la captura con lo declarado ---------------
 /**
- * Cruza lo que la IA ha leido en la imagen con lo que el usuario ha escrito en
- * el formulario, y ademas comprueba que la propia captura sea coherente consigo
- * misma: llegada - salida tiene que dar la duracion del recuadro. Si alguien
- * retoca solo el numero grande, esta resta lo delata.
+ * Cruza lo que se ha LEIDO en la imagen con lo que el usuario ha escrito, y
+ * ademas comprueba que la propia captura sea coherente consigo misma:
+ * llegada - salida tiene que dar la duracion del recuadro.
+ *
+ * Esa resta es la comprobacion mas valiosa de todo el bloque, y desde que se
+ * quito la IA es ademas la principal defensa contra el retoque: quien manipula
+ * una captura cambia el numero grande y se deja las horas. Es determinista, o
+ * sea que no opina ni falla distinto cada vez.
  */
-function comprobarCaptura({ ruta, tiempoSegundos, ia }) {
+function comprobarCaptura({ ruta, tiempoSegundos, lectura }) {
   const señales = [];
 
-  if (!ia.disponible) {
-    señales.push(señal('ia_no_disponible', 30,
-      `No se ha podido auditar la imagen automaticamente (${ia.error}). Requiere revision humana.`));
+  if (!lectura.disponible) {
+    señales.push(señal('lectura_no_disponible', 30,
+      `No se ha podido leer la captura automaticamente (${lectura.error}). Requiere revision humana.`));
     return señales;
   }
 
-  if (!ia.esBicimad) {
-    señales.push(fatal('no_es_bicimad', 'La imagen no es una captura de la app BiciMAD.'));
+  if (!lectura.esBicimad) {
+    señales.push(fatal('no_es_bicimad', 'La imagen no parece una captura de la app BiciMAD.'));
     return señales;
   }
 
-  if (!ia.integridadVisual) {
-    señales.push(fatal('manipulacion_visual',
-      `Manipulacion detectada en la imagen: ${ia.motivoManipulacion || 'sin detalle'}.`));
-    return señales;
-  }
-
-  if (ia.confianza < 55) {
-    señales.push(señal('ia_poco_segura', 25,
-      `La IA solo tiene un ${ia.confianza}% de confianza en su lectura.`));
+  // La confianza la da el propio OCR, no un juicio. Por debajo de esto lo que
+  // haya leido no es de fiar y decide una persona.
+  if (lectura.confianza < 55) {
+    señales.push(señal('lectura_poco_segura', 25,
+      `La lectura de la captura solo alcanza un ${lectura.confianza}% de confianza.`));
   }
 
   // Coherencia interna de la propia captura.
-  const salida = horaASegundos(ia.horaSalida);
-  const llegada = horaASegundos(ia.horaLlegada);
-  if (salida !== null && llegada !== null && ia.segundosDuracion !== null) {
+  const salida = horaASegundos(lectura.horaSalida);
+  const llegada = horaASegundos(lectura.horaLlegada);
+  if (salida !== null && llegada !== null && lectura.segundosDuracion !== null) {
     let diferencia = llegada - salida;
     if (diferencia < 0) diferencia += 24 * 3600; // el viaje cruza la medianoche
-    const desviacion = Math.abs(diferencia - ia.segundosDuracion);
+    const desviacion = Math.abs(diferencia - lectura.segundosDuracion);
 
     if (desviacion > 90) {
       señales.push(fatal('captura_incoherente',
-        `Entre las horas de la captura hay ${diferencia}s, pero el recuadro de duracion marca ${ia.segundosDuracion}s. ` +
+        `Entre las horas de la captura hay ${diferencia}s, pero el recuadro de duracion marca ${lectura.segundosDuracion}s. ` +
         'La imagen ha sido retocada.',
-        { diferenciaHoras: diferencia, duracionMostrada: ia.segundosDuracion }));
+        { diferenciaHoras: diferencia, duracionMostrada: lectura.segundosDuracion }));
     } else if (desviacion > 5) {
       señales.push(señal('captura_desviada', 30,
         `Descuadre de ${desviacion}s entre las horas y la duracion mostrada.`));
@@ -138,8 +138,8 @@ function comprobarCaptura({ ruta, tiempoSegundos, ia }) {
 
   // Coherencia con lo que ha escrito el usuario.
   const [origenDeclarado, destinoDeclarado] = ruta.split('-').map((v) => v.replace(/^0+/, ''));
-  const origenLeido = ia.origen.replace(/^0+/, '');
-  const destinoLeido = ia.destino.replace(/^0+/, '');
+  const origenLeido = lectura.origen.replace(/^0+/, '');
+  const destinoLeido = lectura.destino.replace(/^0+/, '');
 
   if (origenLeido && destinoLeido) {
     if (origenLeido !== origenDeclarado || destinoLeido !== destinoDeclarado) {
@@ -150,11 +150,11 @@ function comprobarCaptura({ ruta, tiempoSegundos, ia }) {
     señales.push(señal('estaciones_ilegibles', 20, 'No se han podido leer las estaciones en la captura.'));
   }
 
-  if (ia.segundosDuracion !== null) {
-    const desfase = Math.abs(ia.segundosDuracion - tiempoSegundos);
+  if (lectura.segundosDuracion !== null) {
+    const desfase = Math.abs(lectura.segundosDuracion - tiempoSegundos);
     if (desfase > 60) {
       señales.push(señal('tiempo_no_coincide', 60,
-        `La captura marca ${ia.segundosDuracion}s pero se han declarado ${tiempoSegundos}s.`));
+        `La captura marca ${lectura.segundosDuracion}s pero se han declarado ${tiempoSegundos}s.`));
     } else if (desfase > 5) {
       señales.push(señal('tiempo_desviado', 25,
         `Diferencia de ${desfase}s entre la captura y el tiempo declarado.`));
@@ -299,17 +299,17 @@ function comprobarPerfilPiloto({ kmh, velocidadesPrevias }) {
  * facil resulta justificar un tiempo imposible. No se penaliza mucho: es solo
  * un dato de contexto para la persona que revisa.
  */
-function comprobarHorario({ ia }) {
-  if (!ia?.disponible) return [];
+function comprobarHorario({ lectura }) {
+  if (!lectura?.disponible) return [];
 
-  const salida = horaASegundos(ia.horaSalida);
+  const salida = horaASegundos(lectura.horaSalida);
   if (salida === null) return [];
 
   const hora = Math.floor(salida / 3600);
   if (hora < HORARIO.HORA_INICIO_MADRUGADA || hora >= HORARIO.HORA_FIN_MADRUGADA) return [];
 
   return [señal('horario_inusual', 10,
-    `El trayecto figura a las ${ia.horaSalida}, en plena madrugada.`)];
+    `El trayecto figura a las ${lectura.horaSalida}, en plena madrugada.`)];
 }
 
 // --- Orquestador --------------------------------------------------------------

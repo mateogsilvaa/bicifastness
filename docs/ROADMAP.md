@@ -12,8 +12,7 @@ viven en GitHub; esto es el indice y, sobre todo, el **por que de cada orden**.
 ## De donde se parte
 
 La v2 ya esta escrita: worker en GitHub Actions, verificacion automatica con
-Gemini, huellas de imagen, reglas de Firestore que impiden autoverificarse y 55
-tests. **El sitio esta en modo mantenimiento** y las credenciales comprometidas
+OCR local, huellas de imagen y reglas de Firestore que impiden autoverificarse. **El sitio esta en modo mantenimiento** y las credenciales comprometidas
 de la v1 siguen sin rotar.
 
 Lo que queda no es reescribir: es abrir con seguridad, quitarle la friccion a la
@@ -26,6 +25,7 @@ subida y convertir un ranking de tiempos en un juego al que apetezca volver.
 | Vercel | GitHub Pages, Firebase Hosting | Se empezo por Pages (peticion explicita), pero Pages no permite cabeceras HTTP y eso costaba seis de seguridad. Vercel las da gratis y ya estaba conectado. Ver #3 |
 | Seguir en Firestore | Migrar a Supabase | Migrar son semanas y no hay tiempo. El problema real no es la base de datos, es que se lee mal: se arregla con agregados (H5) |
 | La captura sigue siendo la fuente | Registro por GPS | El viaje ocurre en una app de terceros a la que no tenemos acceso. Lo que se puede arreglar es el **procesado**, no el origen |
+| OCR local, sin IA | Gemini u otro modelo | Quita una clave que rotar, una cuota que agotar y un servicio que puede caerse. Se pierde la deteccion de retoque visual; lo cubren las comprobaciones deterministas. Ver #10 |
 
 ---
 
@@ -71,7 +71,7 @@ acaba en la cola de revision. La captura pasa a ser el **unico** dato que aporta
 
 - **#8** Quitar el formulario manual: foto → extraccion → confirmar
 - **#9** Normalizar Android, iOS, recortes, modo oscuro y recompresion
-- **#10** OCR local primero, Gemini solo cuando haga falta
+- **#10** Afinar el OCR local sobre capturas reales
 - **#11** Capturas con varios trayectos: elegir cual, descartando los ya subidos
 - **#12** Avisos en el navegador antes de subir
 - **#13** Estado del viaje en vivo

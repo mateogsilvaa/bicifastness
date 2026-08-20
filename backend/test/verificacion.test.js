@@ -15,14 +15,14 @@ const RUTA = '002-110';
 const METROS = distanciaCalleMetros('002', '110');
 
 /** Auditoria de IA "perfecta" para un tiempo dado. */
-function iaLimpia(segundos, ruta = RUTA) {
+function lecturaLimpia(segundos, ruta = RUTA) {
   const [o, d] = ruta.split('-').map((v) => v.replace(/^0+/, ''));
   const salida = 10 * 3600;
   const llegada = salida + segundos;
   const hhmmss = (s) => [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60]
     .map((n) => String(n).padStart(2, '0')).join(':');
   return {
-    disponible: true, esBicimad: true, integridadVisual: true, confianza: 95,
+    disponible: true, esBicimad: true, confianza: 95,
     motivoManipulacion: '', origen: o, destino: d,
     segundosDuracion: segundos, horaSalida: hhmmss(salida), horaLlegada: hhmmss(llegada),
   };
@@ -33,7 +33,7 @@ function contextoBase(overrides = {}) {
   return {
     ruta: RUTA,
     tiempoSegundos,
-    ia: iaLimpia(tiempoSegundos),
+    lectura: lecturaLimpia(tiempoSegundos),
     hashSha: 'a'.repeat(64),
     hashPerceptual: '0f0f0f0f0f0f0f0f',
     shaPrevios: [],
@@ -73,9 +73,9 @@ test('una velocidad alta pero posible va a revision, no a la basura', () => {
 });
 
 test('descuadre entre las horas y el recuadro de duracion = manipulacion', () => {
-  const ia = iaLimpia(600);
-  ia.segundosDuracion = 300; // el usuario ha retocado solo el numero grande
-  const r = evaluar(contextoBase({ tiempoSegundos: 300, ia }));
+  const lectura = lecturaLimpia(600);
+  lectura.segundosDuracion = 300; // el usuario ha retocado solo el numero grande
+  const r = evaluar(contextoBase({ tiempoSegundos: 300, lectura }));
   assert.strictEqual(r.decision, 'rechazado');
   assert.ok(r.señales.some((s) => s.codigo === 'captura_incoherente'));
 });
@@ -106,21 +106,36 @@ test('una captura distinta no se confunde con un duplicado', () => {
   assert.strictEqual(r.decision, 'aprobado');
 });
 
-test('la IA declara la imagen manipulada y se rechaza', () => {
-  const ia = iaLimpia(600);
-  ia.integridadVisual = false;
-  ia.motivoManipulacion = 'La hora de llegada usa otra fuente';
-  const r = evaluar(contextoBase({ ia }));
-  assert.strictEqual(r.decision, 'rechazado');
-  assert.ok(r.señales.some((s) => s.codigo === 'manipulacion_visual'));
+test('una lectura poco fiable no se aprueba sola', () => {
+  // Al quitar la IA, esto dejo de ser un rechazo automatico y paso a ser una
+  // duda: sin nadie que juzgue la imagen, lo honesto es que lo mire una
+  // persona en vez de rechazarle el viaje a alguien por un OCR flojo.
+  const lectura = lecturaLimpia(600);
+  lectura.confianza = 20;
+
+  const r = evaluar(contextoBase({ lectura }));
+  assert.strictEqual(r.decision, 'revision');
+  assert.ok(r.señales.some((s) => s.codigo === 'lectura_poco_segura'));
 });
 
-test('si la IA no responde, el viaje va a revision (no se aprueba a ciegas)', () => {
+test('una captura que no es de BiciMAD se rechaza sola', () => {
+  // Esto lo decidia la IA con `es_bicimad`. Ahora sale de si el texto leido
+  // contiene marcadores de la app: es heuristica, pero es determinista y basta
+  // para descartar una foto cualquiera.
+  const lectura = lecturaLimpia(600);
+  lectura.esBicimad = false;
+
+  const r = evaluar(contextoBase({ lectura }));
+  assert.strictEqual(r.decision, 'rechazado');
+  assert.ok(r.señales.some((s) => s.codigo === 'no_es_bicimad'));
+});
+
+test('si el OCR no responde, el viaje va a revision (no se aprueba a ciegas)', () => {
   const r = evaluar(contextoBase({
-    ia: { disponible: false, error: 'timeout' },
+    lectura: { disponible: false, error: 'timeout' },
   }));
   assert.strictEqual(r.decision, 'revision');
-  assert.ok(r.señales.some((s) => s.codigo === 'ia_no_disponible'));
+  assert.ok(r.señales.some((s) => s.codigo === 'lectura_no_disponible'));
 });
 
 test('romper el record por mucho margen siempre pasa por revision humana', () => {
@@ -141,9 +156,9 @@ test('los metadatos de un editor de imagen levantan sospecha', () => {
 });
 
 test('la ruta leida en la foto no coincide con la declarada', () => {
-  const ia = iaLimpia(600);
-  ia.origen = '999';
-  const r = evaluar(contextoBase({ ia }));
+  const lectura = lecturaLimpia(600);
+  lectura.origen = '999';
+  const r = evaluar(contextoBase({ lectura }));
   assert.ok(['revision', 'rechazado'].includes(r.decision));
   assert.ok(r.señales.some((s) => s.codigo === 'ruta_no_coincide'));
 });
@@ -217,10 +232,10 @@ test('mantener el ritmo de siempre no levanta ninguna alerta', () => {
 // --- Horario -------------------------------------------------------------------
 
 test('un trayecto de madrugada se anota como contexto', () => {
-  const ia = iaLimpia(600);
-  ia.horaSalida = '03:20:00';
-  ia.horaLlegada = '03:30:00';
-  const r = evaluar(contextoBase({ ia }));
+  const lectura = lecturaLimpia(600);
+  lectura.horaSalida = '03:20:00';
+  lectura.horaLlegada = '03:30:00';
+  const r = evaluar(contextoBase({ lectura }));
   assert.ok(r.señales.some((s) => s.codigo === 'horario_inusual'));
   // Por si sola no basta para sacarlo de aprobado: es solo un dato.
   assert.strictEqual(r.decision, 'aprobado');
@@ -235,12 +250,12 @@ test('un trayecto a media tarde no genera nada', () => {
 
 test('varias señales debiles juntas mandan el viaje a revision', () => {
   // Ninguna es concluyente, pero sumadas pasan del umbral de aprobacion.
-  const ia = iaLimpia(600);
-  ia.horaSalida = '03:00:00';
-  ia.horaLlegada = '03:10:00';
+  const lectura = lecturaLimpia(600);
+  lectura.horaSalida = '03:00:00';
+  lectura.horaLlegada = '03:10:00';
   const r = evaluar(contextoBase({
     tiempoSegundos: 600,
-    ia,
+    lectura,
     tiemposRuta: [700, 710, 715, 720, 725, 730, 740, 750],
     velocidadesPrevias: [9, 9.5, 10, 9.8, 10.2],
   }));

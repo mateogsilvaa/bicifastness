@@ -259,7 +259,9 @@ test('el workflow del worker no puede solaparse consigo mismo', () => {
   const flujo = leer('.github/workflows/verificar-viajes.yml');
   assert.match(flujo, /concurrency:/, 'dos workers a la vez procesarian los mismos viajes');
   assert.match(flujo, /FIREBASE_SERVICE_ACCOUNT: \$\{\{ secrets\./);
-  assert.match(flujo, /GEMINI_API_KEY: \$\{\{ secrets\./);
+  // Ya no hay claves de IA: la captura se lee con OCR local. El unico secreto
+  // del worker es la cuenta de servicio.
+  assert.ok(!/GEMINI|OPENAI|ANTHROPIC/i.test(flujo), 'el worker no debe depender de ninguna IA');
 });
 
 // --- Legal ----------------------------------------------------------------------

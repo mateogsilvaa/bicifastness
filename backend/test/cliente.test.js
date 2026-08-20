@@ -234,6 +234,7 @@ test('los limites del navegador no divergen de los del servidor', async () => {
 
   assert.deepStrictEqual(LIMITES_CLIENTE.MIMES, LIMITES.MIMES_IMAGEN);
   assert.strictEqual(LIMITES_CLIENTE.DIAS_MAX_ANTIGUEDAD, LIMITES.DIAS_MAX_ANTIGUEDAD);
+  assert.strictEqual(LIMITES_CLIENTE.VIAJES_POR_DIA, LIMITES.VIAJES_POR_DIA);
 
   // Mandar la captura mas pequeña que el ancho al que normaliza el worker
   // obliga a AMPLIARLA alli, que es justo donde el OCR falla (#9).
@@ -350,7 +351,18 @@ test('el lector del navegador entiende lo mismo que el del worker', async () => 
       `las estaciones no coinciden en ${donde}`);
     assert.strictEqual(cliente.extraerDuracion(texto), servidor.extraerDuracion(texto),
       `la duracion no coincide en ${donde}`);
+    assert.deepStrictEqual(cliente.extraerTrayectos(texto), servidor.extraerTrayectos(texto),
+      `el troceado en trayectos no coincide en ${donde}`);
   }
+
+  // Y con el caso que motiva todo esto: una captura con varios viajes.
+  const historial = `${TEXTOS[0]}\n\n${TEXTOS[1]}`;
+  assert.deepStrictEqual(
+    cliente.extraerTrayectos(historial),
+    servidor.extraerTrayectos(historial),
+    'el troceado de un historial con varios trayectos no coincide');
+  assert.strictEqual(servidor.extraerTrayectos(historial).length, 2,
+    'el historial de prueba deberia dar dos trayectos');
 
   assert.deepStrictEqual(cliente.MARCADORES, servidor.MARCADORES,
     'los marcadores de "esto es una captura de BiciMAD" han divergido');

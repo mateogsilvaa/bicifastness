@@ -35,7 +35,7 @@ const admin = require('firebase-admin');
 const { LIMITES, TIEMPO } = require('./src/config');
 const { construirRuta, inicioDelDiaMadrid } = require('./src/util');
 const imagen = require('./src/imagen');
-const { leerCaptura, cerrar: cerrarOcr } = require('./src/ocr');
+const { leerCaptura, elegirTrayecto, cerrar: cerrarOcr } = require('./src/ocr');
 const { evaluar, distanciaCalleMetros } = require('./src/verificacion');
 const puntuacion = require('./src/puntuacion');
 const distancias = require('./src/distancias');
@@ -202,8 +202,14 @@ async function reunirContexto(viaje, uid) {
         return metros && v.tiempoSegundos ? (metros / v.tiempoSegundos) * 3.6 : null;
       })
       .filter(Boolean),
-    shaPrevios: huellasSnap.docs.map((d) => ({ sha: d.data().sha, tripId: d.data().tripId, uid: d.data().uid })),
-    hashesPrevios: huellasSnap.docs.map((d) => ({ dhash: d.data().dhash, tripId: d.data().tripId })),
+    // `capturaId` viaja con la huella para poder distinguir "la misma imagen
+    // otra vez" de "varios trayectos de la misma captura" (#11).
+    shaPrevios: huellasSnap.docs.map((d) => ({
+      sha: d.data().sha, tripId: d.data().tripId, uid: d.data().uid, capturaId: d.data().capturaId || null,
+    })),
+    hashesPrevios: huellasSnap.docs.map((d) => ({
+      dhash: d.data().dhash, tripId: d.data().tripId, capturaId: d.data().capturaId || null,
+    })),
   };
 }
 
@@ -222,7 +228,11 @@ async function procesar(doc) {
   }
 
   // 2. La captura vive en su propia coleccion, que el cliente no puede leer.
-  const capturaSnap = await db.doc(`capturas/${doc.id}`).get();
+  // Varios viajes pueden apuntar a la MISMA captura, asi que el documento no
+  // tiene por que llamarse como el viaje (#11). Los viajes de antes de eso no
+  // llevan `capturaId` y siguen funcionando.
+  const capturaId = viaje.capturaId || doc.id;
+  const capturaSnap = await db.doc(`capturas/${capturaId}`).get();
   if (!capturaSnap.exists) {
     console.log('  rechazado: no hay captura asociada');
     if (!SIMULAR) {
@@ -252,13 +262,18 @@ async function procesar(doc) {
 
   // 4. Contexto competitivo y lectura de la captura.
   const contexto = await reunirContexto(viaje, uid);
-  const lectura = await leerCaptura({ buffer, mime });
+
+  // De todos los trayectos que haya en la captura, el que dice ser este viaje.
+  // Sin esto, subir los tres viajes de una misma captura acabaria con dos
+  // rechazados por `ruta_no_coincide`.
+  const lectura = elegirTrayecto(await leerCaptura({ buffer, mime }), viaje.ruta);
 
   // 5. Veredicto.
   const veredicto = evaluar({
     ruta: viaje.ruta,
     tiempoSegundos: viaje.tiempoSegundos,
     lectura,
+    capturaId,
     hashSha,
     hashPerceptual,
     edicionSospechosa: inspeccion.sospechaEdicion,
@@ -292,7 +307,7 @@ async function procesar(doc) {
   // 6. Guardar la huella para que la captura no se pueda reutilizar. `create`
   // y no `set`: si ya existe hay que conservar la del viaje original.
   await db.collection('huellas_captura').doc(hashSha).create({
-    sha: hashSha, dhash: hashPerceptual, tripId: doc.id, uid, creado: AHORA(),
+    sha: hashSha, dhash: hashPerceptual, tripId: doc.id, capturaId, uid, creado: AHORA(),
   }).catch((error) => {
     if (error.code !== 6) throw error; // 6 = ALREADY_EXISTS
   });
@@ -325,9 +340,33 @@ async function resolver(doc, veredicto) {
   // Las capturas rechazadas no aportan nada y ocupan cuota: el hash ya impide
   // reutilizar la imagen, asi que el fichero en si sobra.
   if (veredicto.decision === 'rechazado') {
-    await db.doc(`capturas/${doc.id}`).delete().catch(() => {});
+    await borrarCapturaSiSobra(doc, viaje);
     await avisarRechazo(viaje, veredicto);
   }
+}
+
+/**
+ * Borra la captura de un viaje rechazado... salvo que la compartan otros.
+ *
+ * Desde #11 una misma captura puede sostener varios viajes (tres trayectos del
+ * mismo dia en una sola imagen). Borrarla al rechazar UNO dejaria a los otros
+ * dos sin imagen que analizar, y el worker los rechazaria a todos con "no se ha
+ * recibido la captura". Solo se borra cuando ya no le sirve a nadie.
+ */
+async function borrarCapturaSiSobra(doc, viaje) {
+  const capturaId = viaje.capturaId || doc.id;
+
+  if (viaje.capturaId) {
+    const hermanos = await db.collection('tiempos_viaje')
+      .where('capturaId', '==', capturaId).get();
+
+    const laNecesitaAlguien = hermanos.docs
+      .some((d) => d.id !== doc.id && d.data().estado !== 'rechazado');
+
+    if (laNecesitaAlguien) return;
+  }
+
+  await db.doc(`capturas/${capturaId}`).delete().catch(() => {});
 }
 
 /**

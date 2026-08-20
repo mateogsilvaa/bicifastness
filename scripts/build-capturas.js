@@ -130,13 +130,16 @@ function plantillaIos(trayecto, { oscuro = false } = {}) {
 </svg>`;
 }
 
+/** El tercer trayecto de la captura multiple. */
+const TRAYECTO_C = {
+  origen: '001', nombreOrigen: 'Metro Sol',
+  destino: '003', nombreDestino: 'Plaza Conde Suchil',
+  salida: '21:10', llegada: '21:26', segundos: 960,
+};
+
 /** Una captura con tres trayectos del dia, que es como llega mucha gente (#11). */
 function plantillaVarios() {
-  const filas = [TRAYECTO_A, TRAYECTO_B, {
-    origen: '001', nombreOrigen: 'Metro Sol',
-    destino: '003', nombreDestino: 'Plaza Conde Suchil',
-    salida: '21:10', llegada: '21:26', segundos: 960,
-  }];
+  const filas = [TRAYECTO_A, TRAYECTO_B, TRAYECTO_C];
 
   const bloques = filas.map((t, i) => `
   <rect x="60" y="${520 + i * 480}" width="960" height="420" rx="24" fill="#ffffff" stroke="#dddde2"/>
@@ -267,11 +270,14 @@ const BANCO = [
   },
   {
     id: 'varios-trayectos',
-    descripcion: 'Tres trayectos del dia en una sola captura (#11: hoy se lee el primero)',
+    descripcion: 'Tres trayectos del dia en una sola captura (#11)',
     svg: () => plantillaVarios(),
     formato: 'png',
-    exigido: false,
+    exigido: true,
+    // Los campos sueltos son los del PRIMERO, que es lo que devuelve la lectura
+    // de siempre; `trayectos` es la lista entera, que es lo que #11 añade.
     verdad: TRAYECTO_A,
+    trayectos: [TRAYECTO_A, TRAYECTO_B, TRAYECTO_C],
   },
   {
     id: 'duracion-mmss',
@@ -343,6 +349,16 @@ async function principal() {
         segundosDuracion: t.segundos,
       } : { esBicimad: false },
       antifraude: entrada.antifraude || null,
+      // Solo lo llevan las capturas con mas de un trayecto.
+      trayectos: entrada.trayectos
+        ? entrada.trayectos.map((t) => ({
+          origen: t.origen,
+          destino: t.destino,
+          horaSalida: t.salida,
+          horaLlegada: t.llegada,
+          segundosDuracion: t.segundos,
+        }))
+        : null,
     });
 
     console.log(`${fichero.padEnd(26)} ${String(bytes.length).padStart(7)} B  ${entrada.descripcion}`);

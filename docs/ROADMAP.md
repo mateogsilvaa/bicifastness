@@ -74,7 +74,9 @@ acaba en la cola de revision. La captura pasa a ser el **unico** dato que aporta
   minutos despues, que es justo lo que se queria quitar
 - **#9** Normalizar Android, iOS, recortes, modo oscuro y recompresion
 - **#10** Afinar el OCR local sobre capturas reales
-- **#11** Capturas con varios trayectos: elegir cual, descartando los ya subidos
+- **#11** Capturas con varios trayectos: elegir cual, descartando los ya subidos.
+  Ojo con la huella de imagen: varios viajes comparten captura, asi que dejo de
+  ser 1:1 con el viaje
 - **#12** Avisos en el navegador antes de subir — cortesia, no seguridad: el
   worker lo vuelve a comprobar todo
 - **#13** Estado del viaje en vivo — y los motivos de rechazo en castellano,
@@ -210,6 +212,7 @@ el issue #7.
 | #10 Afinar el OCR | **A medias.** Tres fallos corregidos (ver abajo). Lo que falta necesita capturas reales |
 | #15 Cola de revision | **Hecho.** Un caso cada vez, captura junto al cotejo, motivo sugerido y atajos de teclado |
 | #8 La captura como unico dato | **Hecho.** La lectura corre en el navegador y solo se confirma. Cuesta ~6 MB la primera subida de cada navegador |
+| #11 Varios trayectos | **Hecho.** Se lee la lista entera, se descarta lo ya subido y se eligen cuales subir; todos comparten una sola captura |
 | #58 Runs en rojo | **Hecho.** Cron apagado hasta el lanzamiento |
 
 ### Lo que encontro el banco de capturas

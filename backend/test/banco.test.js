@@ -211,3 +211,46 @@ test('el banco cubre las variantes que se ven en la calle', () => {
       `falta la imagen ${captura.fichero}: regenera el banco con scripts/build-capturas.js`);
   }
 });
+
+test('una captura con tres trayectos se lee como tres, no como uno', (t) => {
+  if (sinOcr()) return t.skip('OCR no disponible en este entorno');
+
+  const captura = capturas.find((c) => c.trayectos);
+  assert.ok(captura, 'el banco ya no tiene ninguna captura con varios trayectos');
+
+  const lectura = lecturas.get(captura.id);
+  assert.ok(lectura.disponible, `${captura.id}: no se ha podido leer`);
+
+  const leidos = lectura.trayectos || [];
+  assert.strictEqual(leidos.length, captura.trayectos.length,
+    `se han leido ${leidos.length} trayectos y la captura tiene ${captura.trayectos.length}`);
+
+  captura.trayectos.forEach((esperado, i) => {
+    assert.ok(mismaEstacion(leidos[i].origen, esperado.origen),
+      `trayecto ${i + 1}: origen leido "${leidos[i].origen}", esperado "${esperado.origen}"`);
+    assert.ok(mismaEstacion(leidos[i].destino, esperado.destino),
+      `trayecto ${i + 1}: destino leido "${leidos[i].destino}", esperado "${esperado.destino}"`);
+    assert.strictEqual(leidos[i].segundosDuracion, esperado.segundosDuracion,
+      `trayecto ${i + 1}: duracion`);
+    assert.strictEqual(leidos[i].horaSalida, esperado.horaSalida, `trayecto ${i + 1}: hora de salida`);
+  });
+});
+
+test('cada viaje se compara con SU trayecto, no con el primero de la captura', (t) => {
+  if (sinOcr()) return t.skip('OCR no disponible en este entorno');
+
+  // Sin esto, subir los tres viajes de una captura acabaria con dos rechazados
+  // por `ruta_no_coincide`: los tres se compararian contra el primero.
+  const captura = capturas.find((c) => c.trayectos);
+  const lectura = lecturas.get(captura.id);
+  const segundo = captura.trayectos[1];
+
+  const elegido = ocr.elegirTrayecto(lectura, `${segundo.origen}-${segundo.destino}`);
+  assert.ok(mismaEstacion(elegido.origen, segundo.origen));
+  assert.strictEqual(elegido.segundosDuracion, segundo.segundosDuracion);
+
+  // Y si la ruta declarada no esta en la captura, se queda con el primero: la
+  // señal de que no coincide tiene que saltar.
+  const ninguno = ocr.elegirTrayecto(lectura, '999-998');
+  assert.ok(mismaEstacion(ninguno.origen, captura.trayectos[0].origen));
+});

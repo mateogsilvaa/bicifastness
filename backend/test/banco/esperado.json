@@ -18,7 +18,8 @@
       },
       "antifraude": {
         "decision": "aprobado"
-      }
+      },
+      "trayectos": null
     },
     {
       "id": "android-oscuro",
@@ -36,7 +37,8 @@
       },
       "antifraude": {
         "decision": "aprobado"
-      }
+      },
+      "trayectos": null
     },
     {
       "id": "ios-claro",
@@ -54,7 +56,8 @@
       },
       "antifraude": {
         "decision": "aprobado"
-      }
+      },
+      "trayectos": null
     },
     {
       "id": "ios-oscuro",
@@ -72,7 +75,8 @@
       },
       "antifraude": {
         "decision": "aprobado"
-      }
+      },
+      "trayectos": null
     },
     {
       "id": "recortada",
@@ -90,7 +94,8 @@
       },
       "antifraude": {
         "decision": "aprobado"
-      }
+      },
+      "trayectos": null
     },
     {
       "id": "whatsapp",
@@ -106,7 +111,8 @@
         "horaLlegada": "18:54",
         "segundosDuracion": 720
       },
-      "antifraude": null
+      "antifraude": null,
+      "trayectos": null
     },
     {
       "id": "pequena",
@@ -122,7 +128,8 @@
         "horaLlegada": "18:54",
         "segundosDuracion": 720
       },
-      "antifraude": null
+      "antifraude": null,
+      "trayectos": null
     },
     {
       "id": "movida",
@@ -138,13 +145,14 @@
         "horaLlegada": "18:54",
         "segundosDuracion": 720
       },
-      "antifraude": null
+      "antifraude": null,
+      "trayectos": null
     },
     {
       "id": "varios-trayectos",
       "fichero": "varios-trayectos.png",
-      "descripcion": "Tres trayectos del dia en una sola captura (#11: hoy se lee el primero)",
-      "exigido": false,
+      "descripcion": "Tres trayectos del dia en una sola captura (#11)",
+      "exigido": true,
       "bytes": 120196,
       "verdad": {
         "esBicimad": true,
@@ -154,7 +162,30 @@
         "horaLlegada": "18:54",
         "segundosDuracion": 720
       },
-      "antifraude": null
+      "antifraude": null,
+      "trayectos": [
+        {
+          "origen": "002",
+          "destino": "110",
+          "horaSalida": "18:42",
+          "horaLlegada": "18:54",
+          "segundosDuracion": 720
+        },
+        {
+          "origen": "045",
+          "destino": "118",
+          "horaSalida": "08:05",
+          "horaLlegada": "08:19",
+          "segundosDuracion": 840
+        },
+        {
+          "origen": "001",
+          "destino": "003",
+          "horaSalida": "21:10",
+          "horaLlegada": "21:26",
+          "segundosDuracion": 960
+        }
+      ]
     },
     {
       "id": "duracion-mmss",
@@ -172,7 +203,8 @@
       },
       "antifraude": {
         "decision": "aprobado"
-      }
+      },
+      "trayectos": null
     },
     {
       "id": "manipulada",
@@ -192,7 +224,8 @@
         "decision": "rechazado",
         "codigo": "captura_incoherente",
         "tiempoDeclarado": 360
-      }
+      },
+      "trayectos": null
     },
     {
       "id": "no-es-bicimad",
@@ -206,7 +239,8 @@
       "antifraude": {
         "decision": "rechazado",
         "codigo": "no_es_bicimad"
-      }
+      },
+      "trayectos": null
     }
   ]
 }

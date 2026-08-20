@@ -115,3 +115,52 @@ test('una etiqueta suelta no basta: hacen falta las dos', () => {
   // al azar seria peor que aplicar el mismo criterio a las dos.
   assert.deepStrictEqual(ocr.extraerHoras('Salida 08:05 y luego 08:19'), ['08:05', '08:19']);
 });
+
+// --- Capturas con varios trayectos (#11) --------------------------------------
+
+const HISTORIAL = `BiciMAD
+Mis trayectos de hoy
+
+002 - Metro Callao (002)
+110 - Intercambiador de Moncloa (110)
+Salida 18:42 Llegada 18:54
+Duracion 12 min 00 s
+
+045 - Metro Puerta de Toledo (045)
+118 - Oficina del SER (118)
+Salida 08:05 Llegada 08:19
+Duracion 14 min 00 s`;
+
+test('el historial se trocea en un trayecto por viaje', () => {
+  const trayectos = ocr.extraerTrayectos(HISTORIAL);
+
+  assert.strictEqual(trayectos.length, 2);
+  assert.deepStrictEqual(trayectos[0], {
+    origen: '002', destino: '110', horaSalida: '18:42', horaLlegada: '18:54', segundosDuracion: 720,
+  });
+  assert.deepStrictEqual(trayectos[1], {
+    origen: '045', destino: '118', horaSalida: '08:05', horaLlegada: '08:19', segundosDuracion: 840,
+  });
+});
+
+test('una captura de un solo viaje sigue dando un solo trayecto', () => {
+  assert.strictEqual(ocr.extraerTrayectos(CAPTURA).length, 1);
+});
+
+test('el reloj de la barra de estado no se cuela en el primer trayecto', () => {
+  const conReloj = `19:03 84%\n${HISTORIAL}`;
+  const [primero] = ocr.extraerTrayectos(conReloj);
+  assert.strictEqual(primero.horaSalida, '18:42');
+});
+
+test('un bloque sin las dos estaciones no cuenta como trayecto', () => {
+  // Media captura recortada: la segunda estacion se ha quedado fuera. Mejor
+  // ningun trayecto que uno inventado a medias.
+  const cortado = '002 - Metro Callao (002)\nSalida 18:42\nDuracion 12 min 00 s';
+  assert.deepStrictEqual(ocr.extraerTrayectos(cortado), []);
+});
+
+test('elegirTrayecto no toca la lectura cuando solo hay uno', () => {
+  const lectura = { origen: '002', destino: '110', trayectos: [{ origen: '002', destino: '110' }] };
+  assert.strictEqual(ocr.elegirTrayecto(lectura, '002-110'), lectura);
+});

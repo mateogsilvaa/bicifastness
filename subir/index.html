@@ -49,6 +49,27 @@
   </section>
 
   <!--
+    PASO 1b: elegir, cuando la captura lleva varios trayectos.
+
+    El historial de la app es una lista, asi que una captura con dos o tres
+    viajes es lo normal, no la excepcion. Antes eso era "un viaje raro" que
+    acababa en revision manual.
+  -->
+  <section id="paso-varios" class="oculto">
+    <div class="aviso" id="resumen-varios" role="status"></div>
+    <div id="lista-trayectos"></div>
+
+    <div class="campo">
+      <label for="fecha-varios">Dia de los trayectos</label>
+      <input id="fecha-varios" type="date" required>
+    </div>
+
+    <button type="button" class="btn" id="btn-subir-varios">Subir los elegidos</button>
+    <button type="button" class="btn plano" id="btn-otra-foto-varios">Elegir otra captura</button>
+    <p class="mensaje" id="mensaje-varios" aria-live="polite"></p>
+  </section>
+
+  <!--
     PASO 2: confirmar lo leido.
 
     Los campos vienen rellenos con lo que se ha leido en la captura. Se pueden

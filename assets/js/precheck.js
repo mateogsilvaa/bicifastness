@@ -69,6 +69,11 @@ export const LIMITES_CLIENTE = {
 
   // El mismo de `LIMITES.DIAS_MAX_ANTIGUEDAD`. Un test los ata.
   DIAS_MAX_ANTIGUEDAD: 30,
+
+  // El mismo de `LIMITES.VIAJES_POR_DIA`, y con el mismo test detras. Aqui solo
+  // sirve para no dejar elegir mas trayectos de los que el servidor va a
+  // aceptar (#11): quien elige tres y ve rechazado el tercero no entiende nada.
+  VIAJES_POR_DIA: 3,
 };
 
 // --- Medida de nitidez --------------------------------------------------------

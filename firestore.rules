@@ -161,8 +161,13 @@ service cloud.firestore {
       allow create: if esYo(datos().uid)
         && datos().keys().hasOnly([
           'uid', 'username', 'ruta', 'tiempoSegundos', 'tiempoFormateado',
-          'fechaViaje', 'estado', 'verificado', 'creado', 'correcciones'
+          'fechaViaje', 'estado', 'verificado', 'creado', 'correcciones', 'capturaId'
         ])
+        // Varios viajes pueden apuntar a la MISMA captura: una imagen del
+        // historial de la app lleva dos o tres trayectos (#11). Por eso el
+        // documento de la captura ya no se llama forzosamente como el viaje.
+        && (!datos().keys().hasAny(['capturaId'])
+          || (datos().capturaId is string && datos().capturaId.size() <= 40))
         && (!datos().keys().hasAny(['correcciones']) || datos().correcciones.keys().hasOnly([
           'confianza', 'origen', 'destino', 'tiempoSegundos', 'desfaseSegundos'
         ]))

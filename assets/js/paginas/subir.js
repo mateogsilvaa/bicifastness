@@ -3,14 +3,16 @@
 // Vive en un fichero propio y no incrustado en el HTML porque la CSP
 // declara `script-src 'self'`: un <script> en linea quedaria bloqueado.
 //
-// EL FLUJO, que es lo que cambia con el issue #8:
+// EL FLUJO, que es lo que cambia con los issues #8 y #11:
 //
-//   foto -> comprobaciones (#12) -> lectura en el navegador -> confirmar -> viaje
+//   foto -> comprobaciones (#12) -> lectura en el navegador (#8)
+//        -> un trayecto:    "esto es lo que veo" -> confirmar
+//        -> varios (#11):   "cuales de estos" -> subir los elegidos
 //
 // Antes habia que escribir a mano las dos estaciones y el tiempo, que ya
 // estaban en la imagen: trabajo doble, y cada errata acababa en la cola de
-// revision manual. Ahora los campos vienen rellenos y solo se toca lo que este
-// mal.
+// revision manual. Y si la captura llevaba dos o tres viajes — que es lo normal
+// en el historial de la app — solo se leia el primero.
 //
 // Si la lectura no se puede hacer (navegador viejo, red mala, captura
 // ilegible), no se bloquea a nadie: se enseñan los mismos campos vacios y se
@@ -19,11 +21,14 @@
 
 import {
   auth, db, onAuthStateChanged, traducirError,
-  collection, doc, getDoc, writeBatch, serverTimestamp,
+  collection, doc, getDoc, getDocs, query, where, orderBy, limit,
+  writeBatch, serverTimestamp,
 } from '/assets/js/firebase.js';
-import { iniciarPagina, normalizarEstacion, nombreEstacion } from '/assets/js/ui.js';
+import {
+  iniciarPagina, normalizarEstacion, nombreEstacion, nombreRuta, formatearTiempo,
+} from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
-import { revisar } from '/assets/js/precheck.js';
+import { revisar, LIMITES_CLIENTE } from '/assets/js/precheck.js';
 import { extraer, cerrar as cerrarLector } from '/assets/js/extraccion.js';
 import { seguirViaje, recordarViaje, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
 
@@ -92,6 +97,9 @@ const vista = id('vista-previa');
 let preparada = null;
 let insistido = false;
 
+/** Los trayectos que se estan ofreciendo ahora mismo, en el mismo orden. */
+let candidatosActuales = [];
+
 ['dragenter', 'dragover'].forEach((ev) => zona.addEventListener(ev, (e) => {
   e.preventDefault(); zona.classList.add('encima');
 }));
@@ -103,14 +111,25 @@ zona.addEventListener('drop', (e) => {
 });
 entradaFoto.addEventListener('change', elegirFoto);
 
-id('btn-otra-foto').addEventListener('click', () => {
+for (const botonVolver of ['btn-otra-foto', 'btn-otra-foto-varios']) {
+  id(botonVolver).addEventListener('click', () => {
+    volverAlPasoUno();
+    entradaFoto.value = '';
+    vista.style.display = 'none';
+    id('texto-foto').textContent = 'Arrastra la captura o pulsa para elegirla';
+    reemplazar(zonaAvisos);
+  });
+}
+
+function volverAlPasoUno() {
   id('paso-confirmar').classList.add('oculto');
+  id('paso-varios').classList.add('oculto');
   id('paso-foto').classList.remove('oculto');
-  entradaFoto.value = '';
   preparada = null;
   insistido = false;
+  candidatosActuales = [];
   estado(mensaje, '');
-});
+}
 
 async function elegirFoto() {
   const fichero = entradaFoto.files[0];
@@ -158,7 +177,7 @@ async function elegirFoto() {
     lectura: lectura.disponible ? lectura : null,
   };
 
-  irAConfirmar(lectura);
+  await decidirPaso(lectura);
 }
 
 function pintarAvisos(avisos) {
@@ -172,6 +191,188 @@ function pintarAvisos(avisos) {
     estilo: { marginBottom: 'var(--e2)' },
   }, [el('p', { texto: aviso.texto })])));
 }
+
+// --- Varios trayectos en una captura (#11) -----------------------------------
+
+/**
+ * Huella logica de un viaje: mismo piloto, misma ruta, mismo tiempo y mismo
+ * dia. Es lo que convierte "subir otra vez la captura de ayer" en "esto ya lo
+ * tienes" sin depender de la imagen.
+ */
+function huellaLogica(ruta, tiempoSegundos, fechaViaje) {
+  return `${ruta}|${tiempoSegundos}|${fechaViaje}`;
+}
+
+/**
+ * Los viajes que esta persona ya tiene, para no ofrecerle lo que ya subio.
+ *
+ * Cuesta UNA consulta acotada, y solo se hace cuando la captura trae mas de un
+ * trayecto: en el caso normal (una captura, un viaje) no se gasta ni una
+ * lectura. De paso sale cuantos lleva hoy, que es lo que limita cuantos puede
+ * elegir.
+ */
+async function misViajesRecientes() {
+  const yaSubidos = new Set();
+  let subidosHoy = 0;
+
+  try {
+    const snapshot = await getDocs(query(
+      collection(db, 'tiempos_viaje'),
+      where('uid', '==', perfil.uid),
+      orderBy('creado', 'desc'),
+      limit(60)
+    ));
+
+    const dia = new Date().toISOString().slice(0, 10);
+    for (const d of snapshot.docs) {
+      const v = d.data();
+      yaSubidos.add(huellaLogica(v.ruta, v.tiempoSegundos, v.fechaViaje));
+      // `creado` puede no estar resuelto todavia en el documento local.
+      const creado = v.creado?.toDate?.();
+      if (creado && creado.toISOString().slice(0, 10) === dia) subidosHoy++;
+    }
+  } catch (error) {
+    // Sin esta consulta se puede seguir: se ofrecen todos y ya dira el servidor.
+    console.debug('No se ha podido mirar el historial', error);
+  }
+
+  return { yaSubidos, subidosHoy };
+}
+
+/** Un trayecto leido, convertido a lo que se sube (o null si no vale). */
+function aViaje(trayecto) {
+  const origen = normalizarEstacion(trayecto.origen);
+  const destino = normalizarEstacion(trayecto.destino);
+
+  if (!nombreEstacion(origen) || !nombreEstacion(destino)) return null;
+  if (!trayecto.segundosDuracion) return null;
+  if (origen === destino) return null;
+
+  return { origen, destino, ruta: `${origen}-${destino}`, tiempoSegundos: trayecto.segundosDuracion };
+}
+
+/** Decide que pantalla toca segun cuantos trayectos utiles haya. */
+async function decidirPaso(lectura) {
+  const candidatos = (lectura.trayectos || []).map(aViaje).filter(Boolean);
+
+  // Lo de siempre: una captura, un viaje. Ni consulta ni pantalla de eleccion.
+  if (candidatos.length <= 1) { irAConfirmar(lectura); return; }
+
+  const { yaSubidos, subidosHoy } = await misViajesRecientes();
+  irAElegir(candidatos, yaSubidos, subidosHoy);
+}
+
+/**
+ * La lista para elegir. Lo que ya esta subido sale marcado y no se puede
+ * elegir: ofrecerlo seria mandar a la cola un duplicado que el worker va a
+ * rechazar, gastandole ademas cupo a la persona.
+ */
+function irAElegir(candidatos, yaSubidos, subidosHoy) {
+  candidatosActuales = candidatos;
+
+  const fecha = id('fecha-varios');
+  fecha.max = campoFecha.max;
+  fecha.min = campoFecha.min;
+  fecha.value = campoFecha.max;
+
+  const restantes = Math.max(0, LIMITES_CLIENTE.VIAJES_POR_DIA - subidosHoy);
+
+  const pintarLista = () => {
+    const dia = fecha.value;
+    let nuevos = 0;
+
+    reemplazar(id('lista-trayectos'), candidatos.map((candidato, indice) => {
+      const repetido = yaSubidos.has(huellaLogica(candidato.ruta, candidato.tiempoSegundos, dia));
+      if (!repetido) nuevos++;
+
+      const casilla = el('input', {
+        attrs: {
+          type: 'checkbox',
+          id: `tr-${indice}`,
+          'data-indice': String(indice),
+          // Se marcan solos los nuevos que caben en el cupo de hoy.
+          checked: !repetido && nuevos <= restantes ? '' : null,
+          disabled: repetido ? '' : null,
+        },
+      });
+
+      return el('label', {
+        clase: 'bloque fila separada',
+        attrs: { for: `tr-${indice}` },
+        estilo: { cursor: repetido ? 'default' : 'pointer' },
+      }, [
+        el('div', { clase: 'fila', estilo: { gap: 'var(--e3)' } }, [
+          casilla,
+          el('div', {}, [
+            el('div', { clase: 'nombre', texto: nombreRuta(candidato.ruta) }),
+            el('div', { clase: 'clan', texto: repetido ? 'Ya lo tienes subido' : 'Nuevo' }),
+          ]),
+        ]),
+        el('span', { clase: 'marca', texto: formatearTiempo(candidato.tiempoSegundos) }),
+      ]);
+    }));
+
+    const resumen = id('resumen-varios');
+    if (!nuevos) {
+      reemplazar(resumen,
+        el('p', { clase: 'etiqueta', texto: 'Nada nuevo por aqui' }),
+        el('p', { texto: 'Todos los trayectos de esta captura los tienes ya subidos.' }));
+    } else {
+      reemplazar(resumen,
+        el('p', { clase: 'etiqueta', texto: `He visto ${candidatos.length} trayectos en la captura` }),
+        el('p', {
+          texto: `Elige cuales quieres subir. Hoy te quedan ${restantes} de ${LIMITES_CLIENTE.VIAJES_POR_DIA}. `
+            + 'Si alguno no cuadra con lo que hiciste, subelo solo y podras corregirlo.',
+        }));
+    }
+
+    id('btn-subir-varios').disabled = !nuevos || !restantes;
+  };
+
+  fecha.addEventListener('change', pintarLista);
+  pintarLista();
+
+  id('paso-foto').classList.add('oculto');
+  id('paso-varios').classList.remove('oculto');
+}
+
+id('btn-subir-varios').addEventListener('click', subirVarios);
+
+/** Sube de golpe los trayectos elegidos, todos apuntando a la MISMA captura. */
+async function subirVarios() {
+  const aviso = id('mensaje-varios');
+  const botonVarios = id('btn-subir-varios');
+
+  const elegidos = [...document.querySelectorAll('#lista-trayectos input:checked')]
+    .map((casilla) => candidatosActuales[Number(casilla.dataset.indice)])
+    .filter(Boolean);
+
+  if (!elegidos.length) { estado(aviso, 'No has elegido ninguno.', 'aviso'); return; }
+  if (!perfil) { estado(aviso, 'Todavia se esta cargando tu perfil.', 'aviso'); return; }
+  if (!preparada?.dataUrl) { estado(aviso, 'No hemos podido preparar la captura.', 'error'); return; }
+
+  botonVarios.disabled = true;
+  botonVarios.textContent = 'Enviando...';
+  estado(aviso, '');
+
+  try {
+    const ids = await crearViajes(elegidos, id('fecha-varios').value);
+    volverAlPasoUno();
+    entradaFoto.value = '';
+    vista.style.display = 'none';
+    id('texto-foto').textContent = 'Arrastra la captura o pulsa para elegirla';
+    reemplazar(zonaAvisos);
+    // Se sigue el primero: los demas van en la misma tanda del worker.
+    seguirEste(ids[0]);
+  } catch (error) {
+    estado(aviso, traducirError(error), 'error');
+  } finally {
+    botonVarios.disabled = false;
+    botonVarios.textContent = 'Subir los elegidos';
+  }
+}
+
+// --- Un solo trayecto: confirmar lo leido (#8) --------------------------------
 
 /** Rellena el formulario con lo leido y enseña el paso de confirmacion. */
 function irAConfirmar(lectura) {
@@ -253,8 +454,62 @@ function correcciones(enviado) {
   };
 }
 
-// --- Envio ---
-let dejarDeSeguir = null;
+// --- Escritura ----------------------------------------------------------------
+
+/**
+ * Escribe los viajes elegidos y su captura, todo en un lote.
+ *
+ * La captura se guarda UNA vez aunque haya varios viajes: son tres trayectos de
+ * la misma imagen, y triplicarla serian megas de cuota para nada. Cada viaje
+ * apunta a ella con `capturaId`, y el worker sabe que una huella compartida no
+ * es una captura reutilizada (#11).
+ *
+ * El navegador solo puede PROPONER: las reglas obligan a que el viaje nazca en
+ * estado 'pendiente' y sin verificar. El veredicto lo pone el worker, que corre
+ * en GitHub Actions con credenciales de administrador.
+ *
+ * @returns {Promise<string[]>} los ids de los viajes creados
+ */
+async function crearViajes(viajes, fechaViaje, correccionesDe = null) {
+  const lote = writeBatch(db);
+  const capturaRef = doc(collection(db, 'capturas'));
+
+  lote.set(capturaRef, {
+    uid: perfil.uid,
+    datos: preparada.dataUrl,
+    creado: serverTimestamp(),
+  });
+
+  const ids = [];
+  for (const viaje of viajes) {
+    const viajeRef = doc(collection(db, 'tiempos_viaje'));
+    ids.push(viajeRef.id);
+
+    const minutos = Math.floor(viaje.tiempoSegundos / 60);
+    const segundos = viaje.tiempoSegundos % 60;
+
+    const datos = {
+      uid: perfil.uid,
+      username: perfil.username,
+      ruta: viaje.ruta,
+      tiempoSegundos: viaje.tiempoSegundos,
+      tiempoFormateado: `${String(minutos).padStart(2, '0')}m ${String(segundos).padStart(2, '0')}s`,
+      fechaViaje,
+      estado: 'pendiente',
+      verificado: false,
+      capturaId: capturaRef.id,
+      creado: serverTimestamp(),
+    };
+
+    const corregido = correccionesDe ? correccionesDe(viaje) : null;
+    if (corregido) datos.correcciones = corregido;
+
+    lote.set(viajeRef, datos);
+  }
+
+  await lote.commit();
+  return ids;
+}
 
 id('form-viaje').addEventListener('submit', async (evento) => {
   evento.preventDefault();
@@ -302,55 +557,21 @@ id('form-viaje').addEventListener('submit', async (evento) => {
 
     const origen = normalizarEstacion(id('origen').value);
     const destino = normalizarEstacion(id('destino').value);
-    const ruta = `${origen}-${destino}`;
 
-    // El viaje y su captura se escriben juntos, en un lote: si una de las dos
-    // fallara, el worker se encontraria un viaje sin imagen (o al reves).
-    //
-    // El navegador solo puede PROPONER: las reglas obligan a que nazca en
-    // estado 'pendiente' y con verificado en false. El veredicto lo pone el
-    // worker, que corre en GitHub Actions con credenciales de administrador.
-    const viajeRef = doc(collection(db, 'tiempos_viaje'));
-    const lote = writeBatch(db);
+    const [viajeId] = await crearViajes(
+      [{ origen, destino, ruta: `${origen}-${destino}`, tiempoSegundos }],
+      campoFecha.value,
+      (viaje) => correcciones({ origen: viaje.origen, destino: viaje.destino, tiempoSegundos: viaje.tiempoSegundos })
+    );
 
-    const datos = {
-      uid: perfil.uid,
-      username: perfil.username,
-      ruta,
-      tiempoSegundos,
-      tiempoFormateado: `${String(minutos).padStart(2, '0')}m ${String(segundos).padStart(2, '0')}s`,
-      fechaViaje: campoFecha.value,
-      estado: 'pendiente',
-      verificado: false,
-      creado: serverTimestamp(),
-    };
-
-    const corregido = correcciones({ origen, destino, tiempoSegundos });
-    if (corregido) datos.correcciones = corregido;
-
-    lote.set(viajeRef, datos);
-
-    // La imagen va en su propia coleccion, cerrada al cliente: asi el ranking
-    // no arrastra megas de fotos y nadie puede rasparlas.
-    lote.set(doc(db, 'capturas', viajeRef.id), {
-      uid: perfil.uid,
-      datos: preparada.dataUrl,
-      creado: serverTimestamp(),
-    });
-
-    await lote.commit();
-
-    seguirEste(viajeRef.id);
+    seguirEste(viajeId);
 
     // Vuelta al paso 1, listo para el siguiente.
     id('form-viaje').reset();
-    id('paso-confirmar').classList.add('oculto');
-    id('paso-foto').classList.remove('oculto');
+    volverAlPasoUno();
     vista.style.display = 'none';
     id('texto-foto').textContent = 'Arrastra la captura o pulsa para elegirla';
     reemplazar(zonaAvisos);
-    preparada = null;
-    insistido = false;
     for (const c of ['origen', 'destino']) id(`${c}-nombre`).textContent = '';
     campoFecha.value = campoFecha.max;
   } catch (error) {
@@ -367,6 +588,8 @@ id('form-viaje').addEventListener('submit', async (evento) => {
  * `estado-viaje.js` corta la escucha sola en cuanto hay veredicto y al salir de
  * la pagina.
  */
+let dejarDeSeguir = null;
+
 function seguirEste(viajeId) {
   if (dejarDeSeguir) dejarDeSeguir();
 

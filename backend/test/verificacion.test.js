@@ -262,3 +262,45 @@ test('varias señales debiles juntas mandan el viaje a revision', () => {
   assert.strictEqual(r.decision, 'revision');
   assert.ok(r.señales.length >= 3, `esperaba varias señales, hay ${r.señales.length}`);
 });
+
+// --- Varios viajes con la misma captura (#11) ---------------------------------
+
+test('dos viajes de la MISMA captura no son un duplicado', () => {
+  // El historial de la app es una lista: una captura puede sostener tres
+  // trayectos. Los tres comparten imagen y, por tanto, huella. Si eso contara
+  // como "captura reutilizada", subir los tres acabaria con dos rechazados.
+  const capturaId = 'captura-compartida';
+  const r = evaluar(contextoBase({
+    capturaId,
+    shaPrevios: [{ sha: 'a'.repeat(64), tripId: 'viaje-hermano', uid: 'yo', capturaId }],
+    hashesPrevios: [{ dhash: '0f0f0f0f0f0f0f0f', tripId: 'viaje-hermano', capturaId }],
+  }));
+
+  assert.strictEqual(r.decision, 'aprobado');
+  assert.ok(!r.señales.some((s) => s.codigo === 'captura_reutilizada'));
+  assert.ok(!r.señales.some((s) => s.codigo === 'captura_casi_identica'));
+});
+
+test('la misma imagen subida en OTRO lote sigue siendo un duplicado', () => {
+  // Lo de arriba no puede convertirse en una puerta: si la huella viene de otra
+  // captura, es reenvio y se rechaza igual que siempre.
+  const r = evaluar(contextoBase({
+    capturaId: 'captura-de-ahora',
+    shaPrevios: [{ sha: 'a'.repeat(64), tripId: 'viaje-viejo', uid: 'otro', capturaId: 'captura-de-antes' }],
+  }));
+
+  assert.strictEqual(r.decision, 'rechazado');
+  assert.ok(r.señales.some((s) => s.codigo === 'captura_reutilizada'));
+});
+
+test('una huella antigua sin capturaId sigue detectando el reenvio', () => {
+  // Las huellas escritas antes de #11 no llevan `capturaId`. No pueden dejar de
+  // proteger por eso.
+  const r = evaluar(contextoBase({
+    capturaId: 'captura-de-ahora',
+    shaPrevios: [{ sha: 'a'.repeat(64), tripId: 'viaje-viejo', uid: 'otro', capturaId: null }],
+  }));
+
+  assert.strictEqual(r.decision, 'rechazado');
+  assert.ok(r.señales.some((s) => s.codigo === 'captura_reutilizada'));
+});

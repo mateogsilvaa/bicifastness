@@ -114,7 +114,7 @@ const HORA = '\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b';
  * Ahora manda la ETIQUETA, y solo si no hay etiquetas legibles se vuelve al
  * criterio de orden, que sigue siendo mejor que nada.
  */
-function extraerHoras(texto) {
+function horasEtiquetadas(texto) {
   const conEtiqueta = (etiquetas) => {
     // Hasta 12 caracteres que no sean parte de la hora entre la etiqueta y el
     // numero: cabe "Salida:  ", "Salida ---" y lo que el OCR meta por medio,
@@ -123,8 +123,14 @@ function extraerHoras(texto) {
     return m ? `${m[1].padStart(2, '0')}:${m[2]}` : null;
   };
 
-  const salida = conEtiqueta('salida|inicio|comienzo|desde');
-  const llegada = conEtiqueta('llegada|fin|final|hasta');
+  return {
+    salida: conEtiqueta('salida|inicio|comienzo|desde'),
+    llegada: conEtiqueta('llegada|fin|final|hasta'),
+  };
+}
+
+function extraerHoras(texto) {
+  const { salida, llegada } = horasEtiquetadas(texto);
   if (salida && llegada) return [salida, llegada];
 
   const encontradas = [...texto.matchAll(new RegExp(HORA, 'g'))]
@@ -160,6 +166,83 @@ function extraerDuracion(texto) {
   if (junto) return Number(junto[1]) * 60 + Number(junto[2]);
 
   return null;
+}
+
+/**
+ * Trocea el texto de la captura en TRAYECTOS (issue #11).
+ *
+ * El historial de BiciMAD es una lista, asi que es de lo mas normal que una
+ * captura recoja dos o tres viajes. Hasta ahora se leia como si siempre hubiera
+ * uno: se cogian las dos primeras estaciones y la primera duracion, y el resto
+ * de la imagen se ignoraba. Quien subia una captura de su dia acababa en la
+ * cola de revision manual sin entender por que.
+ *
+ * COMO SE TROCEA. Por lineas, y con una regla simple: cada vez que aparece una
+ * estacion cuando el trayecto que se esta montando ya tiene las dos suyas,
+ * empieza uno nuevo. Las horas solo cuentan si van ETIQUETADAS (salida,
+ * llegada), que es lo que evita que el reloj de la barra de estado se cuele
+ * como hora de salida del primero.
+ *
+ * No se usa la geometria de la imagen (posiciones de cada linea) a proposito:
+ * seria mas exacto, pero ata el parseo a lo que devuelva la version de turno
+ * del OCR, y esto tiene que funcionar igual en el navegador y en el worker.
+ */
+function extraerTrayectos(texto) {
+  const trayectos = [];
+  let actual = null;
+
+  const guardar = () => {
+    if (actual && actual.origen && actual.destino) trayectos.push(actual);
+    actual = null;
+  };
+
+  const nuevo = () => ({
+    origen: '', destino: '', horaSalida: '', horaLlegada: '', segundosDuracion: null,
+  });
+
+  for (const linea of String(texto || '').split(/\r?\n/)) {
+    const estaciones = extraerEstaciones(linea);
+
+    for (const estacion of estaciones) {
+      if (!actual) actual = nuevo();
+      // Ya tenia las dos: esta estacion abre el siguiente trayecto.
+      if (actual.origen && actual.destino) { guardar(); actual = nuevo(); }
+
+      if (!actual.origen) actual.origen = estacion;
+      else actual.destino = estacion;
+    }
+
+    if (!actual) continue;
+
+    const horas = horasEtiquetadas(linea);
+    if (horas.salida && !actual.horaSalida) actual.horaSalida = horas.salida;
+    if (horas.llegada && !actual.horaLlegada) actual.horaLlegada = horas.llegada;
+
+    const duracion = extraerDuracion(linea);
+    if (duracion !== null && actual.segundosDuracion === null) actual.segundosDuracion = duracion;
+  }
+
+  guardar();
+  return trayectos;
+}
+
+/**
+ * De todos los trayectos de la captura, el que dice ser este viaje.
+ *
+ * Sin esto, subir los tres viajes de una misma captura acabaria con dos
+ * rechazados por `ruta_no_coincide`: el motor compararia los tres contra el
+ * primer trayecto que se lea. Si ninguno encaja se devuelve el primero, y
+ * entonces la señal salta con razon.
+ */
+function elegirTrayecto(lectura, ruta) {
+  const trayectos = (lectura && lectura.trayectos) || [];
+  if (trayectos.length <= 1) return lectura;
+
+  const sinCeros = (v) => String(v || '').replace(/^0+/, '');
+  const [origen, destino] = String(ruta || '').split('-').map(sinCeros);
+
+  const encaja = trayectos.find((t) => sinCeros(t.origen) === origen && sinCeros(t.destino) === destino);
+  return { ...lectura, ...(encaja || trayectos[0]) };
 }
 
 /**
@@ -259,6 +342,10 @@ async function leerCaptura({ buffer }) {
 
     return {
       disponible: true,
+      // Todos los trayectos que hay en la captura (#11). Los campos sueltos de
+      // abajo siguen siendo los del primero, para no cambiarle la forma a quien
+      // solo espera uno.
+      trayectos: extraerTrayectos(texto),
       esBicimad: MARCADORES.some((m) => plano.includes(m)),
       // De donde venia la captura. No decide nada: sirve para poder MEDIR
       // despues donde falla la extraccion. Sin esto, "el OCR falla a veces" no
@@ -300,12 +387,15 @@ async function leerCaptura({ buffer }) {
 
 module.exports = {
   leerCaptura,
+  extraerTrayectos,
+  elegirTrayecto,
   // Hay que llamarlo al terminar la tanda: el worker de tesseract se comparte y
   // mantiene vivo el proceso mientras exista.
   cerrar,
   // Exportadas sueltas para poder probar el parseo sin pasar por el OCR, que es
   // lento y depende de los datos de idioma.
   extraerHoras,
+  horasEtiquetadas,
   extraerEstaciones,
   extraerDuracion,
   MARCADORES,

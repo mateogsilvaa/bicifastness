@@ -170,10 +170,20 @@ function comprobarCaptura({ ruta, tiempoSegundos, lectura }) {
  * no solo del que sube. Asi se detecta tambien que dos cuentas suban la misma
  * imagen, que es el patron tipico de las cuentas multiples.
  */
-function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios }) {
+function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios, capturaId }) {
   const señales = [];
 
-  const duplicadoExacto = shaPrevios.find((p) => p.sha === hashSha);
+  // Una misma captura puede sostener VARIOS viajes: el historial de la app es
+  // una lista y ahi caben tres trayectos del mismo dia (#11). Los viajes que
+  // comparten captura comparten huella, asi que si no se descartasen aqui, el
+  // segundo y el tercero se rechazarian por "captura reutilizada" — que es
+  // exactamente lo contrario de lo que esa comprobacion quiere detectar.
+  //
+  // Lo que sigue detectando: la misma imagen subida en OTRO lote, sea de quien
+  // sea. Eso es lo que hace un duplicado de verdad.
+  const deOtraCaptura = (previo) => !capturaId || !previo.capturaId || previo.capturaId !== capturaId;
+
+  const duplicadoExacto = shaPrevios.filter(deOtraCaptura).find((p) => p.sha === hashSha);
   if (duplicadoExacto) {
     señales.push(fatal('captura_reutilizada',
       duplicadoExacto.uid
@@ -188,6 +198,7 @@ function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios
   let masParecido = null;
   for (const previo of hashesPrevios) {
     if (!previo.dhash) continue;
+    if (!deOtraCaptura(previo)) continue;
     const distancia = distanciaHamming(hashPerceptual, previo.dhash);
     if (!masParecido || distancia < masParecido.distancia) {
       masParecido = { ...previo, distancia };

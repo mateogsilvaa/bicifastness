@@ -643,6 +643,73 @@ test('los agregados se reconstruyen una vez por tanda, no por viaje', () => {
     'se reconstruye dentro del bucle de la cola');
 });
 
+/**
+ * Consultas compuestas que hace el codigo y el indice que cada una necesita.
+ *
+ * Firestore no avisa de esto al escribir el codigo: falla EN EJECUCION, y el
+ * mensaje solo aparece cuando la consulta llega a correr con datos de verdad.
+ * Asi es como el worker estuvo fallando cada pocos minutos: el indice declarado
+ * era `estado ASC, creado DESCENDING` y la cola pide `creado ASC`, porque es
+ * FIFO y procesa el mas viejo primero. La direccion forma parte del indice.
+ *
+ * Si anades una consulta con dos filtros, o con filtro y orden, apuntala aqui.
+ */
+const CONSULTAS_COMPUESTAS = [
+  {
+    donde: "worker.main(): la cola de pendientes, mas viejo primero",
+    coleccion: 'tiempos_viaje',
+    campos: [['estado', 'ASCENDING'], ['creado', 'ASCENDING']],
+  },
+  {
+    donde: 'worker.validarBasico(): cupo diario',
+    // Sin orderBy explicito, Firestore ordena por el campo de la desigualdad.
+    coleccion: 'tiempos_viaje',
+    campos: [['uid', 'ASCENDING'], ['creado', 'ASCENDING']],
+  },
+  {
+    donde: 'worker.reunirContexto(): ultimos viajes del piloto',
+    coleccion: 'tiempos_viaje',
+    campos: [['uid', 'ASCENDING'], ['verificado', 'ASCENDING'], ['creado', 'DESCENDING']],
+  },
+  {
+    donde: 'worker.reunirContexto(): mejores tiempos de la ruta',
+    coleccion: 'tiempos_viaje',
+    campos: [['ruta', 'ASCENDING'], ['verificado', 'ASCENDING'], ['tiempoSegundos', 'ASCENDING']],
+  },
+  {
+    donde: 'puntuacion.recalcularClan(): miembros ordenados',
+    coleccion: 'usuarios',
+    campos: [['clanId', 'ASCENDING'], ['biciRating', 'DESCENDING']],
+  },
+];
+
+test('cada consulta compuesta tiene su indice declarado', () => {
+  const declarados = JSON.parse(leer('firestore.indexes.json')).indexes;
+
+  const existe = (coleccion, campos) => declarados.some((i) =>
+    i.collectionGroup === coleccion
+    && i.fields.length === campos.length
+    && i.fields.every((f, n) => f.fieldPath === campos[n][0] && f.order === campos[n][1]));
+
+  const sinIndice = CONSULTAS_COMPUESTAS
+    .filter((c) => !existe(c.coleccion, c.campos))
+    .map((c) => `${c.donde} -> ${c.coleccion}: ${c.campos.map((f) => f.join(' ')).join(', ')}`);
+
+  assert.deepStrictEqual(sinIndice, [],
+    `consultas que fallarian en ejecucion:\n  ${sinIndice.join('\n  ')}`);
+});
+
+test('la cola se procesa por orden de llegada', () => {
+  // Si alguien la cambia a `desc`, los viajes viejos se quedan al final para
+  // siempre cuando haya mas de MAX_POR_TANDA en cola. Y ademas invalida el
+  // indice de arriba.
+  const worker = leerCodigo('backend/worker.js');
+  const cola = worker.slice(worker.indexOf("where('estado', '==', 'pendiente')"));
+
+  assert.match(cola.slice(0, 200), /orderBy\('creado', 'asc'\)/,
+    'la cola dejaria de ser FIFO');
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

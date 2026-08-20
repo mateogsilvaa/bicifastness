@@ -1,86 +1,206 @@
 {
   "indexes": [
     {
-      "collectionGroup": "tiempos_viaje",
+      "collectionGroup": "huellas_captura",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ruta", "order": "ASCENDING" },
-        { "fieldPath": "verificado", "order": "ASCENDING" },
-        { "fieldPath": "tiempoSegundos", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "tiempos_viaje",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "uid", "order": "ASCENDING" },
-        { "fieldPath": "ruta", "order": "ASCENDING" },
-        { "fieldPath": "verificado", "order": "ASCENDING" },
-        { "fieldPath": "tiempoSegundos", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "tiempos_viaje",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "uid", "order": "ASCENDING" },
-        { "fieldPath": "ruta", "order": "ASCENDING" },
-        { "fieldPath": "tiempoSegundos", "order": "ASCENDING" },
-        { "fieldPath": "fechaViaje", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "tiempos_viaje",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "uid", "order": "ASCENDING" },
-        { "fieldPath": "creado", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "tiempos_viaje",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "estado", "order": "ASCENDING" },
-        { "fieldPath": "creado", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "tiempos_viaje",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "verificado", "order": "ASCENDING" },
-        { "fieldPath": "ruta", "order": "ASCENDING" }
+        {
+          "fieldPath": "creado",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "reportes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "estado", "order": "ASCENDING" },
-        { "fieldPath": "creado", "order": "DESCENDING" }
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creado",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "reportes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "viajeId", "order": "ASCENDING" },
-        { "fieldPath": "reportanteUid", "order": "ASCENDING" }
+        {
+          "fieldPath": "viajeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reportanteUid",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creado",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creado",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ruta",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "verificado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tiempoSegundos",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creado",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creado",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ruta",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tiempoSegundos",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaViaje",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ruta",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "verificado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tiempoSegundos",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "verificado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creado",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "verificado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ruta",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "usuarios",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "clanId", "order": "ASCENDING" },
-        { "fieldPath": "biciRating", "order": "DESCENDING" }
+        {
+          "fieldPath": "clanId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "biciRating",
+          "order": "DESCENDING"
+        }
       ]
-    },
-    {
-      "collectionGroup": "huellas_captura",
-      "queryScope": "COLLECTION",
-      "fields": [{ "fieldPath": "creado", "order": "DESCENDING" }]
     }
   ],
   "fieldOverrides": []

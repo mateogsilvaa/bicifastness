@@ -13,6 +13,7 @@ const admin = require('firebase-admin');
 const { PUNTOS, VIAJE } = require('./config');
 const rachas = require('./rachas');
 const agregados = require('./agregados');
+const territorio = require('./territorio');
 
 const db = () => admin.firestore();
 
@@ -198,9 +199,16 @@ async function recalcularClan(clanId) {
 }
 
 /**
- * Recalcula que clan domina una estacion.
- * Cada ruta que toca la estacion reparte puntos entre los 10 mejores tiempos;
- * el clan de cada piloto se los lleva.
+ * Recalcula la influencia de los clanes sobre una estacion.
+ *
+ * Antes repartia solo por posicion en el ranking de tiempos, o sea que el mapa
+ * era un juego exclusivo de velocistas. Ahora pesa presencia, velocidad y
+ * kilometros (ver src/territorio.js), y lo acumulado DECAE con los dias.
+ *
+ * El decaimiento se aplica por diferencia de fechas y no "una vez al dia": asi
+ * da igual cuando corra el worker, y si un dia no corre, al siguiente aplica los
+ * dos. Un cron que se salta un dia dejaria el territorio congelado sin que nadie
+ * lo note.
  */
 async function recalcularEstacion(estacionId, viajesPrecargados = null, usuariosPrecargados = null) {
   const viajes = viajesPrecargados
@@ -210,52 +218,36 @@ async function recalcularEstacion(estacionId, viajesPrecargados = null, usuarios
 
   const clanPorUid = new Map(usuarios.map((u) => [u.uid, u.clanId || null]));
   const objetivo = String(estacionId);
+  const hoy = territorio.dia();
 
-  // Agrupamos por ruta los viajes que tocan esta estacion.
-  const porRuta = new Map();
-  for (const viaje of viajes) {
-    if (!viaje.ruta) continue;
-    const [origen, destino] = viaje.ruta.split('-');
-    if (origen !== objetivo && destino !== objetivo) continue;
-    if (!porRuta.has(viaje.ruta)) porRuta.set(viaje.ruta, []);
-    porRuta.get(viaje.ruta).push(viaje);
-  }
+  const ref = db().doc(`estaciones_stats/${objetivo}`);
+  const previo = await ref.get();
+  const datos = previo.exists ? previo.data() : {};
 
-  const puntosClan = {};
-  for (const lista of porRuta.values()) {
-    // Solo el mejor tiempo de cada piloto compite por el territorio.
-    const mejorPorPiloto = new Map();
-    for (const v of lista) {
-      const previo = mejorPorPiloto.get(v.uid);
-      if (!previo || v.tiempoSegundos < previo.tiempoSegundos) mejorPorPiloto.set(v.uid, v);
-    }
+  // 1. Lo acumulado pierde fuelle desde la ultima vez.
+  const acumuladoDecaido = territorio.decaer(
+    datos.acumulado || {},
+    datos.ultimoDecaimiento || hoy,
+    hoy);
 
-    const top = [...mejorPorPiloto.values()]
-      .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos)
-      .slice(0, PUNTOS.ESTACION_POR_POSICION.length);
+  // 2. Lo que aporta la actividad actual.
+  const nuevo = territorio.influenciaDelPeriodo(objetivo, viajes, clanPorUid);
 
-    top.forEach((viaje, indice) => {
-      const clanId = clanPorUid.get(viaje.uid);
-      if (!clanId) return;
-      puntosClan[clanId] = (puntosClan[clanId] || 0) + PUNTOS.ESTACION_POR_POSICION[indice];
-    });
-  }
+  // 3. Reparto y quien controla.
+  const reparto = territorio.repartir(acumuladoDecaido, nuevo);
 
-  let dominante = null;
-  let maximo = 0;
-  let total = 0;
-  for (const [clanId, puntos] of Object.entries(puntosClan)) {
-    total += puntos;
-    if (puntos > maximo) { maximo = puntos; dominante = clanId; }
-  }
-
-  await db().doc(`estaciones_stats/${objetivo}`).set({
+  await ref.set({
     estacionId: objetivo,
-    clanDominante: dominante,
-    totalPuntos: total,
-    detalle: puntosClan,
+    acumulado: reparto.acumulado,
+    cuota: reparto.cuota,
+    clanDominante: reparto.dominante,
+    lider: reparto.lider,
+    enDisputa: reparto.enDisputa,
+    ultimoDecaimiento: hoy,
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
+
+  return reparto;
 }
 
 /**

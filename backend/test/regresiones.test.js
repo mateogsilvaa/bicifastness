@@ -774,6 +774,37 @@ test('hay un ranking por cada modo del juego', () => {
   }
 });
 
+test('el mapa distingue controlar de ir primero', () => {
+  // Pintar del color del que va primero por un punto daria un mapa lleno de
+  // dueños falsos, y taparia justo donde hay partida.
+  const pagina = leerCodigo('assets/js/paginas/territorio.js');
+
+  assert.match(pagina, /if \(!stats\?\.clanDominante\) return NEUTRAL/,
+    'se colorea sin comprobar que alguien controle de verdad');
+  assert.match(pagina, /enDisputa/, 'la disputa no se marca en el mapa');
+});
+
+test('el territorio decae por diferencia de fechas', () => {
+  // Un cron que TIENE que correr cada dia acaba saltandose alguno, y entonces
+  // el territorio se queda congelado sin que nadie lo note.
+  const codigo = leerCodigo('backend/src/territorio.js');
+  assert.match(codigo, /Date\.parse\(hasta\) - Date\.parse\(desde\)/);
+  assert.match(codigo, /CONSERVA_DIARIA \*\* dias/);
+
+  // Y el recalculo guarda la fecha, o no habria desde donde medir.
+  assert.match(leerCodigo('backend/src/puntuacion.js'), /ultimoDecaimiento: hoy/);
+});
+
+test('la influencia pesa las tres componentes del juego', () => {
+  const { PESOS } = require('../src/territorio');
+  const suma = Object.values(PESOS).reduce((t, p) => t + p, 0);
+
+  assert.ok(Math.abs(suma - 1) < 0.001, `los pesos suman ${suma}, deberian sumar 1`);
+  for (const componente of ['presencia', 'velocidad', 'volumen']) {
+    assert.ok(PESOS[componente] > 0, `${componente} no pesa nada`);
+  }
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

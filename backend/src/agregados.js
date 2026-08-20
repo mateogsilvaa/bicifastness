@@ -210,8 +210,14 @@ async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones
   const mapa = {};
   for (const [id, stats] of estaciones) {
     mapa[id] = {
+      // `clan` es quien CONTROLA (mas del 50%); `lider` es quien va primero.
+      // No son lo mismo, y la diferencia es justo lo interesante del mapa: una
+      // estacion con lider pero sin dueño esta en disputa, o sea que ahi hay
+      // algo que hacer.
       clan: stats.clanDominante || null,
-      puntos: stats.totalPuntos || 0,
+      lider: stats.lider || null,
+      disputa: Boolean(stats.enDisputa),
+      cuota: stats.cuota || {},
     };
   }
 

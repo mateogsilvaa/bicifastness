@@ -41,11 +41,35 @@ function colorSeguro(valor) {
 
 const NEUTRAL = '#888888';
 
-/** Color con el que se pinta una estacion segun quien la domine. */
+/**
+ * Color de una estacion.
+ *
+ * Solo se pinta del color de un clan si de verdad la CONTROLA. Una estacion con
+ * lider pero sin dueño se queda neutral y se marca aparte: pintarla del color
+ * del que va primero por un punto daria un mapa lleno de dueños falsos, y
+ * ademas taparia justo donde hay partida.
+ */
 function colorEstacion(numero) {
   const stats = porEstacion.get(numero);
-  const clan = stats?.clanDominante ? porClan.get(stats.clanDominante) : null;
-  return colorSeguro(clan?.color) || NEUTRAL;
+  if (!stats?.clanDominante) return NEUTRAL;
+  return colorSeguro(porClan.get(stats.clanDominante)?.color) || NEUTRAL;
+}
+
+/** Las estaciones en disputa se marcan con borde, no con color. */
+function estiloEstacion(numero) {
+  const stats = porEstacion.get(numero);
+  const disputa = Boolean(stats?.enDisputa) && Boolean(stats?.lider);
+
+  return {
+    radius: disputa ? 8 : 7,
+    fillColor: colorEstacion(numero),
+    // Borde punteado y grueso: se distingue del resto sin necesidad de leyenda
+    // y sin gastar un color, que en este sistema son escasos a proposito.
+    color: disputa ? '#E8FF3A' : '#fff',
+    weight: disputa ? 3 : 2,
+    opacity: 1,
+    fillOpacity: 0.9,
+  };
 }
 
 // --- Ficha de estacion -------------------------------------------------------
@@ -76,15 +100,34 @@ function pintarEstacion(propiedades) {
 
     el('div', { clase: 'fila', estilo: { marginBottom: 'var(--e4)' } }, [
       marca,
-      el('span', { texto: clan ? clan.nombre : 'Territorio neutral' }),
+      el('span', {
+        texto: clan ? `Controlada por ${clan.nombre}`
+          : stats?.lider ? 'En disputa'
+            : 'Territorio neutral',
+      }),
     ]),
 
-    stats ? el('div', { clase: 'fila', estilo: { gap: 'var(--e6)' } }, [
-      el('div', {}, [
-        el('p', { clase: 'etiqueta', texto: 'Puntos' }),
-        el('p', { clase: 'cifra', texto: String(stats.totalPuntos || 0), estilo: { margin: '0' } }),
-      ]),
-    ]) : null,
+    // El reparto entero, no solo quien manda: sin el, nadie entiende por que
+    // pierde una estacion ni cuanto le falta para ganarla.
+    stats?.cuota && Object.keys(stats.cuota).length
+      ? el('div', { estilo: { marginBottom: 'var(--e4)' } }, [
+        el('p', { clase: 'etiqueta', texto: 'Reparto' }),
+        ...Object.entries(stats.cuota)
+          .sort((a, b) => b[1] - a[1])
+          .map(([clanId, pct]) => {
+            const punto = el('span', { clase: 'marca-clan', attrs: { 'aria-hidden': 'true' } });
+            punto.style.background = colorSeguro(porClan.get(clanId)?.color) || NEUTRAL;
+
+            return el('div', { clase: 'fila separada', estilo: { marginBottom: 'var(--e2)' } }, [
+              el('div', { clase: 'fila' }, [
+                punto,
+                el('span', { clase: 'menor', texto: porClan.get(clanId)?.nombre || clanId }),
+              ]),
+              el('span', { clase: 'marca', estilo: { fontSize: '16px' }, texto: `${pct}%` }),
+            ]);
+          }),
+      ])
+      : null,
 
     el('a', { clase: 'btn', texto: 'Competir aqui', attrs: { href: `/subir/?origen=${encodeURIComponent(numero)}` } }),
   ]));
@@ -184,14 +227,8 @@ async function cargar() {
     porEstacion = new Map(statsSnap.docs.map((d) => [d.id, d.data()]));
 
     L.geoJSON(geojson, {
-      pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
-        radius: 7,
-        fillColor: colorEstacion(String(feature.properties.number || '')),
-        color: '#fff',
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 0.9,
-      }),
+      pointToLayer: (feature, latlng) =>
+        L.circleMarker(latlng, estiloEstacion(String(feature.properties.number || ''))),
       onEachFeature: (feature, capa) => {
         // El detalle va al panel, no a un popup encima del mapa: en movil el
         // popup tapa justo la zona que estas mirando.

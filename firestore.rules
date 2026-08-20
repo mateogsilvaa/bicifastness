@@ -288,6 +288,22 @@ service cloud.firestore {
     }
 
     // --- Cierre por defecto -------------------------------------------------
+    // --- Agregados ---------------------------------------------------------
+    // Lo que lee el navegador para pintar clasificaciones, mapa y portada.
+    //
+    // Publicos a proposito, y por eso solo llevan lo que ya se ve en pantalla:
+    // nombre, avatar y puntos. Nunca correo ni nada que no salga ahi. Esa
+    // limitacion no depende de esta regla, la impone `backend/src/agregados.js`
+    // con una lista blanca de campos, y hay un test que la comprueba.
+    //
+    // Existen porque `usuarios` esta cerrada (#60) y porque leerla entera para
+    // pintar un ranking costaba 175 lecturas por visita.
+    match /agregados/{documento} {
+      allow read: if true;
+      // Los escribe el worker con el Admin SDK, que se salta estas reglas.
+      allow write: if false;
+    }
+
     // --- Bajas de correo ---------------------------------------------------
     // La UNICA coleccion del proyecto que escribe gente SIN sesion, y es a
     // proposito: el RGPD exige baja facil, y si hay que iniciar sesion para

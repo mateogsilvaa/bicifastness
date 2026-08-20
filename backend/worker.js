@@ -556,6 +556,13 @@ async function main() {
   await aplicarDecisionesManuales();
   await procesarBajas();
 
+  // Los agregados se reconstruyen UNA VEZ al final, no por viaje: es la
+  // operacion mas cara que hace el worker (#36).
+  if (!SIMULAR && (cuenta.aprobado > 0 || cuenta.rechazado > 0)) {
+    const escritos = await puntuacion.reconstruirAgregados();
+    console.log(`Agregados reconstruidos: ${JSON.stringify(escritos)}`);
+  }
+
   console.log(`\nResumen: ${cuenta.aprobado} aprobados, ${cuenta.rechazado} rechazados, `
     + `${cuenta.revision} a revision, ${cuenta.error} con error.`);
   process.exit(0);

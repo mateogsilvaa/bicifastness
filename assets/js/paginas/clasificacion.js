@@ -7,24 +7,69 @@
 // criterios distintos. La pestaña y la ruta elegidas viajan en la query string
 // para que un enlace a una clasificacion concreta se pueda compartir y el boton
 // de atras del navegador funcione.
+//
+// Lee de `agregados/`, NO de las colecciones. Dos motivos:
+//
+//   - recorrer `usuarios` costaba 175 lecturas por cada visita, y el plan
+//     gratuito da 50.000 al dia: 285 visitas y se acabo
+//   - esa coleccion esta cerrada porque lleva datos que no son de nadie mas
+//     (#60). Un agregado solo trae lo que se pinta
 
-import { auth, db, collection, getDocs, query, where, onAuthStateChanged } from '/assets/js/firebase.js';
-import { iniciarPagina, nombreRuta, formatearTiempo, formatearFecha } from '/assets/js/ui.js';
+import { db, doc, getDoc } from '/assets/js/firebase.js';
+import { iniciarPagina, nombreRuta, formatearTiempo } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 
 iniciarPagina('clasificacion');
 
 const PESTANAS = ['rutas', 'pilotos', 'clanes'];
 
-let usuarios = [];
-let viajes = [];
-let clanes = [];
-let uidActual = null;
-let cargado = false;
+/** Agregados ya pedidos, para no volver a pedirlos al cambiar de pestaña. */
+const cache = new Map();
+
+/** Motivo del ultimo fallo de lectura, si lo hubo. */
+let fallo = null;
+
+// --- Lectura -----------------------------------------------------------------
+
+/**
+ * Trae un agregado. Devuelve null si no existe todavia.
+ *
+ * Que no exista es normal y no es un error: el worker los crea la primera vez
+ * que aprueba algo. Hasta entonces, la pantalla enseña su estado vacio.
+ */
+async function traer(nombre) {
+  if (cache.has(nombre)) return cache.get(nombre);
+
+  try {
+    const snap = await getDoc(doc(db, 'agregados', nombre));
+    const datos = snap.exists() ? snap.data() : null;
+    cache.set(nombre, datos);
+    return datos;
+  } catch (error) {
+    // Que falle UN agregado no puede tumbar la pantalla entera: cada panel se
+    // pinta por su cuenta y el que no tenga datos enseña su estado vacio.
+    //
+    // Pero tampoco se traga en silencio. `permission-denied` aqui casi siempre
+    // significa que las reglas desplegadas son anteriores al bloque
+    // `agregados`, y sin este aviso se investiga la pantalla en vez del
+    // despliegue.
+    fallo = error.code === 'permission-denied'
+      ? 'Las clasificaciones no estan disponibles. Si acabas de desplegar, revisa las reglas de Firestore.'
+      : 'No hemos podido cargar las clasificaciones. Vuelve a intentarlo.';
+
+    console.debug(`No se ha podido leer agregados/${nombre}`, error);
+    cache.set(nombre, null);
+    return null;
+  }
+}
+
+/** Enseña el motivo del fallo, si lo hubo, en el panel que toque. */
+function avisarSiFallo(panel) {
+  if (fallo) estado(id(`msg-${panel}`), fallo, 'error');
+}
 
 // --- Pintado -----------------------------------------------------------------
 
-/** Cabecera de la tabla. Las columnas son <th scope="col"> de verdad. */
 function cabecera(columnas) {
   return el('thead', {}, [
     el('tr', {}, columnas.map((c) => el('th', {
@@ -39,20 +84,17 @@ function cabecera(columnas) {
  * Una fila de clasificacion.
  *
  * `esRecord` solo lo lleva el primero, y es el unico sitio de todo el sitio
- * donde aparece el lima. `esTuya` marca tu posicion con el azul, igual que la
- * navegacion marca donde estas.
+ * donde aparece el lima.
  */
-function fila({ puesto, nombre, debajo, marca, fecha, esRecord, esTuya }) {
-  const clases = [esRecord ? 'record' : '', esTuya ? 'tuya' : ''].filter(Boolean).join(' ');
-
-  return el('tr', { clase: clases }, [
-    el('td', { clase: 'col-puesto' }, [el('span', { clase: 'puesto', texto: String(puesto) })]),
+function fila({ pos, nombre, debajo, marca, extra, esRecord }) {
+  return el('tr', { clase: esRecord ? 'record' : '' }, [
+    el('td', { clase: 'col-puesto' }, [el('span', { clase: 'puesto', texto: String(pos) })]),
     el('td', {}, [
       el('div', { clase: 'nombre', texto: nombre }),
       debajo ? el('div', { clase: 'clan', texto: debajo }) : null,
     ]),
     el('td', { clase: 'col-marca' }, [el('span', { clase: 'marca', texto: marca })]),
-    el('td', { clase: 'col-fecha menor apagado', texto: fecha || '' }),
+    el('td', { clase: 'col-fecha menor apagado', texto: extra || '' }),
   ]);
 }
 
@@ -68,15 +110,23 @@ function esqueleto(filas = 6) {
   return el('div', {}, Array.from({ length: filas }, () => el('div', { clase: 'esqueleto fila' })));
 }
 
-// --- Rutas -------------------------------------------------------------------
+/** "actualizado hace X": un agregado sin fecha no se distingue de uno congelado. */
+function pieActualizado(agregado) {
+  const marca = agregado?.actualizado?.toDate?.();
+  if (!marca) return null;
 
-function rutasConTiempos() {
-  const cuenta = new Map();
-  for (const v of viajes) cuenta.set(v.ruta, (cuenta.get(v.ruta) || 0) + 1);
-  return [...cuenta.keys()].sort();
+  const minutos = Math.round((Date.now() - marca.getTime()) / 60000);
+  const texto = minutos < 2 ? 'hace un momento'
+    : minutos < 60 ? `hace ${minutos} min`
+      : minutos < 1440 ? `hace ${Math.round(minutos / 60)} h`
+        : `hace ${Math.round(minutos / 1440)} dias`;
+
+  return el('p', { clase: 'menor apagado', texto: `Actualizado ${texto}` });
 }
 
-function pintarRuta(ruta) {
+// --- Paneles -----------------------------------------------------------------
+
+async function pintarRuta(ruta) {
   const destino = id('tabla-rutas');
 
   if (!ruta) {
@@ -84,111 +134,106 @@ function pintarRuta(ruta) {
     return;
   }
 
-  // Solo el mejor tiempo de cada piloto compite: si no, quien sube diez veces
-  // la misma ruta ocupa medio podio.
-  const mejorPorPiloto = new Map();
-  for (const v of viajes) {
-    if (v.ruta !== ruta) continue;
-    const previo = mejorPorPiloto.get(v.uid);
-    if (!previo || v.tiempoSegundos < previo.tiempoSegundos) mejorPorPiloto.set(v.uid, v);
-  }
+  reemplazar(destino, esqueleto());
+  const agregado = await traer(`ruta-${ruta}`);
 
-  const orden = [...mejorPorPiloto.values()].sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
-
-  if (!orden.length) {
+  if (!agregado || !agregado.filas?.length) {
     reemplazar(destino, vacio(
       'Todavia no hay tiempos en esta ruta',
       'El primero que la haga se queda con el record.'));
+    avisarSiFallo('rutas');
     return;
   }
 
-  const porUid = new Map(usuarios.map((u) => [u.uid, u]));
-
-  reemplazar(destino, el('table', { clase: 'tabla' }, [
-    cabecera([
-      { texto: 'Pos', clase: 'col-puesto' },
-      { texto: 'Piloto' },
-      { texto: 'Tiempo', clase: 'col-marca' },
-      { texto: 'Fecha', clase: 'col-fecha' },
+  reemplazar(destino,
+    el('div', { clase: 'tabla-scroll' }, [
+      el('table', { clase: 'tabla' }, [
+        cabecera([
+          { texto: 'Pos', clase: 'col-puesto' },
+          { texto: 'Piloto' },
+          { texto: 'Tiempo', clase: 'col-marca' },
+          { texto: '', clase: 'col-fecha' },
+        ]),
+        el('tbody', {}, agregado.filas.map((f) => fila({
+          pos: f.pos,
+          nombre: f.nombre,
+          debajo: f.clan,
+          marca: formatearTiempo(f.marca),
+          esRecord: f.pos === 1,
+        }))),
+      ]),
     ]),
-    el('tbody', {}, orden.map((v, i) => {
-      const piloto = porUid.get(v.uid);
-      return fila({
-        puesto: i + 1,
-        nombre: piloto?.username || 'Piloto',
-        debajo: piloto?.clanId || null,
-        marca: formatearTiempo(v.tiempoSegundos),
-        fecha: v.fechaViaje ? formatearFecha(v.fechaViaje) : '',
-        esRecord: i === 0,
-        esTuya: v.uid === uidActual,
-      });
-    })),
-  ]));
+    pieActualizado(agregado));
 }
 
-// --- Pilotos y clanes --------------------------------------------------------
-
-function pintarPilotos() {
-  const orden = [...usuarios]
-    .filter((u) => (u.biciRating || 0) > 0)
-    .sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0));
-
+async function pintarPilotos() {
   const destino = id('tabla-pilotos');
+  reemplazar(destino, esqueleto());
 
-  if (!orden.length) {
+  const agregado = await traer('ranking-pilotos');
+
+  if (!agregado || !agregado.filas?.length) {
     reemplazar(destino, vacio(
       'Todavia no hay pilotos con puntos',
       'Los puntos salen de los trayectos verificados.'));
+    avisarSiFallo('pilotos');
     return;
   }
 
-  reemplazar(destino, el('table', { clase: 'tabla' }, [
-    cabecera([
-      { texto: 'Pos', clase: 'col-puesto' },
-      { texto: 'Piloto' },
-      { texto: 'BiciRating', clase: 'col-marca' },
-      { texto: 'Viajes', clase: 'col-fecha' },
+  reemplazar(destino,
+    el('div', { clase: 'tabla-scroll' }, [
+      el('table', { clase: 'tabla' }, [
+        cabecera([
+          { texto: 'Pos', clase: 'col-puesto' },
+          { texto: 'Piloto' },
+          { texto: 'BiciRating', clase: 'col-marca' },
+          { texto: 'Viajes', clase: 'col-fecha' },
+        ]),
+        el('tbody', {}, agregado.filas.map((f) => fila({
+          pos: f.pos,
+          nombre: f.nombre,
+          debajo: f.clan,
+          marca: String(f.puntos),
+          extra: String(f.viajes ?? ''),
+          esRecord: f.pos === 1,
+        }))),
+      ]),
     ]),
-    el('tbody', {}, orden.map((u, i) => fila({
-      puesto: i + 1,
-      nombre: u.username || 'Piloto',
-      debajo: u.clanId || null,
-      marca: String(u.biciRating || 0),
-      fecha: `${u.viajesVerificados || 0}`,
-      esRecord: i === 0,
-      esTuya: u.uid === uidActual,
-    }))),
-  ]));
+    pieActualizado(agregado));
 }
 
-function pintarClanes() {
-  const orden = [...clanes].sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0));
+async function pintarClanes() {
   const destino = id('tabla-clanes');
+  reemplazar(destino, esqueleto());
 
-  if (!orden.length) {
+  const agregado = await traer('ranking-clanes');
+
+  if (!agregado || !agregado.filas?.length) {
     reemplazar(destino, vacio('Todavia no hay clanes', 'Crea el primero desde tu perfil.'));
+    avisarSiFallo('clanes');
     return;
   }
 
-  const miClan = usuarios.find((u) => u.uid === uidActual)?.clanId || null;
-
-  reemplazar(destino, el('table', { clase: 'tabla' }, [
-    cabecera([
-      { texto: 'Pos', clase: 'col-puesto' },
-      { texto: 'Clan' },
-      { texto: 'BiciRating', clase: 'col-marca' },
-      { texto: 'Miembros', clase: 'col-fecha' },
+  reemplazar(destino,
+    el('div', { clase: 'tabla-scroll' }, [
+      el('table', { clase: 'tabla' }, [
+        cabecera([
+          { texto: 'Pos', clase: 'col-puesto' },
+          { texto: 'Clan' },
+          { texto: 'Estaciones', clase: 'col-marca' },
+          { texto: 'Puntos', clase: 'col-fecha' },
+        ]),
+        el('tbody', {}, agregado.filas.map((f) => fila({
+          pos: f.pos,
+          nombre: f.nombre,
+          debajo: `${f.viajes ?? 0} miembros`,
+          marca: String(f.marca ?? 0),
+          extra: String(f.puntos ?? 0),
+          esRecord: f.pos === 1,
+        }))),
+      ]),
     ]),
-    el('tbody', {}, orden.map((c, i) => fila({
-      puesto: i + 1,
-      nombre: c.nombre || c.id,
-      debajo: null,
-      marca: String(c.biciRating || 0),
-      fecha: `${c.numMiembros || 0}`,
-      esRecord: i === 0,
-      esTuya: c.id === miClan,
-    }))),
-  ]));
+    pieActualizado(agregado));
 }
 
 // --- Pestañas ----------------------------------------------------------------
@@ -229,46 +274,37 @@ id('selector-ruta').addEventListener('change', (evento) => {
 
 // --- Carga -------------------------------------------------------------------
 
-onAuthStateChanged(auth, (usuario) => {
-  uidActual = usuario ? usuario.uid : null;
-  // Si ya estaba pintado, se repinta para marcar tu fila.
-  if (cargado) mostrar(new URLSearchParams(window.location.search).get('tab') || 'rutas', { recordar: false });
-});
-
 async function cargar() {
   for (const p of PESTANAS) reemplazar(id(`tabla-${p}`), esqueleto());
 
-  try {
-    const [usuariosSnap, viajesSnap, clanesSnap] = await Promise.all([
-      getDocs(collection(db, 'usuarios')),
-      getDocs(query(collection(db, 'tiempos_viaje'), where('verificado', '==', true))),
-      getDocs(collection(db, 'clanes')),
-    ]);
+  // Sin try/catch: `traer` ya no lanza. Cada panel se pinta por su cuenta y el
+  // que falle enseña su estado vacio con el motivo al lado, en vez de tumbar
+  // toda la pantalla.
+  const indice = await traer('rutas');
+  const rutas = indice?.rutas || [];
 
-    usuarios = usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-    viajes = viajesSnap.docs.map((d) => d.data());
-    clanes = clanesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    cargado = true;
+  const parametros = new URLSearchParams(window.location.search);
+  const pedida = parametros.get('ruta');
+  const elegida = rutas.includes(pedida) ? pedida : rutas[0];
 
-    const parametros = new URLSearchParams(window.location.search);
-    const rutas = rutasConTiempos();
-    const pedida = parametros.get('ruta');
-    const elegida = rutas.includes(pedida) ? pedida : rutas[0];
+  reemplazar(id('selector-ruta'), rutas.map((r) => el('option', {
+    texto: nombreRuta(r),
+    attrs: { value: r, selected: r === elegida ? 'selected' : null },
+  })));
 
-    reemplazar(id('selector-ruta'), rutas.map((r) => el('option', {
-      texto: nombreRuta(r),
-      attrs: { value: r, selected: r === elegida ? 'selected' : null },
-    })));
-
-    pintarRuta(elegida);
-    mostrar(parametros.get('tab') || 'rutas', { recordar: false });
-  } catch (error) {
-    console.debug('No se ha podido cargar la clasificacion', error);
-    for (const p of PESTANAS) {
-      reemplazar(id(`tabla-${p}`), el('div', {}));
-      estado(id(`msg-${p}`), 'No hemos podido cargar la clasificacion. Vuelve a intentarlo.', 'error');
-    }
+  if (elegida) {
+    await pintarRuta(elegida);
+  } else {
+    // Sin rutas no hay nada que elegir, pero si la lectura fallo hay que
+    // decirlo: el desplegable vacio no distingue "todavia no hay datos" de
+    // "no he podido leerlos".
+    reemplazar(id('tabla-rutas'), vacio(
+      'Todavia no hay clasificaciones',
+      'Apareceran en cuanto se verifique el primer trayecto.'));
+    avisarSiFallo('rutas');
   }
+
+  mostrar(parametros.get('tab') || 'rutas', { recordar: false });
 }
 
 cargar();

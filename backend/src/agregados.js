@@ -1,0 +1,207 @@
+'use strict';
+
+/**
+ * Documentos agregados: lo que lee el navegador.
+ *
+ * El navegador no calcula nada ni recorre colecciones. El worker precalcula y
+ * deja el resultado servido, y una pantalla pasa de cientos de lecturas a unas
+ * pocas. Dos motivos, y el segundo es el que de verdad manda:
+ *
+ * 1. COSTE. El plan Spark da 50.000 lecturas al dia. Pintar el ranking leyendo
+ *    `usuarios` entero son 175 lecturas por visita: 285 visitas y se acabo el
+ *    dia.
+ *
+ * 2. PRIVACIDAD. `usuarios` lleva datos que no son de nadie mas, y por eso esta
+ *    cerrada (#60). Un agregado contiene SOLO lo que se pinta: nombre, avatar y
+ *    puntos. Nunca correo, ni uid en claro, ni nada que no salga ya en la
+ *    pantalla.
+ *
+ * Esa segunda regla no es una recomendacion: hay un test que falla si un
+ * agregado contiene un campo que no este en la lista blanca de abajo.
+ */
+
+const admin = require('firebase-admin');
+
+const db = () => admin.firestore();
+
+/**
+ * Lo UNICO que puede viajar a un documento de lectura publica.
+ *
+ * Si hace falta un campo nuevo, se anade aqui a proposito y se piensa si es
+ * publicable. Sin lista blanca, el dia que alguien meta el objeto de usuario
+ * entero "para no repetir codigo", el correo vuelve a estar publicado.
+ */
+const CAMPOS_PUBLICABLES = ['pos', 'nombre', 'avatar', 'clan', 'puntos', 'marca', 'viajes'];
+
+/**
+ * Un documento de Firestore tiene un tope duro de 1 MiB. Un ranking largo no
+ * cabe, asi que se parte en paginas. 200 filas por pagina van holgadas y son
+ * mas de las que nadie mira de una sentada.
+ */
+const POR_PAGINA = 200;
+
+/** Deja una fila con solo los campos publicables. */
+function limpiar(fila) {
+  const salida = {};
+  for (const campo of CAMPOS_PUBLICABLES) {
+    if (fila[campo] !== undefined && fila[campo] !== null) salida[campo] = fila[campo];
+  }
+  return salida;
+}
+
+/**
+ * Escribe un agregado, partiendolo en paginas si hace falta.
+ * Devuelve cuantas paginas ha escrito.
+ */
+async function escribirAgregado(nombre, filas, extra = {}) {
+  const limpias = filas.map(limpiar);
+  const paginas = Math.max(1, Math.ceil(limpias.length / POR_PAGINA));
+
+  for (let i = 0; i < paginas; i++) {
+    const id = i === 0 ? nombre : `${nombre}-p${i + 1}`;
+    await db().doc(`agregados/${id}`).set({
+      ...extra,
+      filas: limpias.slice(i * POR_PAGINA, (i + 1) * POR_PAGINA),
+      pagina: i + 1,
+      paginas,
+      total: limpias.length,
+      // Se ensena como "actualizado hace X": un agregado sin fecha no se
+      // distingue de uno que lleva tres dias congelado por un worker caido.
+      actualizado: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  return paginas;
+}
+
+/**
+ * Reconstruye todos los agregados de una vez.
+ *
+ * Se le pasan los datos ya leidos porque el worker los tiene en la mano tras el
+ * recalculo: volver a pedirlos aqui duplicaria la lectura mas cara que hace.
+ *
+ * @param {Array} usuarios  documentos de usuarios, con uid
+ * @param {Array} viajes    viajes verificados
+ * @param {Array} clanes    documentos de clanes, con id
+ * @param {Map}   estaciones  id de estacion -> stats
+ */
+async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones = new Map() }) {
+  const escritos = {};
+
+  // --- Pilotos ---------------------------------------------------------------
+  const pilotos = usuarios
+    .filter((u) => (u.biciRating || 0) > 0)
+    .sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0))
+    .map((u, i) => ({
+      pos: i + 1,
+      nombre: u.username || 'Piloto',
+      avatar: u.avatarUrl || null,
+      clan: u.clanId || null,
+      puntos: u.biciRating || 0,
+      viajes: u.viajesVerificados || 0,
+    }));
+
+  escritos.pilotos = await escribirAgregado('ranking-pilotos', pilotos);
+
+  // --- Clanes ----------------------------------------------------------------
+  const dominadas = new Map();
+  for (const stats of estaciones.values()) {
+    if (!stats.clanDominante) continue;
+    dominadas.set(stats.clanDominante, (dominadas.get(stats.clanDominante) || 0) + 1);
+  }
+
+  const tablaClanes = clanes
+    .sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0))
+    .map((c, i) => ({
+      pos: i + 1,
+      nombre: c.nombre || c.id,
+      puntos: c.biciRating || 0,
+      viajes: c.numMiembros || 0,
+      marca: String(dominadas.get(c.id) || 0),
+    }));
+
+  escritos.clanes = await escribirAgregado('ranking-clanes', tablaClanes);
+
+  // --- Rutas -----------------------------------------------------------------
+  // Solo el mejor tiempo de cada piloto compite: si no, quien sube diez veces la
+  // misma ruta ocupa medio podio.
+  const nombrePorUid = new Map(usuarios.map((u) => [u.uid, u]));
+  const porRuta = new Map();
+
+  for (const v of viajes) {
+    if (!v.ruta) continue;
+    if (!porRuta.has(v.ruta)) porRuta.set(v.ruta, new Map());
+    const mejores = porRuta.get(v.ruta);
+    const previo = mejores.get(v.uid);
+    if (!previo || v.tiempoSegundos < previo.tiempoSegundos) mejores.set(v.uid, v);
+  }
+
+  let rutasEscritas = 0;
+  for (const [ruta, mejores] of porRuta) {
+    const filas = [...mejores.values()]
+      .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos)
+      .map((v, i) => {
+        const piloto = nombrePorUid.get(v.uid);
+        return {
+          pos: i + 1,
+          nombre: piloto?.username || v.username || 'Piloto',
+          avatar: piloto?.avatarUrl || null,
+          clan: piloto?.clanId || null,
+          marca: v.tiempoSegundos,
+        };
+      });
+
+    // El id lleva la ruta dentro, asi que una pantalla pide exactamente la que
+    // le hace falta y no las 600.
+    await escribirAgregado(`ruta-${ruta}`, filas, { ruta });
+    rutasEscritas++;
+  }
+  escritos.rutas = rutasEscritas;
+
+  // --- Indice de rutas -------------------------------------------------------
+  // El selector de `/clasificacion/` necesita saber que rutas existen sin leer
+  // los 600 agregados de ruta.
+  await db().doc('agregados/rutas').set({
+    rutas: [...porRuta.keys()].sort(),
+    actualizado: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // --- Mapa ------------------------------------------------------------------
+  // Un documento en vez de ~600 lecturas de `estaciones_stats`.
+  const mapa = {};
+  for (const [id, stats] of estaciones) {
+    mapa[id] = {
+      clan: stats.clanDominante || null,
+      puntos: stats.totalPuntos || 0,
+    };
+  }
+
+  await db().doc('agregados/mapa').set({
+    estaciones: mapa,
+    // Color y nombre de cada clan, para no tener que leer `clanes` ademas.
+    clanes: Object.fromEntries(clanes.map((c) => [c.id, {
+      nombre: c.nombre || c.id,
+      color: c.color || null,
+    }])),
+    actualizado: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // --- Portada ---------------------------------------------------------------
+  await db().doc('agregados/portada').set({
+    pilotos: pilotos.length,
+    clanes: clanes.length,
+    viajes: viajes.length,
+    rutas: porRuta.size,
+    actualizado: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return escritos;
+}
+
+module.exports = {
+  reconstruir,
+  escribirAgregado,
+  limpiar,
+  CAMPOS_PUBLICABLES,
+  POR_PAGINA,
+};

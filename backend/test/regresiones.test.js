@@ -614,6 +614,35 @@ test('el worker saca el correo de Auth, no del documento', () => {
   assert.ok(!/para: datos\.email/.test(worker), 'sigue leyendo el correo del documento');
 });
 
+test('los agregados son publicos y solo los escribe el worker', () => {
+  const ag = bloque('agregados');
+  assert.match(ag, /allow read: if true/);
+  assert.match(ag, /allow write: if false/);
+});
+
+test('el navegador no recorre colecciones para pintar clasificaciones', () => {
+  // Recorrer `usuarios` costaba 175 lecturas por visita, y esa coleccion esta
+  // ademas cerrada (#60). Si alguien vuelve a poner un getDocs aqui, la pantalla
+  // deja de funcionar Y se come la cuota.
+  const pagina = leerCodigo('assets/js/paginas/clasificacion.js');
+
+  assert.ok(!/getDocs\(collection\(/.test(pagina),
+    'la clasificacion vuelve a recorrer colecciones');
+  assert.match(pagina, /doc\(db, 'agregados'/);
+});
+
+test('los agregados se reconstruyen una vez por tanda, no por viaje', () => {
+  // Leer todos los viajes y todos los usuarios es la operacion mas cara del
+  // worker. Hacerla por cada viaje aprobado es como se agota la cuota (#36).
+  const worker = leerCodigo('backend/worker.js');
+  const llamadas = (worker.match(/reconstruirAgregados\(\)/g) || []).length;
+
+  assert.strictEqual(llamadas, 1, 'reconstruirAgregados se llama mas de una vez');
+  // Y fuera del bucle que procesa la cola.
+  assert.ok(worker.indexOf('reconstruirAgregados()') > worker.indexOf('for (const doc of cola.docs)'),
+    'se reconstruye dentro del bucle de la cola');
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

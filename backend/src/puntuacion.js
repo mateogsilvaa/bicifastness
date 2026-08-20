@@ -12,6 +12,7 @@
 const admin = require('firebase-admin');
 const { PUNTOS, VIAJE } = require('./config');
 const rachas = require('./rachas');
+const agregados = require('./agregados');
 
 const db = () => admin.firestore();
 
@@ -276,12 +277,36 @@ async function recalcularTrasCambio(ruta) {
   await recalcularEstacion(destino, viajes, usuarios);
 }
 
+/**
+ * Reconstruye los agregados que lee el navegador.
+ *
+ * Se llama UNA VEZ al final de la tanda, no por viaje: leer todos los viajes y
+ * todos los usuarios es la operacion mas cara del worker, y repetirla por cada
+ * viaje aprobado es como se agota la cuota diaria (#36).
+ */
+async function reconstruirAgregados() {
+  const [viajesSnap, usuariosSnap, clanesSnap, estacionesSnap] = await Promise.all([
+    db().collection('tiempos_viaje').where('verificado', '==', true).get(),
+    db().collection('usuarios').get(),
+    db().collection('clanes').get(),
+    db().collection('estaciones_stats').get(),
+  ]);
+
+  return agregados.reconstruir({
+    viajes: viajesSnap.docs.map((d) => d.data()),
+    usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
+    clanes: clanesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    estaciones: new Map(estacionesSnap.docs.map((d) => [d.id, d.data()])),
+  });
+}
+
 module.exports = {
   calcularPuntosViaje,
   recalcularRuta,
   recalcularClan,
   recalcularEstacion,
   recalcularTrasCambio,
+  reconstruirAgregados,
   puntosPorPosicion,
   multiplicadorRuta,
   escribirEnLotes,

@@ -191,7 +191,9 @@ export async function solicitarBorradoCuenta(confirmacion) {
  */
 export async function resolverViaje(viajeId, accion, motivo = null) {
   const aprobar = accion === 'aprobar';
-  await updateDoc(doc(db, 'tiempos_viaje', viajeId), {
+  const lote = writeBatch(db);
+
+  lote.update(doc(db, 'tiempos_viaje', viajeId), {
     estado: aprobar ? 'aprobado' : 'rechazado',
     verificado: aprobar,
     revisadoPor: uidActual(),
@@ -199,6 +201,19 @@ export async function resolverViaje(viajeId, accion, motivo = null) {
     motivoRevision: motivo,
     recalculoPendiente: true,
   });
+
+  // Cada decision manual deja rastro, y en el mismo lote que la decision: un
+  // rastro que se escribe "despues, si eso" es un rastro con agujeros. La
+  // coleccion no admite modificar ni borrar, asi que esto no se puede maquillar
+  // luego (ni por quien lo escribio).
+  lote.set(doc(collection(db, 'auditoria_admin')), {
+    adminUid: uidActual(),
+    accion: `viaje:${aprobar ? 'aprobado' : 'rechazado'}`,
+    detalle: { viajeId, motivo: motivo || null },
+    creado: serverTimestamp(),
+  });
+
+  await lote.commit();
 }
 
 export async function resolverReporte(reporteId, accion, viajeId) {

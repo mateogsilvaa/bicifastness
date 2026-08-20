@@ -12,6 +12,7 @@ import { iniciarPagina, alternarTema, nombreRuta, formatearFecha, formatearTiemp
 import { id, el, estado, reemplazar, confirmar, pedirTexto, esqueleto } from '/assets/js/dom.js';
 import { generarNodosInsignias } from '/insignias.js';
 import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo } from '/assets/js/acciones.js';
+import { motivoDeViaje } from '/assets/js/motivos.js';
 
 iniciarPagina('yo');
 
@@ -158,13 +159,10 @@ async function cargarHistorial() {
           ]),
         ]),
 
-        // Si se ha rechazado, el piloto merece saber por que.
-        viaje.estado === 'rechazado' && (viaje.motivoRevision || viaje.auditoria?.resumen)
-          ? el('div', { clase: 'aviso error', estilo: { marginTop: 'var(--e3)', marginBottom: '0' } }, [
-            el('p', { clase: 'etiqueta', texto: 'Motivo' }),
-            el('p', { texto: viaje.motivoRevision || viaje.auditoria.resumen }),
-          ])
-          : null,
+        // Si se ha rechazado, el piloto merece saber por que. El texto sale de
+        // `motivos.js`: el resumen de la auditoria esta escrito para quien
+        // revisa y lleva dentro los numeros del antifraude.
+        viaje.estado === 'rechazado' ? bloqueMotivo(viaje) : null,
 
         // Derecho a que una persona revise una decision automatica
         // (art. 22.3 RGPD). Solo tiene sentido si quien rechazo fue la maquina.
@@ -186,6 +184,16 @@ async function cargarHistorial() {
   } catch (error) {
     reemplazar(contenedor, el('p', { texto: `No se ha podido cargar el historial: ${error.message}` }));
   }
+}
+
+/** Por que se rechazo, en castellano y sin contar como funciona el antifraude. */
+function bloqueMotivo(viaje) {
+  const motivo = motivoDeViaje(viaje);
+  return el('div', { clase: 'aviso error', estilo: { marginTop: 'var(--e3)', marginBottom: '0' } }, [
+    el('p', { clase: 'etiqueta', texto: motivo.dePersona ? 'Lo que dice quien lo ha revisado' : 'Motivo' }),
+    el('p', { texto: motivo.texto }),
+    motivo.queHacer ? el('p', { clase: 'menor apagado', texto: motivo.queHacer }) : null,
+  ]);
 }
 
 /**

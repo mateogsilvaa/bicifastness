@@ -35,7 +35,7 @@ const admin = require('firebase-admin');
 const { LIMITES, TIEMPO } = require('./src/config');
 const { construirRuta, inicioDelDiaMadrid } = require('./src/util');
 const imagen = require('./src/imagen');
-const { leerCaptura } = require('./src/ocr');
+const { leerCaptura, cerrar: cerrarOcr } = require('./src/ocr');
 const { evaluar, distanciaCalleMetros } = require('./src/verificacion');
 const puntuacion = require('./src/puntuacion');
 const distancias = require('./src/distancias');
@@ -53,6 +53,32 @@ const SOLO_UNO = process.argv.includes('--once');
 // esto da holgura de sobra y evita agotar la cuota diaria de Firestore del plan
 // gratuito (50.000 lecturas y 20.000 escrituras al dia).
 const MAX_POR_TANDA = SOLO_UNO ? 1 : 25;
+
+/**
+ * Cuanto tiempo se queda vivo el worker dando pasadas a la cola, y cuanto
+ * espera entre una y otra (#14).
+ *
+ * EL PROBLEMA. El cron pide una ejecucion cada 5 minutos, pero GitHub retrasa
+ * los programados cuando hay carga: el hueco real esta entre 5 y 15 minutos. Y
+ * quien acaba de subir un viaje esta mirando la pantalla.
+ *
+ * QUE SE HACE. En vez de mirar la cola una vez y morir, la ejecucion se queda
+ * unos minutos dando pasadas cada poco. Dentro de esa ventana, el tiempo de
+ * espera de un viaje pasa de "hasta el proximo despertar" a menos de un minuto.
+ *
+ * LO QUE CUESTA, dicho claro: la ejecucion pasa de durar ~1 minuto a durar
+ * hasta VENTANA_MINUTOS. En un repositorio PUBLICO Actions es gratis e
+ * ilimitado, que es justo por lo que el worker vive aqui; en uno privado esto
+ * multiplicaria el consumo por cuatro y NO compensa. Por eso se apaga poniendo
+ * VENTANA_MINUTOS=0.
+ *
+ * La ventana se queda por debajo del periodo del cron para no solaparse con la
+ * siguiente ejecucion, que ademas quedaria descartada por `concurrency`.
+ */
+const VENTANA_MS = Number(process.env.VENTANA_MINUTOS ?? 4) * 60000;
+const ESPERA_MS = Number(process.env.ESPERA_SEGUNDOS ?? 45) * 1000;
+
+const esperar = (ms) => new Promise((listo) => setTimeout(listo, ms));
 
 // El dominio tiene que estar verificado en Resend con SPF, DKIM y DMARC, o el
 // correo se va a spam.
@@ -87,27 +113,40 @@ const AHORA = () => admin.firestore.FieldValue.serverTimestamp();
  * quien dice ser, pero no saben contar cuantos viajes ha subido alguien hoy ni
  * si la ruta existe de verdad. Eso se comprueba aqui, y lo que no cuadra se
  * rechaza sin llegar a gastar una pasada de OCR, que es lo mas lento del pipeline.
+ *
+ * Devuelve `null` si todo cuadra, o un problema con CODIGO. El codigo no es
+ * decoracion: es lo unico que mira el navegador para explicarle el rechazo a la
+ * persona (`assets/js/motivos.js`). Sin el, todos estos rechazos le llegarian
+ * como "no hemos podido verificar la captura", que aqui seria mentira: no es la
+ * captura, es la fecha o el cupo.
  */
 async function validarBasico(viaje, uid) {
+  const problema = (codigo, mensaje) => ({ codigo, mensaje });
+
   try {
     construirRuta(...String(viaje.ruta || '').split('-'));
   } catch {
-    return 'La ruta declarada no existe.';
+    return problema('ruta_inexistente', 'La ruta declarada no existe.');
   }
 
   if (!Number.isInteger(viaje.tiempoSegundos)
     || viaje.tiempoSegundos < TIEMPO.MIN_SEGUNDOS
     || viaje.tiempoSegundos > TIEMPO.MAX_SEGUNDOS) {
-    return 'El tiempo declarado esta fuera de rango.';
+    return problema('tiempo_fuera_de_rango', 'El tiempo declarado esta fuera de rango.');
   }
 
   const fecha = new Date(`${String(viaje.fechaViaje).slice(0, 10)}T12:00:00Z`);
-  if (Number.isNaN(fecha.getTime())) return 'La fecha del viaje no es valida.';
+  if (Number.isNaN(fecha.getTime())) {
+    return problema('fecha_no_valida', 'La fecha del viaje no es valida.');
+  }
 
   const ahora = Date.now();
-  if (fecha.getTime() > ahora + 864e5) return 'No se pueden registrar viajes futuros.';
+  if (fecha.getTime() > ahora + 864e5) {
+    return problema('viaje_futuro', 'No se pueden registrar viajes futuros.');
+  }
   if (ahora - fecha.getTime() > LIMITES.DIAS_MAX_ANTIGUEDAD * 864e5) {
-    return `Solo se admiten viajes de los ultimos ${LIMITES.DIAS_MAX_ANTIGUEDAD} dias.`;
+    return problema('viaje_muy_antiguo',
+      `Solo se admiten viajes de los ultimos ${LIMITES.DIAS_MAX_ANTIGUEDAD} dias.`);
   }
 
   // Cupo diario, contado en el servidor. En el navegador se puede saltar
@@ -120,10 +159,20 @@ async function validarBasico(viaje, uid) {
 
   // El propio viaje que estamos procesando cuenta dentro del resultado.
   if (hoy.size > LIMITES.VIAJES_POR_DIA) {
-    return `Limite de ${LIMITES.VIAJES_POR_DIA} viajes al dia superado.`;
+    return problema('cupo_diario', `Limite de ${LIMITES.VIAJES_POR_DIA} viajes al dia superado.`);
   }
 
   return null;
+}
+
+/** Veredicto de rechazo con una sola señal, para los cortes tempranos. */
+function rechazoDirecto(codigo, mensaje) {
+  return {
+    decision: 'rechazado',
+    resumen: mensaje,
+    riesgo: 100,
+    señales: [{ codigo, gravedad: 100, mensaje }],
+  };
 }
 
 /** Contexto competitivo y estadistico que alimenta al motor. */
@@ -167,8 +216,8 @@ async function procesar(doc) {
   // 1. Validaciones que el cliente no puede garantizar.
   const problema = await validarBasico(viaje, uid);
   if (problema) {
-    console.log(`  rechazado: ${problema}`);
-    if (!SIMULAR) await resolver(doc, { decision: 'rechazado', resumen: problema, riesgo: 100, señales: [] });
+    console.log(`  rechazado: ${problema.mensaje}`);
+    if (!SIMULAR) await resolver(doc, rechazoDirecto(problema.codigo, problema.mensaje));
     return 'rechazado';
   }
 
@@ -177,7 +226,7 @@ async function procesar(doc) {
   if (!capturaSnap.exists) {
     console.log('  rechazado: no hay captura asociada');
     if (!SIMULAR) {
-      await resolver(doc, { decision: 'rechazado', resumen: 'No se ha recibido la captura.', riesgo: 100, señales: [] });
+      await resolver(doc, rechazoDirecto('captura_ausente', 'No se ha recibido la captura.'));
     }
     return 'rechazado';
   }
@@ -189,7 +238,7 @@ async function procesar(doc) {
   } catch (error) {
     console.log(`  rechazado: captura invalida (${error.message})`);
     if (!SIMULAR) {
-      await resolver(doc, { decision: 'rechazado', resumen: 'La captura no es una imagen valida.', riesgo: 100, señales: [] });
+      await resolver(doc, rechazoDirecto('captura_invalida', 'La captura no es una imagen valida.'));
     }
     return 'rechazado';
   }
@@ -216,6 +265,24 @@ async function procesar(doc) {
     software: inspeccion.software,
     ...contexto,
   });
+
+  // Lo que se LEYO en la captura, para que la cola de revision pueda enseñar
+  // lado a lado lo declarado y lo leido (#15). Sin esto, quien revisa ve las
+  // señales ("la ruta no coincide") pero no CON QUE no coincide, y tiene que
+  // abrir la captura y compararla a ojo en cada caso.
+  //
+  // Se guarda un resumen, no `lectura` entera: el texto completo del OCR puede
+  // arrastrar lo que hubiera alrededor en la pantalla, y no hace falta.
+  veredicto.lectura = lectura.disponible
+    ? {
+      origen: lectura.origen || null,
+      destino: lectura.destino || null,
+      horaSalida: lectura.horaSalida || null,
+      horaLlegada: lectura.horaLlegada || null,
+      segundosDuracion: lectura.segundosDuracion,
+      confianza: lectura.confianza,
+    }
+    : null;
 
   console.log(`  -> ${veredicto.decision} (riesgo ${veredicto.riesgo}): ${veredicto.resumen}`);
   for (const s of veredicto.señales) console.log(`     [${s.gravedad}] ${s.mensaje}`);
@@ -614,9 +681,14 @@ async function aplicarDecisionesManuales() {
   return pendientes.size;
 }
 
-async function main() {
-  console.log(SIMULAR ? '=== SIMULACION: no se escribe nada ===' : '=== Worker de verificacion ===');
-
+/**
+ * Una pasada por la cola. Devuelve cuantos viajes habia.
+ *
+ * Separada de `main` para poder repetirla dentro de la misma ejecucion sin
+ * repetir tambien el trabajo periodico (metricas, agregados, temporadas), que
+ * es lo caro y basta con hacerlo una vez.
+ */
+async function procesarCola(cuenta) {
   const cola = await db.collection('tiempos_viaje')
     .where('estado', '==', 'pendiente')
     .orderBy('creado', 'asc')
@@ -624,8 +696,6 @@ async function main() {
     .get();
 
   console.log(`Viajes en cola: ${cola.size}`);
-
-  const cuenta = { aprobado: 0, rechazado: 0, revision: 0, error: 0 };
 
   for (const doc of cola.docs) {
     try {
@@ -648,6 +718,36 @@ async function main() {
       }
     }
   }
+
+  return cola.size;
+}
+
+async function main() {
+  console.log(SIMULAR ? '=== SIMULACION: no se escribe nada ===' : '=== Worker de verificacion ===');
+
+  const cuenta = { aprobado: 0, rechazado: 0, revision: 0, error: 0 };
+
+  // En simulacion NO se dan mas pasadas: como no se escribe el veredicto, los
+  // viajes siguen pendientes y la siguiente pasada volveria a analizar los
+  // mismos, en bucle, hasta agotar la ventana.
+  const daVueltas = VENTANA_MS > 0 && !SIMULAR && !SOLO_UNO;
+  const hasta = Date.now() + VENTANA_MS;
+  let pasadas = 0;
+
+  for (;;) {
+    pasadas++;
+    const habia = await procesarCola(cuenta);
+
+    if (!daVueltas || Date.now() >= hasta) break;
+
+    // Si la cola venia llena pueden quedar viajes por encima del tope de la
+    // tanda: se sigue sin esperar. Si venia a medias, se duerme hasta la
+    // siguiente pasada.
+    if (habia >= MAX_POR_TANDA) continue;
+    await esperar(Math.min(ESPERA_MS, Math.max(0, hasta - Date.now())));
+  }
+
+  if (pasadas > 1) console.log(`\n${pasadas} pasadas a la cola en esta ejecucion.`);
 
   await prepararDia();
   await aplicarDecisionesManuales();
@@ -683,6 +783,10 @@ async function main() {
       console.warn('No se han podido actualizar las metricas:', error.message);
     }
   }
+
+  // El OCR comparte un worker de tesseract para toda la ejecucion, y mientras
+  // viva mantiene el proceso en pie.
+  await cerrarOcr();
 
   console.log(`\nResumen: ${cuenta.aprobado} aprobados, ${cuenta.rechazado} rechazados, `
     + `${cuenta.revision} a revision, ${cuenta.error} con error.`);

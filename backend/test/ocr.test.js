@@ -79,3 +79,39 @@ test('leerCaptura nunca lanza, aunque le des basura', async () => {
   assert.strictEqual(resultado.disponible, false);
   assert.ok(resultado.error, 'debe explicar por que no ha podido leer');
 });
+
+test('el reloj de la barra de estado no se cuela como hora de salida', () => {
+  // Este es EL fallo de la captura mas comun que existe: Android sin recortar
+  // lleva el reloj del sistema arriba del todo. Antes se cogian las dos
+  // primeras horas del texto, asi que la salida real pasaba a ser la llegada y
+  // la resta llegada-salida dejaba de cuadrar con la duracion. El motor lo veia
+  // como descuadre y marcaba viajes legitimos.
+  const conBarraDeEstado = `19:03 84%
+BiciMAD
+Trayecto finalizado
+002 - Metro Callao (002)
+110 - Intercambiador de Moncloa (110)
+Salida 18:42
+Llegada 18:54
+Duracion 12 min 00 s`;
+
+  assert.deepStrictEqual(ocr.extraerHoras(conBarraDeEstado), ['18:42', '18:54']);
+});
+
+test('las etiquetas mandan aunque vengan en otro orden', () => {
+  assert.deepStrictEqual(
+    ocr.extraerHoras('Llegada 08:19\nSalida 08:05'),
+    ['08:05', '08:19']);
+});
+
+test('sin etiquetas legibles se vuelve al orden de aparicion', () => {
+  // Si el OCR no ha podido leer ni "Salida" ni "Llegada", tampoco hay etiqueta
+  // de la que fiarse: mejor dos horas en orden que ninguna.
+  assert.deepStrictEqual(ocr.extraerHoras('S4lld4 08:05 ... Lleg4d4 08:19'), ['08:05', '08:19']);
+});
+
+test('una etiqueta suelta no basta: hacen falta las dos', () => {
+  // Con solo "Salida" reconocida, dar por buena la etiqueta y dejar la llegada
+  // al azar seria peor que aplicar el mismo criterio a las dos.
+  assert.deepStrictEqual(ocr.extraerHoras('Salida 08:05 y luego 08:19'), ['08:05', '08:19']);
+});

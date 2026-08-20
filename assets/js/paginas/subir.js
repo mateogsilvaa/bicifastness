@@ -10,6 +10,8 @@ import {
 } from '/assets/js/firebase.js';
 import { iniciarPagina, normalizarEstacion, nombreEstacion } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
+import { revisar } from '/assets/js/precheck.js';
+import { seguirViaje, recordarViaje, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
 
 iniciarPagina('subir');
 
@@ -63,6 +65,20 @@ for (const campo of ['origen', 'destino']) {
 const zona = id('zona-foto');
 const entradaFoto = id('foto');
 const vista = id('vista-previa');
+const zonaAvisos = id('avisos-foto');
+
+/**
+ * La captura ya mirada y comprimida.
+ *
+ * Se guarda porque la comprobacion previa YA la comprime (para saber si cabe
+ * hay que comprimirla), y volver a hacerlo al enviar seria repetir el unico
+ * trabajo caro de la pantalla.
+ *
+ * `insistido` es la respuesta a "son avisos, no barreras": con un aviso serio
+ * el primer envio no sube nada, lo explica y espera. El segundo sube igual.
+ */
+let preparada = null;
+let insistido = false;
 
 ['dragenter', 'dragover'].forEach((ev) => zona.addEventListener(ev, (e) => {
   e.preventDefault(); zona.classList.add('encima');
@@ -78,46 +94,62 @@ entradaFoto.addEventListener('change', mostrarFoto);
 function mostrarFoto() {
   const fichero = entradaFoto.files[0];
   if (!fichero) return;
+
   id('texto-foto').textContent = fichero.name;
   vista.src = URL.createObjectURL(fichero);
   vista.style.display = 'block';
+
+  // Otra foto, otra oportunidad: el boton vuelve a su texto normal y hay que
+  // volver a insistir si esta tambien trae avisos.
+  preparada = null;
+  insistido = false;
+  boton.textContent = 'Subir trayecto';
+  estado(mensaje, '');
+  comprobarFoto(fichero);
 }
 
 /**
- * Comprime la captura antes de enviarla.
- * Se sube a 900 px de ancho (antes eran 500) porque el analisis forense del
- * servidor necesita ver el renderizado del texto para detectar retoques; a
- * 500 px se perdia justo la informacion que delata la manipulacion.
+ * Mira la captura antes de que nadie espere diez minutos por ella.
+ *
+ * Nada de lo que sale de aqui decide: el worker lo vuelve a comprobar todo. Es
+ * para no gastarle a nadie una espera larga por una foto movida.
  */
-function comprimir(fichero) {
-  return new Promise((resolver, rechazar) => {
-    const lector = new FileReader();
-    lector.onerror = () => rechazar(new Error('No se ha podido leer el fichero.'));
-    lector.onload = (e) => {
-      const img = new Image();
-      img.onerror = () => rechazar(new Error('El fichero no es una imagen valida.'));
-      img.onload = () => {
-        const anchoMax = 900;
-        const escala = Math.min(1, anchoMax / img.width);
-        const lienzo = document.createElement('canvas');
-        lienzo.width = Math.round(img.width * escala);
-        lienzo.height = Math.round(img.height * escala);
-        const ctx = lienzo.getContext('2d');
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, lienzo.width, lienzo.height);
-        ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height);
-        resolver(lienzo.toDataURL('image/jpeg', 0.85));
-      };
-      img.src = e.target.result;
-    };
-    lector.readAsDataURL(fichero);
-  });
+async function comprobarFoto(fichero) {
+  reemplazar(zonaAvisos, el('p', { clase: 'menor apagado', texto: 'Comprobando la captura...' }));
+
+  try {
+    const { avisos, comprimida } = await revisar(fichero);
+    // Otra foto elegida mientras esta se miraba: lo de ahora manda.
+    if (entradaFoto.files[0] !== fichero) return;
+
+    preparada = { fichero, dataUrl: comprimida?.dataUrl || null, avisos };
+    pintarAvisos(avisos);
+  } catch (error) {
+    if (entradaFoto.files[0] !== fichero) return;
+    preparada = { fichero, dataUrl: null, avisos: [{ codigo: 'no_es_imagen', gravedad: 'alta', texto: error.message }] };
+    pintarAvisos(preparada.avisos);
+  }
+}
+
+function pintarAvisos(avisos) {
+  if (!avisos.length) {
+    reemplazar(zonaAvisos, el('p', { clase: 'menor apagado', texto: 'La captura tiene buena pinta.' }));
+    return;
+  }
+
+  reemplazar(zonaAvisos, avisos.map((aviso) => el('div', {
+    clase: `aviso ${aviso.gravedad === 'alta' ? 'atencion' : ''}`,
+    estilo: { marginBottom: 'var(--e2)' },
+  }, [
+    el('p', { texto: aviso.texto }),
+  ])));
 }
 
 // --- Envio ---
+let dejarDeSeguir = null;
+
 id('form-viaje').addEventListener('submit', async (evento) => {
   evento.preventDefault();
-  resultado.style.display = 'none';
 
   const origenOk = pintarEstacion('origen');
   const destinoOk = pintarEstacion('destino');
@@ -137,12 +169,33 @@ id('form-viaje').addEventListener('submit', async (evento) => {
     return;
   }
 
+  // Todavia comprobando: la captura no esta lista, pero tampoco hay que
+  // rechazar el envio por eso.
+  if (!preparada || preparada.fichero !== fichero) {
+    estado(mensaje, 'Espera un segundo, estamos mirando la captura.', 'aviso');
+    return;
+  }
+
+  // Los avisos serios frenan UNA vez. Si la persona vuelve a pulsar, sube: son
+  // avisos, no barreras, y quien conoce su foto puede tener razon.
+  const serios = preparada.avisos.filter((a) => a.gravedad === 'alta');
+  if (serios.length && !insistido) {
+    insistido = true;
+    estado(mensaje, 'Lee el aviso de arriba. Si aun asi quieres subirla, pulsa otra vez.', 'aviso');
+    boton.textContent = 'Subir de todas formas';
+    return;
+  }
+
   boton.disabled = true;
   boton.textContent = 'Enviando...';
-  estado(mensaje, 'Subiendo la captura...');
+  estado(mensaje, '');
+  pintarEstado(resultado, { estado: 'extrayendo' }, { conEnlace: false });
+  resultado.style.display = 'block';
 
   try {
-    const captura = await comprimir(fichero);
+    // Si la compresion no llego a producir nada (fichero ilegible), que falle
+    // aqui y no con un `permission-denied` sin explicacion desde las reglas.
+    if (!preparada.dataUrl) throw new Error('No hemos podido preparar la captura. Prueba con otra imagen.');
 
     // El viaje y su captura se escriben juntos, en un lote: si una de las dos
     // fallara, el worker se encontraria un viaje sin imagen (o al reves).
@@ -170,55 +223,51 @@ id('form-viaje').addEventListener('submit', async (evento) => {
     // no arrastra megas de fotos y nadie puede rasparlas.
     lote.set(doc(db, 'capturas', viajeRef.id), {
       uid: perfil.uid,
-      datos: captura,
+      datos: preparada.dataUrl,
       creado: serverTimestamp(),
     });
 
     await lote.commit();
 
-    estado(mensaje, '');
-    mostrarEnCola();
+    seguirEste(viajeRef.id);
 
     id('form-viaje').reset();
     vista.style.display = 'none';
-    id('texto-foto').textContent = 'Arrastra la captura o haz clic';
+    id('texto-foto').textContent = 'Arrastra la captura o pulsa para elegirla';
+    reemplazar(zonaAvisos);
+    preparada = null;
+    insistido = false;
     for (const c of ['origen', 'destino']) id(`${c}-nombre`).textContent = '';
     campoFecha.value = campoFecha.max;
   } catch (error) {
+    resultado.style.display = 'none';
     estado(mensaje, traducirError(error), 'error');
   } finally {
     boton.disabled = false;
-    boton.textContent = 'Enviar';
+    boton.textContent = 'Subir trayecto';
   }
 });
 
 /**
- * El analisis no es instantaneo: lo hace un proceso programado que se
- * despierta cada pocos minutos. Conviene decirlo claro para que nadie
- * reenvie el mismo viaje pensando que no se ha guardado.
+ * Sigue el viaje recien subido hasta que el worker lo resuelva.
+ *
+ * Es lo que convierte la espera en algo que se puede mirar: antes la pantalla
+ * decia "puedes seguir el estado en tu perfil" y no volvia a decir nada.
+ * `estado-viaje.js` corta la escucha sola en cuanto hay veredicto y al salir de
+ * la pagina.
  */
-function mostrarEnCola() {
-  reemplazar(resultado,
-    el('h3', { texto: 'Viaje recibido' }),
-    el('p', {
-      texto: 'Se esta analizando: comprobamos que las estaciones y el tiempo cuadren con la '
-        + 'captura, que el trayecto sea posible y que la imagen no este retocada.',
-      estilo: { margin: '0 0 8px', fontSize: '.9rem', lineHeight: '1.5' },
-    }),
-    el('p', {
-      texto: 'Suele tardar unos minutos. Puedes seguir el estado en tu perfil.',
-      estilo: { margin: '0 0 12px', fontSize: '.85rem', color: 'var(--text-muted)' },
-    }),
-    el('a', {
-      texto: 'Ver mi historial',
-      attrs: { href: '/yo/' },
-      estilo: {
-        display: 'inline-block', background: 'var(--primary)', color: '#fff',
-        padding: '12px 20px', borderRadius: '10px', textDecoration: 'none', fontWeight: '700',
-      },
-    }));
+function seguirEste(viajeId) {
+  if (dejarDeSeguir) dejarDeSeguir();
 
-  resultado.className = 'resultado revision';
+  // Para que la portada lo siga tambien si la persona se va de aqui.
+  recordarViaje(viajeId);
+  pintarEstado(resultado, { estado: 'pendiente' });
   resultado.style.display = 'block';
-  resultado.focus();
+
+  dejarDeSeguir = seguirViaje(viajeId, (viaje) => {
+    if (!viaje) return;
+    pintarEstado(resultado, viaje);
+    // Ya resuelto: la portada no tiene que volver a contarlo.
+    if (viaje.estado !== 'pendiente') olvidarViaje();
+  });
 }

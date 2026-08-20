@@ -19,7 +19,7 @@ import {
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
   deleteDoc, query, where, orderBy, limit, serverTimestamp, increment,
-  arrayUnion, arrayRemove, writeBatch, Timestamp,
+  arrayUnion, arrayRemove, writeBatch, Timestamp, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import {
   initializeAppCheck, ReCaptchaV3Provider,
@@ -83,6 +83,10 @@ export {
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, orderBy, limit, serverTimestamp, increment,
   arrayUnion, arrayRemove, writeBatch, Timestamp,
+  // `onSnapshot` se usa SOLO sobre documentos sueltos, nunca sobre una
+  // coleccion: cada cambio escuchado es una lectura facturada (ver
+  // assets/js/estado-viaje.js).
+  onSnapshot,
 };
 
 /**

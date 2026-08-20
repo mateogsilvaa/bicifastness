@@ -42,7 +42,10 @@ concurrency:
 jobs:
   verificar:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # La ejecucion se queda unos minutos dando pasadas a la cola (VENTANA_MINUTOS
+    # en worker.js), asi que el limite tiene que dejar sitio a la ventana mas el
+    # trabajo periodico del final.
+    timeout-minutes: 12
 
     steps:
       - uses: actions/checkout@v4
@@ -53,18 +56,43 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      # `setup-node` cachea la CARPETA DE NPM, no las dependencias: con solo eso
+      # `npm ci` sigue instalando y compilando sharp en cada ejecucion, que es de
+      # lo mas lento del arranque. Esto cachea node_modules ya instalado.
+      - name: Cache de dependencias del worker
+        id: modulos
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: worker-modulos-${{ runner.os }}-node20-${{ hashFiles('backend/package-lock.json') }}
+
       - name: Instalar dependencias
+        if: steps.modulos.outputs.cache-hit != 'true'
         working-directory: backend
         run: npm ci
 
-      - name: Regenerar datos compartidos
-        run: node scripts/build-estaciones.js
+      # El modelo de idioma del OCR son varios megas que tesseract se baja la
+      # primera vez. Sin esto, cada ejecucion los vuelve a bajar.
+      - name: Cache del idioma del OCR
+        uses: actions/cache@v4
+        with:
+          path: backend/.tesseract
+          key: tesseract-spa-${{ runner.os }}
+
+      # Ya NO se regeneran aqui los datos compartidos: `assets/data` y
+      # `backend/lib` estan en el repositorio, y `ci.yml` falla si no coinciden
+      # con sus fuentes. Regenerarlos en cada pasada del cron era ~10 s por
+      # ejecucion para reescribir dos ficheros identicos.
 
       - name: Procesar la cola
         working-directory: backend
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          # Cuanto se queda vivo dando pasadas, y cada cuanto. Con 0 vuelve al
+          # comportamiento de antes: una mirada a la cola y a casa.
+          VENTANA_MINUTOS: '4'
+          ESPERA_SEGUNDOS: '45'
         run: |
           # Mientras no haya credenciales no hay nada que verificar, y el cron
           # se despierta igual. Sin esta salida limpia, cada ejecucion cuenta

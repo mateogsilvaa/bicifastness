@@ -14,6 +14,7 @@ import {
 import { crearPerfil, aceptarLegal } from '/assets/js/acciones.js';
 import { iniciarPagina, pedirReaceptacion, nombreRuta, formatearTiempo, formatearFecha } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
+import { seguirViaje, viajeRecordado, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
 
 iniciarPagina('ahora');
 
@@ -115,6 +116,29 @@ async function pintarRutaDelDia() {
     console.debug('No se ha podido cargar la ruta del dia', error);
     reemplazar(id('ruta-del-dia'), el('div', {}));
   }
+}
+
+/**
+ * El viaje que se acaba de subir, mientras el worker lo mira.
+ *
+ * Solo se sigue el documento apuntado al subir, y solo dura lo que dure la
+ * pestaña: no se busca "el ultimo viaje pendiente" con una consulta, porque eso
+ * seria una lectura por viaje en cada carga de la portada, para algo que la
+ * mayoria de las veces no existe.
+ */
+function seguirViajeEnCurso() {
+  const destino = id('viaje-en-curso');
+  const viajeId = viajeRecordado();
+  if (!viajeId) return;
+
+  seguirViaje(viajeId, (viaje) => {
+    if (!viaje) { olvidarViaje(); reemplazar(destino); return; }
+
+    pintarEstado(destino, viaje);
+    // Ya hay veredicto: se ha contado aqui y no hace falta volver a contarlo en
+    // la siguiente carga. A partir de ahora vive en el historial.
+    if (viaje.estado !== 'pendiente') olvidarViaje();
+  });
 }
 
 /** Bloque con una cifra grande y su etiqueta. */
@@ -259,8 +283,10 @@ onAuthStateChanged(auth, async (usuario) => {
       id('titulo-panel').textContent = datos.username.toUpperCase();
     }
 
-    // El orden importa: primero lo que se puede perder hoy, luego lo que se
-    // puede hacer, y al final lo que ya paso.
+    // El orden importa: primero lo que se acaba de subir y esta en el aire,
+    // luego lo que se puede perder hoy, luego lo que se puede hacer, y al final
+    // lo que ya paso.
+    seguirViajeEnCurso();
     pintarRacha(datos);
     await pintarMisiones(datos);
     await pintarRutaDelDia();

@@ -38,6 +38,31 @@
   #visor { position: fixed; inset: 0; background: rgba(4,6,10,.93); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
   #visor img { max-width: 92%; max-height: 88vh; border-radius: var(--radio-s); }
 
+  /* --- Cola de revision (#15) ---------------------------------------------
+     Dos columnas en cuanto hay sitio: la captura a la izquierda y todo lo que
+     hace falta para decidir a la derecha. En movil se apilan. */
+  .caso { display: grid; gap: var(--e5); align-items: start; }
+  @media (min-width: 900px) {
+    .caso { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); }
+    /* La captura sigue a la vista mientras se lee el resto. */
+    .caso-captura { position: sticky; top: var(--e4); }
+  }
+  .caso-captura img { width: 100%; border: 1px solid var(--linea); display: block; }
+
+  .cotejo { width: 100%; border-collapse: collapse; margin: var(--e4) 0; font-size: 14px; }
+  .cotejo th, .cotejo td { padding: var(--e2) var(--e3); border-bottom: 1px solid var(--linea); text-align: left; }
+  .cotejo thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--tinta-3); }
+  .cotejo tbody th { font-weight: 600; color: var(--tinta-3); width: 30%; }
+  /* La fila que no cuadra es LA informacion de esta pantalla: se ve sola. */
+  .cotejo tr.difiere td:last-child { color: var(--rojo); font-weight: 800; }
+  .cotejo tr.difiere th { color: var(--rojo); }
+
+  .atajos { margin-top: var(--e4); }
+  .atajos kbd {
+    font-family: var(--mono); font-size: 12px; border: 1px solid var(--linea);
+    border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px; margin: 0 2px;
+  }
+
   .tarjeta { transition: border-color var(--transicion); box-shadow: var(--sombra-media); }
   .contador { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; font-weight: 700; }
   .veredicto { border: 1px solid var(--border); }
@@ -54,12 +79,15 @@
 
   <div id="panel" class="oculto">
     <section class="seccion">
-      <h2>Viajes en revision <span class="contador" id="cuenta-revision">0</span></h2>
+      <h2>Cola de revision <span class="contador" id="cuenta-revision">0</span></h2>
       <p class="meta">
         Aqui solo llega lo que el analisis automatico no ha podido decidir por si
         solo. Lo aprobado y lo rechazado en automatico no aparece en esta lista.
       </p>
-      <div class="rejilla" id="rejilla-revision"></div>
+
+      <!-- Un caso cada vez: todo lo necesario para decidir, a la vez en pantalla. -->
+      <p class="aviso error oculto" id="aviso-cola" role="status"></p>
+      <div id="caso"></div>
     </section>
 
     <section class="seccion">

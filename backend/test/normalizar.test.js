@@ -149,3 +149,44 @@ test('una imagen ilegible devuelve null, no revienta', { skip: !sharp }, async (
   // Darle basura a tesseract es lo que tumbaba el proceso entero.
   assert.strictEqual(await normalizar.preparar(Buffer.from('esto no es una imagen')), null);
 });
+
+test('una captura oscura CON transparencia sigue siendo legible', { skip: !sharp }, async () => {
+  // El fallo que esto vigila estuvo en produccion y no se veia por ninguna
+  // parte: `negate()` de sharp invierte TAMBIEN el canal alfa, asi que una
+  // captura de modo oscuro con transparencia salia de aqui con alfa 0, es
+  // decir, entera invisible. Tesseract leia una imagen en blanco: cero texto,
+  // confianza cero, y el viaje derecho a revision manual.
+  //
+  // No saltaba en los tests porque las imagenes de arriba se crean con tres
+  // canales, ni en produccion porque el navegador manda JPEG, que no tiene
+  // alfa. Pero las reglas admiten PNG y WEBP, y el banco de capturas (#16) se
+  // pinta desde SVG, o sea con alfa. Ahi salio.
+  const conAlfa = await sharp({
+    create: { width: 800, height: 1600, channels: 4, background: { r: 16, g: 17, b: 20, alpha: 1 } },
+  }).composite([{
+    input: await sharp({
+      create: { width: 480, height: 300, channels: 4, background: { r: 240, g: 240, b: 244, alpha: 1 } },
+    }).png().toBuffer(),
+    top: 600,
+    left: 160,
+  }]).png().toBuffer();
+
+  const preparada = await normalizar.preparar(conAlfa);
+  assert.strictEqual(preparada.oscura, true, 'no se ha detectado como oscura');
+
+  const meta = await sharp(preparada.buffer).metadata();
+  assert.strictEqual(meta.hasAlpha, false,
+    'la imagen preparada conserva canal alfa: `negate()` volveria a dejarla invisible');
+
+  // La comprobacion de verdad: con alfa o sin alfa, tiene que salir lo MISMO.
+  // Un umbral fijo sobre la media no valdria, porque depende de cuanto ocupe el
+  // bloque claro despues del recorte de margenes.
+  const sinAlfa = await normalizar.preparar(
+    await imagen({ ancho: 800, alto: 1600, fondo: '#101114', banda: { arriba: 600, alto: 300, color: '#f0f0f4' } }));
+
+  const media = async (buffer) => (await sharp(buffer).stats()).channels[0].mean;
+  const [conMedia, sinMedia] = await Promise.all([media(preparada.buffer), media(sinAlfa.buffer)]);
+
+  assert.ok(Math.abs(conMedia - sinMedia) < 12,
+    `el alfa cambia el resultado: ${conMedia.toFixed(1)} con alfa, ${sinMedia.toFixed(1)} sin alfa`);
+});

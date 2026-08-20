@@ -70,7 +70,10 @@ function clasificar(meta) {
  * Es lo que quita la barra de estado y las bandas negras del recorte, que son
  * ruido puro para el OCR y ademas descolocan las proporciones.
  *
- * @param {Buffer} pixeles  en escala de grises, `ancho` bytes por fila
+ * @param {Buffer} pixeles  en escala de grises, UN byte por pixel y `ancho`
+ *   bytes por fila. Si llega un buffer con mas canales (RGBA), esta funcion
+ *   leeria un cuarto de la imagen creyendo que la lee entera: por eso
+ *   `preparar` fuerza el espacio de color antes de llamarla.
  */
 function margenesUniformes(pixeles, ancho, alto) {
   const filaUniforme = (y) => {
@@ -121,19 +124,39 @@ async function preparar(entrada) {
   if (!sharp) return { buffer: entrada, variante: 'desconocida', oscura: false, recortado: 0 };
 
   try {
-    const imagen = sharp(entrada).rotate(); // aplica la orientacion EXIF
+    // `flatten` NO es cosmetico y aqui es lo primero por un motivo concreto:
+    // mientras la imagen conserve canal alfa, `negate()` lo invierte TAMBIEN.
+    // Una captura de modo oscuro salia de aqui con alfa 0, es decir,
+    // completamente transparente, y tesseract leia una imagen en blanco: cero
+    // texto, confianza cero, y el viaje a revision manual. Con las capturas que
+    // manda hoy el navegador (JPEG, que no tiene alfa) no se notaba, pero las
+    // reglas admiten PNG y WEBP, que si lo tienen.
+    //
+    // Aplanando contra blanco desaparece el canal y con el la trampa entera.
+    const imagen = sharp(entrada)
+      .rotate() // aplica la orientacion EXIF
+      .flatten({ background: { r: 255, g: 255, b: 255 } });
+
     const meta = await imagen.metadata();
     const variante = clasificar(meta);
 
     // 1. A gris, para medir margenes y luminancia sobre un solo canal.
-    const gris = await imagen.clone().greyscale().raw().toBuffer({ resolveWithObject: true });
+    //    `toColourspace('b-w')` fuerza UN canal: sin el, `greyscale()` puede
+    //    devolver tres iguales y el buffer crudo saldria interleavado, con lo
+    //    que la deteccion de margenes leeria basura.
+    const gris = await imagen.clone().greyscale().toColourspace('b-w')
+      .raw().toBuffer({ resolveWithObject: true });
     const { width, height } = gris.info;
+
+    if (gris.info.channels !== 1) {
+      throw new Error(`se esperaba un canal y han llegado ${gris.info.channels}`);
+    }
 
     // 2. Fuera los margenes uniformes.
     const { arriba, abajo } = margenesUniformes(gris.data, width, height);
     const altoUtil = height - arriba - abajo;
 
-    let trabajo = imagen.clone().greyscale();
+    let trabajo = imagen.clone().greyscale().toColourspace('b-w');
     if (altoUtil > 0 && (arriba || abajo)) {
       trabajo = trabajo.extract({ left: 0, top: arriba, width, height: altoUtil });
     }
@@ -141,7 +164,10 @@ async function preparar(entrada) {
     // 3. Modo oscuro: se invierte. Tesseract acierta mas con texto oscuro sobre
     //    fondo claro, y la mitad de la gente lleva el movil en oscuro.
     const oscura = luminanciaMedia(gris.data) < UMBRAL_OSCURO;
-    if (oscura) trabajo = trabajo.negate();
+    // `alpha: false` es cinturon ademas de tirantes: aqui ya no queda alfa que
+    // invertir gracias al `flatten` de arriba, pero dejarlo escrito evita que
+    // el dia que alguien quite el flatten vuelva el fallo mudo.
+    if (oscura) trabajo = trabajo.negate({ alpha: false });
 
     // 4. Tamaño unico y contraste normalizado. `withoutEnlargement: false`
     //    porque una captura pequeña hay que AMPLIARLA: es justo el caso en que

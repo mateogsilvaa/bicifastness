@@ -31,6 +31,7 @@
  * umbrales son deliberadamente conservadores.
  */
 
+const fs = require('fs');
 const path = require('path');
 const normalizar = require('./normalizar');
 
@@ -46,9 +47,40 @@ try {
 const IDIOMA = 'spa';
 const TIMEOUT_MS = 60000;
 
-// Los datos de idioma se descargan una vez y se reutilizan. Sin esto, cada
-// ejecucion del worker se los vuelve a bajar.
+/**
+ * Modo de segmentacion de pagina: 3 = analisis automatico completo.
+ *
+ * Parece redundante — 3 es el valor "por defecto" de tesseract — pero NO lo es:
+ * el que aplica tesseract.js si no se le dice nada depende de su version, y con
+ * el que traia se perdian lineas enteras. En concreto se comia la duracion
+ * cuando la captura la muestra grande y aislada ("12:00" en su propio bloque),
+ * que es justo como la enseña la app. La duracion salia `null`, el motor no
+ * podia comparar, y el viaje acababa en revision manual.
+ *
+ * Lo encontro el banco de capturas (#16): la misma imagen recortada a la zona
+ * de la duracion se leia perfectamente, y entera no.
+ *
+ * Si algun dia las capturas reales dan problemas de maquetacion (tarjetas,
+ * columnas), la alternativa a probar es 11 (texto disperso): sobre el banco da
+ * el mismo resultado, pero pierde el orden de lectura.
+ */
+const SEGMENTACION = '3';
+
+/**
+ * Donde se guardan los datos de idioma para no volver a bajarlos.
+ *
+ * OJO con el directorio: tesseract.js escribe el `.traineddata` en `cachePath`
+ * solo si el directorio YA EXISTE. Si no, no protesta, no lo crea y se baja el
+ * idioma otra vez en cada ejecucion — que es lo que llevaba pasando, porque
+ * `.tesseract` no estaba en el repositorio ni lo creaba nadie. Por eso se crea
+ * aqui y no se da por hecho.
+ */
 const CACHE = path.join(__dirname, '..', '.tesseract');
+try {
+  fs.mkdirSync(CACHE, { recursive: true });
+} catch {
+  // Sin sitio donde cachear se sigue funcionando: solo se paga la descarga.
+}
 
 /**
  * Marcadores de que la imagen es de la app BiciMAD.
@@ -62,9 +94,40 @@ const MARCADORES = [
   'estacion', 'estación', 'salida', 'llegada', 'bicicleta',
 ];
 
-/** "HH:MM" o "H:MM" -> los devuelve normalizados, en orden de aparicion. */
+/** Una hora suelta: "HH:MM" o "H:MM". */
+const HORA = '\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b';
+
+/**
+ * Horas de salida y de llegada, normalizadas a HH:MM.
+ *
+ * Antes se cogian las dos PRIMERAS horas del texto, y eso esta mal en la
+ * captura mas comun que existe: la de Android sin recortar lleva el reloj del
+ * sistema en la barra de estado. Ese reloj es la primera hora del texto, asi
+ * que pasaba por hora de salida, la salida real pasaba por llegada, y la resta
+ * llegada - salida dejaba de cuadrar con la duracion.
+ *
+ * Consecuencia, que no es teorica: la comprobacion de coherencia interna — la
+ * mejor defensa que queda contra el retoque desde que no hay IA — disparaba
+ * `captura_desviada` en viajes legitimos. Lo encontro el banco de capturas
+ * (#16) en cuanto hubo con que medir.
+ *
+ * Ahora manda la ETIQUETA, y solo si no hay etiquetas legibles se vuelve al
+ * criterio de orden, que sigue siendo mejor que nada.
+ */
 function extraerHoras(texto) {
-  const encontradas = [...texto.matchAll(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g)]
+  const conEtiqueta = (etiquetas) => {
+    // Hasta 12 caracteres que no sean parte de la hora entre la etiqueta y el
+    // numero: cabe "Salida:  ", "Salida ---" y lo que el OCR meta por medio,
+    // pero no la siguiente linea entera.
+    const m = texto.match(new RegExp(`(?:${etiquetas})\\W{0,12}${HORA}`, 'i'));
+    return m ? `${m[1].padStart(2, '0')}:${m[2]}` : null;
+  };
+
+  const salida = conEtiqueta('salida|inicio|comienzo|desde');
+  const llegada = conEtiqueta('llegada|fin|final|hasta');
+  if (salida && llegada) return [salida, llegada];
+
+  const encontradas = [...texto.matchAll(new RegExp(HORA, 'g'))]
     .map((m) => `${m[1].padStart(2, '0')}:${m[2]}`);
   return [...new Set(encontradas)];
 }
@@ -100,6 +163,54 @@ function extraerDuracion(texto) {
 }
 
 /**
+ * UN worker de tesseract para toda la tanda, no uno por captura.
+ *
+ * Arrancar el worker y cargar el modelo de idioma cuesta lo mismo tanto si se
+ * lee una captura como si se leen veinticinco, y el worker de verificacion
+ * procesa hasta veinticinco por ejecucion. Creando uno por captura, ese coste
+ * se pagaba entero cada vez, y ademas cada worker deja procesos y temporizadores
+ * que tardan en soltarse: en los tests, doce capturas tardaban 72 segundos, de
+ * los cuales solo doce eran leer (#14).
+ *
+ * A cambio hay que acordarse de cerrarlo: mientras viva, mantiene vivo el bucle
+ * de eventos y el proceso no termina. Lo hace `worker.js` al acabar la tanda.
+ */
+let worker = null;
+
+/**
+ * Aviso del `errorHandler` de la lectura en curso.
+ *
+ * `errorHandler` NO es opcional aunque lo parezca. Sin el, tesseract hace
+ * `throw Error(data)` desde el manejador de mensajes del worker, o sea FUERA de
+ * cualquier promesa: no lo recoge ningun try/catch y tumba el proceso entero.
+ * Una sola captura mala se llevaria por delante la tanda completa.
+ */
+let fallo = null;
+
+async function obtenerWorker() {
+  if (worker) return worker;
+
+  worker = await Tesseract.createWorker(IDIOMA, 1, {
+    cachePath: CACHE,
+    errorHandler: (datos) => { fallo = datos; },
+  });
+  await worker.setParameters({ tessedit_pageseg_mode: SEGMENTACION });
+  return worker;
+}
+
+/**
+ * Suelta el worker. Llamarlo al terminar de leer capturas, o el proceso se
+ * queda vivo esperando a un worker que ya no va a hacer nada.
+ * Es idempotente: llamarlo dos veces no es un error.
+ */
+async function cerrar() {
+  if (!worker) return;
+  const suyo = worker;
+  worker = null;
+  await suyo.terminate().catch(() => {});
+}
+
+/**
  * Lee la captura. Nunca lanza: si algo falla devuelve `{ disponible: false }`
  * y el pipeline manda el viaje a revision humana en vez de romperse.
  *
@@ -111,27 +222,25 @@ async function leerCaptura({ buffer }) {
     return { disponible: false, error: 'OCR no disponible en este entorno.' };
   }
 
-  let worker;
+  // Fuera del try para poder cancelarlo pase lo que pase.
+  let temporizador = null;
+
   try {
     const preparada = await normalizar.preparar(buffer);
     if (!preparada) {
       return { disponible: false, error: 'La captura no es una imagen legible.' };
     }
 
-    // `errorHandler` NO es opcional aunque lo parezca. Sin el, tesseract hace
-    // `throw Error(data)` desde el manejador de mensajes del worker, o sea
-    // FUERA de cualquier promesa: no lo recoge este try/catch y tumba el
-    // proceso entero. Una sola captura mala se llevaria por delante la tanda
-    // completa del worker.
-    let fallo = null;
-    worker = await Tesseract.createWorker(IDIOMA, 1, {
-      cachePath: CACHE,
-      errorHandler: (datos) => { fallo = datos; },
-    });
+    const worker = await obtenerWorker();
+
+    // El aviso del `errorHandler` es de ESTA lectura: se limpia antes de
+    // pedirla, porque el manejador se instala una vez y el worker se reutiliza.
+    fallo = null;
 
     const reconocer = worker.recognize(preparada.buffer);
-    const limite = new Promise((_, rechazar) =>
-      setTimeout(() => rechazar(new Error('Tiempo de espera agotado')), TIMEOUT_MS));
+    const limite = new Promise((_, rechazar) => {
+      temporizador = setTimeout(() => rechazar(new Error('Tiempo de espera agotado')), TIMEOUT_MS);
+    });
 
     const { data } = await Promise.race([reconocer, limite]);
 
@@ -171,14 +280,29 @@ async function leerCaptura({ buffer }) {
     // auditoria del viaje y en la cola de revision: sin el, quien revisa no
     // sabe que ha pasado.
     const motivo = (err && err.message) || String(err) || 'motivo desconocido';
+
+    // Una lectura que revienta o que agota el tiempo puede dejar el worker en
+    // mal estado, y como ahora se REUTILIZA, ese mal estado se lo comerian
+    // todas las capturas siguientes de la tanda. Se tira y la proxima lectura
+    // arranca uno limpio.
+    await cerrar();
+
     return { disponible: false, error: `No se ha podido leer la captura: ${motivo}` };
   } finally {
-    if (worker) await worker.terminate().catch(() => {});
+    // Cuando gana la lectura, el temporizador de la carrera SEGUIA vivo: un
+    // `setTimeout` de un minuto colgando por cada captura. En el worker no se
+    // notaba porque acaba con `process.exit`, pero mantenia el proceso en pie
+    // un minuto entero despues de terminar el trabajo — que es justo lo que
+    // hacia que los tests del banco tardasen setenta segundos en salir.
+    clearTimeout(temporizador);
   }
 }
 
 module.exports = {
   leerCaptura,
+  // Hay que llamarlo al terminar la tanda: el worker de tesseract se comparte y
+  // mantiene vivo el proceso mientras exista.
+  cerrar,
   // Exportadas sueltas para poder probar el parseo sin pasar por el OCR, que es
   // lento y depende de los datos de idioma.
   extraerHoras,

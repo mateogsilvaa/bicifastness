@@ -1,0 +1,212 @@
+{
+  "_": "GENERADO por scripts/build-capturas.js. No editar a mano.",
+  "_porQue": "Banco de regresion del extractor (#16). Capturas SINTETICAS: no hay ninguna imagen de ninguna persona en este repositorio. La medicion sobre capturas reales vive en scripts/medir-ocr.js y corre contra Firestore.",
+  "capturas": [
+    {
+      "id": "android-claro",
+      "fichero": "android-claro.png",
+      "descripcion": "Android, modo claro, duracion con unidades",
+      "exigido": true,
+      "bytes": 77558,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "002",
+        "destino": "110",
+        "horaSalida": "18:42",
+        "horaLlegada": "18:54",
+        "segundosDuracion": 720
+      },
+      "antifraude": {
+        "decision": "aprobado"
+      }
+    },
+    {
+      "id": "android-oscuro",
+      "fichero": "android-oscuro.png",
+      "descripcion": "Android, modo oscuro: el normalizador tiene que invertirla",
+      "exigido": true,
+      "bytes": 76386,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "002",
+        "destino": "110",
+        "horaSalida": "18:42",
+        "horaLlegada": "18:54",
+        "segundosDuracion": 720
+      },
+      "antifraude": {
+        "decision": "aprobado"
+      }
+    },
+    {
+      "id": "ios-claro",
+      "fichero": "ios-claro.png",
+      "descripcion": "iOS, modo claro, duracion en mm:ss (el formato que se puede confundir con una hora)",
+      "exigido": true,
+      "bytes": 84721,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "045",
+        "destino": "118",
+        "horaSalida": "08:05",
+        "horaLlegada": "08:19",
+        "segundosDuracion": 840
+      },
+      "antifraude": {
+        "decision": "aprobado"
+      }
+    },
+    {
+      "id": "ios-oscuro",
+      "fichero": "ios-oscuro.png",
+      "descripcion": "iOS, modo oscuro",
+      "exigido": true,
+      "bytes": 83289,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "045",
+        "destino": "118",
+        "horaSalida": "08:05",
+        "horaLlegada": "08:19",
+        "segundosDuracion": 840
+      },
+      "antifraude": {
+        "decision": "aprobado"
+      }
+    },
+    {
+      "id": "recortada",
+      "fichero": "recortada.png",
+      "descripcion": "Recorte que se come la barra de estado y los margenes",
+      "exigido": true,
+      "bytes": 66465,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "002",
+        "destino": "110",
+        "horaSalida": "18:42",
+        "horaLlegada": "18:54",
+        "segundosDuracion": 720
+      },
+      "antifraude": {
+        "decision": "aprobado"
+      }
+    },
+    {
+      "id": "whatsapp",
+      "fichero": "whatsapp.jpg",
+      "descripcion": "Reenviada por mensajeria: reescalada a 720 px y recomprimida",
+      "exigido": false,
+      "bytes": 22979,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "002",
+        "destino": "110",
+        "horaSalida": "18:42",
+        "horaLlegada": "18:54",
+        "segundosDuracion": 720
+      },
+      "antifraude": null
+    },
+    {
+      "id": "pequena",
+      "fichero": "pequena.png",
+      "descripcion": "Captura de 480 px de ancho: el normalizador tiene que ampliarla",
+      "exigido": false,
+      "bytes": 49898,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "002",
+        "destino": "110",
+        "horaSalida": "18:42",
+        "horaLlegada": "18:54",
+        "segundosDuracion": 720
+      },
+      "antifraude": null
+    },
+    {
+      "id": "movida",
+      "fichero": "movida.jpg",
+      "descripcion": "Foto hecha a otra pantalla, desenfocada",
+      "exigido": false,
+      "bytes": 41101,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "002",
+        "destino": "110",
+        "horaSalida": "18:42",
+        "horaLlegada": "18:54",
+        "segundosDuracion": 720
+      },
+      "antifraude": null
+    },
+    {
+      "id": "varios-trayectos",
+      "fichero": "varios-trayectos.png",
+      "descripcion": "Tres trayectos del dia en una sola captura (#11: hoy se lee el primero)",
+      "exigido": false,
+      "bytes": 120196,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "002",
+        "destino": "110",
+        "horaSalida": "18:42",
+        "horaLlegada": "18:54",
+        "segundosDuracion": 720
+      },
+      "antifraude": null
+    },
+    {
+      "id": "duracion-mmss",
+      "fichero": "duracion-mmss.png",
+      "descripcion": "Android con la duracion escrita como 12:00",
+      "exigido": true,
+      "bytes": 74851,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "002",
+        "destino": "110",
+        "horaSalida": "18:42",
+        "horaLlegada": "18:54",
+        "segundosDuracion": 720
+      },
+      "antifraude": {
+        "decision": "aprobado"
+      }
+    },
+    {
+      "id": "manipulada",
+      "fichero": "manipulada.png",
+      "descripcion": "Retocada: el numero grande dice 6 min, pero las horas siguen diciendo 12",
+      "exigido": true,
+      "bytes": 77247,
+      "verdad": {
+        "esBicimad": true,
+        "origen": "002",
+        "destino": "110",
+        "horaSalida": "18:42",
+        "horaLlegada": "18:54",
+        "segundosDuracion": 360
+      },
+      "antifraude": {
+        "decision": "rechazado",
+        "codigo": "captura_incoherente",
+        "tiempoDeclarado": 360
+      }
+    },
+    {
+      "id": "no-es-bicimad",
+      "fichero": "no-es-bicimad.png",
+      "descripcion": "Captura de otra aplicacion: no puede colarse como trayecto",
+      "exigido": true,
+      "bytes": 51113,
+      "verdad": {
+        "esBicimad": false
+      },
+      "antifraude": {
+        "decision": "rechazado",
+        "codigo": "no_es_bicimad"
+      }
+    }
+  ]
+}

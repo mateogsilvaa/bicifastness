@@ -73,10 +73,14 @@ acaba en la cola de revision. La captura pasa a ser el **unico** dato que aporta
 - **#9** Normalizar Android, iOS, recortes, modo oscuro y recompresion
 - **#10** Afinar el OCR local sobre capturas reales
 - **#11** Capturas con varios trayectos: elegir cual, descartando los ya subidos
-- **#12** Avisos en el navegador antes de subir
-- **#13** Estado del viaje en vivo
-- **#14** Acortar el ciclo del worker
-- **#15** Cola de revision resoluble en 30 segundos
+- **#12** Avisos en el navegador antes de subir — cortesia, no seguridad: el
+  worker lo vuelve a comprobar todo
+- **#13** Estado del viaje en vivo — y los motivos de rechazo en castellano,
+  sin enseñar los umbrales del antifraude
+- **#14** Acortar el ciclo del worker — pasadas dentro de una misma ejecucion,
+  porque el cron de GitHub no baja de 5 minutos y encima se retrasa
+- **#15** Cola de revision resoluble en 30 segundos — con el rastro de cada
+  decision en `auditoria_admin`, que no se puede reescribir
 - **#16** Banco de capturas de prueba — sin esto, el resto se ajusta a ciegas
 
 ## H2 — Motor de juego multimodo
@@ -194,10 +198,48 @@ Lo hecho hasta ahora vive en la rama `roadmap-y-migracion-a-pages`, sin subir.
 | #17 Medir el viaje | **Hecho.** El worker guarda distancia, velocidad y puntos |
 | #18 Puntuacion | **Hecho**, con el test de equilibrio entre perfiles |
 | #19 Rachas | **Hecho**, con tests de cambio de mes y de hora |
+| #9 Normalizar capturas | **Hecho.** Android, iOS, recortes y modo oscuro a una sola forma |
+| #12 Avisos antes de subir | **Hecho.** Avisan, no bloquean; y la captura se sube al ancho que lee el worker |
+| #13 Estado en vivo | **Hecho.** Un `onSnapshot` a un solo documento, que se corta solo |
+| #16 Banco de capturas | **Hecho** con capturas SINTETICAS y medicion en CI. Las reales siguen midiendose con `medir-ocr.js`, que no las saca de Firestore |
+| #14 Ciclo del worker | **Hecho** lo que no toca al cron: pasadas dentro de la misma ejecucion, un solo worker de OCR por tanda y cache de idioma y dependencias |
+| #10 Afinar el OCR | **A medias.** Tres fallos corregidos (ver abajo). Lo que falta necesita capturas reales |
+| #15 Cola de revision | **Hecho.** Un caso cada vez, captura junto al cotejo, motivo sugerido y atajos de teclado |
 | #58 Runs en rojo | **Hecho.** Cron apagado hasta el lanzamiento |
 
+### Lo que encontro el banco de capturas
+
+Los tres son fallos de capturas normales, de gente normal, y ninguno se veia
+leyendo el codigo:
+
+1. **Modo oscuro ilegible.** `negate()` de sharp invierte tambien el canal
+   alfa, asi que la captura salia del normalizador transparente entera y
+   tesseract leia una imagen en blanco. Con capturas JPEG (las que manda hoy el
+   navegador) no se disparaba, pero las reglas admiten PNG y WEBP.
+2. **El reloj de la barra de estado pasaba por hora de salida.** Se cogian las
+   dos primeras horas del texto, y en Android sin recortar la primera es el
+   reloj del sistema. La resta llegada - salida dejaba de cuadrar con la
+   duracion y el antifraude marcaba viajes legitimos.
+3. **La duracion se perdia** cuando la captura la muestra grande y aislada, por
+   no fijar el modo de segmentacion de pagina de tesseract.
+
+De propina, dos cosas que ralentizaban el worker: se creaba un worker de
+tesseract por captura (ahora uno por tanda) y el temporizador de la carrera
+contra el OCR nunca se cancelaba, dejando un `setTimeout` de un minuto vivo por
+cada lectura.
+
+### Lo que queda pendiente y no cuelga de ningun issue
+
+El objeto `auditoria` vive dentro del documento del viaje, y las reglas dejan
+que su dueño lo lea entero. La interfaz ya no enseña nada de ahi — los motivos
+salen de `assets/js/motivos.js`, sin numeros — pero quien abra la consola del
+navegador sigue viendo los mensajes con sus umbrales dentro. Cerrarlo pide mover
+la auditoria a una coleccion que solo lea la administracion y dejar en el viaje
+un codigo de motivo, que es una migracion de los viajes que ya existen.
+
 Lo que no puedo hacer yo: rotar credenciales (#1), purgar el historial, tocar la
-consola de Firebase (#4) y ejecutar el generador de distancias contra OSRM.
+consola de Firebase (#4), ejecutar el generador de distancias contra OSRM y
+conseguir capturas reales de BiciMAD para el banco (#16 y #10).
 
 ## Prioridades
 

@@ -43,9 +43,34 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      # El banco de capturas (#16) ejecuta el OCR de verdad, y tesseract se baja
+      # varios megas de modelo de idioma la primera vez.
+      - name: Cache del idioma del OCR
+        uses: actions/cache@v4
+        with:
+          path: backend/.tesseract
+          key: tesseract-spa-${{ runner.os }}
+
       - name: Tests
         working-directory: backend
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test | tee "$RUNNER_TEMP/tests.log"
+
+      # El porcentaje de extraccion del banco, a la vista en el resumen del PR:
+      # es el numero que dice si un cambio en el extractor mejora o empeora, y
+      # enterrado en el log no lo mira nadie.
+      - name: Banco de capturas en el resumen
+        if: always()
+        run: |
+          if grep -q "Extraccion del banco" "$RUNNER_TEMP/tests.log"; then
+            {
+              echo "### Banco de capturas"
+              grep -A 13 "Extraccion del banco" "$RUNNER_TEMP/tests.log" | sed 's/^/    /'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "El banco de capturas no ha llegado a medirse (OCR no disponible)." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   # El sitio lo publica Vercel, conectado a este repositorio. Aqui solo quedan las
   # REGLAS y los INDICES de Firestore, que no son estaticos: son el control de

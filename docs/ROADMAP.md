@@ -187,7 +187,9 @@ Tres reglas de orden que conviene no saltarse:
 
 ## Estado
 
-Lo hecho hasta ahora vive en la rama `roadmap-y-migracion-a-pages`, sin subir.
+Lo hecho hasta ahora vive en la rama `roadmap-y-migracion-a-pages`, ya subida.
+Sigue sin fusionarse con `main`: el sitio esta en mantenimiento y la salida es
+el issue #7.
 
 | Issue | Estado |
 |---|---|

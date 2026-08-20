@@ -231,11 +231,25 @@ test('no queda rastro de PocketBase ni del tunel de ngrok', () => {
   }
 });
 
+/**
+ * La contrasena de aplicacion de Gmail de la v1, que es lo que este test busca.
+ *
+ * Va codificada por un motivo tonto pero real: el test que impide publicar la
+ * contrasena la llevaba dentro EN CLARO, y este repositorio es publico. O sea
+ * que el guardian era el unico sitio del arbol donde seguia estando, y ahi la
+ * encuentra igual cualquier rastreador automatico de credenciales.
+ *
+ * Esto no la protege — quien lea este comentario la decodifica en un segundo —
+ * y no sustituye a lo unico que sirve, que es ROTARLA (issue #1). Lo unico que
+ * hace es que deje de estar en texto plano en un repositorio publico.
+ */
+const CONTRASENA_V1 = Buffer.from('cm52YyBqZHBlIG1yc3cgdnpqeQ==', 'base64').toString('utf8');
+
 test('no hay credenciales incrustadas en el codigo', () => {
   for (const fichero of recorrerProyecto(/\.(html|js|ya?ml)$/)) {
     const rel = path.relative(RAIZ, fichero);
     const contenido = leer(rel);
-    assert.ok(!/rnvc jdpe mrsw vzjy/.test(contenido), `${rel} contiene la contrasena de Gmail`);
+    assert.ok(!contenido.includes(CONTRASENA_V1), `${rel} contiene la contrasena de Gmail`);
     assert.ok(!/['"]\d{8,10}:AA[\w-]{30,}['"]/.test(contenido), `${rel} contiene un token de Telegram`);
     assert.ok(!/"private_key"\s*:/.test(contenido), `${rel} contiene una clave de servicio`);
   }

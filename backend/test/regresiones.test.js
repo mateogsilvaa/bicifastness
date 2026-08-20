@@ -390,6 +390,39 @@ test('el service worker no se queda cacheado', () => {
   assert.match(bloques[indiceSw].headers[0].value, /no-store/);
 });
 
+test('un viaje aprobado guarda distancia, velocidad y puntos', () => {
+  const worker = leerCodigo('backend/worker.js');
+
+  // Sin esto, todo el motor de juego (distancias, puntuacion, rachas) seria
+  // codigo muerto: se calcularia y no llegaria a ningun documento.
+  for (const campo of ['distanciaMetros', 'velocidadKmh', 'puntos', 'puntosDesglose']) {
+    assert.match(worker, new RegExp(`${campo}:`), `el viaje no guarda ${campo}`);
+  }
+
+  // La racha es lectura-modificacion-escritura y el worker aprueba varios
+  // viajes por tanda: sin transaccion, el segundo del mismo piloto pisa al
+  // primero.
+  assert.match(worker, /runTransaction/, 'la racha se actualiza sin transaccion');
+
+  // Y los acumulados tienen que ir con increment por el mismo motivo.
+  assert.match(worker, /metrosTotales: admin\.firestore\.FieldValue\.increment/);
+  assert.match(worker, /segundosTotales: admin\.firestore\.FieldValue\.increment/);
+});
+
+test('la distancia no la declara el usuario', () => {
+  // Es lo que permite que anadir distancia y velocidad al juego no abra
+  // superficie nueva de fraude: salen del par de estaciones y del tiempo, que
+  // el pipeline ya contrasta contra la captura.
+  const viajes = bloque('tiempos_viaje');
+  const alta = viajes.slice(viajes.indexOf('allow create'), viajes.indexOf('allow update'));
+  const permitidos = (alta.match(/hasOnly\(\[([^\]]+)\]\)/) || [, ''])[1];
+
+  for (const prohibido of ['distanciaMetros', 'velocidadKmh', 'puntos']) {
+    assert.ok(!permitidos.includes(prohibido),
+      `el cliente puede declarar ${prohibido} al crear el viaje`);
+  }
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

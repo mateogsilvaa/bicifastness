@@ -35,6 +35,8 @@ const imagen = require('./src/imagen');
 const { auditarCaptura } = require('./src/gemini');
 const { evaluar, distanciaCalleMetros } = require('./src/verificacion');
 const puntuacion = require('./src/puntuacion');
+const distancias = require('./src/distancias');
+const rachas = require('./src/rachas');
 
 const SIMULAR = process.argv.includes('--simular');
 const SOLO_UNO = process.argv.includes('--once');
@@ -234,9 +236,7 @@ async function resolver(doc, veredicto) {
   });
 
   if (aprobado) {
-    await db.doc(`usuarios/${viaje.uid}`).update({
-      viajesVerificados: admin.firestore.FieldValue.increment(1),
-    });
+    await premiar(doc, viaje);
     await puntuacion.recalcularTrasCambio(viaje.ruta);
   }
 
@@ -245,6 +245,89 @@ async function resolver(doc, veredicto) {
   if (veredicto.decision === 'rechazado') {
     await db.doc(`capturas/${doc.id}`).delete().catch(() => {});
   }
+}
+
+/**
+ * Cierra un viaje aprobado: mide el trayecto, actualiza la racha del piloto y
+ * le da los puntos que le tocan.
+ *
+ * Va en una transaccion sobre el documento del usuario porque la racha es
+ * lectura-modificacion-escritura, y el worker puede aprobar dos viajes del
+ * mismo piloto en la misma tanda: sin transaccion, el segundo pisaria al
+ * primero. Los acumulados van con `increment` por el mismo motivo.
+ *
+ * La distancia y la velocidad NO las declara el usuario: salen del par de
+ * estaciones y del tiempo, que es lo que el pipeline ya ha contrastado contra
+ * la captura. Anadirlas al juego no abre superficie nueva de fraude.
+ */
+async function premiar(doc, viaje) {
+  const [origen, destino] = String(viaje.ruta).split('-');
+
+  const cache = {
+    leer: async () => {
+      const guardada = await db.doc(`distancias/${viaje.ruta}`).get();
+      return guardada.exists ? guardada.data().metros : null;
+    },
+    escribir: async () => {},
+  };
+
+  const medida = await distancias.resolverConCache(origen, destino, cache);
+  const metros = medida ? medida.metros : null;
+  const kmh = distancias.velocidadKmh(metros, viaje.tiempoSegundos);
+
+  const multRuta = await puntuacion.multiplicadorRuta(viaje.ruta);
+  const cuando = new Date(`${String(viaje.fechaViaje).slice(0, 10)}T12:00:00Z`);
+
+  const refUsuario = db.doc(`usuarios/${viaje.uid}`);
+  let puntos;
+
+  await db.runTransaction(async (tx) => {
+    const usuario = await tx.get(refUsuario);
+    if (!usuario.exists) return;
+
+    const previo = usuario.data();
+    const racha = rachas.registrarDiaActivo({
+      racha: previo.racha,
+      mejorRacha: previo.mejorRacha,
+      escudos: previo.escudos,
+      diasHastaEscudo: previo.diasHastaEscudo,
+      ultimoDiaActivo: previo.ultimoDiaActivo,
+    }, cuando);
+
+    puntos = puntuacion.calcularPuntosViaje({
+      distanciaMetros: metros,
+      velocidadKmh: kmh,
+      multiplicadorRuta: multRuta,
+      racha: racha.racha,
+      // Pendiente del issue #28: hace falta saber que clan controla la estacion.
+      territorioPropio: false,
+    });
+
+    tx.update(refUsuario, {
+      viajesVerificados: admin.firestore.FieldValue.increment(1),
+      metrosTotales: admin.firestore.FieldValue.increment(metros || 0),
+      segundosTotales: admin.firestore.FieldValue.increment(viaje.tiempoSegundos || 0),
+      puntosTemporada: admin.firestore.FieldValue.increment(puntos.total),
+      racha: racha.racha,
+      mejorRacha: racha.mejorRacha,
+      escudos: racha.escudos,
+      diasHastaEscudo: racha.diasHastaEscudo,
+      ultimoDiaActivo: racha.ultimoDiaActivo,
+    });
+  });
+
+  if (!puntos) return;
+
+  await doc.ref.update({
+    distanciaMetros: metros,
+    distanciaEstimada: medida ? medida.estimada : true,
+    velocidadKmh: kmh === null ? null : Number(kmh.toFixed(2)),
+    puntos: puntos.total,
+    puntosDesglose: puntos.desglose,
+  });
+
+  console.log(`  +${puntos.total} puntos (${((metros || 0) / 1000).toFixed(2)} km`
+    + `${kmh ? `, ${kmh.toFixed(1)} km/h` : ''}${medida && medida.estimada ? ', distancia estimada' : ''})`);
 }
 
 /**

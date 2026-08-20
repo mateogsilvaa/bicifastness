@@ -23,7 +23,7 @@ subida y convertir un ranking de tiempos en un juego al que apetezca volver.
 
 | Decision | Alternativa descartada | Motivo |
 |---|---|---|
-| GitHub Pages | Firebase Hosting, Vercel | Peticion explicita. Se pierden las cabeceras HTTP, que se compensan en el issue #3 |
+| Vercel | GitHub Pages, Firebase Hosting | Se empezo por Pages (peticion explicita), pero Pages no permite cabeceras HTTP y eso costaba seis de seguridad. Vercel las da gratis y ya estaba conectado. Ver #3 |
 | Seguir en Firestore | Migrar a Supabase | Migrar son semanas y no hay tiempo. El problema real no es la base de datos, es que se lee mal: se arregla con agregados (H5) |
 | La captura sigue siendo la fuente | Registro por GPS | El viaje ocurre en una app de terceros a la que no tenemos acceso. Lo que se puede arreglar es el **procesado**, no el origen |
 
@@ -33,7 +33,7 @@ subida y convertir un ranking de tiempos en un juego al que apetezca volver.
 
 | Hito | Que resuelve | Issues |
 |---|---|---|
-| **H0** Cimientos y despliegue | Abrir el sitio sin repetir el compromiso de la v1 | #1 – #7 |
+| **H0** Cimientos y despliegue | Abrir el sitio sin repetir el compromiso de la v1 | #1 – #7, #58 |
 | **H1** Subida sin friccion | El cuello de botella: subir un viaje | #8 – #16 |
 | **H2** Motor de juego multimodo | Que no solo puntue ir rapido | #17 – #24 |
 | **H3** Clanes y conquista | Territorio que se gana y se pierde | #25 – #29 |
@@ -46,17 +46,18 @@ subida y convertir un ranking de tiempos en un juego al que apetezca volver.
 
 ---
 
-## H0 — Cimientos y despliegue en Pages
+## H0 — Cimientos y despliegue
 
 Bloquea todo lo demas por una razon concreta: **el historial de git todavia
 contiene la contrasena de Gmail en claro**, y el worker solo es gratis si el
 repositorio es publico. Hacer publico el repo hoy es publicar esa contrasena.
 
 - **#1** Rotar credenciales y purgar el historial — `P0`, bloquea a #2
-- **#2** Desplegar en GitHub Pages
-- **#3** Compensar las cabeceras que Pages no permite
+- **#2** Desplegar el sitio desde Vercel
+- **#3** Cabeceras de seguridad con fuente unica
 - **#4** Autorizar el dominio en Firebase Auth y App Check
-- **#5** Retirar Vercel y Firebase Hosting
+- **#5** Retirar Firebase Hosting y GitHub Pages
+- **#58** El worker fallaba en cada ejecucion del cron sin credenciales
 - **#6** Calcular las distancias reales entre estaciones — bloquea todo el H2
 - **#7** Salir de mantenimiento de forma controlada
 
@@ -158,7 +159,7 @@ viaje aprobado**.
 ## Dependencias que importan
 
 ```
-#1 credenciales ──▶ repo publico ──▶ #2 Pages ──▶ #4 Auth ──▶ #7 abrir
+#1 credenciales ──▶ repo publico ──▶ #2 Vercel ──▶ #4 Auth ──▶ #7 abrir
                                         │
 #6 distancias ──────────────────────────┴──▶ #17 ──▶ #18 ──▶ #19 ──▶ #22
                                                      │
@@ -179,6 +180,24 @@ Tres reglas de orden que conviene no saltarse:
    `recalcularTrasCambio()`.
 
 ---
+
+## Estado
+
+Lo hecho hasta ahora vive en la rama `roadmap-y-migracion-a-pages`, sin subir.
+
+| Issue | Estado |
+|---|---|
+| #2 Vercel | Configuracion lista. Falta comprobar el panel de Vercel |
+| #3 Cabeceras | **Hecho.** Fuente unica y tests que impiden que divergan |
+| #5 Un solo destino | **Hecho.** Falta desconectar lo que sobre |
+| #6 Distancias | Modulo y generador listos. Falta ejecutarlo contra OSRM |
+| #17 Medir el viaje | **Hecho.** El worker guarda distancia, velocidad y puntos |
+| #18 Puntuacion | **Hecho**, con el test de equilibrio entre perfiles |
+| #19 Rachas | **Hecho**, con tests de cambio de mes y de hora |
+| #58 Runs en rojo | **Hecho.** Cron apagado hasta el lanzamiento |
+
+Lo que no puedo hacer yo: rotar credenciales (#1), purgar el historial, tocar la
+consola de Firebase (#4) y ejecutar el generador de distancias contra OSRM.
 
 ## Prioridades
 

@@ -283,5 +283,6 @@ module.exports = {
   recalcularEstacion,
   recalcularTrasCambio,
   puntosPorPosicion,
+  multiplicadorRuta,
   escribirEnLotes,
 };

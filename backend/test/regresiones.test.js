@@ -305,10 +305,22 @@ test('el borrado de cuenta deja constancia para el worker', () => {
 
 // --- Navegacion movil -----------------------------------------------------------
 
-test('la barra inferior no mete mas de cinco destinos', () => {
-  const enMovil = (leerCodigo('assets/js/ui.js').match(/movil: true/g) || []).length;
-  assert.ok(enMovil <= 5, `${enMovil} destinos en la barra inferior: con mas de 5 no caben`);
-  assert.ok(enMovil >= 4, 'la barra inferior se ha quedado sin destinos');
+test('la navegacion tiene cuatro destinos mas la accion', () => {
+  const ui = leerCodigo('assets/js/ui.js');
+  const destinos = (ui.match(/slug: '/g) || []).length;
+
+  // Cuatro destinos + `subir`. Con siete, cada uno se quedaba en el 14% del
+  // ancho de pantalla: iconos diminutos y objetivos tactiles por debajo del
+  // minimo accesible.
+  assert.strictEqual(destinos, 5, 'la barra deberia llevar 4 destinos y la accion de subir');
+
+  // `/subir/` no es un destino mas: es la accion, y va aparte.
+  assert.match(ui, /const SUBIR = /);
+});
+
+test('el destino activo se marca para lectores de pantalla', () => {
+  // El color de la regla azul no puede ser el unico portador de "estas aqui".
+  assert.match(leerCodigo('assets/js/ui.js'), /'aria-current': esActivo\(/);
 });
 
 test('el CSS es mobile-first', () => {

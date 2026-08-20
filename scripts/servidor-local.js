@@ -56,6 +56,11 @@ http.createServer((peticion, respuesta) => {
 
   respuesta.writeHead(200, {
     'Content-Type': TIPOS[path.extname(destino)] || 'application/octet-stream',
+    // Sin esto el navegador cachea por heuristica (no hay Cache-Control, pero
+    // si Last-Modified) y sigue sirviendo el CSS y los modulos viejos aunque el
+    // fichero en disco haya cambiado. Cuesta un buen rato darse cuenta de que
+    // lo que estas mirando no es lo que acabas de escribir.
+    'Cache-Control': 'no-store',
   });
   respuesta.end(fs.readFileSync(destino));
 }).listen(PUERTO, () => {

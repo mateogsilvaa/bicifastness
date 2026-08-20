@@ -110,11 +110,21 @@ service cloud.firestore {
 
     // --- Viajes ------------------------------------------------------------
     match /tiempos_viaje/{viajeId} {
-      // Los verificados son publicos (alimentan el ranking). Los pendientes y
-      // los rechazados solo los ve su dueno y la administracion.
-      allow read: if previo().verificado == true
-                  || esAdmin()
-                  || esYo(previo().uid);
+      // CIERRE DE EMERGENCIA — hasta que termine la migracion (issue #54).
+      //
+      // La linea comentada de abajo es correcta para el modelo v2, donde el
+      // viaje NO contiene datos personales: la captura vive en `capturas`, que
+      // solo lee la administracion.
+      //
+      // Pero los viajes que hay en produccion son de la v1 y llevan dentro
+      // `email_real` y `foto_url` con la captura entera en base64. "Verificado
+      // es publico" aplicado a esos documentos publica el correo y la captura
+      // de cada persona a cualquiera, sin sesion.
+      //
+      // Se restaura la linea comentada SOLO cuando ningun documento de
+      // tiempos_viaje tenga ya esos dos campos.
+      allow read: if esAdmin() || esYo(previo().uid);
+      // allow read: if previo().verificado == true || esAdmin() || esYo(previo().uid);
 
       // El piloto PROPONE un viaje. Nace siempre pendiente y sin verificar: el
       // veredicto lo pone el worker, que se salta estas reglas.

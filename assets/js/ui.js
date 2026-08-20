@@ -4,7 +4,7 @@
  */
 
 import { ESTACIONES } from '../data/estaciones.js';
-import { el, id, reemplazar } from './dom.js';
+import { el, id, icono, reemplazar } from './dom.js';
 
 // --- Antiframing -------------------------------------------------------------
 /**
@@ -72,7 +72,7 @@ export function nodoRuta(ruta) {
   const [origen, destino] = String(ruta || '').split('-');
   return el('span', { estilo: { display: 'inline-flex', alignItems: 'center', gap: '6px' } }, [
     el('span', { texto: nombreEstacion(origen) || origen }),
-    el('i', { clase: 'fi fi-rr-arrow-right', estilo: { fontSize: '.8em' } }),
+    el('span', { texto: '→', clase: 'apagado', attrs: { 'aria-hidden': 'true' } }),
     el('span', { texto: nombreEstacion(destino) || destino }),
   ]);
 }
@@ -91,65 +91,79 @@ export function formatearFecha(valor) {
 
 // --- Navegacion --------------------------------------------------------------
 /**
- * Secciones de la app.
+ * Los CUATRO destinos de primer nivel.
  *
- * `movil: true` marca las que salen en la barra inferior. Son cinco, no siete:
- * con siete cada destino se quedaba en el 14% del ancho de pantalla, con
- * iconos diminutos y objetivos tactiles por debajo del minimo accesible.
- * BiciRating se alcanza desde Rankings (son las dos clasificaciones) y Clanes
- * desde Perfil y desde el Mapa, que es donde tienen sentido.
+ * Antes eran siete, y `/home/` no era mas que un indice de enlaces a los otros
+ * seis: una pantalla que existia solo para llevar a otras. Ahora ninguna lo
+ * hace. `/subir/` va aparte porque no es un destino mas, es LA accion: en
+ * escritorio es el boton azul de la derecha y en movil el bloque del extremo.
  */
-const SECCIONES = [
-  { href: 'home', texto: 'Inicio', icono: 'fi fi-sr-home', movil: true },
-  { href: 'ranking', texto: 'Rankings', textoCorto: 'Rankings', icono: 'fi fi-sr-ranking-star', movil: true },
-  { href: 'bicirating', texto: 'BiciRating', icono: 'fi fi-sr-medal' },
-  { href: 'subir', texto: 'Subir', icono: 'fi fi-sr-add', movil: true, destacado: true },
-  { href: 'mapa', texto: 'Mapa', icono: 'fi fi-sr-marker', movil: true },
-  { href: 'clanes', texto: 'Clanes', icono: 'fi fi-sr-team-check-alt' },
-  { href: 'profile', texto: 'Perfil', icono: 'fi fi-sr-user', movil: true },
+const DESTINOS = [
+  { href: '/', slug: 'ahora', texto: 'Ahora', icono: 'reloj' },
+  { href: '/clasificacion/', slug: 'clasificacion', texto: 'Clasificacion', icono: 'clasificacion' },
+  { href: '/territorio/', slug: 'territorio', texto: 'Territorio', icono: 'mapa' },
+  { href: '/yo/', slug: 'yo', texto: 'Perfil', icono: 'perfil' },
 ];
 
+const SUBIR = { href: '/subir/', slug: 'subir', texto: 'Subir tiempo', icono: 'subir' };
+
 /**
- * Pinta la barra superior y la inferior de movil.
- * @param {string} activa  slug de la seccion actual
+ * Pinta la barra superior (escritorio) y la inferior (movil).
+ *
+ * Las dos se pintan siempre y es el CSS quien decide cual se ve. Hacerlo por
+ * ancho de pantalla en JavaScript obligaria a escuchar el redimensionado y a
+ * repintar, y dejaria la barra equivocada durante el primer fotograma.
+ *
+ * @param {string} activo  slug del destino actual
  */
-export function montarNavegacion(activa) {
+export function montarNavegacion(activo) {
   const superior = id('nav-principal');
   const inferior = id('nav-inferior');
 
-  // Rutas absolutas, no relativas. Con `../home/` la navegacion se rompia desde
-  // cualquier pagina que no colgase de la raiz: desde /legal/privacidad/ el
-  // enlace resolvia a /legal/home/, que no existe.
-  // El menu superior lleva las siete secciones: en escritorio caben de sobra.
+  const esActivo = (slug) => slug === activo;
+
   if (superior) {
+    superior.className = 'nav-sup';
+    superior.setAttribute('aria-label', 'Navegacion principal');
+
     reemplazar(superior,
-      el('a', { clase: 'brand', texto: 'BICIFASTNESS', attrs: { href: '/home/' } }),
-      el('div', { clase: 'nav-right' }, [
-        el('nav', { clase: 'links', attrs: { 'aria-label': 'Secciones' } }, SECCIONES.map((s) => el('a', {
-          texto: s.texto,
-          clase: s.href === activa ? 'active' : '',
-          attrs: { href: `/${s.href}/`, 'aria-current': s.href === activa ? 'page' : null },
-        }))),
-        el('a', {
-          clase: 'info-icon', attrs: { href: '/info/', title: 'Como funciona', 'aria-label': 'Como funciona' },
-        }, [el('i', { clase: 'fi fi-sr-info' })]),
-      ]));
+      el('a', { clase: 'marca', attrs: { href: '/' } }, [
+        el('img', { attrs: { src: '/images/logo.png', alt: '', width: 28, height: 28 } }),
+        el('span', { texto: 'BiciFastness' }),
+      ]),
+      el('div', { clase: 'destinos' }, DESTINOS.map((d) => el('a', {
+        texto: d.texto,
+        attrs: { href: d.href, 'aria-current': esActivo(d.slug) ? 'page' : null },
+      }))),
+      el('a', {
+        clase: 'btn',
+        texto: SUBIR.texto,
+        attrs: { href: SUBIR.href, 'aria-current': esActivo(SUBIR.slug) ? 'page' : null },
+      }));
   }
 
-  // La barra inferior solo lleva las cinco marcadas para movil.
   if (inferior) {
+    inferior.className = 'nav-inf';
     inferior.setAttribute('aria-label', 'Navegacion principal');
-    reemplazar(inferior, SECCIONES.filter((s) => s.movil).map((s) => el('a', {
-      clase: [s.href === activa ? 'active' : '', s.destacado ? 'destacado' : ''].filter(Boolean).join(' '),
-      attrs: {
-        href: `/${s.href}/`,
-        'aria-current': s.href === activa ? 'page' : null,
-        'aria-label': s.texto,
-      },
-    }, [
-      el('i', { clase: s.icono, attrs: { 'aria-hidden': 'true' } }),
-      el('span', { texto: s.textoCorto || s.texto }),
-    ])));
+
+    reemplazar(inferior, [
+      ...DESTINOS.map((d) => el('a', {
+        attrs: { href: d.href, 'aria-current': esActivo(d.slug) ? 'page' : null },
+      }, [
+        icono(d.icono),
+        el('span', { texto: d.texto }),
+      ])),
+      // El icono es la unica etiqueta visible, asi que el enlace lleva su propio
+      // nombre accesible.
+      el('a', {
+        clase: 'subir',
+        attrs: {
+          href: SUBIR.href,
+          'aria-label': SUBIR.texto,
+          'aria-current': esActivo(SUBIR.slug) ? 'page' : null,
+        },
+      }, [icono(SUBIR.icono)]),
+    ]);
   }
 }
 

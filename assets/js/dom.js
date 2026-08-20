@@ -49,9 +49,36 @@ export function el(etiqueta, props = {}, hijos = []) {
   return nodo;
 }
 
-/** Icono de Flaticon. Se genera aparte porque no lleva contenido. */
-export function icono(clases, estilo = {}) {
-  return el('i', { clase: clases, estilo });
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const XLINK_NS = 'http://www.w3.org/1999/xlink';
+
+/**
+ * Icono del sprite propio (`assets/img/iconos.svg`).
+ *
+ * Va aparte de `el()` porque un <svg> NO se crea con `createElement`: hay que
+ * usar `createElementNS`, o el navegador construye un elemento HTML llamado
+ * "svg" que no pinta nada. El fallo es silencioso, que es lo peor que tiene.
+ *
+ * El <svg> siempre `aria-hidden`: si el icono es la unica etiqueta de un
+ * control, es el CONTROL el que necesita `aria-label`.
+ *
+ * @param {string} nombre  id del simbolo, sin la almohadilla
+ * @param {string} [clase]
+ */
+export function icono(nombre, clase = 'icono') {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', clase);
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+
+  const uso = document.createElementNS(SVG_NS, 'use');
+  const destino = `/assets/img/iconos.svg#${nombre}`;
+  uso.setAttribute('href', destino);
+  // Safari por debajo de la 16 ignora `href` a secas en <use>.
+  uso.setAttributeNS(XLINK_NS, 'xlink:href', destino);
+
+  svg.append(uso);
+  return svg;
 }
 
 /**

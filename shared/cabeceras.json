@@ -30,16 +30,10 @@
     "style-src": [
       "'self'",
       "'unsafe-inline'",
-      "https://fonts.googleapis.com",
-      "https://cdn-uicons.flaticon.com",
       "https://unpkg.com"
     ],
 
-    "font-src": [
-      "'self'",
-      "https://fonts.gstatic.com",
-      "https://cdn-uicons.flaticon.com"
-    ],
+    "font-src": ["'self'"],
 
     "img-src": [
       "'self'",

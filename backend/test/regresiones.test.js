@@ -710,6 +710,44 @@ test('la cola se procesa por orden de llegada', () => {
     'la cola dejaria de ser FIFO');
 });
 
+test('el cierre de temporada es idempotente', () => {
+  // Es la operacion mas destructiva del proyecto: toca a todos los usuarios y
+  // pone contadores a cero. Ejecutarla dos veces archivaria ceros encima de lo
+  // ya archivado y borraria la temporada entera de todo el mundo.
+  const codigo = leerCodigo('backend/src/temporadas.js');
+
+  // Se comprueba la marca ANTES de tocar nada.
+  assert.match(codigo, /if \(marca\.exists\) \{\s*return \{ yaCerrada: true/);
+
+  // Y se ESCRIBE la marca antes de archivar. Al reves, un corte a mitad dejaria
+  // la puerta abierta a repetirlo todo.
+  const posMarca = codigo.indexOf('refConfig.set(');
+  const posArchivo = codigo.indexOf('temporadas/${temporada}`)');
+  assert.ok(posMarca > 0 && posMarca < posArchivo,
+    'la marca de cerrada se escribe despues de archivar');
+});
+
+test('las operaciones periodicas simulan por defecto', () => {
+  // Con la version que escribe por defecto, un error de tecleo cierra la
+  // temporada de todo el mundo.
+  const runner = leerCodigo('backend/periodicas.js');
+  assert.match(runner, /const APLICAR = process\.argv\.includes\('--aplicar'\)/);
+  assert.ok(!/const SIMULAR = .*includes\('--simular'\)/.test(runner),
+    'simular deberia ser el defecto, no una bandera');
+});
+
+test('el cierre de temporada no borra lo conseguido', () => {
+  // Se resetean los puntos de la temporada. Los records, los kilometros y las
+  // insignias se quedan: lo logrado no se borra, solo el marcador.
+  const codigo = leerCodigo('backend/src/temporadas.js');
+  const actualizacion = codigo.slice(codigo.indexOf('lote.update(db().doc(`usuarios/'), codigo.indexOf('archivados++'));
+
+  assert.match(actualizacion, /puntosTemporada: 0/);
+  assert.match(actualizacion, /arrayUnion/, 'las insignias deberian sumarse, no reemplazarse');
+  assert.ok(!/metrosTotales: 0|viajesVerificados: 0|mejorRacha: 0/.test(actualizacion),
+    'se estan borrando totales historicos');
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

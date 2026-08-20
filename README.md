@@ -368,6 +368,7 @@ backend/
   test/                     pruebas de regresion y del motor de decision
 .github/workflows/
   verificar-viajes.yml      worker cada 5 minutos (cron apagado hasta el lanzamiento)
+  periodicas.yml            cierre de temporada y divisiones (cron apagado)
   ci.yml                    tests y despliegue de reglas de Firestore
 vercel.json                 despliegue del sitio y cabeceras de seguridad
 docs/
@@ -426,8 +427,9 @@ contrasena.
 10. - [ ] Rellenar los datos del responsable en los cuatro documentos legales (issue #55)
 11. - [ ] Crear el primer administrador con `scripts/set-admin.js`
 12. - [ ] Ejecutar la migracion de datos, primero con `--simular` (issue #54)
-13. - [ ] **Reactivar el cron de `verificar-viajes.yml`**, que esta comentado
-14. - [ ] Borrar el bloque `redirects` de `vercel.json` (issue #7)
+13. - [ ] **Reactivar los cron**, que estan comentados a proposito: `verificar-viajes.yml` y `periodicas.yml`
+14. - [ ] Ensayar `periodicas.yml` a mano con `simular: true` ANTES de la primera vez de verdad
+15. - [ ] Borrar el bloque `redirects` de `vercel.json` (issue #7)
 
 El cron del worker esta apagado a proposito: sin credenciales no puede hacer
 nada, y cada despertar mandaba un correo de fallo y gastaba un minuto de Actions

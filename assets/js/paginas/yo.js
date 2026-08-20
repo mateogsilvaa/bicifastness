@@ -131,7 +131,7 @@ async function cargarHistorial() {
       reemplazar(contenedor, el('div', { clase: 'vacio' }, [
         el('p', { texto: 'Aun no has subido ningun viaje.', estilo: { margin: '0 0 12px', fontWeight: '700' } }),
         el('a', { texto: 'Subir mi primer tiempo', attrs: { href: '/subir/' },
-          estilo: { color: 'var(--primary-claro)', fontWeight: '700', textDecoration: 'none' } }),
+          estilo: { color: 'var(--azul)', fontWeight: '700', textDecoration: 'none' } }),
       ]));
       return;
     }

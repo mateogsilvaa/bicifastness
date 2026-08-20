@@ -480,9 +480,9 @@ id('busca-objetivo').addEventListener('input', (evento) => {
       on: { click: () => seleccionar(o) },
     }, [
       el('span', { texto: o.nombre }),
-      el('span', { texto: o.tipo === 'usuarios' ? 'Piloto' : 'Clan', estilo: { color: 'var(--text-muted)' } }),
+      el('span', { texto: o.tipo === 'usuarios' ? 'Piloto' : 'Clan', estilo: { color: 'var(--tinta-3)' } }),
     ]))
-    : [el('div', { texto: 'Sin resultados', estilo: { color: 'var(--text-muted)' } })]);
+    : [el('div', { texto: 'Sin resultados', estilo: { color: 'var(--tinta-3)' } })]);
 
   caja.style.display = 'block';
 });
@@ -501,7 +501,7 @@ function seleccionar(objetivo) {
   reemplazar(rejilla, Object.entries(DICCIONARIO_INSIGNIAS).map(([clave, info]) => {
     const casilla = el('input', {
       attrs: { type: 'checkbox', checked: objetivo.logros.includes(clave) ? '' : null },
-      estilo: { width: '18px', height: '18px', accentColor: 'var(--primary)' },
+      estilo: { width: '18px', height: '18px', accentColor: 'var(--azul)' },
       on: {
         change: async (e) => {
           const otorgar = e.target.checked;

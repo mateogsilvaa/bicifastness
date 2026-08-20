@@ -121,7 +121,7 @@ export function escapar(valor) {
 
 /** Mensaje de estado accesible (lo anuncian los lectores de pantalla). */
 export function estado(contenedor, texto, tipo = 'info') {
-  const colores = { info: 'var(--primary-claro)', error: 'var(--error)', exito: 'var(--exito)', aviso: 'var(--aviso)' };
+  const colores = { info: 'var(--azul)', error: 'var(--rojo)', exito: 'var(--verde)', aviso: 'var(--ambar)' };
   contenedor.textContent = texto;
   contenedor.style.color = colores[tipo] || colores.info;
   contenedor.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
@@ -187,7 +187,7 @@ export function pedirTexto(mensaje, {
     });
 
     const pista = el('p', {
-      estilo: { fontSize: '.75rem', color: 'var(--text-tenue)', margin: '0 0 14px', minHeight: '18px' },
+      estilo: { fontSize: '.75rem', color: 'var(--tinta-3)', margin: '0 0 14px', minHeight: '18px' },
     });
 
     const aceptar = el('button', {
@@ -251,18 +251,18 @@ export function pedirTexto(mensaje, {
  * movil es especialmente molesto.
  */
 export function avisar(mensaje, tipo = 'error') {
-  const colores = { error: 'var(--error)', exito: 'var(--exito)', info: 'var(--primary)' };
+  const colores = { error: 'var(--rojo)', exito: 'var(--verde)', info: 'var(--azul)' };
 
   const nodo = el('div', {
     attrs: { role: tipo === 'error' ? 'alert' : 'status' },
     texto: mensaje,
     estilo: {
-      position: 'fixed', left: '50%', bottom: 'calc(var(--hueco-inferior) + 16px)',
+      position: 'fixed', left: '50%', bottom: 'calc(var(--alto-barra) + 16px)',
       transform: 'translateX(-50%)', zIndex: '10002', maxWidth: 'min(440px, calc(100vw - 32px))',
-      background: 'var(--bg-elevado)', color: 'var(--text-main)',
-      border: '1px solid var(--border-fuerte)', borderLeft: `3px solid ${colores[tipo] || colores.info}`,
-      borderRadius: 'var(--radio-s)', padding: '13px 16px', fontSize: '.88rem',
-      boxShadow: 'var(--sombra-alta)', animation: 'surgir 260ms ease both',
+      background: 'var(--papel-2)', color: 'var(--tinta)',
+      border: '1px solid var(--linea)', borderLeft: `3px solid ${colores[tipo] || colores.info}`,
+      borderRadius: 'var(--radio)', padding: '13px 16px', fontSize: '.88rem',
+      animation: 'surgir 260ms ease both',
     },
   });
 

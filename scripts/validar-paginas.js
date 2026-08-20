@@ -102,6 +102,45 @@ for (const modulo of modulos) {
   }
 }
 
+// --- Tokens de diseno ---------------------------------------------------------
+/**
+ * Un `var(--loquesea)` que no existe no da error en ninguna parte: el navegador
+ * descarta la declaracion y sigue. La propiedad se queda con lo que herede, asi
+ * que el fallo es SILENCIOSO y solo se ve mirando la pantalla con atencion.
+ *
+ * Como se colo: el rediseno (#49) renombro los tokens — `--error` paso a
+ * `--rojo`, `--text-muted` a `--tinta-3` — y el codigo que los pedia por el
+ * nombre viejo se quedo sin color. Los mensajes de estado salian los cuatro del
+ * mismo color que el texto normal (un error no se distinguia de un aviso) y el
+ * aviso flotante que sustituye a `alert()` salia transparente y colocado fuera
+ * de la pantalla, porque su `bottom` era un `calc()` con una variable que no
+ * existia.
+ *
+ * Una pagina puede definir tokens propios en su `<style>`: la de mantenimiento
+ * es autocontenida a proposito y no depende de `app.css`.
+ */
+const definidos = (texto) =>
+  new Set([...texto.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+
+const TOKENS = definidos(
+  fs.readFileSync(path.join(RAIZ, 'assets/css/app.css'), 'utf8')
+  + fs.readFileSync(path.join(RAIZ, 'assets/css/legal.css'), 'utf8')
+);
+
+for (const fichero of [...lista, ...modulos, ...buscar(path.join(RAIZ, 'assets/css'), '.css')]) {
+  const rel = path.relative(RAIZ, fichero).split(path.sep).join('/');
+  const contenido = fs.readFileSync(fichero, 'utf8');
+  const propios = definidos(
+    [...contenido.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('')
+  );
+
+  for (const token of new Set([...contenido.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]))) {
+    if (TOKENS.has(token) || propios.has(token)) continue;
+    console.error(`TOKEN    ${rel} usa ${token}, que no existe en el sistema de diseno`);
+    errores++;
+  }
+}
+
 // --- CSP ---------------------------------------------------------------------
 // Se delega en el propio generador para no tener la politica escrita en dos
 // sitios, que es justo lo que este proyecto intenta no hacer.

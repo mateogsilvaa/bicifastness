@@ -13,30 +13,30 @@
   .container { max-width: 1200px; }
   .seccion { margin-bottom: 40px; }
   .seccion > h2 { display: flex; align-items: center; gap: 10px; }
-  .contador { background: var(--primary); color: #fff; border-radius: 20px; padding: 2px 12px; font-size: .8rem; }
+  .contador { background: var(--azul); color: #fff; border-radius: 20px; padding: 2px 12px; font-size: .8rem; }
   .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; margin-top: 16px; }
-  .tarjeta { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radio); padding: 16px; }
-  .tarjeta.riesgo-alto { border-color: var(--error); background: rgba(255,90,90,.06); }
-  .tarjeta.riesgo-medio { border-color: var(--aviso); background: rgba(255,176,32,.05); }
+  .tarjeta { background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio); padding: 16px; }
+  .tarjeta.riesgo-alto { border-color: var(--rojo); background: rgba(255,90,90,.06); }
+  .tarjeta.riesgo-medio { border-color: var(--ambar); background: rgba(255,176,32,.05); }
   .cabecera { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 6px; gap: 10px; }
-  .meta { font-size: .78rem; color: var(--text-muted); line-height: 1.6; }
-  .veredicto { margin: 12px 0; padding: 10px 12px; border-radius: var(--radio-s); background: var(--bg-input); font-size: .8rem; }
+  .meta { font-size: .78rem; color: var(--tinta-3); line-height: 1.6; }
+  .veredicto { margin: 12px 0; padding: 10px 12px; border-radius: var(--radio); background: var(--papel-2); font-size: .8rem; }
   .veredicto ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.6; }
   .veredicto li { margin-bottom: 4px; }
   .acciones { display: flex; gap: 10px; margin-top: 14px; }
   .acciones button { margin: 0; padding: 10px; font-size: .85rem; }
-  .btn-aprobar { background: var(--exito); color: #04140a; }
-  .btn-rechazar { background: transparent; border: 1px solid var(--error); color: var(--error); }
-  .btn-ver { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+  .btn-aprobar { background: var(--verde); color: #04140a; }
+  .btn-rechazar { background: transparent; border: 1px solid var(--rojo); color: var(--rojo); }
+  .btn-ver { background: transparent; border: 1px solid var(--linea); color: var(--tinta); }
   .buscador { position: relative; }
-  .resultados { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radio-s); max-height: 260px; overflow-y: auto; z-index: 50; display: none; }
+  .resultados { position: absolute; top: 100%; left: 0; right: 0; background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio); max-height: 260px; overflow-y: auto; z-index: 50; display: none; }
   .resultados div { padding: 10px 14px; cursor: pointer; display: flex; justify-content: space-between; font-size: .9rem; }
-  .resultados div:hover { background: var(--bg-input); }
+  .resultados div:hover { background: var(--papel-2); }
   .insignias { display: none; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 16px; }
-  .fila-insignia { display: flex; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 10px 14px; border-radius: var(--radio-s); font-size: .85rem; }
-  .vacio { grid-column: 1/-1; color: var(--text-muted); padding: 20px; text-align: center; }
+  .fila-insignia { display: flex; justify-content: space-between; align-items: center; background: var(--papel-2); padding: 10px 14px; border-radius: var(--radio); font-size: .85rem; }
+  .vacio { grid-column: 1/-1; color: var(--tinta-3); padding: 20px; text-align: center; }
   #visor { position: fixed; inset: 0; background: rgba(4,6,10,.93); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
-  #visor img { max-width: 92%; max-height: 88vh; border-radius: var(--radio-s); }
+  #visor img { max-width: 92%; max-height: 88vh; border-radius: var(--radio); }
 
   /* --- Cola de revision (#15) ---------------------------------------------
      Dos columnas en cuanto hay sitio: la captura a la izquierda y todo lo que
@@ -63,9 +63,9 @@
     border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px; margin: 0 2px;
   }
 
-  .tarjeta { transition: border-color var(--transicion); box-shadow: var(--sombra-media); }
-  .contador { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; font-weight: 700; }
-  .veredicto { border: 1px solid var(--border); }
+  .tarjeta { transition: border-color var(--transicion); }
+  .contador { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .veredicto { border: 1px solid var(--linea); }
   .acciones button { min-height: 44px; }
 </style>
 </head>
@@ -75,7 +75,7 @@
 <div class="bottom-nav" id="nav-inferior"></div>
 
 <main class="container" id="principal">
-  <p id="cargando" style="color: var(--text-muted);">Comprobando permisos...</p>
+  <p id="cargando" style="color: var(--tinta-3);">Comprobando permisos...</p>
 
   <div id="panel" class="oculto">
     <section class="seccion">
@@ -134,7 +134,7 @@
           puede conceder con credenciales de servicio, que nunca deben llegar al
           navegador. Se hace desde tu ordenador:
         </p>
-        <pre class="meta" style="background:var(--bg-input); padding:12px; border-radius:8px; overflow-x:auto;">GOOGLE_APPLICATION_CREDENTIALS=./clave.json node scripts/set-admin.js correo@ejemplo.com</pre>
+        <pre class="meta" style="background:var(--papel-2); padding:12px; border-radius:8px; overflow-x:auto;">GOOGLE_APPLICATION_CREDENTIALS=./clave.json node scripts/set-admin.js correo@ejemplo.com</pre>
         <p class="meta">Quien lo reciba debe cerrar sesion y volver a entrar.</p>
       </div>
     </section>

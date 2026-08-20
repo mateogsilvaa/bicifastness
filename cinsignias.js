@@ -86,7 +86,7 @@ export function generarNodosInsignias(logros) {
   if (!Array.isArray(logros) || logros.length === 0) {
     const vacio = document.createElement('span');
     vacio.textContent = 'Aun no tiene insignias';
-    vacio.style.cssText = 'color: var(--text-muted); font-size: .88rem;';
+    vacio.style.cssText = 'color: var(--tinta-3); font-size: .88rem;';
     return [vacio];
   }
 

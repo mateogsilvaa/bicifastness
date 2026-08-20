@@ -6,6 +6,7 @@
 import { ESTACIONES } from '../data/estaciones.js';
 import { el, id, icono, reemplazar } from './dom.js';
 import { vigilarErrores } from './errores.js';
+import { medir } from './metricas.js';
 
 // --- Antiframing -------------------------------------------------------------
 /**
@@ -295,6 +296,7 @@ export function montarPieLegal() {
 export function iniciarPagina(seccionActiva) {
   // Lo primero: si algo revienta mas abajo, queremos enterarnos.
   vigilarErrores();
+  medir();
   aplicarTema();
   montarNavegacion(seccionActiva);
   montarPieLegal();

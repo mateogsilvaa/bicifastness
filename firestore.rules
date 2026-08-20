@@ -304,6 +304,40 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Contadores diarios ya sumados. Solo administracion: el detalle de un dia
+    // concreto no le hace falta a nadie mas.
+    match /metricas/{dia} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
+
+    // --- Analitica de producto ---------------------------------------------
+    // Un documento por sesion, escrito al cerrar la pestaña. Sin sesion, igual
+    // que los errores y por el mismo motivo: el embudo del registro hay que
+    // medirlo antes de que exista la cuenta.
+    //
+    // No lleva NADA que identifique a nadie: solo contadores de eventos de una
+    // lista cerrada. El id lo elige el navegador al azar y solo evita que dos
+    // sesiones simultaneas se pisen.
+    //
+    // La lista de campos es la que impide que esto se convierta en un almacen
+    // de lo que a cualquiera se le ocurra escribir.
+    match /sesiones_web/{sesion} {
+      allow read: if esAdmin();
+      allow delete: if esAdmin();
+
+      allow create, update: if
+        sesion.size() <= 40
+        && datos().keys().hasOnly([
+          'dia', 'version', 'creado',
+          'pagina_vista', 'subida_abierta', 'subida_con_foto', 'subida_enviada',
+          'subida_fallida', 'registro_abierto', 'registro_completado',
+          'login_completado'
+        ])
+        && datos().dia is string && datos().dia.size() == 10
+        && datos().version is string && datos().version.size() <= 20;
+    }
+
     // --- Errores del cliente -----------------------------------------------
     // La otra coleccion que escribe gente SIN sesion, y tambien a proposito: un
     // fallo en el registro hay que verlo, y ahi todavia no hay cuenta.

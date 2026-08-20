@@ -42,6 +42,7 @@ const distancias = require('./src/distancias');
 const rachas = require('./src/rachas');
 const correo = require('./src/correo');
 const plantillas = require('./src/plantillas');
+const metricas = require('./src/metricas');
 
 const SIMULAR = process.argv.includes('--simular');
 const SOLO_UNO = process.argv.includes('--once');
@@ -561,6 +562,30 @@ async function main() {
   if (!SIMULAR && (cuenta.aprobado > 0 || cuenta.rechazado > 0)) {
     const escritos = await puntuacion.reconstruirAgregados();
     console.log(`Agregados reconstruidos: ${JSON.stringify(escritos)}`);
+  }
+
+  // Metricas: suma las sesiones del navegador en contadores diarios, poda el
+  // detalle viejo y recalcula la retencion. Se hace siempre, aunque no haya
+  // habido viajes: las visitas ocurren igual.
+  if (!SIMULAR) {
+    try {
+      const sesiones = await metricas.agregarSesiones();
+      const [usuariosSnap, viajesSnap] = await Promise.all([
+        db.collection('usuarios').get(),
+        db.collection('tiempos_viaje').where('verificado', '==', true).get(),
+      ]);
+
+      await metricas.resumir({
+        usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
+        viajes: viajesSnap.docs.map((d) => d.data()),
+      });
+
+      console.log(`Metricas: ${sesiones.sesiones || 0} sesiones agregadas, `
+        + `${sesiones.podados || 0} podadas.`);
+    } catch (error) {
+      // Que fallen las metricas no puede tumbar la verificacion de viajes.
+      console.warn('No se han podido actualizar las metricas:', error.message);
+    }
   }
 
   console.log(`\nResumen: ${cuenta.aprobado} aprobados, ${cuenta.rechazado} rechazados, `

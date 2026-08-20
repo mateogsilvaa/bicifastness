@@ -479,10 +479,23 @@ test('el despliegue no publica el backend ni los scripts', () => {
 
   // Todo esto acabaria servido por URL, y `firestore.rules` ademas cuenta a
   // quien deja entrar donde.
-  for (const carpeta of ['backend/', 'scripts/', 'shared/', '.github/', 'node_modules/']) {
+  //
+  // `scripts` se admite de las dos formas: `scripts/` excluye la carpeta y
+  // `scripts/*` su contenido. La segunda es la que hay, porque es la unica que
+  // permite la excepcion de `build-version.js`, que el `buildCommand` necesita
+  // tener subido para poder ejecutarlo.
+  for (const carpeta of ['backend/', 'shared/', '.github/', 'node_modules/']) {
     assert.ok(ignorados.includes(carpeta), `${carpeta} acabaria publicado en la web`);
   }
+  assert.ok(ignorados.includes('scripts/') || ignorados.includes('scripts/*'),
+    'los scripts de administracion acabarian publicados en la web');
   assert.ok(ignorados.includes('firestore.rules'));
+
+  // Y de las excepciones, solo la del generador de la version: cualquier otra
+  // estaria publicando una herramienta de administracion.
+  const excepciones = ignorados.filter((l) => l.startsWith('!'));
+  assert.deepStrictEqual(excepciones, ['!scripts/build-version.js'],
+    `hay excepciones nuevas en .vercelignore: ${excepciones.join(', ')}`);
 
   // El mapa hace fetch('/data/emt.geojson'): eso SI tiene que publicarse.
   assert.ok(!ignorados.includes('data/'), 'el mapa se quedaria sin estaciones');

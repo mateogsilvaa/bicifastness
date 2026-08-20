@@ -67,6 +67,17 @@ test('el bonus de territorio es del 10% y se ve en el desglose', () => {
   assert.strictEqual(dentro.total, Math.round(fuera.desglose.subtotal * 1.1));
 });
 
+test('el bonus de territorio no se acumula por tocar dos estaciones propias', () => {
+  // `calcularPuntosViaje` recibe un booleano, no una cuenta: acumularlo
+  // premiaria dar vueltas dentro del feudo propio, que es lo contrario de lo
+  // que busca el mapa.
+  const una = calcularPuntosViaje({ distanciaMetros: 4000, velocidadKmh: 15, territorioPropio: true });
+  const dos = calcularPuntosViaje({ distanciaMetros: 4000, velocidadKmh: 15, territorioPropio: 2 });
+
+  assert.strictEqual(dos.total, una.total, 'el bonus se acumula');
+  assert.strictEqual(dos.desglose.multiplicadorTerritorio, 1.1);
+});
+
 test('pasado el cupo diario el viaje no da puntos pero se registra', () => {
   const fuera = calcularPuntosViaje({ distanciaMetros: 5000, velocidadKmh: 18, puntua: false });
 

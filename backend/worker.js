@@ -328,6 +328,34 @@ async function avisarRechazo(viaje, veredicto) {
 }
 
 /**
+ * ¿Alguna de las dos estaciones la controla el clan del piloto?
+ *
+ * El bonus se aplica UNA VEZ aunque las controle las dos. Acumularlo premiaria
+ * dar vueltas dentro del feudo propio, que es justo lo contrario de lo que
+ * busca el mapa: que los clanes se disputen las fronteras.
+ *
+ * Y `clanDominante` es quien pasa del 50%, no quien va primero: en una estacion
+ * en disputa no hay bonus para nadie. Tenerla a medias no es tenerla.
+ */
+async function tocaTerritorioPropio(uid, estaciones) {
+  try {
+    const usuario = await db.doc(`usuarios/${uid}`).get();
+    const clan = usuario.exists ? usuario.data().clanId : null;
+    if (!clan) return false;
+
+    const stats = await db.getAll(
+      ...estaciones.map((e) => db.doc(`estaciones_stats/${e}`)));
+
+    return stats.some((d) => d.exists && d.data().clanDominante === clan);
+  } catch (error) {
+    // Sin esta informacion se puntua sin bonus, que es lo conservador: es peor
+    // dar puntos de mas que de menos.
+    console.warn('  no se ha podido comprobar el territorio:', error.message);
+    return false;
+  }
+}
+
+/**
  * Cierra un viaje aprobado: mide el trayecto, actualiza la racha del piloto y
  * le da los puntos que le tocan.
  *
@@ -361,6 +389,11 @@ async function premiar(doc, viaje) {
   const refUsuario = db.doc(`usuarios/${viaje.uid}`);
   let puntos;
 
+  // Bonus por pedalear en territorio del propio clan. Se mira ANTES de la
+  // transaccion: dentro no se pueden hacer lecturas sueltas despues de escribir,
+  // y ademas estas dos son de otra coleccion.
+  const enCasa = await tocaTerritorioPropio(viaje.uid, [origen, destino]);
+
   await db.runTransaction(async (tx) => {
     const usuario = await tx.get(refUsuario);
     if (!usuario.exists) return;
@@ -379,8 +412,7 @@ async function premiar(doc, viaje) {
       velocidadKmh: kmh,
       multiplicadorRuta: multRuta,
       racha: racha.racha,
-      // Pendiente del issue #28: hace falta saber que clan controla la estacion.
-      territorioPropio: false,
+      territorioPropio: enCasa,
     });
 
     tx.update(refUsuario, {
@@ -410,7 +442,9 @@ async function premiar(doc, viaje) {
   });
 
   console.log(`  +${puntos.total} puntos (${((metros || 0) / 1000).toFixed(2)} km`
-    + `${kmh ? `, ${kmh.toFixed(1)} km/h` : ''}${medida && medida.estimada ? ', distancia estimada' : ''})`);
+    + `${kmh ? `, ${kmh.toFixed(1)} km/h` : ''}`
+    + `${enCasa ? ', en territorio propio' : ''}`
+    + `${medida && medida.estimada ? ', distancia estimada' : ''})`);
 }
 
 /**

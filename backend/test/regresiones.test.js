@@ -805,6 +805,22 @@ test('la influencia pesa las tres componentes del juego', () => {
   }
 });
 
+test('el bonus de territorio exige controlar, no ir primero', () => {
+  // En una estacion en disputa no hay bonus para nadie: tenerla a medias no es
+  // tenerla.
+  const worker = leerCodigo('backend/worker.js');
+  const funcion = worker.slice(
+    worker.indexOf('async function tocaTerritorioPropio'),
+    worker.indexOf('async function premiar'));
+
+  assert.match(funcion, /clanDominante === clan/);
+  assert.ok(!/lider === clan/.test(funcion), 'bastaria con ir primero');
+
+  // Y si no se puede comprobar, se puntua SIN bonus: es peor dar puntos de mas
+  // que de menos.
+  assert.match(funcion, /catch[\s\S]*return false/);
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

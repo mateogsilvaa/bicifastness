@@ -54,7 +54,7 @@ un viaje tarda unos minutos en resolverse en vez de segundos.
 ### Stack
 
 - Frontend: HTML + CSS + JavaScript con modulos ES. Sin framework ni build. Mobile-first.
-- Alojamiento: GitHub Pages. El sitio es estatico y habla con Firestore desde el navegador.
+- Alojamiento: Vercel, conectado a la rama `main`. El sitio es estatico y habla con Firestore desde el navegador.
 - Datos: Firebase Auth + Firestore, en el plan Spark (gratis, sin tarjeta).
 - Worker: Node 20 en GitHub Actions, con `sharp` y Gemini 2.0 Flash.
 - Mapa: Leaflet + GeoJSON de estaciones.
@@ -114,16 +114,15 @@ script suelto en vez de desde la web.
 
 ### 5. Desplegar
 
-Dos workflows, cada uno con lo suyo, y los dos solos en cada push a `main`:
+Dos caminos, cada uno con lo suyo, y los dos solos en cada push a `main`:
 
-| Workflow | Que despliega |
+| Quien | Que despliega |
 |---|---|
-| `paginas.yml` | El sitio, en GitHub Pages |
+| Vercel | El sitio, por su integracion con Git. Lo gobierna `vercel.json` |
 | `ci.yml` | Las reglas y los indices de Firestore |
 
 Las reglas van aparte a proposito: **no son estaticas**. Son el control de acceso
-del proyecto, porque no hay servidor delante, asi que tienen que seguir
-desplegandose aunque el sitio viva en otro sitio.
+del proyecto, porque no hay servidor delante, y Vercel no las toca.
 
 A mano, solo las reglas:
 
@@ -131,30 +130,40 @@ A mano, solo las reglas:
 firebase deploy --only firestore:rules,firestore:indexes --project bicifastness
 ```
 
-### 5.1. Lo que se pierde al servir desde Pages
+### 5.1. Por que Vercel y no GitHub Pages
 
-GitHub Pages **no permite configurar cabeceras HTTP**. Las que habia en
-`firebase.json` se han resuelto asi:
+Por una sola razon, pero decisiva: **Pages no permite configurar cabeceras
+HTTP**. Serviria el sitio igual de bien, pero se perderian seis cabeceras de
+seguridad que no tienen equivalente en `<meta>`:
 
-| Cabecera | Que se ha hecho |
-|---|---|
-| `Content-Security-Policy` | Va en `<meta>`. Fuente unica en `shared/csp.json`, la escribe `scripts/aplicar-csp.js` |
-| `Referrer-Policy` | Va en `<meta>`, mismo script |
-| `X-Frame-Options` / `frame-ancestors` | **No hay equivalente.** `frame-ancestors` lo ignora el navegador cuando la CSP llega por meta, asi que el antiframing lo hace `assets/js/ui.js` a mano |
-| `Strict-Transport-Security` | **Se pierde.** Pages ya fuerza HTTPS, asi que el riesgo real es bajo |
-| `Permissions-Policy`, `X-Content-Type-Options` | **Se pierden** |
+`frame-ancestors` · `Strict-Transport-Security` · `X-Frame-Options` ·
+`X-Content-Type-Options` · `Permissions-Policy` · `Cross-Origin-Opener-Policy`
 
-Nada de esto es el control de acceso: los datos los protegen las reglas de
-Firestore, App Check y los custom claims, que no dependen del alojamiento. Lo que
-se pierde es defensa en profundidad frente a XSS y clickjacking.
+Vercel las da gratis, sin tarjeta y sin dominio propio.
 
-Recuperarlo del todo exige un dominio propio detras de Cloudflare. Esta anotado
-en el issue #3.
+Las cabeceras salen de **`shared/cabeceras.json`**, que es la fuente unica. El
+script las vuelca en dos sitios:
+
+```bash
+npm run cabeceras
+```
+
+1. `vercel.json`, como cabeceras HTTP de verdad
+2. cada pagina, la CSP tambien como `<meta>`, por si el HTML se sirve desde otro
+   sitio (en local, un mirror, un despliegue de prueba) donde no habria cabecera
+
+`npm run validar` falla si alguno de los dos se queda atras. **No edites el
+bloque `headers` de `vercel.json` a mano.**
 
 **Consecuencia practica:** la CSP declara `script-src 'self'` sin
 `'unsafe-inline'`, asi que **el JavaScript de las paginas no puede ir incrustado
-en el HTML**. Vive en `assets/js/paginas/`. Hay un test que falla si alguien lo
-vuelve a meter en linea.
+en el HTML**. Vive en `assets/js/paginas/`, un modulo por pagina. Hay un test
+que falla si alguien lo vuelve a meter en linea.
+
+> Esto no era una precaucion teorica: la CSP ya declaraba `script-src 'self'`
+> mientras las 17 paginas llevaban su codigo incrustado, o sea que **la politica
+> bloqueaba todo el JavaScript del sitio**. No se noto porque la unica pagina
+> publicada, la de obras, es la unica sin scripts.
 
 ### 6. Crear el primer administrador
 
@@ -182,18 +191,13 @@ Revisa la salida y, si cuadra, repite con `--aplicar`.
 Para dejar el sitio en obras (util mientras se rota lo comprometido, o ante
 cualquier incidente):
 
-1. En GitHub: **Settings -> Secrets and variables -> Actions -> Variables**
-2. Crea la variable `MANTENIMIENTO` con valor `true`
-3. Lanza el workflow o haz push a `main`
+Anade el bloque `redirects` a `vercel.json` y haz push. Para volver a abrir la
+web, **borra ese bloque entero**. No hace falta tocar nada mas.
 
-Se publica unicamente `mantenimiento/index.html`, y ademas duplicado como
-`404.html`. **El resto del sitio no se sube**, asi que ninguna URL antigua sigue
-accesible: lo que no esta en el artefacto de Pages no existe, y cualquier ruta
-desconocida cae en el `404.html`, que es la propia pagina de obras. Un redirect
-no bastaria, porque Pages sirve primero el fichero que exista.
-
-Para volver a la normalidad, pon la variable a `false` (o borrala) y vuelve a
-desplegar.
+Lo hace el bloque `redirects` de `vercel.json`, que manda todo a la pagina de
+obras. En Vercel los redirects se evaluan **antes** del sistema de ficheros, asi
+que tapan tambien las paginas que existen: sin eso, entrar a `/admin/`
+escribiendo la URL seguiria funcionando.
 
 La pagina de obras es autocontenida a proposito: sin scripts, sin depender de
 `app.css` ni de ningun modulo. Si algo del sitio se rompe, tiene que seguir en pie.
@@ -339,16 +343,16 @@ backend/
   src/puntuacion.js         BiciRating y dominio de estaciones
   test/                     pruebas de regresion y del motor de decision
 .github/workflows/
-  verificar-viajes.yml      worker cada 5 minutos
-  paginas.yml               publica el sitio en GitHub Pages
+  verificar-viajes.yml      worker cada 5 minutos (cron apagado hasta el lanzamiento)
   ci.yml                    tests y despliegue de reglas de Firestore
+vercel.json                 despliegue del sitio y cabeceras de seguridad
 docs/
   ROADMAP.md                hitos, issues y en que orden
   JUEGO.md                  las reglas del juego y por que son esas
 firestore.rules             EL control de acceso: no hay servidor delante
 legal/                      aviso-legal, privacidad, terminos, cookies
-shared/csp.json             fuente unica de la CSP de todas las paginas
-scripts/                    build-estaciones, aplicar-csp, set-admin, migrar-datos
+shared/cabeceras.json       fuente unica de las cabeceras de seguridad
+scripts/                    build-estaciones, aplicar-cabeceras, build-distancias, set-admin
 ```
 
 En `assets/js/paginas/` hay un modulo por pagina. No estan incrustados en el HTML
@@ -392,14 +396,14 @@ contrasena.
 4. - [ ] Apagar la instancia de PocketBase y el tunel de ngrok
 5. - [ ] **Solo entonces**: hacer publico el repositorio
 6. - [ ] Crear los dos secretos de GitHub (`FIREBASE_SERVICE_ACCOUNT` y `GEMINI_API_KEY`)
-7. - [ ] Activar GitHub Pages con origen "GitHub Actions" (issue #2)
-8. - [ ] Autorizar el dominio de Pages en Firebase Auth y en reCAPTCHA (issue #4)
+7. - [ ] Comprobar que el proyecto de Vercel apunta a `main` (issue #2)
+8. - [ ] Autorizar el dominio de Vercel en Firebase Auth y en reCAPTCHA (issue #4)
 9. - [ ] Poner `RECAPTCHA_SITE_KEY` en `assets/js/firebase.js`
 10. - [ ] Rellenar los datos del responsable en los cuatro documentos legales (issue #55)
 11. - [ ] Crear el primer administrador con `scripts/set-admin.js`
 12. - [ ] Ejecutar la migracion de datos, primero con `--simular` (issue #54)
 13. - [ ] **Reactivar el cron de `verificar-viajes.yml`**, que esta comentado
-14. - [ ] Poner `MANTENIMIENTO` a `false` (issue #7)
+14. - [ ] Borrar el bloque `redirects` de `vercel.json` (issue #7)
 
 El cron del worker esta apagado a proposito: sin credenciales no puede hacer
 nada, y cada despertar mandaba un correo de fallo y gastaba un minuto de Actions

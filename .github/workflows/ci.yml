@@ -47,10 +47,10 @@ jobs:
         working-directory: backend
         run: npm test
 
-  # El sitio lo publica `paginas.yml` en GitHub Pages. Aqui solo quedan las
+  # El sitio lo publica Vercel, conectado a este repositorio. Aqui solo quedan las
   # REGLAS y los INDICES de Firestore, que no son estaticos: son el control de
   # acceso del proyecto (no hay servidor delante) y tienen que seguir
-  # desplegandose en cada push aunque el hosting se haya ido a otro sitio.
+  # desplegandose en cada push, porque Vercel no las toca.
   reglas:
     needs: tests
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'

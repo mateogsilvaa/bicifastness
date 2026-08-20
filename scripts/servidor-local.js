@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /**
- * Servidor estatico para desarrollo, que imita a GitHub Pages: sirve
- * `/home/` desde `/home/index.html` y cae en `404.html` cuando existe.
+ * Servidor estatico para desarrollo. Imita el `trailingSlash` de Vercel: sirve
+ * `/home/` desde `/home/index.html`.
  *
- * Existe porque el emulador de Firebase Hosting ya no representa a produccion:
- * el sitio se sirve desde Pages, que ni aplica las cabeceras de `firebase.json`
- * ni entiende sus rewrites. Para mirar la CSP y los modulos hace falta algo que
- * se comporte como el destino real.
+ * OJO: no aplica las cabeceras de `vercel.json`. Lo que si se ve en local es la
+ * CSP por <meta>, que es justo para lo que esta puesta ademas de la cabecera.
+ * Para probar cabeceras de verdad hace falta un despliegue de vista previa.
  *
  * Uso: node scripts/servidor-local.js [puerto]
  */

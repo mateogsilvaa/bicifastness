@@ -1,0 +1,19 @@
+# Nada de esto debe acabar publicado en la web.
+# La version anterior desplegaba el repositorio entero, asi que el codigo del
+# backend y los scripts de administracion quedaban accesibles por URL.
+backend/
+scripts/
+shared/
+node_modules/
+.github/
+*.md
+eslint.config.mjs
+package.json
+package-lock.json
+firebase*.json
+firestore.rules
+firestore.indexes.json
+
+# Documentacion del proyecto: no es parte del sitio.
+docs/
+.claude/

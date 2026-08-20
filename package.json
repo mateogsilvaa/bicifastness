@@ -7,7 +7,7 @@
     "lint": "eslint .",
     "test": "npm run datos && npm run lint && npm run validar && cd backend && npm test",
     "validar": "node scripts/validar-paginas.js",
-    "csp": "node scripts/aplicar-csp.js"
+    "cabeceras": "node scripts/aplicar-cabeceras.js"
   },
   "devDependencies": {
     "eslint": "^9.15.0",

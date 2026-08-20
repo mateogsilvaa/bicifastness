@@ -1,0 +1,93 @@
+{
+  "_comentario": [
+    "Fuente unica de las cabeceras de seguridad del sitio.",
+    "",
+    "`node scripts/aplicar-cabeceras.js` la vuelca en DOS sitios:",
+    "  1. vercel.json      cabeceras HTTP de verdad, que es lo que aplica el navegador",
+    "  2. cada pagina      la CSP tambien como <meta>, como defensa en profundidad",
+    "",
+    "`npm run validar` falla si alguno de los dos se queda atras.",
+    "",
+    "Por que las dos cosas: la cabecera es la que manda y la unica que puede",
+    "declarar `frame-ancestors`. El <meta> cubre el caso de que el fichero se",
+    "sirva desde otro sitio (abierto en local, un mirror, un despliegue de",
+    "prueba), donde no habria cabecera ninguna. Ambas politicas son la misma,",
+    "asi que su interseccion no rompe nada.",
+    "",
+    "Cada origen esta porque algo lo usa. Si quitas la funcion, quita el origen."
+  ],
+
+  "csp": {
+    "default-src": ["'self'"],
+
+    "script-src": [
+      "'self'",
+      "https://www.gstatic.com",
+      "https://www.google.com",
+      "https://unpkg.com"
+    ],
+
+    "style-src": [
+      "'self'",
+      "'unsafe-inline'",
+      "https://fonts.googleapis.com",
+      "https://cdn-uicons.flaticon.com",
+      "https://unpkg.com"
+    ],
+
+    "font-src": [
+      "'self'",
+      "https://fonts.gstatic.com",
+      "https://cdn-uicons.flaticon.com"
+    ],
+
+    "img-src": [
+      "'self'",
+      "data:",
+      "blob:",
+      "https://api.dicebear.com",
+      "https://*.basemaps.cartocdn.com",
+      "https://*.tile.openstreetmap.org"
+    ],
+
+    "connect-src": [
+      "'self'",
+      "https://*.googleapis.com",
+      "https://*.firebaseio.com",
+      "wss://*.firebaseio.com"
+    ],
+
+    "frame-src": [
+      "https://www.google.com",
+      "https://bicifastness.firebaseapp.com"
+    ],
+
+    "base-uri": ["'self'"],
+    "form-action": ["'self'"],
+    "object-src": ["'none'"],
+
+    "upgrade-insecure-requests": []
+  },
+
+  "_csp_solo_cabecera": [
+    "Directivas que el navegador IGNORA cuando la CSP llega por <meta>, asi que",
+    "solo tienen efecto en la cabecera HTTP. Es justo lo que se perdia al",
+    "plantearse GitHub Pages."
+  ],
+  "csp_solo_cabecera": {
+    "frame-ancestors": ["'none'"]
+  },
+
+  "_otras": [
+    "El resto de cabeceras de seguridad. Ninguna tiene equivalente en <meta>:",
+    "o van por HTTP o no existen."
+  ],
+  "otras": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), payment=(), usb=(), interest-cohort=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    "Cross-Origin-Opener-Policy": "same-origin"
+  }
+}

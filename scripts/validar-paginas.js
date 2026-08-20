@@ -4,7 +4,7 @@
  *   1. que todas las rutas de import existen en disco
  *   2. que los recursos locales referenciados (css, js, imagenes) existen
  *   3. que no queda ningun innerHTML fuera de comentarios
- *   4. que lleva la CSP de `shared/csp.json` al dia
+ *   4. que lleva la CSP de `shared/cabeceras.json` al dia
  *   5. que no tiene JavaScript incrustado, que la CSP bloquearia
  *
  * Esto pilla los enlaces rotos, que es el fallo mas facil de colar al mover
@@ -106,7 +106,7 @@ for (const modulo of modulos) {
 // Se delega en el propio generador para no tener la politica escrita en dos
 // sitios, que es justo lo que este proyecto intenta no hacer.
 try {
-  execFileSync('node', [path.join(__dirname, 'aplicar-csp.js'), '--comprobar'], {
+  execFileSync('node', [path.join(__dirname, 'aplicar-cabeceras.js'), '--comprobar'], {
     stdio: ['ignore', 'ignore', 'inherit'],
   });
 } catch {

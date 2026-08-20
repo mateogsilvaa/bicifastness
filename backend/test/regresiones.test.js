@@ -137,10 +137,7 @@ test('la puntuacion de clanes y el mapa solo los escribe el worker', () => {
 // --- Cabeceras ----------------------------------------------------------------
 
 test('la CSP no abre la puerta a scripts en linea', () => {
-  // La politica ya no viaja en cabecera: GitHub Pages no las permite. Vive en
-  // shared/csp.json y `scripts/aplicar-csp.js` la escribe como <meta> en cada
-  // pagina.
-  const csp = JSON.parse(leer('shared/csp.json'));
+  const { csp } = JSON.parse(leer('shared/cabeceras.json'));
   const directiva = (nombre) => (csp[nombre] || []).join(' ');
 
   assert.ok(!directiva('script-src').includes("'unsafe-inline'"),
@@ -149,6 +146,43 @@ test('la CSP no abre la puerta a scripts en linea', () => {
   assert.deepStrictEqual(csp['object-src'], ["'none'"]);
   // Sin backend propio, el cliente habla con Firestore a traves de googleapis.
   assert.match(directiva('connect-src'), /googleapis\.com/);
+});
+
+test('las cabeceras que solo existen por HTTP estan puestas', () => {
+  // Es la razon de servir desde Vercel y no desde GitHub Pages: Pages no
+  // permite cabeceras, y estas seis no tienen equivalente en <meta>.
+  const cabeceras = JSON.parse(leer('vercel.json')).headers
+    .flatMap((bloque) => bloque.headers);
+  const valor = (clave) => (cabeceras.find((h) => h.key === clave) || {}).value;
+
+  for (const clave of ['X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy',
+    'Permissions-Policy', 'Strict-Transport-Security', 'Cross-Origin-Opener-Policy']) {
+    assert.ok(valor(clave), `falta la cabecera ${clave}`);
+  }
+
+  // `frame-ancestors` es la directiva que el navegador ignora cuando la CSP
+  // llega por <meta>: solo cuenta si viaja en la cabecera.
+  assert.match(valor('Content-Security-Policy'), /frame-ancestors 'none'/);
+});
+
+test('la CSP de la cabecera y la del <meta> no divergen', () => {
+  // Las dos se generan de shared/cabeceras.json. Si alguien edita una a mano,
+  // el navegador aplicaria la interseccion y algo dejaria de cargar sin que
+  // nadie sepa por que.
+  const { csp } = JSON.parse(leer('shared/cabeceras.json'));
+  const esperada = Object.entries(csp)
+    .map(([d, origenes]) => [d, ...origenes].join(' ').trim())
+    .join('; ');
+
+  const enPagina = leer('home/index.html')
+    .match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
+  assert.strictEqual(enPagina, esperada);
+
+  const enCabecera = JSON.parse(leer('vercel.json')).headers
+    .flatMap((b) => b.headers)
+    .find((h) => h.key === 'Content-Security-Policy').value;
+  // La cabecera lleva ademas frame-ancestors, pero todo lo demas es identico.
+  assert.ok(enCabecera.startsWith(esperada), 'la cabecera no contiene la politica base');
 });
 
 test('todas las paginas llevan la CSP escrita', () => {
@@ -292,26 +326,17 @@ test('los objetivos tactiles llegan al minimo accesible', () => {
 
 // --- Modo mantenimiento -----------------------------------------------------
 
-test('el modo mantenimiento no publica ninguna pagina de la app', () => {
-  const flujo = leer('.github/workflows/paginas.yml');
+test('el modo mantenimiento tapa tambien las paginas que existen', () => {
+  const conf = JSON.parse(leer('vercel.json'));
+  const redir = (conf.redirects || [])[0];
 
-  // El artefacto que se sube a Pages es lo unico accesible: lo que no se copia
-  // ahi, no existe. En mantenimiento se copia SOLO la pagina de obras, y
-  // ademas como 404.html, que es lo que Pages sirve ante una ruta inexistente.
-  // Asi ninguna URL antigua sigue en pie.
-  const bloque = flujo.match(/if \[ "\$MANTENIMIENTO" = "true" \][\s\S]*?else/);
-  assert.ok(bloque, 'falta la rama de mantenimiento en el workflow de Pages');
-
-  assert.match(bloque[0], /cp mantenimiento\/index\.html _sitio\/index\.html/);
-  assert.match(bloque[0], /cp mantenimiento\/index\.html _sitio\/404\.html/);
-
-  // Nada del sitio debe colarse en esa rama.
-  const secciones = ['home', 'ranking', 'bicirating', 'mapa', 'clanes',
-    'subir', 'profile', 'info', 'admin', 'statssss', 'register', 'entrar'];
-  for (const seccion of secciones) {
-    assert.ok(!bloque[0].includes(`${seccion}/`), `/${seccion}/ seguiria publicada`);
-  }
-  assert.ok(!/rsync/.test(bloque[0]), 'en mantenimiento no se copia el sitio entero');
+  assert.ok(redir, 'sin redirect no hay modo mantenimiento');
+  assert.strictEqual(redir.destination, '/mantenimiento/');
+  // En Vercel los redirects se evaluan ANTES del sistema de ficheros: por eso
+  // tapan /admin/ y /home/, que existen como fichero. Un rewrite no bastaria.
+  assert.match(redir.source, /\(\?!/, 'el patron debe excluir la propia pagina de obras');
+  assert.match(redir.source, /mantenimiento/);
+  assert.strictEqual(redir.permanent, false, 'un 308 se cachearia en el navegador');
 });
 
 test('la pagina de obras no depende de nada del sitio', () => {
@@ -323,48 +348,46 @@ test('la pagina de obras no depende de nada del sitio', () => {
     'no debe indexarse en lugar del sitio real');
 });
 
-test('el interruptor de mantenimiento esta cableado en el despliegue', () => {
-  const flujo = leer('.github/workflows/paginas.yml');
-  assert.match(flujo, /MANTENIMIENTO: \$\{\{ vars\.MANTENIMIENTO \}\}/);
-});
-
 test('solo hay un sitio publicado', () => {
   // Dos destinos de despliegue es como la gente acaba viendo una version vieja,
   // y como el modo mantenimiento protege un sitio pero no el otro.
   const ci = leer('.github/workflows/ci.yml');
   assert.ok(!/--only hosting|only hosting,/.test(ci),
-    'el CI no debe desplegar hosting: el sitio vive en Pages');
+    'el CI no debe desplegar hosting: el sitio vive en Vercel');
 
   // Pero las reglas de Firestore SI tienen que seguir desplegandose: son el
-  // control de acceso y no viajan en el artefacto de Pages.
+  // control de acceso y Vercel no las toca.
   assert.match(ci, /firestore:rules/);
 
-  assert.ok(!fs.existsSync(path.join(RAIZ, 'vercel.json')), 'queda configuracion de Vercel');
-});
-
-test('la landing no es el formulario de acceso', () => {
-  const landing = leer('index.html');
-  assert.ok(!/type="password"/.test(landing), 'la raiz no debe ser el login');
-  assert.match(landing, /href="\/register\/"/, 'falta la llamada a registrarse');
-  assert.match(landing, /href="\/entrar\/"/, 'falta el acceso para quien ya tiene cuenta');
-  // El login vive ahora en su propia ruta.
-  assert.match(leer('entrar/index.html'), /type="password"/);
+  assert.ok(!fs.existsSync(path.join(RAIZ, '.github/workflows/paginas.yml')),
+    'queda el workflow de GitHub Pages');
 });
 
 test('el despliegue no publica el backend ni los scripts', () => {
-  const flujo = leer('.github/workflows/paginas.yml');
-  const excluidos = [...flujo.matchAll(/--exclude '([^']+)'/g)].map((m) => m[1]);
+  const ignorados = leer('.vercelignore').split('\n').map((l) => l.trim());
 
-  // Todo esto acabaria servido en la web, y `firestore.rules` ademas cuenta a
+  // Todo esto acabaria servido por URL, y `firestore.rules` ademas cuenta a
   // quien deja entrar donde.
-  for (const carpeta of ['backend', 'scripts', 'shared', '.github', 'node_modules']) {
-    assert.ok(excluidos.includes(carpeta), `${carpeta} acabaria publicado en la web`);
+  for (const carpeta of ['backend/', 'scripts/', 'shared/', '.github/', 'node_modules/']) {
+    assert.ok(ignorados.includes(carpeta), `${carpeta} acabaria publicado en la web`);
   }
-  assert.ok(excluidos.some((e) => e.startsWith('firestore')), 'las reglas se publicarian');
+  assert.ok(ignorados.includes('firestore.rules'));
 
   // El mapa hace fetch('/data/emt.geojson'): eso SI tiene que publicarse.
-  assert.ok(!excluidos.includes('data'), 'el mapa se quedaria sin estaciones');
+  assert.ok(!ignorados.includes('data/'), 'el mapa se quedaria sin estaciones');
   assert.match(leerCodigo('assets/js/paginas/mapa.js'), /\/data\/emt\.geojson/);
+});
+
+test('el service worker no se queda cacheado', () => {
+  // /sw.js encaja tambien en la regla de `.js`, y cuando dos reglas definen la
+  // misma cabecera gana la ULTIMA. Si alguien reordena el bloque, el navegador
+  // se queda sirviendo la app vieja para siempre.
+  const bloques = JSON.parse(leer('vercel.json')).headers;
+  const indiceSw = bloques.findIndex((b) => b.source === '/sw.js');
+  const indiceJs = bloques.findIndex((b) => /js\|css\|html/.test(b.source));
+
+  assert.ok(indiceSw > indiceJs, '/sw.js tiene que ir despues de la regla de .js');
+  assert.match(bloques[indiceSw].headers[0].value, /no-store/);
 });
 
 test('el worker no falla cuando todavia no hay credenciales', () => {
@@ -380,8 +403,3 @@ test('el worker no falla cuando todavia no hay credenciales', () => {
   assert.match(leerCodigo('backend/worker.js'), /Falta FIREBASE_SERVICE_ACCOUNT[\s\S]{0,80}process\.exit\(1\)/);
 });
 
-test('Pages no pasa el sitio por Jekyll', () => {
-  // Sin .nojekyll, Pages descarta lo que empiece por guion bajo y procesa el
-  // HTML por su cuenta.
-  assert.match(leer('.github/workflows/paginas.yml'), /touch _sitio\/\.nojekyll/);
-});

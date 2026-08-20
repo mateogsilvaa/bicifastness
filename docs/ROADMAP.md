@@ -69,7 +69,9 @@ cuelgan de ese dato y sin el no se puede empezar el H2.
 Hoy el usuario transcribe a mano lo que ya esta en la imagen, y cada errata suya
 acaba en la cola de revision. La captura pasa a ser el **unico** dato que aporta.
 
-- **#8** Quitar el formulario manual: foto → extraccion → confirmar
+- **#8** Quitar el formulario manual: foto → extraccion → confirmar. La lectura
+  va en el NAVEGADOR: hecha en el worker, la pantalla de confirmacion llegaria
+  minutos despues, que es justo lo que se queria quitar
 - **#9** Normalizar Android, iOS, recortes, modo oscuro y recompresion
 - **#10** Afinar el OCR local sobre capturas reales
 - **#11** Capturas con varios trayectos: elegir cual, descartando los ya subidos
@@ -207,6 +209,7 @@ el issue #7.
 | #14 Ciclo del worker | **Hecho** lo que no toca al cron: pasadas dentro de la misma ejecucion, un solo worker de OCR por tanda y cache de idioma y dependencias |
 | #10 Afinar el OCR | **A medias.** Tres fallos corregidos (ver abajo). Lo que falta necesita capturas reales |
 | #15 Cola de revision | **Hecho.** Un caso cada vez, captura junto al cotejo, motivo sugerido y atajos de teclado |
+| #8 La captura como unico dato | **Hecho.** La lectura corre en el navegador y solo se confirma. Cuesta ~6 MB la primera subida de cada navegador |
 | #58 Runs en rojo | **Hecho.** Cron apagado hasta el lanzamiento |
 
 ### Lo que encontro el banco de capturas

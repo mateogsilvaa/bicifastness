@@ -34,8 +34,17 @@ const MARCA_REFERRER = /^[ \t]*<meta name="referrer"[^>]*>\r?\n?/m;
 const config = () => JSON.parse(fs.readFileSync(path.join(RAIZ, 'shared/cabeceras.json'), 'utf8'));
 
 /** Convierte un objeto de directivas en la cadena de la politica. */
+/**
+ * Las claves que empiezan por `_` son comentarios, no directivas.
+ *
+ * Sin esto, un comentario escrito DENTRO del objeto `csp` acaba serializado
+ * como una directiva inventada, con su texto entero dentro de la politica. El
+ * navegador ignora lo que no conoce, asi que no protesta: simplemente te pasas
+ * un rato sin entender por que la directiva de al lado no se aplica. Paso.
+ */
 function serializar(directivas) {
   return Object.entries(directivas)
+    .filter(([directiva]) => !directiva.startsWith('_'))
     .map(([directiva, origenes]) => [directiva, ...origenes].join(' ').trim())
     .join('; ');
 }
@@ -95,6 +104,19 @@ function bloqueVercel({ csp, csp_solo_cabecera: soloCabecera, otras }) {
     {
       source: '/(.*).(png|jpg|jpeg|svg|webp|woff2|mp3|geojson)',
       headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+    },
+    {
+      // El motor y el modelo del OCR del navegador (#8): casi seis megas que,
+      // con la regla de `.js` de arriba, se revalidarian en cada subida, y el
+      // modelo (`.traineddata.gz`) ni siquiera encaja en ninguna regla, asi que
+      // se lo bajaria entero cada vez. Es codigo de terceros que solo cambia
+      // cuando alguien ejecuta `build-ocr.js` a proposito.
+      //
+      // Una semana y no `immutable`: los ficheros no llevan la version en el
+      // nombre, asi que `immutable` dejaria a la gente con el motor viejo hasta
+      // que cambiase de navegador. Revalidar una vez por semana cuesta un 304.
+      source: '/assets/ocr/(.*)',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=604800' }],
     },
     {
       // ESTE BLOQUE VA EL ULTIMO A PROPOSITO. `/sw.js` encaja tambien en la

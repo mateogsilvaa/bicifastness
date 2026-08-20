@@ -311,3 +311,62 @@ test('la cola de revision no vuelve a construir interfaz con texto sin escapar',
   assert.ok(!/innerHTML/.test(admin), 'el panel de administracion usa innerHTML');
   assert.match(admin, /MOTIVOS_MANUALES/, 'la cola ya no usa la lista cerrada de motivos');
 });
+
+// --- El lector del navegador contra el del worker ------------------------------
+
+/**
+ * Corpus de textos tal y como los devuelve un OCR sobre capturas reales:
+ * con la barra de estado delante, con las etiquetas mal leidas, con la duracion
+ * en los dos formatos y con lo que no es una captura de BiciMAD.
+ */
+const TEXTOS = [
+  '19:03 84%\nBiciMAD\nTrayecto finalizado\n002 - Metro Callao (002)\n110 - Moncloa (110)\nSalida 18:42\nLlegada 18:54\nDuracion 12 min 00 s',
+  '9:41\nResumen del recorrido\nBiciMAD - EMT Madrid\nEstacion de salida\n045 - Puerta de Toledo (045)\nEstacion de llegada\n118 - Oficina del SER (118)\nSalida 08:05 Llegada 08:19\nDuracion\n14:00',
+  'Duración 12:15',
+  '8 min',
+  'Salida 18:42',
+  'S4lld4 08:05 ... Lleg4d4 08:19',
+  '25:00 y 12:99 y 09:30',
+  '2 - Metro Callao\n110 - Moncloa',
+  'Notas\nLista de la compra\nPan de molde\nEditada el martes',
+  '',
+];
+
+test('el lector del navegador entiende lo mismo que el del worker', async () => {
+  // Las funciones de parseo estan DUPLICADAS entre `backend/src/ocr.js` y
+  // `assets/js/extraccion.js`, porque una es CommonJS y la otra un modulo ES
+  // que ademas tiene que poder cargarse suelta, y este proyecto no tiene
+  // empaquetador. Lo unico que impide que se separen es este test.
+  //
+  // Si falla: has tocado una de las dos y no la otra.
+  const cliente = await cargarModuloCliente('assets/js/extraccion.js');
+  const servidor = require('../src/ocr');
+
+  for (const texto of TEXTOS) {
+    const donde = JSON.stringify(texto.slice(0, 40));
+    assert.deepStrictEqual(cliente.extraerHoras(texto), servidor.extraerHoras(texto),
+      `las horas no coinciden en ${donde}`);
+    assert.deepStrictEqual(cliente.extraerEstaciones(texto), servidor.extraerEstaciones(texto),
+      `las estaciones no coinciden en ${donde}`);
+    assert.strictEqual(cliente.extraerDuracion(texto), servidor.extraerDuracion(texto),
+      `la duracion no coincide en ${donde}`);
+  }
+
+  assert.deepStrictEqual(cliente.MARCADORES, servidor.MARCADORES,
+    'los marcadores de "esto es una captura de BiciMAD" han divergido');
+});
+
+test('lo que lee el navegador es una propuesta, no un dato de confianza', () => {
+  // `correcciones` viaja desde el navegador y las reglas lo admiten, asi que
+  // hay que poder demostrar que NO se usa para decidir: quien quiera engañar
+  // simplemente no manda la marca. Lo que compara de verdad es el worker,
+  // releyendo la captura por su cuenta.
+  const motor = leer('backend/src/verificacion.js');
+  assert.ok(!/correcciones/.test(motor),
+    'el motor de decision mira `correcciones`, que lo escribe el navegador');
+
+  const worker = leer('backend/worker.js');
+  const usos = [...worker.matchAll(/correcciones/g)];
+  assert.strictEqual(usos.length, 0,
+    'el worker usa `correcciones` para algo; hoy solo debe ser telemetria');
+});

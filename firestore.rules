@@ -153,11 +153,19 @@ service cloud.firestore {
 
       // El piloto PROPONE un viaje. Nace siempre pendiente y sin verificar: el
       // veredicto lo pone el worker, que se salta estas reglas.
+      // `correcciones` es telemetria del lector del navegador (#8): que campos
+      // ha tenido que corregir la persona sobre lo que se leyo en su captura.
+      // NO decide nada y no puede: quien engañe no manda la marca. Lo que
+      // compara de verdad es el worker, releyendo la captura por su cuenta.
+      // Se admite, se acota y se ignora para cualquier decision.
       allow create: if esYo(datos().uid)
         && datos().keys().hasOnly([
           'uid', 'username', 'ruta', 'tiempoSegundos', 'tiempoFormateado',
-          'fechaViaje', 'estado', 'verificado', 'creado'
+          'fechaViaje', 'estado', 'verificado', 'creado', 'correcciones'
         ])
+        && (!datos().keys().hasAny(['correcciones']) || datos().correcciones.keys().hasOnly([
+          'confianza', 'origen', 'destino', 'tiempoSegundos', 'desfaseSegundos'
+        ]))
         && datos().estado == 'pendiente'
         && datos().verificado == false
         && datos().ruta is string

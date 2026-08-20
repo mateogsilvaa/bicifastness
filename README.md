@@ -358,6 +358,8 @@ assets/
   js/dom.js                 construccion segura de interfaz (sin innerHTML)
   js/ui.js                  tema, navegacion, estaciones, aviso de cookies
   js/precheck.js            avisos sobre la captura antes de subirla, y compresion
+  js/extraccion.js          lee la captura EN EL NAVEGADOR, para confirmar al momento
+  ocr/                      GENERADO: motor y modelo del OCR del navegador (~6 MB)
   js/estado-viaje.js        el viaje recien subido, en vivo (un solo documento)
   js/motivos.js             del veredicto del worker al castellano
   data/                     GENERADO: estaciones y palabras prohibidas
@@ -382,7 +384,7 @@ docs/
 firestore.rules             EL control de acceso: no hay servidor delante
 legal/                      aviso-legal, privacidad, terminos, cookies
 shared/cabeceras.json       fuente unica de las cabeceras de seguridad
-scripts/                    build-estaciones, build-capturas, aplicar-cabeceras, build-distancias, set-admin
+scripts/                    build-estaciones, build-capturas, build-ocr, aplicar-cabeceras, build-distancias, set-admin
 ```
 
 En `assets/js/paginas/` hay un modulo por pagina. No estan incrustados en el HTML

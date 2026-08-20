@@ -24,8 +24,11 @@
       "'self'",
       "https://www.gstatic.com",
       "https://www.google.com",
-      "https://unpkg.com"
+      "https://unpkg.com",
+      "'wasm-unsafe-eval'"
     ],
+
+    "worker-src": ["'self'", "blob:"],
 
     "style-src": [
       "'self'",
@@ -62,6 +65,21 @@
 
     "upgrade-insecure-requests": []
   },
+
+  "_csp_worker_src": [
+    "El OCR del navegador (#8) corre en un Worker propio. `blob:` hace falta de",
+    "verdad: tesseract.js se descarga su propio script de worker y lo arranca",
+    "desde un Blob, incluso pasandole `workerPath` de este dominio. Se comprobo",
+    "intentando prohibirlo: el navegador lo bloquea y el OCR no arranca.",
+    "",
+    "Que abre eso: un Worker creado desde un blob solo puede ejecutar codigo que",
+    "haya generado la propia pagina. Quien pueda generarlo ya esta ejecutando",
+    "JavaScript aqui, o sea que ya ha ganado. No le da nada nuevo a un atacante.",
+    "",
+    "Y se declara `worker-src` aparte en vez de dejar que caiga a `script-src`",
+    "porque asi un origen que se anada manana a `script-src` no da permiso de",
+    "worker sin que nadie lo haya decidido."
+  ],
 
   "_csp_solo_cabecera": [
     "Directivas que el navegador IGNORA cuando la CSP llega por <meta>, asi que",

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Sube el tiempo de tu trayecto en BiciMAD con la captura de la app.">
@@ -20,51 +20,18 @@
 
   <p class="menor apagado" id="cupo"></p>
 
-  <form id="form-viaje" novalidate>
-    <!--
-      Estaciones. El nombre se resuelve al salir del campo: escribir "2" y ver
-      "Metro Callao" debajo es lo que evita subir una ruta equivocada.
-    -->
-    <div class="rejilla dos">
-      <div class="campo mono">
-        <label for="origen">Estacion de salida</label>
-        <input id="origen" name="origen" type="text" inputmode="numeric"
-               autocomplete="off" required aria-describedby="origen-nombre">
-        <p class="menor apagado" id="origen-nombre" aria-live="polite"></p>
-      </div>
+  <!--
+    PASO 1: la foto, y nada mas.
 
-      <div class="campo mono">
-        <label for="destino">Estacion de meta</label>
-        <input id="destino" name="destino" type="text" inputmode="numeric"
-               autocomplete="off" required aria-describedby="destino-nombre">
-        <p class="menor apagado" id="destino-nombre" aria-live="polite"></p>
-      </div>
-    </div>
-
-    <div class="rejilla dos">
-      <div class="campo">
-        <label for="min">Tiempo</label>
-        <div class="fila">
-          <input id="min" name="min" type="number" min="0" max="120" step="1"
-                 inputmode="numeric" placeholder="min" required aria-label="Minutos">
-          <span class="apagado" aria-hidden="true">:</span>
-          <input id="sec" name="sec" type="number" min="0" max="59" step="1"
-                 inputmode="numeric" placeholder="seg" required aria-label="Segundos">
-        </div>
-      </div>
-
-      <div class="campo">
-        <label for="fecha">Dia del trayecto</label>
-        <input id="fecha" name="fecha" type="date" required>
-      </div>
-    </div>
-
-    <!-- Captura -->
+    Antes esta pantalla pedia escribir las dos estaciones y el tiempo, que ya
+    estaban en la imagen. Cada errata acababa en la cola de revision manual.
+  -->
+  <section id="paso-foto">
     <div class="campo">
       <label for="foto">Captura de la app de BiciMAD</label>
       <div class="vacio" id="zona-foto">
         <p class="menor" id="texto-foto">Arrastra la captura o pulsa para elegirla</p>
-        <input id="foto" name="foto" type="file" accept="image/jpeg,image/png,image/webp" required>
+        <input id="foto" name="foto" type="file" accept="image/jpeg,image/png,image/webp">
         <img id="vista-previa" class="oculto" alt="Vista previa de la captura">
       </div>
       <p class="menor apagado">
@@ -73,17 +40,64 @@
         se lee peor.
       </p>
 
-      <!--
-        Avisos de la comprobacion previa (foto movida, muy pequeña, apaisada...).
-        Son avisos, no barreras: se puede subir igual. La region es viva porque
-        el aviso aparece solo, sin que nadie haya pulsado nada.
-      -->
+      <!-- Avisos de la comprobacion previa: son avisos, no barreras. -->
       <div id="avisos-foto" aria-live="polite"></div>
     </div>
 
-    <button type="submit" class="btn" id="btn-enviar">Subir trayecto</button>
-    <p class="mensaje" id="mensaje" aria-live="polite"></p>
-  </form>
+    <!-- Progreso de la lectura. Se rellena solo mientras se lee. -->
+    <p class="menor" id="progreso-lectura" aria-live="polite"></p>
+  </section>
+
+  <!--
+    PASO 2: confirmar lo leido.
+
+    Los campos vienen rellenos con lo que se ha leido en la captura. Se pueden
+    corregir, y cada correccion se anota: saber cuanto se equivoca el lector es
+    la unica forma de mejorarlo.
+  -->
+  <section id="paso-confirmar" class="oculto">
+    <div class="aviso" id="resumen-lectura" role="status"></div>
+
+    <form id="form-viaje" novalidate>
+      <div class="rejilla dos">
+        <div class="campo mono">
+          <label for="origen">Estacion de salida</label>
+          <input id="origen" name="origen" type="text" inputmode="numeric"
+                 autocomplete="off" required aria-describedby="origen-nombre">
+          <p class="menor apagado" id="origen-nombre" aria-live="polite"></p>
+        </div>
+
+        <div class="campo mono">
+          <label for="destino">Estacion de meta</label>
+          <input id="destino" name="destino" type="text" inputmode="numeric"
+                 autocomplete="off" required aria-describedby="destino-nombre">
+          <p class="menor apagado" id="destino-nombre" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <div class="rejilla dos">
+        <div class="campo">
+          <label for="min">Tiempo</label>
+          <div class="fila">
+            <input id="min" name="min" type="number" min="0" max="120" step="1"
+                   inputmode="numeric" placeholder="min" required aria-label="Minutos">
+            <span class="apagado" aria-hidden="true">:</span>
+            <input id="sec" name="sec" type="number" min="0" max="59" step="1"
+                   inputmode="numeric" placeholder="seg" required aria-label="Segundos">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="fecha">Dia del trayecto</label>
+          <input id="fecha" name="fecha" type="date" required>
+        </div>
+      </div>
+
+      <button type="submit" class="btn" id="btn-enviar">Confirmar y subir</button>
+      <button type="button" class="btn plano" id="btn-otra-foto">Elegir otra captura</button>
+      <p class="mensaje" id="mensaje" aria-live="polite"></p>
+    </form>
+  </section>
 
   <div id="resultado"></div>
 </main>

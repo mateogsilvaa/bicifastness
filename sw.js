@@ -11,7 +11,7 @@
  * directo a la red.
  */
 
-const CACHE = 'bicifastness-v3';
+const CACHE = 'bicifastness-v4';
 
 const ESTATICOS = [
   '/',
@@ -51,6 +51,12 @@ self.addEventListener('fetch', (evento) => {
   if (peticion.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
   if (peticion.credentials === 'include') return;
+
+  // El motor y el modelo del OCR (#8) NO pasan por aqui. Son casi seis megas, y
+  // la estrategia de abajo es stale-while-revalidate: responderia rapido, si,
+  // pero volveria a bajarselos por detras en cada subida. De su cache se ocupa
+  // la cabecera `Cache-Control` que pone Vercel, que es una semana.
+  if (url.pathname.startsWith('/assets/ocr/')) return;
 
   const esEstatico = /\.(css|js|png|jpg|jpeg|svg|webp|woff2?|json|geojson|mp3)$/i.test(url.pathname);
   if (!esEstatico) return;

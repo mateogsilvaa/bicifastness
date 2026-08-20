@@ -191,6 +191,7 @@ export function pedirReaceptacion(perfil, aceptar) {
   if (!aceptada || aceptada === VERSION_LEGAL) return false;
 
   const boton = el('button', {
+    clase: 'btn',
     texto: 'Aceptar y continuar',
     estilo: { width: 'auto', padding: '10px 22px', margin: '0', flexShrink: '0' },
     on: {
@@ -210,19 +211,16 @@ export function pedirReaceptacion(perfil, aceptar) {
   });
 
   const aviso = el('div', {
+    // Misma pieza que el aviso de cookies: anclado SOBRE la barra inferior, no
+    // encima, o tapa la navegacion justo mientras se pide una accion.
+    clase: 'cookies',
     attrs: { role: 'alert' },
-    estilo: {
-      position: 'fixed', bottom: '0', left: '0', right: '0', zIndex: '9100',
-      background: 'var(--bg-card)', borderTop: '2px solid var(--aviso)',
-      padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '14px',
-      alignItems: 'center', justifyContent: 'center', fontSize: '.86rem',
-    },
   }, [
-    el('span', { estilo: { flex: '1 1 320px', color: 'var(--text-muted)' } }, [
+    el('p', {}, [
       'Hemos actualizado los ',
-      el('a', { texto: 'Terminos de Uso', attrs: { href: '/legal/terminos/', target: '_blank', rel: 'noopener' }, estilo: { color: 'var(--primary)' } }),
+      el('a', { texto: 'terminos de uso', attrs: { href: '/legal/terminos/', target: '_blank', rel: 'noopener' } }),
       ' y la ',
-      el('a', { texto: 'Politica de Privacidad', attrs: { href: '/legal/privacidad/', target: '_blank', rel: 'noopener' }, estilo: { color: 'var(--primary)' } }),
+      el('a', { texto: 'politica de privacidad', attrs: { href: '/legal/privacidad/', target: '_blank', rel: 'noopener' } }),
       '. Revisalos y aceptalos para poder seguir subiendo tiempos.',
     ]),
     boton,
@@ -245,39 +243,31 @@ export function montarAvisoCookies() {
   const CLAVE = 'bf_cookies_v1';
   if (localStorage.getItem(CLAVE)) return;
 
-  const cerrar = () => { localStorage.setItem(CLAVE, new Date().toISOString()); banner.remove(); };
-
   const banner = el('div', {
+    clase: 'cookies',
     attrs: { role: 'region', 'aria-label': 'Aviso de cookies' },
-    estilo: {
-      position: 'fixed', bottom: '0', left: '0', right: '0', zIndex: '9000',
-      background: 'var(--bg-card)', borderTop: '1px solid var(--border)',
-      padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '12px',
-      alignItems: 'center', justifyContent: 'center', fontSize: '.85rem',
-      boxShadow: '0 -4px 20px rgba(0,0,0,.2)',
-    },
   }, [
-    el('span', {
-      texto: 'Usamos unicamente cookies tecnicas necesarias para mantener tu sesion. No hacemos seguimiento publicitario.',
-      estilo: { flex: '1 1 320px', color: 'var(--text-muted)' },
+    el('p', {
+      texto: 'Usamos unicamente cookies tecnicas necesarias para mantener tu sesion. '
+        + 'No hacemos seguimiento publicitario.',
     }),
-    el('a', {
-      texto: 'Politica de cookies',
-      attrs: { href: '/legal/cookies/' },
-      estilo: { color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' },
-    }),
+    el('a', { texto: 'Politica de cookies', attrs: { href: '/legal/cookies/' } }),
     el('button', {
+      clase: 'btn',
       texto: 'Entendido',
-      estilo: { width: 'auto', padding: '10px 24px', margin: '0' },
-      on: { click: cerrar },
+      attrs: { type: 'button' },
+      on: {
+        click: () => {
+          localStorage.setItem(CLAVE, new Date().toISOString());
+          banner.remove();
+        },
+      },
     }),
   ]);
 
-  document.body.appendChild(banner);
+  document.body.append(banner);
 }
 
-// --- Pie legal ---------------------------------------------------------------
-/** Enlaces legales obligatorios, presentes en todas las paginas. */
 export function montarPieLegal() {
   const pie = id('pie-legal');
   if (!pie) return;
@@ -289,15 +279,14 @@ export function montarPieLegal() {
     ['Cookies', '/legal/cookies/'],
   ];
 
+  pie.className = 'pie';
+
   reemplazar(pie,
-    el('div', {
-      estilo: { display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center', marginBottom: '8px' },
-    }, enlaces.map(([texto, href]) => el('a', {
-      texto, attrs: { href }, estilo: { color: 'var(--text-muted)', textDecoration: 'none', fontSize: '.8rem' },
-    }))),
+    el('nav', { attrs: { 'aria-label': 'Enlaces legales' } },
+      enlaces.map(([texto, href]) => el('a', { texto, attrs: { href } }))),
     el('p', {
+      clase: 'menor',
       texto: 'BiciFastness es un proyecto independiente sin relacion con BiciMAD ni con la EMT de Madrid.',
-      estilo: { color: 'var(--text-muted)', fontSize: '.75rem', margin: '0', textAlign: 'center' },
     }));
 }
 

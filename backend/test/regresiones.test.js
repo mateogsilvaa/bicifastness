@@ -323,6 +323,72 @@ test('el destino activo se marca para lectores de pantalla', () => {
   assert.match(leerCodigo('assets/js/ui.js'), /'aria-current': esActivo\(/);
 });
 
+test('el sistema de diseno no admite sombras', () => {
+  // Regla del redisenio: el UNICO box-shadow/outline permitido es el de
+  // :focus-visible. Todo lo demas era "ambiente".
+  const css = leer('assets/css/app.css');
+  const sombras = [...css.matchAll(/box-shadow:[^;]+;/g)].map((m) => m[0]);
+
+  // `inset` en la fila propia es un borde de 3 px, no una sombra: es la unica
+  // forma de pintar un borde dentro de una celda de tabla sin descuadrar la
+  // rejilla de columnas.
+  const decorativas = sombras.filter((s) => !s.includes('inset'));
+  assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
+});
+
+/**
+ * Paginas que todavia arrastran su propio <style>, del redisenio a medias.
+ *
+ * Esta lista SOLO puede encoger. El test falla en los dos sentidos:
+ *   - si una pagina que no esta aqui define estilos, es una regresion
+ *   - si una de aqui ya no los define, hay que quitarla de la lista
+ *
+ * Lo segundo importa tanto como lo primero: una lista de excepciones que nadie
+ * poda deja de significar nada y acaba tapando el problema que vigila.
+ */
+const PENDIENTES_DE_REDISENIO = [
+  'admin/index.html',
+  'bicirating/index.html',
+  'clanes/index.html',
+  'entrar/index.html',
+  'home/index.html',
+  'info/index.html',
+  'mapa/index.html',
+  'profile/index.html',
+  'ranking/index.html',
+  'register/index.html',
+  'statssss/index.html',
+];
+
+test('ninguna pagina nueva define estilos propios', () => {
+  // "Un componente = una clase en app.css". Un <style> suelto es como el
+  // sistema se desmonta: el siguiente color ya no sale de los tokens.
+  const rel = (p) => p.split(path.sep).join('/');
+
+  // La pagina de obras es autocontenida a proposito: si el sitio se rompe,
+  // tiene que seguir en pie sin depender de app.css.
+  const conEstilos = paginasHtml()
+    .map(rel)
+    .filter((p) => p !== 'mantenimiento/index.html')
+    .filter((p) => /<style[^>]*>/.test(leer(p)));
+
+  const nuevas = conEstilos.filter((p) => !PENDIENTES_DE_REDISENIO.includes(p));
+  assert.deepStrictEqual(nuevas, [], `paginas con <style> propio: ${nuevas.join(', ')}`);
+
+  const yaLimpias = PENDIENTES_DE_REDISENIO.filter((p) => !conEstilos.includes(p));
+  assert.deepStrictEqual(yaLimpias, [],
+    `ya no tienen estilos propios, quitalas de PENDIENTES_DE_REDISENIO: ${yaLimpias.join(', ')}`);
+});
+
+test('los avisos fijos no tapan la barra inferior', () => {
+  // El aviso de cookies iba a `bottom: 0` y se comia las cuatro pestañas y el
+  // boton de subir justo mientras se lee.
+  const css = leer('assets/css/app.css');
+  // Y solo cuando la barra existe: subirlo siempre deja un hueco de 64 px en
+  // entrar, registro, legales y la baja de correo, que no la llevan.
+  assert.match(css, /body:has\(\.nav-inf\) \.cookies \{\s*bottom: calc\(var\(--alto-barra\)/);
+});
+
 test('el CSS es mobile-first', () => {
   const css = leer('assets/css/app.css');
   const minWidth = (css.match(/@media \(min-width/g) || []).length;
@@ -471,6 +537,40 @@ test('la baja de correo se puede pedir sin sesion, pero nada mas', () => {
   assert.match(bajas, /hasOnly\(\['creado'\]\)/, 'admite campos de mas');
   assert.match(bajas, /token\.size\(\) >= 32/, 'un token corto se puede adivinar a intentos');
   assert.match(bajas, /token\.matches/, 'el id del documento no esta acotado');
+});
+
+test('la migracion borra los datos personales del viaje, no los conserva', () => {
+  // Es lo que cierra el #59. `set` sin merge REEMPLAZA el documento: con merge,
+  // `email_real` y `foto_url` seguirian ahi y la fuga con ellos.
+  const migracion = leerCodigo('scripts/migrar-datos.js');
+
+  assert.match(migracion, /doc\.ref\.set\(nuevo\)/, 'debe reemplazar el documento, no fusionarlo');
+  assert.ok(!/doc\.ref\.set\(nuevo, \{ merge/.test(migracion), 'con merge los campos viejos sobreviven');
+
+  // Los viajes sin cuenta de Auth tambien se limpian: si se dejaran como estan,
+  // seguirian publicando un correo y una captura.
+  assert.match(migracion, /anonimizados/);
+
+  // Y tiene que existir la comprobacion que dice cuando es seguro reabrir.
+  assert.match(migracion, /--comprobar|SOLO_COMPROBAR/);
+});
+
+test('la migracion no depende de Cloud Storage', () => {
+  // Storage exige el plan Blaze (tarjeta). Las capturas van a la coleccion
+  // `capturas`, que es como funciona la v2 entera.
+  const migracion = leerCodigo('scripts/migrar-datos.js');
+  assert.ok(!/admin\.storage\(\)/.test(migracion), 'usa Cloud Storage, que no esta disponible');
+  assert.match(migracion, /capturas\/\$\{doc\.id\}/);
+});
+
+test('la lectura publica de viajes esta cerrada hasta migrar', () => {
+  // Guarda contra reabrirla por descuido: mientras los documentos de produccion
+  // lleven `email_real` y `foto_url`, "verificado es publico" los publica.
+  const viajes = bloque('tiempos_viaje');
+  const lineaActiva = viajes.split('\n').find((l) => l.trim().startsWith('allow read:'));
+
+  assert.ok(!/verificado == true/.test(lineaActiva),
+    'la lectura publica esta abierta: revisa el issue #59 antes de reabrirla');
 });
 
 test('el worker no falla cuando todavia no hay credenciales', () => {

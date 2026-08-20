@@ -605,6 +605,45 @@ input[type='checkbox'] {
 .pestanas button:hover { color: var(--tinta); }
 .pestanas button[aria-selected='true'] { color: var(--tinta); border-bottom-color: var(--azul); }
 
+/* --- Aviso de cookies ------------------------------------------------------
+ * Va ANCLADO SOBRE la barra inferior, no encima de ella: a `bottom: 0` tapaba
+ * las cuatro pestañas y el boton de subir justo mientras se lee el aviso.
+ */
+
+.cookies {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e3);
+  padding: var(--e3) var(--e4);
+  background: var(--papel-2);
+  border-top: var(--borde);
+  font-size: 13px;
+}
+
+/**
+ * Se sube por encima de la barra inferior SOLO cuando la barra existe.
+ *
+ * A `bottom: 0` fijo tapaba las pestañas y el boton de subir justo mientras se
+ * lee el aviso. Pero subirlo siempre deja un hueco de 64 px en las paginas que
+ * no llevan barra: entrar, registro, legales y la baja de correo.
+ */
+body:has(.nav-inf) .cookies {
+  bottom: calc(var(--alto-barra) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 900px) {
+  /* En escritorio la barra es la de arriba, asi que abajo no estorba nada. */
+  body:has(.nav-inf) .cookies { bottom: 0; }
+}
+
+.cookies p { flex: 1 1 280px; margin: 0; color: var(--tinta-2); max-width: none; }
+.cookies .btn { width: auto; min-height: var(--toque); padding: 0 var(--e4); }
+
 /* --- Pie ------------------------------------------------------------------- */
 
 .pie {

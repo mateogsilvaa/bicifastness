@@ -2,6 +2,8 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn-uicons.flaticon.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://cdn-uicons.flaticon.com; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Terminos de uso | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
@@ -199,9 +201,6 @@
 </main>
 
 <footer id="pie-legal"></footer>
-<script type="module">
-  import { iniciarPagina } from '/assets/js/ui.js';
-  iniciarPagina('');
-</script>
+<script type="module" src="/assets/js/paginas/legal-terminos.js"></script>
 </body>
 </html>

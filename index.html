@@ -2,6 +2,8 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn-uicons.flaticon.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://cdn-uicons.flaticon.com; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BiciFastness | El circuito urbano de Madrid</title>
 <meta name="description" content="Cronometra tus trayectos en la bici publica de Madrid, compite por cada ruta y conquista estaciones con tu clan. Cada tiempo se verifica solo.">
@@ -271,31 +273,6 @@
 
 <footer id="pie-legal"></footer>
 
-<script type="module">
-  import { db, collection, getDocs, query, where } from '/assets/js/firebase.js';
-  import { aplicarTema, montarPieLegal, montarAvisoCookies, montarNavegacion } from '/assets/js/ui.js';
-  import { id } from '/assets/js/dom.js';
-
-  aplicarTema();
-  montarNavegacion('');
-  montarPieLegal();
-  montarAvisoCookies();
-
-  // Las cifras dan credibilidad, pero la pagina tiene que servir igual si la
-  // consulta falla: por eso arrancan con una raya y solo se sustituyen cuando
-  // llegan datos. Nunca se muestra un cero que haga parecer que esto esta vacio.
-  (async () => {
-    try {
-      const [pilotos, tiempos] = await Promise.all([
-        getDocs(collection(db, 'usuarios')),
-        getDocs(query(collection(db, 'tiempos_viaje'), where('verificado', '==', true))),
-      ]);
-      if (pilotos.size) id('c-pilotos').textContent = pilotos.size.toLocaleString('es-ES');
-      if (tiempos.size) id('c-tiempos').textContent = tiempos.size.toLocaleString('es-ES');
-    } catch (error) {
-      console.debug('Cifras no disponibles', error);
-    }
-  })();
-</script>
+<script type="module" src="/assets/js/paginas/portada.js"></script>
 </body>
 </html>

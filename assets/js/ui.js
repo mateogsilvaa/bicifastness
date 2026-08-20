@@ -6,6 +6,34 @@
 import { ESTACIONES } from '../data/estaciones.js';
 import { el, id, reemplazar } from './dom.js';
 
+// --- Antiframing -------------------------------------------------------------
+/**
+ * Impide que el sitio se cargue dentro de un marco ajeno (clickjacking).
+ *
+ * Esto lo hacian las cabeceras `X-Frame-Options: DENY` y `frame-ancestors
+ * 'none'` de `firebase.json`. En GitHub Pages no hay cabeceras, y
+ * `frame-ancestors` es una de las directivas que el navegador **ignora** cuando
+ * la CSP llega por <meta>. Asi que hay que hacerlo a mano.
+ *
+ * Es mas debil que la cabecera y conviene saber por que:
+ *   - los modulos van diferidos, asi que la pagina llega a pintarse un instante
+ *     dentro del marco antes de que esto salte
+ *   - un marco con `sandbox` sin `allow-top-navigation` bloquea la salida; ahi
+ *     lo unico que se puede hacer es tapar el contenido
+ *
+ * Recuperar la proteccion de verdad exige cabeceras, es decir, un dominio
+ * propio detras de Cloudflare. Esta anotado en el issue #3.
+ */
+if (window.top !== window.self) {
+  try {
+    window.top.location = window.self.location;
+  } catch {
+    // Marco con sandbox: no se puede navegar el contenedor. Al menos, que no
+    // se vea ni se pueda pulsar nada.
+    document.documentElement.style.display = 'none';
+  }
+}
+
 // --- Tema --------------------------------------------------------------------
 export function aplicarTema() {
   const guardado = localStorage.getItem('theme');

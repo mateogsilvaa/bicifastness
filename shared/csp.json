@@ -1,0 +1,67 @@
+{
+  "_comentario": [
+    "Fuente unica de la Content-Security-Policy del sitio.",
+    "",
+    "Se aplica a las paginas con `node scripts/aplicar-csp.js`, que escribe la",
+    "etiqueta <meta http-equiv> en cada una. `npm run validar` falla si alguna",
+    "pagina no la lleva o la lleva distinta.",
+    "",
+    "Va por meta y no por cabecera HTTP porque el sitio se sirve desde GitHub",
+    "Pages, que no permite configurar cabeceras. Consecuencias, en issue #3:",
+    "  - `frame-ancestors` NO funciona en meta: el antiframing lo hace ui.js",
+    "  - HSTS y Permissions-Policy no se pueden declarar. Pages ya fuerza HTTPS",
+    "",
+    "Cada origen de aqui esta porque algo lo usa. Si quitas la funcion, quita",
+    "el origen."
+  ],
+
+  "default-src": ["'self'"],
+
+  "script-src": [
+    "'self'",
+    "https://www.gstatic.com",
+    "https://www.google.com",
+    "https://unpkg.com"
+  ],
+
+  "style-src": [
+    "'self'",
+    "'unsafe-inline'",
+    "https://fonts.googleapis.com",
+    "https://cdn-uicons.flaticon.com",
+    "https://unpkg.com"
+  ],
+
+  "font-src": [
+    "'self'",
+    "https://fonts.gstatic.com",
+    "https://cdn-uicons.flaticon.com"
+  ],
+
+  "img-src": [
+    "'self'",
+    "data:",
+    "blob:",
+    "https://api.dicebear.com",
+    "https://*.basemaps.cartocdn.com",
+    "https://*.tile.openstreetmap.org"
+  ],
+
+  "connect-src": [
+    "'self'",
+    "https://*.googleapis.com",
+    "https://*.firebaseio.com",
+    "wss://*.firebaseio.com"
+  ],
+
+  "frame-src": [
+    "https://www.google.com",
+    "https://bicifastness.firebaseapp.com"
+  ],
+
+  "base-uri": ["'self'"],
+  "form-action": ["'self'"],
+  "object-src": ["'none'"],
+
+  "upgrade-insecure-requests": []
+}

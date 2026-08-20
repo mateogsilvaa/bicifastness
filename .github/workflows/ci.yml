@@ -47,7 +47,11 @@ jobs:
         working-directory: backend
         run: npm test
 
-  desplegar:
+  # El sitio lo publica `paginas.yml` en GitHub Pages. Aqui solo quedan las
+  # REGLAS y los INDICES de Firestore, que no son estaticos: son el control de
+  # acceso del proyecto (no hay servidor delante) y tienen que seguir
+  # desplegandose en cada push aunque el hosting se haya ido a otro sitio.
+  reglas:
     needs: tests
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -57,16 +61,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Regenerar datos compartidos
-        run: node scripts/build-estaciones.js
-
-      # Despliega el sitio estatico y las reglas de seguridad. En el plan Spark
-      # esto es gratis: Hosting y Firestore entran en la cuota sin coste.
-      - name: Desplegar en Firebase Hosting
+      - name: Desplegar reglas e indices de Firestore
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/cuenta-servicio.json
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          MANTENIMIENTO: ${{ vars.MANTENIMIENTO }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
             echo "Sin FIREBASE_SERVICE_ACCOUNT: me salto el despliegue."
@@ -75,19 +73,8 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > cuenta-servicio.json
           npm install -g firebase-tools
 
-          # Con MANTENIMIENTO=true se publica SOLO la pagina de obras. El resto
-          # del sitio no se sube, asi que ninguna URL antigua sigue accesible:
-          # Firebase sirve primero el fichero estatico que exista, de modo que
-          # un rewrite por si solo no bastaria para ocultar /home/ o /admin/.
-          if [ "$MANTENIMIENTO" = "true" ]; then
-            echo "::notice::Modo mantenimiento: se publica solo la pagina de obras."
-            firebase deploy --only hosting \
-              --config firebase.mantenimiento.json \
-              --project bicifastness --non-interactive
-          else
-            firebase deploy \
-              --only hosting,firestore:rules,firestore:indexes \
-              --project bicifastness --non-interactive
-          fi
+          firebase deploy \
+            --only firestore:rules,firestore:indexes \
+            --project bicifastness --non-interactive
 
           rm -f cuenta-servicio.json

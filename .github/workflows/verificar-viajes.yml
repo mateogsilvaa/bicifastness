@@ -9,10 +9,22 @@ name: Verificar viajes
 # repositorios publicos.
 
 on:
-  schedule:
-    # Cada 5 minutos. GitHub puede retrasar las ejecuciones programadas cuando
-    # hay mucha carga, asi que el retardo real ronda los 5-15 minutos.
-    - cron: '*/5 * * * *'
+  # ---------------------------------------------------------------------------
+  # EL CRON ESTA APAGADO A PROPOSITO HASTA EL LANZAMIENTO. Volver a activarlo es
+  # quitar el comentario de las dos lineas de abajo, y esta anotado en el
+  # checklist del README y en el issue #7.
+  #
+  # Por que: sin `FIREBASE_SERVICE_ACCOUNT` el worker no puede hacer nada, pero
+  # el cron se despierta igual. Ademas de mandar un correo de fallo por
+  # ejecucion, en un repositorio PRIVADO cada una gasta cuota: Actions factura
+  # por minuto empezado, asi que 288 despertares al dia son 288 minutos contra
+  # el limite de 2.000 al mes, para no hacer nada.
+  #
+  # Cada 5 minutos. GitHub puede retrasar las ejecuciones programadas cuando hay
+  # mucha carga, asi que el retardo real ronda los 5-15 minutos.
+  # schedule:
+  #   - cron: '*/5 * * * *'
+
   # Para poder lanzarlo a mano desde la pestana Actions sin esperar al reloj.
   workflow_dispatch:
     inputs:
@@ -53,4 +65,16 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: node worker.js ${{ inputs.simular && '--simular' || '' }}
+        run: |
+          # Mientras no haya credenciales no hay nada que verificar, y el cron
+          # se despierta igual. Sin esta salida limpia, cada ejecucion cuenta
+          # como fallo y manda un correo: son ~288 al dia.
+          #
+          # El worker SI debe morir con error si le falta la credencial (lo hace
+          # en worker.js): decidir que el proyecto todavia no esta configurado
+          # es cosa del workflow, no suya.
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::warning::Sin FIREBASE_SERVICE_ACCOUNT: no hay cola que procesar. Crea los secretos (README, apartado 3)."
+            exit 0
+          fi
+          node worker.js ${{ inputs.simular && '--simular' || '' }}

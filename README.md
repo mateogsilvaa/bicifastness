@@ -54,7 +54,8 @@ un viaje tarda unos minutos en resolverse en vez de segundos.
 ### Stack
 
 - Frontend: HTML + CSS + JavaScript con modulos ES. Sin framework ni build. Mobile-first.
-- Datos: Firebase Auth + Firestore + Firebase Hosting, todo en el plan Spark (gratis, sin tarjeta).
+- Alojamiento: GitHub Pages. El sitio es estatico y habla con Firestore desde el navegador.
+- Datos: Firebase Auth + Firestore, en el plan Spark (gratis, sin tarjeta).
 - Worker: Node 20 en GitHub Actions, con `sharp` y Gemini 2.0 Flash.
 - Mapa: Leaflet + GeoJSON de estaciones.
 
@@ -113,11 +114,47 @@ script suelto en vez de desde la web.
 
 ### 5. Desplegar
 
-El workflow `ci.yml` lo hace solo en cada push a `main`. A mano:
+Dos workflows, cada uno con lo suyo, y los dos solos en cada push a `main`:
+
+| Workflow | Que despliega |
+|---|---|
+| `paginas.yml` | El sitio, en GitHub Pages |
+| `ci.yml` | Las reglas y los indices de Firestore |
+
+Las reglas van aparte a proposito: **no son estaticas**. Son el control de acceso
+del proyecto, porque no hay servidor delante, asi que tienen que seguir
+desplegandose aunque el sitio viva en otro sitio.
+
+A mano, solo las reglas:
 
 ```bash
-firebase deploy --only hosting,firestore:rules,firestore:indexes --project bicifastness
+firebase deploy --only firestore:rules,firestore:indexes --project bicifastness
 ```
+
+### 5.1. Lo que se pierde al servir desde Pages
+
+GitHub Pages **no permite configurar cabeceras HTTP**. Las que habia en
+`firebase.json` se han resuelto asi:
+
+| Cabecera | Que se ha hecho |
+|---|---|
+| `Content-Security-Policy` | Va en `<meta>`. Fuente unica en `shared/csp.json`, la escribe `scripts/aplicar-csp.js` |
+| `Referrer-Policy` | Va en `<meta>`, mismo script |
+| `X-Frame-Options` / `frame-ancestors` | **No hay equivalente.** `frame-ancestors` lo ignora el navegador cuando la CSP llega por meta, asi que el antiframing lo hace `assets/js/ui.js` a mano |
+| `Strict-Transport-Security` | **Se pierde.** Pages ya fuerza HTTPS, asi que el riesgo real es bajo |
+| `Permissions-Policy`, `X-Content-Type-Options` | **Se pierden** |
+
+Nada de esto es el control de acceso: los datos los protegen las reglas de
+Firestore, App Check y los custom claims, que no dependen del alojamiento. Lo que
+se pierde es defensa en profundidad frente a XSS y clickjacking.
+
+Recuperarlo del todo exige un dominio propio detras de Cloudflare. Esta anotado
+en el issue #3.
+
+**Consecuencia practica:** la CSP declara `script-src 'self'` sin
+`'unsafe-inline'`, asi que **el JavaScript de las paginas no puede ir incrustado
+en el HTML**. Vive en `assets/js/paginas/`. Hay un test que falla si alguien lo
+vuelve a meter en linea.
 
 ### 6. Crear el primer administrador
 
@@ -149,10 +186,11 @@ cualquier incidente):
 2. Crea la variable `MANTENIMIENTO` con valor `true`
 3. Lanza el workflow o haz push a `main`
 
-Se publica unicamente `mantenimiento/index.html`. **El resto del sitio no se
-sube**, asi que ninguna URL antigua sigue accesible: Firebase Hosting sirve
-primero el fichero estatico que exista, de modo que un simple redirect no
-bastaria para ocultar `/home/` o `/admin/`.
+Se publica unicamente `mantenimiento/index.html`, y ademas duplicado como
+`404.html`. **El resto del sitio no se sube**, asi que ninguna URL antigua sigue
+accesible: lo que no esta en el artefacto de Pages no existe, y cualquier ruta
+desconocida cae en el `404.html`, que es la propia pagina de obras. Un redirect
+no bastaria, porque Pages sirve primero el fichero que exista.
 
 Para volver a la normalidad, pon la variable a `false` (o borrala) y vuelve a
 desplegar.
@@ -299,14 +337,22 @@ backend/
   src/imagen.js             huellas y limpieza de EXIF
   src/gemini.js             auditoria forense
   src/puntuacion.js         BiciRating y dominio de estaciones
-  test/                     51 pruebas
+  test/                     pruebas de regresion y del motor de decision
 .github/workflows/
   verificar-viajes.yml      worker cada 5 minutos
-  ci.yml                    tests y despliegue
+  paginas.yml               publica el sitio en GitHub Pages
+  ci.yml                    tests y despliegue de reglas de Firestore
+docs/
+  ROADMAP.md                hitos, issues y en que orden
+  JUEGO.md                  las reglas del juego y por que son esas
 firestore.rules             EL control de acceso: no hay servidor delante
 legal/                      aviso-legal, privacidad, terminos, cookies
-scripts/                    build-estaciones, set-admin, migrar-datos
+shared/csp.json             fuente unica de la CSP de todas las paginas
+scripts/                    build-estaciones, aplicar-csp, set-admin, migrar-datos
 ```
+
+En `assets/js/paginas/` hay un modulo por pagina. No estan incrustados en el HTML
+porque la CSP los bloquearia: ver el apartado 5.1.
 
 ---
 
@@ -327,15 +373,35 @@ scripts/                    build-estaciones, set-admin, migrar-datos
 
 ---
 
-## Tareas pendientes antes de publicar
+## Que viene ahora
 
-- [ ] Rotar **todas** las credenciales de la tabla del principio
-- [ ] Rellenar los datos del responsable en los cuatro documentos legales (marcados en amarillo)
-- [ ] Poner `RECAPTCHA_SITE_KEY` en `assets/js/firebase.js`
-- [ ] Crear los dos secretos de GitHub (`FIREBASE_SERVICE_ACCOUNT` y `GEMINI_API_KEY`)
-- [ ] Hacer el repositorio publico, o comprobar que quedan minutos de Actions
-- [ ] Crear el primer administrador con `scripts/set-admin.js`
-- [ ] Ejecutar la migracion de datos, primero con `--simular`
-- [ ] Borrar la coleccion `secrets` de Firestore
-- [ ] Apagar la instancia de PocketBase y el tunel de ngrok
-- [ ] Purgar del historial de git la contrasena de Gmail (`git filter-repo`) o dar el repositorio por comprometido
+El plan completo esta en [`docs/ROADMAP.md`](docs/ROADMAP.md), repartido en
+hitos e issues. Las reglas del juego que se esta construyendo, en
+[`docs/JUEGO.md`](docs/JUEGO.md).
+
+### Tareas pendientes antes de publicar
+
+**El orden importa.** El historial de git todavia contiene la contrasena de
+Gmail en claro, y el worker solo es gratis e ilimitado si el repositorio es
+publico: hacerlo publico antes de purgar el historial es publicar esa
+contrasena.
+
+1. - [ ] Rotar **todas** las credenciales de la tabla del principio (issue #1)
+2. - [ ] Purgar el historial de git (`git filter-repo`) o dar el repositorio por comprometido
+3. - [ ] Borrar la coleccion `secrets` de Firestore
+4. - [ ] Apagar la instancia de PocketBase y el tunel de ngrok
+5. - [ ] **Solo entonces**: hacer publico el repositorio
+6. - [ ] Crear los dos secretos de GitHub (`FIREBASE_SERVICE_ACCOUNT` y `GEMINI_API_KEY`)
+7. - [ ] Activar GitHub Pages con origen "GitHub Actions" (issue #2)
+8. - [ ] Autorizar el dominio de Pages en Firebase Auth y en reCAPTCHA (issue #4)
+9. - [ ] Poner `RECAPTCHA_SITE_KEY` en `assets/js/firebase.js`
+10. - [ ] Rellenar los datos del responsable en los cuatro documentos legales (issue #55)
+11. - [ ] Crear el primer administrador con `scripts/set-admin.js`
+12. - [ ] Ejecutar la migracion de datos, primero con `--simular` (issue #54)
+13. - [ ] **Reactivar el cron de `verificar-viajes.yml`**, que esta comentado
+14. - [ ] Poner `MANTENIMIENTO` a `false` (issue #7)
+
+El cron del worker esta apagado a proposito: sin credenciales no puede hacer
+nada, y cada despertar mandaba un correo de fallo y gastaba un minuto de Actions
+(se factura por minuto empezado, asi que eran ~288 minutos al dia contra el
+limite de 2.000 al mes).

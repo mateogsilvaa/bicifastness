@@ -2,6 +2,8 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn-uicons.flaticon.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://cdn-uicons.flaticon.com; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="BiciRating: clasificacion global de pilotos y clanes de BiciFastness.">
 <title>BiciRating | BiciFastness</title>
@@ -58,94 +60,6 @@
 
 <footer id="pie-legal"></footer>
 
-<script type="module">
-  import { db, collection, getDocs } from '/assets/js/firebase.js';
-  import { iniciarPagina } from '/assets/js/ui.js';
-  import { id, el, estado, reemplazar, imagen, esqueleto } from '/assets/js/dom.js';
-
-  iniciarPagina('bicirating');
-
-  let pilotos = [];
-  let clanes = [];
-  let vista = 'pilotos';
-
-  cargar();
-
-  async function cargar() {
-    reemplazar(id('lista'), esqueleto(6, 66));
-    try {
-      // Lectura publica directa de Firestore. Antes venia de PocketBase a traves
-      // de un tunel de ngrok, que ademas era un punto unico de fallo.
-      const [usuariosSnap, clanesSnap] = await Promise.all([
-        getDocs(collection(db, 'usuarios')),
-        getDocs(collection(db, 'clanes')),
-      ]);
-
-      pilotos = usuariosSnap.docs
-        .map((d) => ({ uid: d.id, ...d.data() }))
-        .filter((u) => !u.suspendido)
-        .sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0));
-
-      clanes = clanesSnap.docs
-        .map((d) => ({ clanId: d.id, ...d.data() }))
-        .sort((a, b) => (b.biciRating || 0) - (a.biciRating || 0));
-
-      estado(id('mensaje'), '');
-      pintar();
-    } catch (error) {
-      estado(id('mensaje'), `No se ha podido cargar la clasificacion: ${error.message}`, 'error');
-    }
-  }
-
-  function pintar() {
-    const datos = vista === 'pilotos' ? pilotos : clanes;
-
-    if (!datos.length) {
-      reemplazar(id('lista'), el('div', { clase: 'vacio', texto: 'Todavia no hay nadie clasificado.' }));
-      return;
-    }
-
-    reemplazar(id('lista'), datos.slice(0, 100).map((item, indice) => {
-      const puesto = indice + 1;
-      const clase = `fila ${puesto <= 3 ? `p${puesto}` : ''}`;
-
-      if (vista === 'pilotos') {
-        const nombre = item.username || 'Piloto';
-        return el('div', { clase }, [
-          el('div', { clase: 'puesto', texto: `#${puesto}` }),
-          imagen(item.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nombre)}&backgroundColor=0071c3`,
-            { clase: 'avatar', attrs: { alt: '', loading: 'lazy' } }),
-          el('div', { clase: 'nombre' }, [
-            el('strong', { texto: nombre }),
-            el('span', { texto: `${item.viajesVerificados || 0} viajes verificados` }),
-          ]),
-          el('div', { clase: 'puntos', texto: String(item.biciRating || 0) }),
-        ]);
-      }
-
-      const marca = el('div', { clase: 'marca-clan' });
-      marca.style.background = item.color || 'var(--primary)';
-
-      return el('div', { clase }, [
-        el('div', { clase: 'puesto', texto: `#${puesto}` }),
-        marca,
-        el('div', { clase: 'nombre' }, [
-          el('strong', { texto: item.nombre || item.clanId }),
-          el('span', { texto: `${item.numMiembros ?? (item.miembros || []).length} miembros` }),
-        ]),
-        el('div', { clase: 'puntos', texto: String(item.biciRating || 0) }),
-      ]);
-    }));
-  }
-
-  for (const cual of ['pilotos', 'clanes']) {
-    id(`tab-${cual}`).addEventListener('click', () => {
-      vista = cual;
-      id('tab-pilotos').classList.toggle('activa', cual === 'pilotos');
-      id('tab-clanes').classList.toggle('activa', cual === 'clanes');
-      pintar();
-    });
-  }
-</script>
+<script type="module" src="/assets/js/paginas/bicirating.js"></script>
 </body>
 </html>

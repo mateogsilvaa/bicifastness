@@ -2,6 +2,8 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn-uicons.flaticon.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://cdn-uicons.flaticon.com; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="BiciFastness: compite con tus tiempos de BiciMAD por Madrid.">
 <title>Iniciar sesion | BiciFastness</title>
@@ -71,70 +73,6 @@
   <footer id="pie-legal"></footer>
 </main>
 
-<script type="module">
-  import {
-    auth, onAuthStateChanged, signInWithEmailAndPassword,
-    sendPasswordResetEmail, traducirErrorAuth,
-  } from '/assets/js/firebase.js';
-  import { aplicarTema, montarPieLegal, montarAvisoCookies } from '/assets/js/ui.js';
-  import { id, estado } from '/assets/js/dom.js';
-
-  aplicarTema();
-  montarPieLegal();
-  montarAvisoCookies();
-
-  const form = id('form-login');
-  const boton = id('btn-entrar');
-  const mensaje = id('mensaje');
-
-  onAuthStateChanged(auth, (usuario) => {
-    if (usuario) window.location.replace('/home/');
-  });
-
-  form.addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-    const email = id('email').value.trim().toLowerCase();
-    const clave = id('password').value;
-
-    if (!email || !clave) {
-      estado(mensaje, 'Rellena los dos campos.', 'error');
-      return;
-    }
-
-    boton.disabled = true;
-    boton.textContent = 'Entrando...';
-    estado(mensaje, '');
-
-    try {
-      // Un unico sistema de identidad. La version anterior tambien creaba una
-      // cuenta en PocketBase con la contrasena escrita aqui: si el usuario no
-      // existia alli, la CREABA con la clave introducida, lo que permitia
-      // apropiarse de la cuenta de otro con solo conocer su correo.
-      await signInWithEmailAndPassword(auth, email, clave);
-      window.location.replace('/home/');
-    } catch (error) {
-      boton.disabled = false;
-      boton.textContent = 'Entrar';
-      estado(mensaje, traducirErrorAuth(error), 'error');
-    }
-  });
-
-  id('btn-recuperar').addEventListener('click', async (evento) => {
-    evento.preventDefault();
-    const email = id('email').value.trim().toLowerCase();
-    if (!email) {
-      estado(mensaje, 'Escribe tu correo arriba y vuelve a pulsar aqui.', 'aviso');
-      return;
-    }
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (error) {
-      // Da igual si el correo existe o no: responder distinto permitiria
-      // averiguar que direcciones estan registradas.
-      console.debug('recuperacion', error.code);
-    }
-    estado(mensaje, 'Si ese correo tiene cuenta, recibiras un enlace para cambiar la contrasena.', 'exito');
-  });
-</script>
+<script type="module" src="/assets/js/paginas/entrar.js"></script>
 </body>
 </html>

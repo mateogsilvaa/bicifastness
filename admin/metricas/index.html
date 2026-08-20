@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Estadisticas de uso de BiciFastness.">
+<meta name="robots" content="noindex">
+<title>Metricas | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<main class="container" id="principal">
+  <div class="fila separada" style="flex-wrap: wrap; margin-bottom: var(--e5);">
+    <h1 class="d2" style="margin: 0;">Metricas</h1>
+    <button class="btn secundario" id="btn-csv" type="button">Descargar CSV</button>
+  </div>
+
+  <p class="menor apagado" id="actualizado"></p>
+  <p class="mensaje" id="mensaje" aria-live="polite"></p>
+
+  <section class="seccion">
+    <h2 class="h2">Uso</h2>
+    <div id="ventanas"></div>
+  </section>
+
+  <section class="seccion">
+    <h2 class="h2">Embudo de subida</h2>
+    <p class="menor apagado">
+      Donde se cae la gente al subir un trayecto. Si el salto grande esta entre
+      abrir y elegir foto, el problema es la pantalla; si esta entre enviar y
+      verificado, es el pipeline.
+    </p>
+    <div id="embudo"></div>
+  </section>
+
+  <section class="seccion">
+    <h2 class="h2">Retencion por cohortes</h2>
+    <p class="menor apagado">
+      Por semana de alta, que porcentaje seguia subiendo trayectos pasados 1, 7,
+      14 y 30 dias. Es lo unico que dice si las mecanicas de retencion sirven o
+      solo lo parecen.
+    </p>
+    <div id="cohortes"></div>
+  </section>
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/admin-metricas.js"></script>
+</body>
+</html>

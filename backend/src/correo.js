@@ -135,10 +135,26 @@ function repartirCupo(cola, enviadosHoy = 0) {
   };
 }
 
+/**
+ * Token de baja: opaco, aleatorio y por usuario.
+ *
+ * No lleva dentro el uid ni nada descifrable. Es una llave suelta que el worker
+ * cambia por el usuario mirando quien la tiene guardada, asi que aunque alguien
+ * intercepte un correo ajeno solo puede dar de baja a esa persona, no deducir
+ * quien es ni tocar su cuenta.
+ *
+ * 32 bytes en base64url son 43 caracteres: dentro del rango que exigen las
+ * reglas de Firestore (32-128) y muy lejos de poder adivinarse a intentos.
+ */
+function generarTokenBaja() {
+  return require('crypto').randomBytes(32).toString('base64url');
+}
+
 module.exports = {
   enviar,
   escapar,
   repartirCupo,
+  generarTokenBaja,
   PRIORIDAD,
   MAX_DIARIO,
 };

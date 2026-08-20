@@ -20,8 +20,18 @@ const { escapar } = require('./correo');
 
 const SITIO = 'https://bicifastness.es';
 
-/** Envoltorio comun. `contenido` ya viene escapado. */
-function envolver({ titulo, contenido, pie = '' }) {
+/**
+ * Envoltorio comun. `contenido` ya viene escapado.
+ *
+ * Si se pasa `tokenBaja`, se anade el enlace de baja. Va en TODOS los correos,
+ * tambien en los transaccionales: el RGPD solo lo exige para los promocionales,
+ * pero quien no encuentra como darse de baja marca el correo como spam, y eso
+ * hunde la reputacion del dominio para todo el mundo.
+ */
+function envolver({ titulo, contenido, tokenBaja = null }) {
+  const pie = tokenBaja
+    ? `<br><a href="${SITIO}/baja/?t=${encodeURIComponent(tokenBaja)}" style="color:#8b94a7;">Dejar de recibir estos avisos</a>`
+    : '';
   return `<!doctype html>
 <html lang="es">
 <body style="margin:0;padding:24px;background:#0d1017;font-family:system-ui,sans-serif;color:#eef2f7;">
@@ -37,6 +47,17 @@ function envolver({ titulo, contenido, pie = '' }) {
 </html>`;
 }
 
+/**
+ * Pie de la version en texto plano. Sin el, la baja solo estaria en el HTML y
+ * quien lee el correo en texto no la encontraria.
+ */
+const pieTexto = (tokenBaja) => (tokenBaja
+  ? `
+---
+Dejar de recibir estos avisos: ${SITIO}/baja/?t=${encodeURIComponent(tokenBaja)}
+`
+  : '');
+
 const parrafo = (t) => `<p style="margin:0 0 14px;line-height:1.6;color:#c8cede;">${t}</p>`;
 
 const boton = (texto, url) =>
@@ -45,11 +66,12 @@ const boton = (texto, url) =>
 
 // --- Plantillas --------------------------------------------------------------
 
-function bienvenida({ nombre }) {
+function bienvenida({ tokenBaja = null, nombre }) {
   const piloto = escapar(nombre);
   return {
     asunto: 'Bienvenido a BiciFastness',
     html: envolver({
+      tokenBaja,
       titulo: `Hola, ${piloto}`,
       contenido:
         parrafo('Ya puedes subir tus trayectos. Solo necesitas la captura del viaje en la app de BiciMAD: nosotros sacamos de ahi las estaciones y el tiempo.')
@@ -58,11 +80,11 @@ function bienvenida({ nombre }) {
     }),
     texto: `Hola, ${nombre}\n\n`
       + 'Ya puedes subir tus trayectos. Solo necesitas la captura del viaje en la app de BiciMAD.\n\n'
-      + `Cada trayecto suma por distancia, por velocidad y por constancia.\n\n${SITIO}/subir/\n`,
+      + `Cada trayecto suma por distancia, por velocidad y por constancia.\n\n${SITIO}/subir/\n` + pieTexto(tokenBaja),
   };
 }
 
-function viajeRechazado({ nombre, ruta, motivo }) {
+function viajeRechazado({ tokenBaja = null, nombre, ruta, motivo }) {
   const piloto = escapar(nombre);
   const tramo = escapar(ruta);
   const porQue = escapar(motivo || 'No hemos podido verificar la captura.');
@@ -70,6 +92,7 @@ function viajeRechazado({ nombre, ruta, motivo }) {
   return {
     asunto: 'No hemos podido verificar tu trayecto',
     html: envolver({
+      tokenBaja,
       titulo: 'Tu trayecto no ha pasado la verificacion',
       contenido:
         parrafo(`Hola, ${piloto}. El trayecto <strong>${tramo}</strong> no se ha podido dar por bueno.`)
@@ -82,17 +105,18 @@ function viajeRechazado({ nombre, ruta, motivo }) {
       + `Motivo: ${motivo || 'No hemos podido verificar la captura.'}\n\n`
       + 'Casi siempre se arregla volviendo a subir la captura original de la app, sin recortar '
       + 'y sin pasarla por ningun editor.\n\n'
-      + `Si crees que es un error, puedes reclamarlo desde tu perfil: ${SITIO}/profile/\n`,
+      + `Si crees que es un error, puedes reclamarlo desde tu perfil: ${SITIO}/profile/\n` + pieTexto(tokenBaja),
   };
 }
 
-function viajeAnulado({ nombre, ruta, motivo }) {
+function viajeAnulado({ tokenBaja = null, nombre, ruta, motivo }) {
   const piloto = escapar(nombre);
   const tramo = escapar(ruta);
 
   return {
     asunto: 'Se ha anulado uno de tus trayectos',
     html: envolver({
+      tokenBaja,
       titulo: 'Un trayecto verificado se ha anulado',
       contenido:
         parrafo(`Hola, ${piloto}. El trayecto <strong>${tramo}</strong>, que estaba verificado, se ha anulado tras una revision.`)
@@ -102,7 +126,7 @@ function viajeAnulado({ nombre, ruta, motivo }) {
     }),
     texto: `Hola, ${nombre}\n\nEl trayecto ${ruta}, que estaba verificado, se ha anulado tras una revision.\n\n`
       + `Motivo: ${motivo || 'Revision posterior.'}\n\n`
-      + `Los puntos y los kilometros de ese trayecto se han descontado.\n\n${SITIO}/profile/\n`,
+      + `Los puntos y los kilometros de ese trayecto se han descontado.\n\n${SITIO}/profile/\n` + pieTexto(tokenBaja),
   };
 }
 
@@ -112,7 +136,7 @@ function viajeAnulado({ nombre, ruta, motivo }) {
  * Uno por viaje se comeria el cupo diario de Resend en cuanto haya unos pocos
  * pilotos activos, y ademas cansa.
  */
-function viajesVerificados({ nombre, viajes }) {
+function viajesVerificados({ tokenBaja = null, nombre, viajes }) {
   const piloto = escapar(nombre);
   const puntos = viajes.reduce((t, v) => t + (v.puntos || 0), 0);
   const metros = viajes.reduce((t, v) => t + (v.distanciaMetros || 0), 0);
@@ -126,6 +150,7 @@ function viajesVerificados({ nombre, viajes }) {
   return {
     asunto: `${viajes.length} ${cuantos}`,
     html: envolver({
+      tokenBaja,
       titulo: `${viajes.length} ${cuantos}`,
       contenido:
         parrafo(`Hola, ${piloto}. Esto es lo que has sumado:`)
@@ -135,22 +160,23 @@ function viajesVerificados({ nombre, viajes }) {
     }),
     texto: `Hola, ${nombre}\n\n${viajes.length} ${cuantos}:\n`
       + viajes.map((v) => `  ${v.ruta} — ${v.puntos || 0} puntos`).join('\n')
-      + `\n\nTotal: ${puntos} puntos y ${(metros / 1000).toFixed(1)} km.\n\n${SITIO}/ranking/\n`,
+      + `\n\nTotal: ${puntos} puntos y ${(metros / 1000).toFixed(1)} km.\n\n${SITIO}/ranking/\n` + pieTexto(tokenBaja),
   };
 }
 
-function revisionLenta({ nombre, ruta }) {
+function revisionLenta({ tokenBaja = null, nombre, ruta }) {
   const piloto = escapar(nombre);
   return {
     asunto: 'Tu trayecto lo esta revisando una persona',
     html: envolver({
+      tokenBaja,
       titulo: 'Tu trayecto esta en revision',
       contenido:
         parrafo(`Hola, ${piloto}. El trayecto <strong>${escapar(ruta)}</strong> necesita que lo mire una persona antes de darlo por bueno.`)
         + parrafo('No es que hayas hecho nada mal: pasa cuando la captura no se lee del todo bien. Te avisamos en cuanto se resuelva.'),
     }),
     texto: `Hola, ${nombre}\n\nEl trayecto ${ruta} necesita revision de una persona. `
-      + 'No es que hayas hecho nada mal: pasa cuando la captura no se lee del todo bien.\n',
+      + 'No es que hayas hecho nada mal: pasa cuando la captura no se lee del todo bien.\n' + pieTexto(tokenBaja),
   };
 }
 

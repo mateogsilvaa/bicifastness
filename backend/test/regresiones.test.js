@@ -448,6 +448,19 @@ test('el worker respeta la preferencia de correo antes de enviar', () => {
   assert.match(worker, /simular: SIMULAR/);
 });
 
+test('la baja de correo se puede pedir sin sesion, pero nada mas', () => {
+  // Es la UNICA coleccion que escribe gente sin autenticar. Sin acotarla es una
+  // via de llenar la base de datos gratis, y si se pudiera leer se podrian
+  // raspar tokens ajenos para dar de baja a otros.
+  const bajas = bloque('solicitudes_baja');
+
+  assert.match(bajas, /allow read, update, delete: if false/,
+    'no debe poder leerse, actualizarse ni borrarse desde el cliente');
+  assert.match(bajas, /hasOnly\(\['creado'\]\)/, 'admite campos de mas');
+  assert.match(bajas, /token\.size\(\) >= 32/, 'un token corto se puede adivinar a intentos');
+  assert.match(bajas, /token\.matches/, 'el id del documento no esta acotado');
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

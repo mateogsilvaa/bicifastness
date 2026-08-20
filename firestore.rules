@@ -265,6 +265,26 @@ service cloud.firestore {
     }
 
     // --- Cierre por defecto -------------------------------------------------
+    // --- Bajas de correo ---------------------------------------------------
+    // La UNICA coleccion del proyecto que escribe gente SIN sesion, y es a
+    // proposito: el RGPD exige baja facil, y si hay que iniciar sesion para
+    // darse de baja, no es baja facil.
+    //
+    // El id del documento es un token opaco que solo conoce quien ha recibido
+    // el correo. El worker lo cambia por el usuario y apaga sus avisos. Nadie
+    // puede leer esta coleccion, asi que no se puede raspar para averiguar
+    // tokens ajenos, y no se puede sobrescribir ni borrar lo que otro ha
+    // pedido.
+    match /solicitudes_baja/{token} {
+      allow read, update, delete: if false;
+
+      allow create: if datos().keys().hasOnly(['creado'])
+        // Un token corto se podria adivinar a base de intentos; uno largo, no.
+        && token.size() >= 32
+        && token.size() <= 128
+        && token.matches('^[A-Za-z0-9_-]+$');
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

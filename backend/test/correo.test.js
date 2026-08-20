@@ -161,3 +161,46 @@ test('todo correo lleva el aviso de independencia', () => {
   const { html } = plantillas.bienvenida({ nombre: 'Ana' });
   assert.match(html, /Proyecto independiente/);
 });
+
+// --- Baja sin iniciar sesion -------------------------------------------------
+
+test('el token de baja es largo e impredecible', () => {
+  const a = correo.generarTokenBaja();
+  const b = correo.generarTokenBaja();
+
+  assert.notStrictEqual(a, b, 'dos tokens seguidos no pueden coincidir');
+  // El mismo rango y alfabeto que exigen las reglas de Firestore.
+  assert.match(a, /^[A-Za-z0-9_-]{32,128}$/);
+});
+
+test('el token no lleva dentro nada del usuario', () => {
+  // Es una llave suelta: el worker la cambia por el usuario mirando quien la
+  // tiene guardada. Si llevara el uid, interceptar un correo revelaria quien es.
+  const token = correo.generarTokenBaja();
+  assert.ok(!/@/.test(token), 'parece contener un correo');
+  assert.ok(!/=/.test(token), 'base64url no lleva relleno, y el relleno delata la longitud del contenido');
+});
+
+test('todos los correos llevan enlace de baja, en HTML y en texto', () => {
+  // Quien no encuentra como darse de baja marca el correo como spam, y eso
+  // hunde la reputacion del dominio para todo el mundo.
+  const token = 'a'.repeat(43);
+  const casos = [
+    plantillas.bienvenida({ nombre: 'Ana', tokenBaja: token }),
+    plantillas.viajeRechazado({ nombre: 'Ana', ruta: '002-110', motivo: 'x', tokenBaja: token }),
+    plantillas.viajeAnulado({ nombre: 'Ana', ruta: '002-110', motivo: 'x', tokenBaja: token }),
+    plantillas.viajesVerificados({ nombre: 'Ana', viajes: [{ ruta: 'a', puntos: 1, distanciaMetros: 1 }], tokenBaja: token }),
+    plantillas.revisionLenta({ nombre: 'Ana', ruta: '002-110', tokenBaja: token }),
+  ];
+
+  for (const c of casos) {
+    assert.ok(c.html.includes(`/baja/?t=${token}`), `sin enlace de baja en el HTML de "${c.asunto}"`);
+    assert.ok(c.texto.includes(`/baja/?t=${token}`), `sin enlace de baja en el texto de "${c.asunto}"`);
+  }
+});
+
+test('el token viaja escapado en la URL', () => {
+  const { html } = plantillas.bienvenida({ nombre: 'Ana', tokenBaja: 'a b&c' });
+  assert.ok(!html.includes('t=a b&c'), 'el token va crudo en la URL');
+  assert.ok(html.includes('a%20b%26c'));
+});

@@ -280,12 +280,22 @@ async function avisarRechazo(viaje, veredicto) {
     // no se le insiste.
     if (datos.avisosCorreo === false) return;
 
+    // El token de baja se crea la primera vez que se le escribe y se queda.
+    // Si cambiara en cada correo, un enlace de hace dos dias dejaria de
+    // funcionar, que es justo lo que hace que la gente marque spam.
+    let tokenBaja = datos.tokenBaja;
+    if (!tokenBaja) {
+      tokenBaja = correo.generarTokenBaja();
+      if (!SIMULAR) await usuario.ref.update({ tokenBaja });
+    }
+
     const mensaje = plantillas.viajeRechazado({
       nombre: datos.username || 'piloto',
       ruta: viaje.ruta,
       // `resumen` es el texto para la persona. Las señales con sus pesos se
       // quedan en la auditoria: no salen en el correo.
       motivo: veredicto.resumen,
+      tokenBaja,
     });
 
     const resultado = await correo.enviar({
@@ -423,6 +433,41 @@ async function revertirPremio(doc, viaje) {
 }
 
 /**
+ * Procesa las bajas de correo pedidas desde el enlace del propio correo.
+ *
+ * El navegador solo puede CREAR `solicitudes_baja/{token}`: no puede leer esa
+ * coleccion ni tocar el perfil de nadie. Aqui se cambia el token por su dueño y
+ * se apagan sus avisos.
+ *
+ * Se borra la solicitud siempre, incluso si el token ya no corresponde a nadie.
+ * Si no, un token caducado se quedaria dando vueltas en cada pasada, y esa
+ * coleccion la escribe gente sin sesion: es justo la que no debe acumular.
+ */
+async function procesarBajas() {
+  const solicitudes = await db.collection('solicitudes_baja').limit(50).get();
+  if (solicitudes.empty) return 0;
+
+  let dadas = 0;
+
+  for (const solicitud of solicitudes.docs) {
+    const token = solicitud.id;
+
+    const usuarios = await db.collection('usuarios')
+      .where('tokenBaja', '==', token).limit(1).get();
+
+    if (!usuarios.empty) {
+      if (!SIMULAR) await usuarios.docs[0].ref.update({ avisosCorreo: false });
+      dadas++;
+    }
+
+    if (!SIMULAR) await solicitud.ref.delete().catch(() => {});
+  }
+
+  console.log(`Bajas de correo procesadas: ${dadas} de ${solicitudes.size} solicitudes.`);
+  return dadas;
+}
+
+/**
  * Aplica las decisiones que un administrador ha marcado desde el panel.
  *
  * El admin puede escribir `estado` gracias a su custom claim, pero recalcular
@@ -495,6 +540,7 @@ async function main() {
   }
 
   await aplicarDecisionesManuales();
+  await procesarBajas();
 
   console.log(`\nResumen: ${cuenta.aprobado} aprobados, ${cuenta.rechazado} rechazados, `
     + `${cuenta.revision} a revision, ${cuenta.error} con error.`);

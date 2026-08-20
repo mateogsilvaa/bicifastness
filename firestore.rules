@@ -323,6 +323,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Misiones del dia. Publicas y las MISMAS para todo el mundo: eso es lo que
+    // permite leerlas con una sola lectura cacheable en vez de una por usuario.
+    match /config/misiones/dias/{dia} {
+      allow read: if true;
+      // Las genera el worker. Que las escribiera el cliente permitiria
+      // ponerse objetivos de un metro.
+      allow write: if false;
+    }
+
     // --- Analitica de producto ---------------------------------------------
     // Un documento por sesion, escrito al cerrar la pestaña. Sin sesion, igual
     // que los errores y por el mismo motivo: el embudo del registro hay que

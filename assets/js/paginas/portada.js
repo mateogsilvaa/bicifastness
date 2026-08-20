@@ -20,6 +20,103 @@ iniciarPagina('ahora');
 const landing = id('landing');
 const panel = id('panel');
 
+/** Hoy, en formato YYYY-MM-DD y hora local. */
+function hoy() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * La racha, lo primero.
+ *
+ * Es lo unico de esta pantalla que se puede PERDER hoy, y por eso va arriba: la
+ * pregunta que responde el panel es que hago hoy, no que hice.
+ */
+function pintarRacha(perfil) {
+  const dias = perfil.racha || 0;
+  const escudos = perfil.escudos || 0;
+  const activoHoy = perfil.ultimoDiaActivo
+    && new Date(perfil.ultimoDiaActivo).toDateString() === new Date().toDateString();
+
+  if (!dias) {
+    reemplazar(id('racha'), el('div', { clase: 'aviso' }, [
+      el('p', { clase: 'etiqueta', texto: 'Racha' }),
+      el('p', { texto: 'Sube un trayecto hoy y empiezas racha.' }),
+    ]));
+    return;
+  }
+
+  reemplazar(id('racha'), el('div', { clase: `aviso ${activoHoy ? 'ok' : 'atencion'}` }, [
+    el('p', { clase: 'etiqueta', texto: `Racha de ${dias} ${dias === 1 ? 'dia' : 'dias'}` }),
+    el('p', {
+      texto: activoHoy
+        ? 'Hoy ya esta salvado.'
+        : escudos > 0
+          ? `Hoy todavia no. Si no sales, se gasta un escudo (te quedan ${escudos}).`
+          : 'Hoy todavia no, y no te quedan escudos: si no sales, la pierdes.',
+    }),
+  ]));
+}
+
+/**
+ * Las misiones del dia. Un solo documento, el mismo para todo el mundo.
+ */
+async function pintarMisiones(perfil) {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'misiones', 'dias', hoy()));
+    if (!snap.exists()) { reemplazar(id('misiones'), el('div', {})); return; }
+
+    const progreso = perfil.misiones?.fecha === hoy() ? (perfil.misiones.progreso || []) : [];
+
+    reemplazar(id('misiones'), el('div', { clase: 'bloque' }, [
+      el('p', { clase: 'etiqueta', texto: 'Misiones de hoy' }),
+      ...snap.data().misiones.map((m, i) => {
+        const p = progreso[i];
+        const hecha = p?.completada;
+
+        return el('div', { clase: 'fila separada', estilo: { marginBottom: 'var(--e3)' } }, [
+          el('div', {}, [
+            el('div', { clase: 'nombre', texto: m.texto }),
+            el('div', { clase: 'clan', texto: m.ayuda }),
+          ]),
+          el('span', {
+            clase: `chip ${hecha ? 'verificado' : 'pendiente'}`,
+            texto: hecha ? 'Hecha' : 'Pendiente',
+          }),
+        ]);
+      }),
+    ]));
+  } catch (error) {
+    console.debug('No se han podido cargar las misiones', error);
+    reemplazar(id('misiones'), el('div', {}));
+  }
+}
+
+/**
+ * La ruta del dia: la clasificacion que empieza vacia cada mañana y que puede
+ * ganar cualquiera, incluido quien se registro ayer.
+ */
+async function pintarRutaDelDia() {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'general'));
+    const ruta = snap.exists() ? snap.data().rutaDestacada : null;
+    if (!ruta) { reemplazar(id('ruta-del-dia'), el('div', {})); return; }
+
+    reemplazar(id('ruta-del-dia'), el('div', { clase: 'bloque' }, [
+      el('p', { clase: 'etiqueta', texto: 'Ruta del dia · puntos x2' }),
+      el('h2', { clase: 'h2', texto: nombreRuta(ruta) }),
+      el('a', {
+        clase: 'btn secundario',
+        texto: 'Ver la clasificacion de hoy',
+        attrs: { href: `/clasificacion/?ruta=${encodeURIComponent(ruta)}` },
+      }),
+    ]));
+  } catch (error) {
+    console.debug('No se ha podido cargar la ruta del dia', error);
+    reemplazar(id('ruta-del-dia'), el('div', {}));
+  }
+}
+
 /** Bloque con una cifra grande y su etiqueta. */
 function dato(etiqueta, valor, clase = 'cifra') {
   return el('div', {}, [
@@ -162,6 +259,11 @@ onAuthStateChanged(auth, async (usuario) => {
       id('titulo-panel').textContent = datos.username.toUpperCase();
     }
 
+    // El orden importa: primero lo que se puede perder hoy, luego lo que se
+    // puede hacer, y al final lo que ya paso.
+    pintarRacha(datos);
+    await pintarMisiones(datos);
+    await pintarRutaDelDia();
     await pintarUltimaMarca(usuario.uid);
     await pintarClan(datos.clanId || null);
   } catch (error) {

@@ -43,6 +43,8 @@ const rachas = require('./src/rachas');
 const correo = require('./src/correo');
 const plantillas = require('./src/plantillas');
 const metricas = require('./src/metricas');
+const misiones = require('./src/misiones');
+const territorio = require('./src/territorio');
 
 const SIMULAR = process.argv.includes('--simular');
 const SOLO_UNO = process.argv.includes('--once');
@@ -482,6 +484,62 @@ async function revertirPremio(doc, viaje) {
 }
 
 /**
+ * Deja listas las misiones del dia y la ruta destacada.
+ *
+ * Se llama en cada pasada y no pasa nada: las misiones se generan de forma
+ * DETERMINISTA a partir de la fecha, asi que regenerarlas da lo mismo. Eso
+ * evita depender de un cron a medianoche que, si se salta, dejaria el dia sin
+ * misiones.
+ *
+ * La ruta del dia si se fija una vez: se guarda con su fecha y no se vuelve a
+ * elegir hasta el dia siguiente. Cambiarla a media mañana invalidaria la
+ * clasificacion diaria que la gente ya esta compitiendo.
+ */
+async function prepararDia() {
+  const hoy = territorio.dia();
+  const refMisiones = db.doc(`config/misiones/dias/${hoy}`);
+
+  if (!(await refMisiones.get()).exists) {
+    if (!SIMULAR) await refMisiones.set(misiones.generar(hoy));
+    console.log(`Misiones del ${hoy} preparadas.`);
+  }
+
+  const refGeneral = db.doc('config/general');
+  const general = await refGeneral.get();
+  const datos = general.exists ? general.data() : {};
+
+  if (datos.rutaDestacadaDia === hoy) return;
+
+  // Cuantos viajes tiene cada tramo, para descartar los que no mueve nadie.
+  const viajes = await db.collection('tiempos_viaje').where('verificado', '==', true).get();
+  const porRuta = new Map();
+  for (const d of viajes.docs) {
+    const ruta = d.data().ruta;
+    if (ruta) porRuta.set(ruta, (porRuta.get(ruta) || 0) + 1);
+  }
+
+  const recientes = Array.isArray(datos.rutasHistoricas) ? datos.rutasHistoricas.slice(-7) : [];
+  const elegida = misiones.rutaDelDia(porRuta, recientes, hoy);
+
+  if (!elegida) {
+    console.log('Sin tramos con actividad suficiente: hoy no hay ruta del dia.');
+    return;
+  }
+
+  if (!SIMULAR) {
+    await refGeneral.set({
+      rutaDestacada: elegida,
+      rutaDestacadaDia: hoy,
+      // Las ya destacadas conservan un multiplicador menor, y ademas sirven
+      // para no repetir tramo cada dos por tres.
+      rutasHistoricas: admin.firestore.FieldValue.arrayUnion(elegida),
+    }, { merge: true });
+  }
+
+  console.log(`Ruta del dia: ${elegida}`);
+}
+
+/**
  * Procesa las bajas de correo pedidas desde el enlace del propio correo.
  *
  * El navegador solo puede CREAR `solicitudes_baja/{token}`: no puede leer esa
@@ -588,6 +646,7 @@ async function main() {
     }
   }
 
+  await prepararDia();
   await aplicarDecisionesManuales();
   await procesarBajas();
 

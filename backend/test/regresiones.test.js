@@ -821,6 +821,37 @@ test('el bonus de territorio exige controlar, no ir primero', () => {
   assert.match(funcion, /catch[\s\S]*return false/);
 });
 
+test('las misiones son las mismas para todo el mundo', () => {
+  // Es lo que permite leerlas con UNA lectura cacheable en vez de una por
+  // usuario. Si fueran personales, 1.000 visitas serian 1.000 lecturas.
+  const bloque = REGLAS.slice(REGLAS.indexOf('match /config/misiones/dias/'));
+  const hasta = bloque.slice(0, bloque.indexOf('match /', 10));
+
+  assert.match(hasta, /allow read: if true/);
+  // Y las escribe el worker: si las escribiera el cliente, cualquiera se
+  // pondria objetivos de un metro.
+  assert.match(hasta, /allow write: if false/);
+});
+
+test('la ruta del dia se fija una vez al dia', () => {
+  // Cambiarla a media mañana invalidaria la clasificacion diaria que la gente
+  // ya esta compitiendo.
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /if \(datos\.rutaDestacadaDia === hoy\) return;/);
+  assert.match(worker, /rutaDestacadaDia: hoy/);
+});
+
+test('el panel de inicio pone primero lo que se puede perder', () => {
+  // La pregunta que responde es "que hago hoy", no "que hice". La racha va
+  // arriba porque es lo unico que se pierde si no sales.
+  const pagina = leer('index.html');
+  const posRacha = pagina.indexOf('id="racha"');
+  const posMarca = pagina.indexOf('id="ultima-marca"');
+
+  assert.ok(posRacha > 0 && posRacha < posMarca,
+    'la ultima marca va antes que la racha');
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

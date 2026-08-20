@@ -47,8 +47,21 @@ service cloud.firestore {
 
     // --- Perfiles ----------------------------------------------------------
     match /usuarios/{uid} {
-      // Publico: los rankings y los perfiles de piloto se ven sin sesion.
-      allow read: if true;
+      // CERRADO hasta que las clasificaciones salgan de los agregados (#35).
+      //
+      // Esto era `allow read: if true`, y con razon aparente: los rankings
+      // necesitan nombre, avatar y puntuacion, y se ven sin sesion. El problema
+      // es que el MISMO documento lleva el correo, asi que "publico para el
+      // ranking" significaba publicar 175 direcciones.
+      //
+      // Y no era solo dato viejo: la regla de alta de abajo admitia un campo
+      // `email`, o sea que el correo se habria seguido filtrando despues de
+      // migrar. Ya no lo admite. El correo vive en Firebase Auth, que es su
+      // sitio; duplicarlo en una coleccion publica era el fallo.
+      //
+      // Cuando #35 sirva los rankings desde `agregados/` (solo nombre, avatar y
+      // puntos), esta coleccion puede quedarse cerrada para siempre.
+      allow read: if esYo(uid) || esAdmin();
 
       // El alta la hace el propio usuario, pero con TODOS los contadores a cero
       // y sin poder inventarse el rol. Si se pudiera crear con biciRating alto o
@@ -56,7 +69,7 @@ service cloud.firestore {
       allow create: if esYo(uid)
         && datos().uid == uid
         && datos().keys().hasOnly([
-          'uid', 'email', 'username', 'usernameLower', 'avatarUrl',
+          'uid', 'username', 'usernameLower', 'avatarUrl',
           'biciRating', 'viajesVerificados', 'puntosPorRuta', 'logros',
           'clanId', 'favoritas', 'suspendido', 'creado', 'consentimiento'
         ])

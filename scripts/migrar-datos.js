@@ -82,7 +82,8 @@ async function migrarUsuarios(emailAUid) {
 
     const nuevo = {
       uid,
-      email,
+      // El correo NO se copia: vive en Firebase Auth. Meterlo aqui es lo que
+      // publicaba 175 direcciones, porque esta coleccion alimenta los rankings.
       username: datos.username || datos.nombre_usuario || 'Piloto',
       usernameLower: String(datos.username || datos.nombre_usuario || 'piloto').toLowerCase(),
       avatarUrl: datos.avatarUrl || null,

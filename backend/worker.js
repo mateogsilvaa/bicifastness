@@ -273,7 +273,21 @@ async function avisarRechazo(viaje, veredicto) {
     if (!usuario.exists) return;
 
     const datos = usuario.data();
-    if (!datos.email) return;
+
+    // El correo se pide a Firebase Auth, no al documento. Ahi es donde vive de
+    // verdad, y ademas nunca esta obsoleto: si alguien lo cambia en su cuenta,
+    // una copia en Firestore se quedaria apuntando a la direccion vieja.
+    // OJO con el nombre: `correo` es el modulo de envio importado arriba. Una
+    // variable local con ese nombre lo tapa dentro de esta funcion y
+    // `correo.enviar(...)` reventaria.
+    let destinatario = null;
+    try {
+      destinatario = (await admin.auth().getUser(viaje.uid)).email || null;
+    } catch {
+      // Cuenta borrada: no hay a quien avisar.
+      return;
+    }
+    if (!destinatario) return;
 
     // Respeta la preferencia, si la hay. Un rechazo es transaccional y se puede
     // enviar sin consentimiento, pero si alguien lo ha desactivado a proposito
@@ -300,7 +314,7 @@ async function avisarRechazo(viaje, veredicto) {
 
     const resultado = await correo.enviar({
       ...mensaje,
-      para: datos.email,
+      para: destinatario,
       remitente: REMITENTE,
       apiKey: process.env.RESEND_API_KEY,
       simular: SIMULAR,

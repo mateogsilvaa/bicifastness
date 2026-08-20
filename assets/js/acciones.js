@@ -31,7 +31,18 @@ const uidActual = () => auth.currentUser?.uid;
  * campo de rol: en la version anterior el navegador enviaba `isAdmin: false`,
  * lo que dejaba claro que ese campo era manipulable desde el cliente.
  */
-export async function crearPerfil({ username, email }) {
+/**
+ * Crea el perfil de piloto.
+ *
+ * NO guarda el correo, y es deliberado: el correo ya vive en Firebase Auth, que
+ * es su sitio. Copiarlo aqui lo metia en una coleccion que se leia sin sesion
+ * para alimentar los rankings, o sea que publicaba la direccion de todo el
+ * mundo. El worker lo saca de Auth cuando necesita escribir.
+ *
+ * El parametro `email` se sigue aceptando para no romper a quien llame con el,
+ * pero se ignora.
+ */
+export async function crearPerfil({ username }) {
   const uid = uidActual();
   const nombre = String(username || '').trim();
   const clave = nombre.toLowerCase();
@@ -49,7 +60,6 @@ export async function crearPerfil({ username, email }) {
 
   lote.set(doc(db, 'usuarios', uid), {
     uid,
-    email: String(email || '').toLowerCase(),
     username: nombre,
     usernameLower: clave,
     avatarUrl: avatarPorDefecto(nombre),

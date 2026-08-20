@@ -590,6 +590,30 @@ test('la lectura publica de viajes esta cerrada hasta migrar', () => {
     'la lectura publica esta abierta: revisa el issue #59 antes de reabrirla');
 });
 
+test('el correo no vive en una coleccion de lectura publica', () => {
+  // `usuarios` alimenta los rankings, asi que estaba abierta a cualquiera. El
+  // mismo documento llevaba el correo: "publico para el ranking" significaba
+  // publicar la direccion de todo el mundo. Y no era solo dato viejo, la regla
+  // de alta lo admitia, asi que habria seguido pasando despues de migrar.
+  const usuarios = bloque('usuarios');
+  const permitidos = usuarios.match(/allow create[\s\S]*?hasOnly\(\[([^\]]+)\]\)/)[1];
+
+  assert.ok(!permitidos.includes("'email'"),
+    'el alta admite un campo email: el correo vive en Firebase Auth, no aqui');
+
+  // Y el alta desde el navegador tampoco lo manda.
+  assert.ok(!/email: String\(email/.test(leerCodigo('assets/js/acciones.js')),
+    'crearPerfil sigue guardando el correo');
+});
+
+test('el worker saca el correo de Auth, no del documento', () => {
+  // Ademas de no filtrarlo, asi nunca esta obsoleto: si alguien cambia su
+  // direccion, una copia en Firestore apuntaria a la vieja.
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /admin\.auth\(\)\.getUser\(/);
+  assert.ok(!/para: datos\.email/.test(worker), 'sigue leyendo el correo del documento');
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

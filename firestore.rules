@@ -73,7 +73,10 @@ service cloud.firestore {
       // Solo se puede tocar lo cosmetico y las rutas ancladas. La puntuacion,
       // las insignias y el estado de la cuenta los escribe unicamente el worker.
       allow update: if esYo(uid)
-        && cambia().hasOnly(['favoritas', 'avatarUrl', 'consentimiento'])
+        // `avisosCorreo` es la preferencia de correo. Es un booleano suyo y
+        // solo suyo: darse de baja no puede depender de que un administrador lo
+        // haga por ti (RGPD).
+        && cambia().hasOnly(['favoritas', 'avatarUrl', 'consentimiento', 'avisosCorreo'])
         && (!('favoritas' in datos()) || datos().favoritas.size() <= 3);
 
       // La administracion concede insignias y suspende cuentas. No puede tocar

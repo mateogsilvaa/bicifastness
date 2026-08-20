@@ -22,6 +22,7 @@
  *
  * Variables de entorno (GitHub Secrets):
  *   FIREBASE_SERVICE_ACCOUNT  JSON de la cuenta de servicio
+ *   RESEND_API_KEY            clave de Resend (opcional: sin ella no se avisa)
  *
  * Uso:
  *   node backend/worker.js              procesa la cola
@@ -39,6 +40,8 @@ const { evaluar, distanciaCalleMetros } = require('./src/verificacion');
 const puntuacion = require('./src/puntuacion');
 const distancias = require('./src/distancias');
 const rachas = require('./src/rachas');
+const correo = require('./src/correo');
+const plantillas = require('./src/plantillas');
 
 const SIMULAR = process.argv.includes('--simular');
 const SOLO_UNO = process.argv.includes('--once');
@@ -47,6 +50,10 @@ const SOLO_UNO = process.argv.includes('--once');
 // esto da holgura de sobra y evita agotar la cuota diaria de Firestore del plan
 // gratuito (50.000 lecturas y 20.000 escrituras al dia).
 const MAX_POR_TANDA = SOLO_UNO ? 1 : 25;
+
+// El dominio tiene que estar verificado en Resend con SPF, DKIM y DMARC, o el
+// correo se va a spam.
+const REMITENTE = 'BiciFastness <avisos@bicifastness.es>';
 
 function arrancar() {
   const credenciales = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -246,6 +253,52 @@ async function resolver(doc, veredicto) {
   // reutilizar la imagen, asi que el fichero en si sobra.
   if (veredicto.decision === 'rechazado') {
     await db.doc(`capturas/${doc.id}`).delete().catch(() => {});
+    await avisarRechazo(viaje, veredicto);
+  }
+}
+
+/**
+ * Avisa por correo de un rechazo automatico.
+ *
+ * Es el unico correo que se manda en el momento, y por un motivo: sin el, la
+ * persona sube un viaje, no pasa nada y no sabe por que. Los avisos de viaje
+ * aprobado NO van aqui, van agrupados, o se come el cupo diario de Resend en
+ * cuanto haya unos pocos pilotos activos.
+ *
+ * Que falle el correo no puede afectar al veredicto: el viaje ya esta resuelto.
+ */
+async function avisarRechazo(viaje, veredicto) {
+  try {
+    const usuario = await db.doc(`usuarios/${viaje.uid}`).get();
+    if (!usuario.exists) return;
+
+    const datos = usuario.data();
+    if (!datos.email) return;
+
+    // Respeta la preferencia, si la hay. Un rechazo es transaccional y se puede
+    // enviar sin consentimiento, pero si alguien lo ha desactivado a proposito
+    // no se le insiste.
+    if (datos.avisosCorreo === false) return;
+
+    const mensaje = plantillas.viajeRechazado({
+      nombre: datos.username || 'piloto',
+      ruta: viaje.ruta,
+      // `resumen` es el texto para la persona. Las señales con sus pesos se
+      // quedan en la auditoria: no salen en el correo.
+      motivo: veredicto.resumen,
+    });
+
+    const resultado = await correo.enviar({
+      ...mensaje,
+      para: datos.email,
+      remitente: REMITENTE,
+      apiKey: process.env.RESEND_API_KEY,
+      simular: SIMULAR,
+    });
+
+    if (resultado.error) console.warn(`  aviso no enviado: ${resultado.error}`);
+  } catch (err) {
+    console.warn('  no se ha podido avisar del rechazo:', err.message);
   }
 }
 
@@ -326,10 +379,47 @@ async function premiar(doc, viaje) {
     velocidadKmh: kmh === null ? null : Number(kmh.toFixed(2)),
     puntos: puntos.total,
     puntosDesglose: puntos.desglose,
+    // Marca de que este viaje ya sumo. Es lo que permite deshacerlo despues sin
+    // restar dos veces si el viaje se anula, se reactiva y se vuelve a anular.
+    premiado: true,
   });
 
   console.log(`  +${puntos.total} puntos (${((metros || 0) / 1000).toFixed(2)} km`
     + `${kmh ? `, ${kmh.toFixed(1)} km/h` : ''}${medida && medida.estimada ? ', distancia estimada' : ''})`);
+}
+
+/**
+ * Deshace lo que sumo un viaje que despues se ha anulado.
+ *
+ * Se resta EXACTAMENTE lo que se guardo en el propio viaje, no lo que se
+ * volveria a calcular hoy: entre medias pueden haber cambiado los umbrales de
+ * `config.js`, la racha del piloto o la ruta del dia, y recalcular restaria una
+ * cantidad distinta de la que se sumo. La marca `premiado` evita restar dos
+ * veces si el viaje se anula, se reactiva y se vuelve a anular.
+ *
+ * La RACHA no se toca, y es deliberado. Deshacerla bien exigiria saber si ese
+ * dia le quedaban otros viajes verificados y, si no, recomponer la cadena
+ * entera desde ahi. Desproporcionado para lo que es: la racha premia haber
+ * aparecido, no la marca conseguida, y quitarsela meses despues a alguien
+ * castiga mas de lo que corrige.
+ */
+async function revertirPremio(doc, viaje) {
+  const refUsuario = db.doc(`usuarios/${viaje.uid}`);
+  const menos = admin.firestore.FieldValue.increment;
+
+  await refUsuario.update({
+    viajesVerificados: menos(-1),
+    metrosTotales: menos(-(viaje.distanciaMetros || 0)),
+    segundosTotales: menos(-(viaje.tiempoSegundos || 0)),
+    puntosTemporada: menos(-(viaje.puntos || 0)),
+  }).catch((err) => {
+    // Si el usuario ya no existe (cuenta borrada), no hay nada que devolver.
+    console.warn(`No se han podido revertir los acumulados de ${viaje.uid}:`, err.message);
+  });
+
+  await doc.ref.update({ premiado: false });
+  console.log(`  [${doc.id}] revertidos ${viaje.puntos || 0} puntos y `
+    + `${((viaje.distanciaMetros || 0) / 1000).toFixed(2)} km`);
 }
 
 /**
@@ -349,6 +439,15 @@ async function aplicarDecisionesManuales() {
   for (const doc of pendientes.docs) {
     const viaje = doc.data();
     rutas.add(viaje.ruta);
+
+    // Un viaje que ya habia sumado y que deja de estar verificado hay que
+    // deshacerlo, o el piloto se queda con los kilometros y los puntos de un
+    // viaje anulado.
+    if (viaje.premiado === true && viaje.verificado !== true) {
+      if (!SIMULAR) await revertirPremio(doc, viaje);
+      else console.log(`  [${doc.id}] se revertirian ${viaje.puntos || 0} puntos`);
+    }
+
     if (!SIMULAR) await doc.ref.update({ recalculoPendiente: false });
   }
 

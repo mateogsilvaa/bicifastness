@@ -425,6 +425,29 @@ test('la distancia no la declara el usuario', () => {
   }
 });
 
+test('el usuario puede darse de baja de los correos por si mismo', () => {
+  // El RGPD exige baja facil. Si la preferencia solo la pudiera tocar un
+  // administrador, no seria baja facil.
+  const usuarios = bloque('usuarios');
+  const propio = usuarios.slice(usuarios.indexOf('allow update: if esYo'));
+  const permitidos = propio.match(/hasOnly\(\[([^\]]+)\]\)/)[1];
+
+  assert.ok(permitidos.includes('avisosCorreo'), 'el usuario no puede cambiar su preferencia de correo');
+
+  // Pero sigue sin poder tocar nada de puntuacion.
+  for (const prohibido of ['biciRating', 'puntosTemporada', 'racha', 'escudos']) {
+    assert.ok(!permitidos.includes(prohibido), `el usuario puede escribir ${prohibido}`);
+  }
+});
+
+test('el worker respeta la preferencia de correo antes de enviar', () => {
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /avisosCorreo === false/, 'se envia sin mirar la preferencia');
+
+  // Y nunca envia en simulacion: el worker corre con --simular a menudo.
+  assert.match(worker, /simular: SIMULAR/);
+});
+
 test('el worker no falla cuando todavia no hay credenciales', () => {
   // Sin esta salida limpia, cada despertar del cron cuenta como fallo: manda un
   // correo y, en repositorio privado, gasta un minuto entero de Actions por no

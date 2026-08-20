@@ -304,6 +304,40 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // --- Errores del cliente -----------------------------------------------
+    // La otra coleccion que escribe gente SIN sesion, y tambien a proposito: un
+    // fallo en el registro hay que verlo, y ahi todavia no hay cuenta.
+    //
+    // El id del documento es la HUELLA del error, no un id nuevo por incidencia.
+    // Eso es lo que convierte un bucle de 500 errores iguales en un documento
+    // con `veces: 500`, en vez de en 500 documentos.
+    //
+    // Riesgo que queda, dicho claro: cualquiera puede fabricar huellas y crear
+    // documentos. Las reglas acotan el formato del id, los campos y los tamaños,
+    // asi que cada documento es pequeño, pero no pueden limitar la frecuencia.
+    // La poda periodica del worker es lo que acota el crecimiento a largo plazo.
+    match /errores_cliente/{huella} {
+      // Solo la administracion los lee: llevan rutas y trazas de la app.
+      allow read: if esAdmin();
+      allow delete: if esAdmin();
+
+      allow create, update: if
+        // El id tiene el formato que genera assets/js/errores.js.
+        huella.matches('^e[a-z0-9]{1,12}$')
+        && datos().keys().hasOnly([
+          'mensaje', 'pila', 'pagina', 'navegador', 'version',
+          'ancho', 'conSesion', 'sesiones', 'visto'
+        ])
+        && datos().mensaje is string && datos().mensaje.size() <= 300
+        && datos().pila is string && datos().pila.size() <= 1000
+        && datos().pagina is string && datos().pagina.size() <= 100
+        && datos().navegador is string && datos().navegador.size() <= 40
+        && datos().version is string && datos().version.size() <= 20
+        && datos().ancho is int
+        && datos().conSesion is bool
+        && datos().sesiones is int;
+    }
+
     // --- Bajas de correo ---------------------------------------------------
     // La UNICA coleccion del proyecto que escribe gente SIN sesion, y es a
     // proposito: el RGPD exige baja facil, y si hay que iniciar sesion para

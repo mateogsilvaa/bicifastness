@@ -118,5 +118,6 @@
         }
       ]
     }
-  ]
+  ],
+  "buildCommand": "node scripts/build-version.js"
 }

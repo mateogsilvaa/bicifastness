@@ -5,6 +5,7 @@
 
 import { ESTACIONES } from '../data/estaciones.js';
 import { el, id, icono, reemplazar } from './dom.js';
+import { vigilarErrores } from './errores.js';
 
 // --- Antiframing -------------------------------------------------------------
 /**
@@ -292,6 +293,8 @@ export function montarPieLegal() {
 
 /** Arranque comun de cualquier pagina de la app. */
 export function iniciarPagina(seccionActiva) {
+  // Lo primero: si algo revienta mas abajo, queremos enterarnos.
+  vigilarErrores();
   aplicarTema();
   montarNavegacion(seccionActiva);
   montarPieLegal();

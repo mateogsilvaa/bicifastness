@@ -41,6 +41,22 @@ const UMBRAL_OSCURO = 110;
 const SEGMENTACION = '3';
 
 /**
+ * Resolucion que se le declara a tesseract.
+ *
+ * Si no se le dice, la estima y ESCRIBE UN AVISO en cada lectura ("Estimating
+ * resolution as 608"). Emscripten manda ese aviso por `printErr`, que en el
+ * navegador es `console.error`: una linea roja por captura, en la pantalla
+ * donde la gente sube sus viajes. Parece que la web esta rota.
+ *
+ * El valor no es un 300 copiado de un tutorial: la captura se normaliza a 1400
+ * px de ancho y una pantalla de movil mide unos 7 cm, o sea unos 600 puntos por
+ * pulgada de verdad, que es ademas lo que estimaba tesseract solo. Sobre el
+ * banco de capturas da los mismos aciertos que sin declararlo (55/55, medido
+ * con 300, con 600 y sin nada), asi que esto solo calla el aviso.
+ */
+const RESOLUCION = '600';
+
+/**
  * Tope para una lectura. Si se pasa de aqui, se le da el formulario manual.
  *
  * Sin esto, un motor que se queda a medias (wasm que no instancia, memoria que
@@ -208,6 +224,18 @@ let worker = null;
 let cargando = null;
 
 /**
+ * Aviso del `errorHandler` de la lectura en curso.
+ *
+ * `errorHandler` NO es opcional aunque lo parezca, y aqui menos que en el
+ * worker: sin el, tesseract hace `throw Error(data)` desde el manejador de
+ * mensajes de su Worker, o sea FUERA de cualquier promesa. Eso no lo recoge
+ * ningun try/catch, sale en la consola como error no capturado y ademas lo
+ * recoge `errores.js`, que lo manda a `errores_cliente`. Una captura rara de
+ * una persona se convertia en un fallo global de la web.
+ */
+let fallo = null;
+
+/**
  * Arranca el worker de tesseract. Una sola vez por pestaña.
  *
  * `cargando` evita que dos fotos elegidas seguidas arranquen dos motores de
@@ -235,9 +263,13 @@ function arrancar(alProgresar) {
       logger: (m) => {
         if (alProgresar && typeof m.progress === 'number') alProgresar(m.status, m.progress);
       },
+      errorHandler: (datos) => { fallo = datos; },
     });
 
-    await worker.setParameters({ tessedit_pageseg_mode: SEGMENTACION });
+    await worker.setParameters({
+      tessedit_pageseg_mode: SEGMENTACION,
+      user_defined_dpi: RESOLUCION,
+    });
     return worker;
   })();
 
@@ -251,6 +283,7 @@ export async function cerrar() {
   const suyo = worker;
   worker = null;
   cargando = null;
+  fallo = null;
   if (suyo) await suyo.terminate().catch(() => {});
 }
 
@@ -325,7 +358,17 @@ export async function extraer(imagen, alProgresar) {
     ]);
 
     const motor = await conReloj(arrancar(alProgresar));
+
+    // El aviso es de ESTA lectura: se limpia antes de pedirla, porque el
+    // manejador se instala una vez y el motor se reutiliza.
+    fallo = null;
+
     const { data } = await conReloj(motor.recognize(lienzo));
+
+    // Tesseract puede avisar de un problema sin llegar a rechazar la promesa.
+    // Lo leido entonces no es de fiar: mejor el formulario a mano.
+    if (fallo) throw new Error(String(fallo).slice(0, 200));
+
     const texto = String(data.text || '');
 
     return {
@@ -338,6 +381,10 @@ export async function extraer(imagen, alProgresar) {
   } catch (error) {
     // Un navegador sin SIMD, sin espacio o sin red se queda aqui. No es un
     // error del usuario y no se le cuenta como tal: se le da el formulario.
+    // `console.debug` y no `console.error` a proposito: esto NO es un fallo de
+    // la web, es una captura que no se ha podido leer, y para eso esta el
+    // formulario a mano. Sacarlo como error llenaria la consola de rojo y el
+    // recogedor de errores de ruido.
     console.debug('No se ha podido leer la captura en el navegador', error);
     return { disponible: false, error: error?.message || 'No se ha podido leer la captura.' };
   } finally {

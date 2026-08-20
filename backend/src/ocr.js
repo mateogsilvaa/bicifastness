@@ -67,6 +67,22 @@ const TIMEOUT_MS = 60000;
 const SEGMENTACION = '3';
 
 /**
+ * Resolucion que se le declara a tesseract.
+ *
+ * Si no se le dice, la estima y ESCRIBE UN AVISO en cada lectura ("Estimating
+ * resolution as 608"). Emscripten manda ese aviso por `printErr`, que en el
+ * navegador es `console.error`: una linea roja por captura, en la pantalla
+ * donde la gente sube sus viajes. Parece que la web esta rota.
+ *
+ * El valor no es un 300 copiado de un tutorial: la captura se normaliza a 1400
+ * px de ancho y una pantalla de movil mide unos 7 cm, o sea unos 600 puntos por
+ * pulgada de verdad, que es ademas lo que estimaba tesseract solo. Sobre el
+ * banco de capturas da los mismos aciertos que sin declararlo (55/55, medido
+ * con 300, con 600 y sin nada), asi que esto solo calla el aviso.
+ */
+const RESOLUCION = '600';
+
+/**
  * Donde se guardan los datos de idioma para no volver a bajarlos.
  *
  * OJO con el directorio: tesseract.js escribe el `.traineddata` en `cachePath`
@@ -277,7 +293,10 @@ async function obtenerWorker() {
     cachePath: CACHE,
     errorHandler: (datos) => { fallo = datos; },
   });
-  await worker.setParameters({ tessedit_pageseg_mode: SEGMENTACION });
+  await worker.setParameters({
+    tessedit_pageseg_mode: SEGMENTACION,
+    user_defined_dpi: RESOLUCION,
+  });
   return worker;
 }
 

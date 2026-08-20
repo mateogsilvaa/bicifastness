@@ -429,6 +429,15 @@ input[type='checkbox'] {
 .tabla tr.tuya td { background: var(--papel-2); }
 .tabla tr.tuya td:first-child { box-shadow: inset 3px 0 0 var(--azul); }
 
+/**
+ * Contenedor para tablas anchas.
+ *
+ * El desplazamiento tiene que quedarse DENTRO de la tabla: si desborda, el que
+ * se mueve de lado es el documento entero, y en movil eso desplaza la pagina
+ * cada vez que rozas la tabla al bajar.
+ */
+.tabla-scroll { overflow-x: auto; }
+
 /* --- Estado vacio ---------------------------------------------------------- */
 
 .vacio {

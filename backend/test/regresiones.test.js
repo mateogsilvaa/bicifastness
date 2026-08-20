@@ -348,9 +348,6 @@ test('el sistema de diseno no admite sombras', () => {
  */
 const PENDIENTES_DE_REDISENIO = [
   'admin/index.html',
-  'entrar/index.html',
-  'info/index.html',
-  'register/index.html',
   'statssss/index.html',
 ];
 

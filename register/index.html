@@ -1,82 +1,83 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Crea tu cuenta de BiciFastness y empieza a competir con tus trayectos en BiciMAD.">
+<meta name="robots" content="noindex">
 <title>Crear cuenta | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<style>
-  body { justify-content: center; align-items: center; padding: 20px 0; }
-  .card { width: 100%; max-width: 380px; text-align: center; }
-  h1 { font-size: 1.5rem; color: var(--text-main); margin: 0 0 4px; letter-spacing: .01em; font-stretch: 88%; }
-  h2.sub { border: none; color: var(--text-tenue); font-family: var(--fuente-mono); font-weight: 500; font-size: .66rem; text-transform: uppercase; letter-spacing: .2em; margin: 0 0 22px; display: block; padding: 0; }
-  h2.sub::before { display: none; }
-  input { margin: 8px 0; text-align: left; }
-  .pista { font-size: .75rem; color: var(--text-muted); text-align: left; margin: -4px 0 8px; min-height: 16px; }
-  .pista.mal { color: var(--error); }
-  .legal { text-align: left; font-size: .8rem; color: var(--text-muted); margin: 18px 0 4px; line-height: 1.5; }
-  .legal label { display: flex; gap: 10px; align-items: flex-start; text-transform: none; font-size: .8rem; font-weight: 400; color: var(--text-muted); margin-bottom: 10px; cursor: pointer; }
-  .legal input[type=checkbox] { width: 18px; height: 18px; margin: 2px 0 0; flex-shrink: 0; accent-color: var(--primary); }
-  .legal a { color: var(--primary-claro); font-weight: 600; }
-  .legal input[type=checkbox] { accent-color: var(--primary); }
-  .enlace { display: block; margin-top: 15px; font-size: .85rem; color: var(--text-muted); text-decoration: none; font-weight: 600; }
-  .enlace:hover { color: var(--primary); }
-  #pie-legal { border: none; margin-top: 24px; padding: 0; }
-</style>
 </head>
 <body>
-<main class="card">
-  <h1>BiciFastness</h1>
-  <h2 class="sub">Crear cuenta</h2>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+
+<main class="container estrecho" id="principal">
+  <a class="fila" href="/" style="text-decoration: none; margin-bottom: var(--e6);">
+    <img src="/images/logo.png" alt="" width="32" height="32">
+    <span class="h2" style="margin: 0;">BiciFastness</span>
+  </a>
+
+  <h1 class="h1">Crear cuenta</h1>
 
   <form id="form-registro" novalidate>
-    <label class="solo-lectores" for="username">Nombre de piloto</label>
-    <input type="text" id="username" placeholder="Nombre de piloto" autocomplete="nickname"
-           minlength="3" maxlength="24" required>
-    <p class="pista" id="pista-username"></p>
+    <div class="campo">
+      <label for="username">Nombre de piloto</label>
+      <input id="username" name="username" type="text" autocomplete="nickname"
+             maxlength="20" required aria-describedby="pista-username">
+      <p class="menor apagado" id="pista-username" aria-live="polite">
+        Es el nombre que veran los demas en la clasificacion.
+      </p>
+    </div>
 
-    <label class="solo-lectores" for="email">Correo electronico</label>
-    <input type="email" id="email" placeholder="Correo electronico" autocomplete="email" required>
+    <div class="campo">
+      <label for="email">Correo electronico</label>
+      <input id="email" name="email" type="email" autocomplete="email" required>
+    </div>
 
-    <label class="solo-lectores" for="password">Contrasena</label>
-    <input type="password" id="password" placeholder="Contrasena (minimo 8 caracteres)"
-           autocomplete="new-password" minlength="8" required>
-    <p class="pista" id="pista-password"></p>
+    <div class="campo">
+      <label for="password">Contrasena</label>
+      <input id="password" name="password" type="password" autocomplete="new-password"
+             required aria-describedby="pista-password">
+      <p class="menor apagado" id="pista-password" aria-live="polite"></p>
+    </div>
 
-    <label class="solo-lectores" for="password2">Repite la contrasena</label>
-    <input type="password" id="password2" placeholder="Repite la contrasena"
-           autocomplete="new-password" required>
+    <div class="campo">
+      <label for="password2">Repite la contrasena</label>
+      <input id="password2" name="password2" type="password" autocomplete="new-password" required>
+    </div>
 
-    <!-- Consentimiento explicito, separado y sin marcar por defecto: es lo que
-         exige el RGPD (art. 7) para poder acreditarlo despues. -->
-    <div class="legal">
-      <label>
-        <input type="checkbox" id="acepta-terminos">
-        <span>He leido y acepto los <a href="/legal/terminos/" target="_blank" rel="noopener">Terminos de Uso</a>.</span>
-      </label>
-      <label>
-        <input type="checkbox" id="acepta-privacidad">
-        <span>He leido la <a href="/legal/privacidad/" target="_blank" rel="noopener">Politica de Privacidad</a> y acepto el tratamiento de mis datos descrito en ella.</span>
-      </label>
-      <label>
+    <!--
+      Casillas SIN premarcar y separadas: el consentimiento tiene que ser un acto
+      expreso para cada cosa. Hay un test que comprueba que ninguna nace marcada.
+    -->
+    <div class="pila" style="margin-bottom: var(--e5);">
+      <label class="fila menor">
         <input type="checkbox" id="acepta-edad">
-        <span>Confirmo que tengo 14 anos o mas.</span>
+        <span>Tengo 14 anos o mas.</span>
+      </label>
+      <label class="fila menor">
+        <input type="checkbox" id="acepta-terminos">
+        <span>He leido y acepto los <a href="/legal/terminos/">terminos de uso</a>.</span>
+      </label>
+      <label class="fila menor">
+        <input type="checkbox" id="acepta-privacidad">
+        <span>He leido la <a href="/legal/privacidad/">politica de privacidad</a>.</span>
       </label>
     </div>
 
-    <button type="submit" id="btn-registro">Empezar a competir</button>
+    <button type="submit" class="btn" id="btn-registro">Crear mi cuenta</button>
+    <p class="mensaje" id="mensaje" aria-live="polite"></p>
   </form>
 
-  <p class="mensaje" id="mensaje"></p>
-
-  <a href="/entrar/" class="enlace">Ya tengo cuenta. Iniciar sesion</a>
-  <a href="/" class="enlace">Explorar sin cuenta</a>
-
-  <footer id="pie-legal"></footer>
+  <p class="menor" style="margin-top: var(--e5);">
+    <a href="/entrar/">Ya tengo cuenta</a>
+  </p>
 </main>
+
+<footer id="pie-legal"></footer>
 
 <script type="module" src="/assets/js/paginas/register.js"></script>
 </body>

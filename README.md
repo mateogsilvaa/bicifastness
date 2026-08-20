@@ -191,16 +191,27 @@ Revisa la salida y, si cuadra, repite con `--aplicar`.
 
 ## Modo mantenimiento
 
-Para dejar el sitio en obras (util mientras se rota lo comprometido, o ante
-cualquier incidente):
+El sitio esta en obras ahora mismo, y lo hace **el PRIMER redirect** de
+`vercel.json`:
 
-Anade el bloque `redirects` a `vercel.json` y haz push. Para volver a abrir la
-web, **borra ese bloque entero**. No hace falta tocar nada mas.
+```json
+{ "source": "/((?!mantenimiento|images/).*)", "destination": "/mantenimiento/", "permanent": false }
+```
 
-Lo hace el bloque `redirects` de `vercel.json`, que manda todo a la pagina de
-obras. En Vercel los redirects se evaluan **antes** del sistema de ficheros, asi
-que tapan tambien las paginas que existen: sin eso, entrar a `/admin/`
-escribiendo la URL seguiria funcionando.
+En Vercel los redirects se evaluan **antes** del sistema de ficheros, asi que
+tapan tambien las paginas que existen: sin eso, entrar a `/admin/` escribiendo
+la URL seguiria funcionando.
+
+**Para volver a abrir la web, borra SOLO ese primer redirect** (issue #7). Los
+demas NO se tocan: son las rutas viejas del redisenio — `/home/`, `/ranking/`,
+`/bicirating/`, `/mapa/`, `/clanes/` y `/profile/` — que estan enlazadas desde
+fuera y se quedan para siempre.
+
+Y una advertencia que costo cinco despliegues fallidos: **`vercel.json` no
+admite comentarios**, ni siquiera con la convencion de la clave `"//"`. Su
+esquema rechaza cualquier clave que no conozca y el despliegue ni llega a
+construirse ("should NOT have additional property"). Lo que haya que explicar,
+se explica aqui. Hay un test que lo vigila.
 
 La pagina de obras es autocontenida a proposito: sin scripts, sin depender de
 `app.css` ni de ningun modulo. Si algo del sitio se rompe, tiene que seguir en pie.

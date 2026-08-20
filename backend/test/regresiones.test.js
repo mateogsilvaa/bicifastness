@@ -879,3 +879,49 @@ test('el worker no falla cuando todavia no hay credenciales', () => {
   assert.match(leerCodigo('backend/worker.js'), /Falta FIREBASE_SERVICE_ACCOUNT[\s\S]{0,80}process\.exit\(1\)/);
 });
 
+
+// --- Despliegue ----------------------------------------------------------------
+
+test('vercel.json no lleva claves que Vercel no entienda', () => {
+  // Esto tumbo CINCO despliegues seguidos y no se veia en ningun sitio: el
+  // fichero llevaba un comentario con la convencion de la clave "//" — que es
+  // JSON perfectamente valido — y el esquema de Vercel rechaza cualquier clave
+  // que no conozca. El despliegue ni llega a construirse: falla con "should NOT
+  // have additional property `//`" y el sitio se queda con lo ultimo que
+  // funcionase.
+  //
+  // La lista es la de propiedades de configuracion de proyecto de Vercel que
+  // usa este repositorio. Si hace falta una nueva, se añade AQUI a proposito,
+  // que es lo que obliga a comprobar que existe de verdad.
+  const PERMITIDAS = [
+    '$schema', 'cleanUrls', 'trailingSlash', 'redirects', 'rewrites',
+    'headers', 'buildCommand', 'outputDirectory', 'installCommand',
+    'framework', 'regions', 'ignoreCommand',
+  ];
+
+  const vercel = JSON.parse(leer('vercel.json'));
+  for (const clave of Object.keys(vercel)) {
+    assert.ok(PERMITIDAS.includes(clave),
+      `vercel.json tiene la clave "${clave}", que Vercel rechaza. `
+      + 'Los comentarios van al README: ese fichero no los admite.');
+  }
+});
+
+test('el modo mantenimiento tapa el sitio pero no las rutas viejas', () => {
+  // El primer redirect es el que pone la web en obras, y el README dice que
+  // para reabrir hay que borrar SOLO ese. Si alguien lo mueve de sitio, esa
+  // instruccion se convierte en "borra las rutas viejas", que estan enlazadas
+  // desde fuera.
+  const { redirects } = JSON.parse(leer('vercel.json'));
+  assert.ok(Array.isArray(redirects) && redirects.length > 1);
+
+  assert.match(redirects[0].destination, /^\/mantenimiento\//,
+    'el primer redirect ya no es el de mantenimiento; revisa el README');
+  assert.strictEqual(redirects[0].permanent, false,
+    'el redirect de mantenimiento tiene que ser temporal, o los navegadores lo cachean para siempre');
+
+  for (const vieja of ['/home', '/ranking', '/mapa']) {
+    assert.ok(redirects.some((r) => r.source === vieja),
+      `falta el redirect de la ruta vieja ${vieja}`);
+  }
+});

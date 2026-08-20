@@ -1,23 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "//": [
-    "El sitio se sirve desde Vercel, conectado a la rama main de este repo.",
-    "",
-    "Se eligio Vercel sobre GitHub Pages por UNA razon: Pages no permite",
-    "configurar cabeceras HTTP, y ahi se pierden seis de seguridad, entre",
-    "ellas `frame-ancestors` y HSTS. El bloque `headers` de abajo esta",
-    "GENERADO desde shared/cabeceras.json: no lo edites a mano, lanza",
-    "`npm run cabeceras`.",
-    "",
-    "MODO MANTENIMIENTO ACTIVO: el PRIMER redirect manda todo a la pagina de",
-    "obras. En Vercel los redirects se evaluan ANTES del sistema de ficheros,",
-    "asi que tapan tambien las paginas que existen: sin eso, entrar a /admin/",
-    "escribiendo la URL seguiria funcionando.",
-    "",
-    "PARA VOLVER A ABRIR LA WEB: borra SOLO ese primer redirect. Los demas son",
-    "las rutas viejas del redisenio y se quedan para siempre: /home/, /ranking/,",
-    "/bicirating/, /mapa/, /clanes/ y /profile/ estan enlazadas desde fuera."
-  ],
   "cleanUrls": true,
   "trailingSlash": true,
   "redirects": [

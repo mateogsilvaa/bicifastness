@@ -99,6 +99,45 @@ const PUNTOS = {
   ESTACION_POR_POSICION: [7, 5, 3, 1, 1, 1, 1, 1, 1, 1],
 };
 
+// --- Puntos de cada viaje ----------------------------------------------------
+/**
+ * La v1 solo media el tiempo entre dos estaciones, asi que solo puntuaba ir
+ * rapido: quien hacia 40 km tranquilos a la semana no aparecia en ningun sitio
+ * y se iba. Estos numeros reparten los puntos entre distancia y velocidad para
+ * que quepan los dos perfiles. Ver docs/JUEGO.md.
+ *
+ * Comprobacion de que ninguno domina al otro:
+ *   velocista  1,5 km a 20 km/h -> 10 + 9  + 30 = 49
+ *   fondista   6,0 km a 12 km/h -> 10 + 36 + 10 = 56
+ *   diario     2,5 km a 13 km/h -> 10 + 15 + 13 = 38
+ */
+const VIAJE = {
+  BASE: 10,
+  PUNTOS_POR_KM: 6,
+  // Por debajo de esta velocidad no se puntua por ir rapido, pero TAMPOCO se
+  // resta: un trayecto lento sigue sumando por base y por distancia.
+  VELOCIDAD_UMBRAL_KMH: 8,
+  PUNTOS_POR_KMH: 2.5,
+  // Bonus por pedalear en una estacion que controla tu clan. Solo un 10%: mas
+  // alto convertiria el juego en una bola de nieve, porque el clan que domina
+  // puntuaria mas y con ello dominaria mas.
+  MULTIPLICADOR_TERRITORIO: 1.1,
+};
+
+// --- Racha diaria ------------------------------------------------------------
+/**
+ * El escudo no es un regalo: perder una racha de 40 dias por un dia de gripe
+ * hace que la gente ABANDONE, no que se esfuerce mas. Y se gasta solo, porque
+ * si hubiera que entrar en la web a usarlo seria el mismo problema que intenta
+ * evitar.
+ */
+const RACHA = {
+  INCREMENTO_POR_DIA: 0.05,
+  DIAS_TOPE: 10,          // el multiplicador deja de crecer aqui: x1,5
+  DIAS_POR_ESCUDO: 7,
+  MAX_ESCUDOS: 2,
+};
+
 // --- Version vigente de los textos legales ----------------------------------
 /**
  * Al subir la version se fuerza a todos los usuarios a volver a aceptar los
@@ -110,4 +149,4 @@ const LEGAL = {
   VERSION_PRIVACIDAD: '1.0.0',
 };
 
-module.exports = { LIMITES, FISICA, TIEMPO, RIESGO, IMAGEN, PUNTOS, LEGAL, HORARIO };
+module.exports = { LIMITES, FISICA, TIEMPO, RIESGO, IMAGEN, PUNTOS, VIAJE, RACHA, LEGAL, HORARIO };

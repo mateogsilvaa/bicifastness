@@ -10,13 +10,78 @@
  */
 
 const admin = require('firebase-admin');
-const { PUNTOS } = require('./config');
+const { PUNTOS, VIAJE } = require('./config');
+const rachas = require('./rachas');
 
 const db = () => admin.firestore();
 
 /** Puntos que da una posicion (0-indexada) en el ranking de una ruta. */
 function puntosPorPosicion(indice) {
   return PUNTOS.POR_POSICION[indice] ?? 0;
+}
+
+// --- Puntos de un viaje suelto -----------------------------------------------
+/**
+ * Lo que suma un trayecto por si mismo, al margen de la clasificacion del tramo.
+ *
+ * Este es el cambio que hace que el juego deje de ser solo de velocistas: un
+ * fondista de 6 km a 12 km/h y un velocista de 1,5 km a 20 km/h acaban en el
+ * mismo orden de magnitud. Los numeros y su justificacion, en `config.js` y en
+ * docs/JUEGO.md.
+ *
+ * Devuelve tambien el desglose, porque un jugador que no entiende de donde
+ * salen sus puntos no confia en la puntuacion.
+ *
+ * @param {object} viaje
+ * @param {number} viaje.distanciaMetros
+ * @param {number} [viaje.velocidadKmh]
+ * @param {number} [viaje.multiplicadorRuta]  x2 si es la ruta del dia
+ * @param {number} [viaje.racha]              dias de racha del piloto
+ * @param {boolean} [viaje.territorioPropio]  toca estacion que controla su clan
+ * @param {boolean} [viaje.puntua]            false pasado el cupo diario
+ */
+function calcularPuntosViaje({
+  distanciaMetros,
+  velocidadKmh = null,
+  multiplicadorRuta = 1,
+  racha = 0,
+  territorioPropio = false,
+  puntua = true,
+} = {}) {
+  const km = Math.max(0, Number(distanciaMetros) || 0) / 1000;
+  const kmh = Math.max(0, Number(velocidadKmh) || 0);
+
+  const base = VIAJE.BASE;
+  const porDistancia = Math.round(km * VIAJE.PUNTOS_POR_KM);
+  // El maximo(0, ...) es lo que hace que un trayecto lento no reste: sigue
+  // sumando por base y por distancia.
+  const porVelocidad = Math.round(
+    Math.max(0, kmh - VIAJE.VELOCIDAD_UMBRAL_KMH) * VIAJE.PUNTOS_POR_KMH
+  );
+
+  const bruto = base + porDistancia + porVelocidad;
+
+  const multRacha = rachas.multiplicador(racha);
+  const multTerritorio = territorioPropio ? VIAJE.MULTIPLICADOR_TERRITORIO : 1;
+  const multRuta = Number(multiplicadorRuta) || 1;
+
+  // Pasado el cupo diario el viaje se registra en las estadisticas pero no da
+  // puntos. El cupo lo cuenta el worker sobre Firestore, nunca el navegador.
+  const total = puntua ? Math.round(bruto * multRacha * multRuta * multTerritorio) : 0;
+
+  return {
+    total,
+    puntua,
+    desglose: {
+      base,
+      distancia: porDistancia,
+      velocidad: porVelocidad,
+      subtotal: bruto,
+      multiplicadorRacha: multRacha,
+      multiplicadorRuta: multRuta,
+      multiplicadorTerritorio: multTerritorio,
+    },
+  };
 }
 
 /** Multiplicador de la ruta segun si esta destacada o es historica. */
@@ -212,6 +277,7 @@ async function recalcularTrasCambio(ruta) {
 }
 
 module.exports = {
+  calcularPuntosViaje,
   recalcularRuta,
   recalcularClan,
   recalcularEstacion,

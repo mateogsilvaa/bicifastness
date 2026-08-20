@@ -207,6 +207,11 @@ demas NO se tocan: son las rutas viejas del redisenio — `/home/`, `/ranking/`,
 `/bicirating/`, `/mapa/`, `/clanes/` y `/profile/` — que estan enlazadas desde
 fuera y se quedan para siempre.
 
+El sitio es estatico y se sirve desde la RAIZ del repositorio, y por eso
+`vercel.json` declara `"outputDirectory": "."`. No es opcional: en cuanto hay un
+`buildCommand`, Vercel busca la salida en `public/` y falla con "No Output
+Directory named public found".
+
 Y una advertencia que costo cinco despliegues fallidos: **`vercel.json` no
 admite comentarios**, ni siquiera con la convencion de la clave `"//"`. Su
 esquema rechaza cualquier clave que no conozca y el despliegue ni llega a

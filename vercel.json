@@ -110,5 +110,6 @@
       ]
     }
   ],
-  "buildCommand": "node scripts/build-version.js"
+  "buildCommand": "node scripts/build-version.js",
+  "outputDirectory": "."
 }

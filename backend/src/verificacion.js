@@ -358,6 +358,7 @@ function evaluar(contexto) {
     metros: fisica.metros,
     kmh: fisica.kmh,
     evaluadoEn: new Date().toISOString(),
+    varianteCaptura: contexto.lectura?.variante || null,
   };
 }
 

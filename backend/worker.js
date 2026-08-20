@@ -243,6 +243,9 @@ async function resolver(doc, veredicto) {
     estado: veredicto.decision,
     verificado: aprobado,
     auditoria: veredicto,
+    // De donde venia la captura. No decide nada, pero sin esto "el OCR falla a
+    // veces" no se convierte nunca en "falla en recortes de iPhone".
+    varianteCaptura: veredicto.varianteCaptura || null,
     revisadoPor: 'automatico',
     revisadoEn: AHORA(),
   });

@@ -32,6 +32,7 @@
  */
 
 const path = require('path');
+const normalizar = require('./normalizar');
 
 // tesseract.js trae binarios y datos de idioma. Si el entorno no lo tiene, el
 // pipeline sigue en pie: sin lectura, todo va a revision manual.
@@ -60,40 +61,6 @@ const MARCADORES = [
   'bicimad', 'emt', 'trayecto', 'recorrido', 'duracion', 'duración',
   'estacion', 'estación', 'salida', 'llegada', 'bicicleta',
 ];
-
-/**
- * Prepara la imagen para el OCR. Devuelve null si no es una imagen legible.
- *
- * El texto de una captura de movil es pequeño y tesseract acierta bastante mas
- * si se amplia y se sube el contraste. Se hace aqui y no en `imagen.js` porque
- * esta version deformada NO debe usarse para las huellas: alteraria el hash.
- *
- * Que devuelva null y no el buffer original es deliberado: si sharp no sabe
- * decodificar esto, tesseract tampoco, y darselo igualmente es lo que hacia
- * que reventara (ver `leerCaptura`).
- */
-async function preparar(buffer) {
-  let sharp;
-  try {
-    sharp = require('sharp');
-  } catch {
-    return buffer; // sin sharp se intenta con la imagen tal cual
-  }
-
-  try {
-    return await sharp(buffer)
-      .rotate()
-      .greyscale()
-      .resize({ width: 1400, withoutEnlargement: false })
-      .normalise()
-      .sharpen()
-      .png()
-      .toBuffer();
-  } catch (err) {
-    console.warn('La captura no se puede decodificar:', err.message);
-    return null;
-  }
-}
 
 /** "HH:MM" o "H:MM" -> los devuelve normalizados, en orden de aparicion. */
 function extraerHoras(texto) {
@@ -146,7 +113,7 @@ async function leerCaptura({ buffer }) {
 
   let worker;
   try {
-    const preparada = await preparar(buffer);
+    const preparada = await normalizar.preparar(buffer);
     if (!preparada) {
       return { disponible: false, error: 'La captura no es una imagen legible.' };
     }
@@ -162,7 +129,7 @@ async function leerCaptura({ buffer }) {
       errorHandler: (datos) => { fallo = datos; },
     });
 
-    const reconocer = worker.recognize(preparada);
+    const reconocer = worker.recognize(preparada.buffer);
     const limite = new Promise((_, rechazar) =>
       setTimeout(() => rechazar(new Error('Tiempo de espera agotado')), TIMEOUT_MS));
 
@@ -184,6 +151,11 @@ async function leerCaptura({ buffer }) {
     return {
       disponible: true,
       esBicimad: MARCADORES.some((m) => plano.includes(m)),
+      // De donde venia la captura. No decide nada: sirve para poder MEDIR
+      // despues donde falla la extraccion. Sin esto, "el OCR falla a veces" no
+      // se convierte nunca en "falla en recortes de iPhone".
+      variante: preparada.variante,
+      oscura: preparada.oscura,
       // Confianza real que da tesseract, no una opinion.
       confianza: Math.max(0, Math.min(100, Math.round(data.confidence ?? 0))),
       origen: estaciones[0] || '',

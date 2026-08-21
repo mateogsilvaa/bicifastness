@@ -225,11 +225,11 @@ function pintarCaso() {
   ]);
 
   const aprobar = el('button', {
-    clase: 'btn-aprobar', texto: 'Aprobar (A)',
+    clase: 'btn', texto: 'Aprobar (A)',
     on: { click: () => decidir('aprobar') },
   });
   const rechazar = el('button', {
-    clase: 'btn-rechazar', texto: 'Rechazar (R)',
+    clase: 'btn peligro', texto: 'Rechazar (R)',
     on: { click: () => decidir('rechazar') },
   });
 
@@ -394,11 +394,11 @@ async function cargarReportes() {
     reemplazar(rejilla, snapshot.docs.map((doc) => {
       const reporte = doc.data();
       const botonBorrar = el('button', {
-        clase: 'btn-rechazar', texto: 'Eliminar viaje',
+        clase: 'btn peligro', texto: 'Eliminar viaje',
         on: { click: () => resolver(doc.id, 'eliminar_viaje', botonBorrar, reporte.viajeId) },
       });
       const botonIgnorar = el('button', {
-        clase: 'btn-ver', texto: 'Falsa alarma',
+        clase: 'btn plano', texto: 'Falsa alarma',
         on: { click: () => resolver(doc.id, 'ignorar', botonIgnorar, reporte.viajeId) },
       });
 
@@ -406,7 +406,7 @@ async function cargarReportes() {
         el('div', { clase: 'cabecera' }, [el('span', { texto: `Reporte en ${nombreRuta(reporte.ruta)}` })]),
         el('p', { clase: 'meta', texto: reporte.motivo || 'Sin motivo indicado.' }),
         el('button', {
-          clase: 'btn-ver', texto: 'Ver captura reportada',
+          clase: 'btn plano', texto: 'Ver captura reportada',
           on: { click: (e) => abrirCaptura(reporte.viajeId, e.currentTarget) },
         }),
         el('div', { clase: 'acciones' }, [botonIgnorar, botonBorrar]),

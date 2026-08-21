@@ -141,6 +141,51 @@ for (const fichero of [...lista, ...modulos, ...buscar(path.join(RAIZ, 'assets/c
   }
 }
 
+// --- Clases del diseno viejo --------------------------------------------------
+/**
+ * Una clase que no existe tampoco da error: el elemento sale sin estilo y ya.
+ * Igual que con los tokens, el fallo es mudo y solo se ve mirando.
+ *
+ * Estas son las clases de la v1 que el rediseno (#49) sustituyo. Se quedaron
+ * vivas en el HTML y en el JS despues de cambiar la hoja de estilos, con
+ * consecuencias que nadie habia visto:
+ *
+ *   - el DIALOGO de confirmacion salia sin caja (fondo transparente sobre el
+ *     velo oscuro) y con los botones nativos del sistema, grises y con texto
+ *     negro. El de "Eliminar mi cuenta" era identico al de "Cancelar".
+ *   - `/statssss/` tenia cuatro iconos de una fuente que no se carga — y que la
+ *     CSP no dejaria cargar —, o sea cuatro huecos vacios.
+ *
+ * No se comprueban TODAS las clases sin estilo a proposito: hay clases que solo
+ * son un asidero para el JS y no tienen por que llevar estilo. Lo que se
+ * persigue aqui es que no vuelva lo que ya se migro.
+ */
+const CLASES_MUERTAS = {
+  card: 'bloque',
+  row: 'rejilla dos',
+  'form-group': 'campo',
+  'bottom-nav': 'nada: lo pone ui.js al pintar la barra',
+  'btn-fantasma': 'btn plano',
+  'btn-peligro': 'btn peligro',
+  fi: 'el sprite propio, con <use href="/assets/img/iconos.svg#...">',
+};
+
+for (const fichero of [...lista, ...modulos]) {
+  const rel = path.relative(RAIZ, fichero).split(path.sep).join('/');
+  const contenido = fs.readFileSync(fichero, 'utf8');
+
+  for (const [muerta, reemplazo] of Object.entries(CLASES_MUERTAS)) {
+    // `\\b` y no `\b`: dentro de una plantilla, `\b` es el caracter de
+    // retroceso, no el limite de palabra de la expresion regular. Escrito mal,
+    // este guardian no encuentra nunca nada y parece que todo esta bien.
+    const patron = new RegExp(`(class="|clase: '|className = ')[^"']*\\b${muerta}\\b`);
+    if (patron.test(contenido)) {
+      console.error(`CLASE    ${rel} usa "${muerta}", del diseno viejo. Ahora es: ${reemplazo}`);
+      errores++;
+    }
+  }
+}
+
 // --- CSP ---------------------------------------------------------------------
 // Se delega en el propio generador para no tener la politica escrita en dos
 // sitios, que es justo lo que este proyecto intenta no hacer.

@@ -133,20 +133,20 @@ export function confirmar(mensaje, { textoAceptar = 'Aceptar', peligroso = false
   return new Promise((resolver) => {
     const aceptar = el('button', {
       texto: textoAceptar,
-      clase: peligroso ? 'btn-peligro' : '',
+      clase: `btn ${peligroso ? 'peligro' : ''}`,
       estilo: { flex: '1', margin: '0', minWidth: '0' },
       on: { click: () => { cerrar(); resolver(true); } },
     });
     const cancelar = el('button', {
       texto: 'Cancelar',
-      clase: 'btn-fantasma',
+      clase: 'btn plano',
       estilo: { flex: '1', margin: '0', minWidth: '0' },
       on: { click: () => { cerrar(); resolver(false); } },
     });
 
     const caja = el('div', {
       attrs: { role: 'alertdialog', 'aria-modal': 'true' },
-      clase: 'card',
+      clase: 'bloque',
       estilo: { maxWidth: '440px', width: '100%' },
     }, [
       el('p', { texto: mensaje, estilo: { margin: '0 0 20px', lineHeight: '1.5' } }),
@@ -192,6 +192,7 @@ export function pedirTexto(mensaje, {
 
     const aceptar = el('button', {
       texto: textoAceptar,
+      clase: 'btn',
       attrs: { disabled: '' },
       estilo: { flex: '1', margin: '0', minWidth: '0' },
       on: { click: () => { cerrar(); resolver(campo.value.trim()); } },
@@ -210,7 +211,7 @@ export function pedirTexto(mensaje, {
     campo.addEventListener('input', revisar);
 
     const cancelar = el('button', {
-      clase: 'btn-fantasma',
+      clase: 'btn plano',
       texto: 'Cancelar',
       estilo: { flex: '1', margin: '0', minWidth: '0' },
       on: { click: () => { cerrar(); resolver(null); } },
@@ -218,7 +219,7 @@ export function pedirTexto(mensaje, {
 
     const caja = el('div', {
       attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-label': mensaje },
-      clase: 'card',
+      clase: 'bloque',
       estilo: { maxWidth: '460px', width: '100%' },
     }, [
       el('p', { texto: mensaje, estilo: { margin: '0 0 16px', lineHeight: '1.5' } }),

@@ -72,7 +72,7 @@
 <body>
 <a href="#principal" class="saltar-contenido">Saltar al contenido</a>
 <nav id="nav-principal"></nav>
-<div class="bottom-nav" id="nav-inferior"></div>
+<div id="nav-inferior"></div>
 
 <main class="container" id="principal">
   <p id="cargando" style="color: var(--tinta-3);">Comprobando permisos...</p>
@@ -97,13 +97,13 @@
 
     <section class="seccion">
       <h2>Ruta destacada</h2>
-      <div class="card" style="margin-top: 16px;">
-        <div class="row">
-          <div class="form-group">
+      <div class="bloque">
+        <div class="rejilla dos">
+          <div class="campo">
             <label for="ruta-origen">Salida</label>
             <input type="text" id="ruta-origen" maxlength="4" placeholder="002">
           </div>
-          <div class="form-group">
+          <div class="campo">
             <label for="ruta-destino">Meta</label>
             <input type="text" id="ruta-destino" maxlength="4" placeholder="110">
           </div>
@@ -115,8 +115,8 @@
 
     <section class="seccion">
       <h2>Insignias</h2>
-      <div class="card" style="margin-top: 16px;">
-        <div class="form-group buscador">
+      <div class="bloque">
+        <div class="campo buscador">
           <label for="busca-objetivo">Buscar piloto o clan</label>
           <input type="text" id="busca-objetivo" autocomplete="off" placeholder="Escribe un nombre">
           <div class="resultados" id="resultados-busqueda"></div>
@@ -128,7 +128,7 @@
 
     <section class="seccion">
       <h2>Administradores</h2>
-      <div class="card" style="margin-top: 16px;">
+      <div class="bloque">
         <p class="meta">
           El rol de administrador es un custom claim de Firebase Auth y solo se
           puede conceder con credenciales de servicio, que nunca deben llegar al

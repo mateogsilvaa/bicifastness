@@ -938,3 +938,67 @@ test('el modo mantenimiento tapa el sitio pero no las rutas viejas', () => {
       `falta el redirect de la ruta vieja ${vieja}`);
   }
 });
+
+// --- Contraste (WCAG AA, #53) -------------------------------------------------
+
+/** Los dos bloques de tokens de `app.css`: el tema claro y el oscuro. */
+function paletas() {
+  const css = leer('assets/css/app.css');
+  const bloque = (desde) => {
+    const inicio = css.indexOf(desde);
+    assert.ok(inicio !== -1, `no encuentro el bloque ${desde}`);
+    const fin = css.indexOf('}', inicio);
+    return Object.fromEntries(
+      [...css.slice(inicio, fin).matchAll(/(--[a-z0-9-]+):\s*(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2]])
+    );
+  };
+
+  const claro = bloque(':root {');
+  // El tema oscuro redefine solo algunos: los que no, se heredan del claro.
+  return { claro, oscuro: { ...claro, ...bloque("[data-theme='dark']") } };
+}
+
+const canal = (c) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
+const luminancia = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
+};
+const contraste = (a, b) => {
+  const [mayor, menor] = [luminancia(a), luminancia(b)].sort((x, y) => y - x);
+  return (mayor + 0.05) / (menor + 0.05);
+};
+
+test('el texto pasa el 4,5:1 de la WCAG AA en los dos temas', () => {
+  // Solo los tokens que se usan COMO TEXTO. `--lima` queda fuera a proposito:
+  // en `app.css` aparece unicamente como fondo del subrayador del record, y
+  // sobre el va `--tinta`, que da de sobra.
+  const TEXTOS = ['--tinta', '--tinta-2', '--tinta-3', '--azul', '--verde', '--rojo', '--ambar'];
+  // `--papel-3` no entra: su unico uso es el fondo de un boton deshabilitado,
+  // que la propia norma excluye (1.4.3, texto de un control inactivo).
+  const FONDOS = ['--papel', '--papel-2'];
+
+  const fallos = [];
+  for (const [tema, paleta] of Object.entries(paletas())) {
+    for (const texto of TEXTOS) {
+      for (const fondo of FONDOS) {
+        const ratio = contraste(paleta[texto], paleta[fondo]);
+        if (ratio < 4.5) fallos.push(`${tema}: ${texto} (${paleta[texto]}) sobre ${fondo} = ${ratio.toFixed(2)}`);
+      }
+    }
+  }
+
+  assert.deepStrictEqual(fallos, [],
+    `hay texto por debajo del minimo legible:\n  ${fallos.join('\n  ')}`);
+});
+
+test('el indicador de foco se ve contra lo que tiene al lado', () => {
+  // 1.4.11: los elementos de interfaz necesitan 3:1. El foco es un borde azul
+  // de 2 px en los campos y un contorno azul en todo lo demas.
+  for (const [tema, paleta] of Object.entries(paletas())) {
+    for (const vecino of ['--papel', '--linea']) {
+      const ratio = contraste(paleta['--azul'], paleta[vecino]);
+      assert.ok(ratio >= 3,
+        `${tema}: el foco (--azul) sobre ${vecino} solo da ${ratio.toFixed(2)}`);
+    }
+  }
+});

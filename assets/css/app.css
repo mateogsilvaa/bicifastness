@@ -54,7 +54,12 @@
   --linea: #D9D7D1;
   --tinta: #0B0B0C;
   --tinta-2: #3A3B3E;
-  --tinta-3: #77797E;
+  /* Texto secundario. Se oscurecio de #77797E a esto para pasar el 4,5:1 de la
+     WCAG AA sobre las TRES superficies, no solo sobre el blanco: en `--papel-3`
+     se quedaba en 3,53 y ahi es donde vive media interfaz (avisos, chips,
+     filas de insignia). Es el color de 17 reglas: la letra pequeña de todo el
+     sitio. */
+  --tinta-3: #66686C;
 
   /* Acento: sale del logo. Solo accion y posicion actual. */
   --azul: #0071C3;
@@ -63,7 +68,9 @@
   /* Señales */
   --lima: #E8FF3A;
   --verde: #0B7A3B;
-  --ambar: #B26A00;
+  /* El ambar NO es solo un borde: es el color del texto del chip "En revision".
+     A #B26A00 daba 3,43 sobre `--papel-3`. */
+  --ambar: #945800;
   --rojo: #D42D1E;
 
   /* Tipografia */
@@ -96,7 +103,8 @@
   --linea: #2A2B2E;
   --tinta: #F5F4F1;
   --tinta-2: #B9B8B4;
-  --tinta-3: #7C7C7F;
+  /* Mismo motivo que en claro, al reves: sobre `--papel-3` se quedaba en 3,96. */
+  --tinta-3: #89898B;
   --azul: #3AA0F0;
   --azul-osc: #7CC0F7;
   --verde: #3DBE74;

@@ -487,14 +487,25 @@ async function reconstruirAgregados(base = null, rutas = null) {
     return agregados.reconstruir({ ...comunes, viajes, usuarios });
   }
 
-  const pedidas = [...new Set([...rutas].filter(Boolean).map(String))];
+  const movidas = [...new Set([...rutas].filter(Boolean).map(String))];
 
-  const [usuariosSnap, viajes, contados, indice, portada] = await Promise.all([
+  const [indice, portada] = await Promise.all([
+    db().doc('agregados/rutas').get(),
+    db().doc('agregados/portada').get(),
+  ]);
+
+  const catalogo = indice.exists ? (indice.data().rutas || []) : [];
+
+  // Unas pocas rutas de mas, por turno rotatorio. No es un capricho: el agregado
+  // de una ruta lleva dentro el nombre y el avatar de cada piloto, y eso cambia
+  // sin que se mueva ninguna ruta.
+  const turno = agregados.turnoDeRutas(catalogo, indice.exists ? indice.data().refrescadaHasta : null);
+  const pedidas = [...new Set([...movidas, ...turno])];
+
+  const [usuariosSnap, viajes, contados] = await Promise.all([
     db().collection('usuarios').get(),
     viajesDeRutas(pedidas),
     contarViajesVerificados(),
-    db().doc('agregados/rutas').get(),
-    db().doc('agregados/portada').get(),
   ]);
 
   // Si el conteo falla se conserva el numero anterior. Lo que NO se puede hacer
@@ -509,10 +520,11 @@ async function reconstruirAgregados(base = null, rutas = null) {
     viajes,
     usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
     parcial: true,
-    rutasPrevias: indice.exists ? (indice.data().rutas || []) : [],
+    rutasPrevias: catalogo,
     conteosPrevios: indice.exists ? (indice.data().viajesPorRuta || {}) : {},
     rutasRehechas: pedidas,
     totalViajes,
+    refrescadaHasta: turno.length ? turno[turno.length - 1] : null,
   });
 }
 

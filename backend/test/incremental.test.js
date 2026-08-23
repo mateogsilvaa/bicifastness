@@ -370,3 +370,56 @@ test('el tope no cambia quien puntua', async () => {
   assert.strictEqual(mejores.length, 7, 'no puntuan exactamente siete pilotos');
   assert.strictEqual(mejores[0].puntos, 80, 'el primero no lleva los puntos del primero');
 });
+
+// --- El turno de refresco ------------------------------------------------------
+
+test('el turno recorre el catalogo y da la vuelta', () => {
+  const rutas = ['a', 'b', 'c', 'd', 'e'];
+
+  assert.deepStrictEqual(agregados.turnoDeRutas(rutas, null, 2), ['a', 'b']);
+  assert.deepStrictEqual(agregados.turnoDeRutas(rutas, 'b', 2), ['c', 'd']);
+  // Sin vuelta, el final del catalogo dejaria de refrescarse para siempre en
+  // cuanto el cursor llegara ahi, y eso no se nota hasta que alguien se queja.
+  assert.deepStrictEqual(agregados.turnoDeRutas(rutas, 'd', 3), ['e', 'a', 'b']);
+  assert.deepStrictEqual(agregados.turnoDeRutas(rutas, 'z', 2), ['a', 'b']);
+});
+
+test('el turno aguanta un catalogo vacio o mas corto que el turno', () => {
+  assert.deepStrictEqual(agregados.turnoDeRutas([], null, 3), []);
+  assert.deepStrictEqual(agregados.turnoDeRutas(undefined, null, 3), []);
+  assert.deepStrictEqual(agregados.turnoDeRutas(['a'], null, 3), ['a']);
+});
+
+test('un piloto que se renombra acaba actualizado en las rutas que no ha tocado', async () => {
+  // El agregado de una ruta lleva dentro el nombre del piloto, y eso cambia sin
+  // que se mueva ninguna ruta. Antes lo tapaba la reconstruccion completa de
+  // cada seis horas; ahora tiene que hacerlo el turno.
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+
+  const conElPiloto = RUTAS.filter((r) => bd.leer(`agregados/ruta-${r}`)
+    .filas.some((f) => f.nombre === 'piloto-0'));
+  assert.ok(conElPiloto.length > 1, 'el piloto tiene que salir en varias rutas');
+
+  await bd.doc('usuarios/u0').update({ username: 'renombrado' });
+
+  // Muchas reconstrucciones sin tocar NINGUNA ruta: solo el turno trabaja.
+  const vueltas = Math.ceil(RUTAS.length / agregados.RUTAS_POR_TURNO) + 1;
+  for (let i = 0; i < vueltas; i++) await puntuacion.reconstruirAgregados(null, new Set());
+
+  for (const ruta of conElPiloto) {
+    const filas = bd.leer(`agregados/ruta-${ruta}`).filas;
+    assert.ok(!filas.some((f) => f.nombre === 'piloto-0'),
+      `la ruta ${ruta} sigue con el nombre viejo`);
+  }
+});
+
+test('el turno no borra el indice al pasar por rutas que no se han movido', async () => {
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+
+  for (let i = 0; i < 5; i++) await puntuacion.reconstruirAgregados(null, new Set());
+
+  assert.strictEqual(bd.leer('agregados/rutas').rutas.length, RUTAS.length);
+  assert.strictEqual(Object.keys(bd.leer('agregados/rutas').viajesPorRuta).length, RUTAS.length);
+});

@@ -947,16 +947,23 @@ async function avisarPorPush(viajeId, viaje, decision) {
  * no ha salido todavia. Avisar a quien ya salio, o dos veces, es como se
  * desactivan los avisos para siempre.
  */
-async function avisarRachasEnPeligro(base) {
+async function avisarRachasEnPeligro() {
   const hora = Number(new Date().toLocaleString('en-US', {
     timeZone: 'Europe/Madrid', hour: '2-digit', hour12: false,
   }));
 
   // La ventana es de una hora: el worker corre cada cinco minutos y GitHub
   // retrasa los cron, asi que exigir una hora exacta se saltaria dias enteros.
+  //
+  // La comprobacion de la hora va ANTES de leer nada: esto se ejecuta en las 288
+  // pasadas del dia y solo hace algo en una.
   if (hora !== 20) return 0;
 
-  const usuarios = base?.usuarios || (await puntuacion.cargarBase()).usuarios;
+  // Solo `usuarios`. Antes tiraba de la carga compartida, que traia ademas
+  // `tiempos_viaje` entera: 15.000 lecturas al dia para un aviso que no mira ni
+  // un viaje.
+  const snap = await db.collection('usuarios').get();
+  const usuarios = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
   const hoy = territorio.dia();
   const enPeligro = push.rachaEnPeligro(usuarios, hoy);
 
@@ -1210,44 +1217,32 @@ async function main() {
 
   const resumirMetricas = !SIMULAR && !degradado && await metricas.tocaResumir().catch(() => false);
   const rehacerPesado = !SIMULAR && !degradado;
-  let base = null;
 
-  // `base` son `usuarios` y `tiempos_viaje` ENTEROS: 15.200 lecturas con los
-  // datos de u200. Solo se carga para el resumen de metricas, que es el unico
-  // que de verdad los necesita todos — la retencion por cohortes no sale de otro
-  // sitio — y que va como mucho cada seis horas.
-  //
-  // El dominio de las estaciones y los agregados ya no la piden: cada uno lee lo
-  // suyo acotado por ruta. Cuando el resumen SI toca, se la pasan y aprovechan
-  // la lectura que ya esta hecha (#34).
-  if (rehacerPesado && resumirMetricas) {
-    base = await puntuacion.cargarBase();
-  }
+  // Ninguna de las tres cosas de abajo lee ya una coleccion entera: el dominio
+  // pide los viajes de las rutas que tocan sus estaciones, los agregados los de
+  // las rutas movidas, y el resumen de metricas no pide viajes en absoluto. Por
+  // eso ya no hay una carga compartida que repartir entre ellas (#34).
 
   // El dominio de las estaciones que se han movido en esta ejecucion, de una
-  // tacada y con la carga ya hecha.
+  // tacada: recalcular la misma estacion diez veces da diez veces lo mismo.
   if (rehacerPesado && estacionesTocadas.size) {
-    const cuantas = await puntuacion.recalcularEstaciones(estacionesTocadas, base);
+    const cuantas = await puntuacion.recalcularEstaciones(estacionesTocadas);
     console.log(`Dominio recalculado en ${cuantas} estaciones.`);
     estacionesTocadas.clear();
   }
 
   if (rehacerPesado && rehacerAgregados) {
-    // `base` gana a `rutasTocadas`: si ya estan los viajes leidos, la
-    // reconstruccion completa no cuesta mas y ademas limpia los agregados de las
-    // rutas que se hayan quedado sin viajes, que la parcial no puede ver.
-    //
-    // Sin `base` se rehacen las rutas de esta pasada MAS las que quedaron
-    // apuntadas de las pasadas que el limitador salto. Si no, una ruta movida
-    // durante esos quince minutos se quedaria con el agregado viejo.
-    const rutas = base ? null : new Set([...rutasTocadas, ...await agregados.leerPendientes()]);
+    // Las rutas de esta pasada MAS las que quedaron apuntadas de las pasadas que
+    // el limitador salto. Si no, una ruta movida durante esos quince minutos se
+    // quedaria con el agregado viejo.
+    const rutas = new Set([...rutasTocadas, ...await agregados.leerPendientes()]);
 
-    const escritos = await puntuacion.reconstruirAgregados(base, rutas);
-    console.log(`Agregados reconstruidos (${base ? 'completa' : `parcial, ${rutas.size} rutas`}): `
-      + JSON.stringify(escritos));
+    const escritos = await puntuacion.reconstruirAgregados(null, rutas);
+    console.log(`Agregados reconstruidos (${rutas.size} rutas movidas`
+      + ` + ${agregados.RUTAS_POR_TURNO} de turno): ${JSON.stringify(escritos)}`);
 
     // Despues de reconstruir, no antes: si falla, las rutas siguen apuntadas.
-    if (rutas) await agregados.olvidarPendientes();
+    await agregados.olvidarPendientes();
     rutasTocadas.clear();
   } else if (huboMovimiento && !SIMULAR) {
     // Se apuntan para la proxima: el proceso muere al acabar la ejecucion, asi
@@ -1281,8 +1276,7 @@ async function main() {
 
     try {
       if (resumirMetricas) {
-        // `base` ya esta cargada: la comparte con los agregados.
-        await metricas.resumir(base || await puntuacion.cargarBase());
+        await metricas.resumir();
         console.log('Metricas: resumen y cohortes recalculados.');
 
         // Los errores del cliente tienen un plazo de conservacion en la
@@ -1304,10 +1298,10 @@ async function main() {
   console.log(`\nResumen: ${cuenta.aprobado} aprobados, ${cuenta.rechazado} rechazados, `
     + `${cuenta.revision} a revision, ${cuenta.error} con error.`);
 
-  // Los avisos de racha necesitan `usuarios`, que a esta altura ya esta cargada
-  // si ha habido movimiento. Si no la hay, la funcion la pide: pasa una vez al
-  // dia, a las 20:00, y es el aviso que justifica todo el push.
-  if (!degradado) await avisarRachasEnPeligro(base);
+  // Los avisos de racha leen `usuarios` una vez al dia, a las 20:00. Es el aviso
+  // que justifica todo el push, y la funcion corta por la hora antes de leer
+  // nada: en las otras 287 pasadas no cuesta una sola lectura.
+  if (!degradado) await avisarRachasEnPeligro();
 
   // Lo ultimo, para contar tambien lo que ha costado el trabajo periodico.
   await cerrarCuota(cuotaAlEmpezar);

@@ -77,9 +77,24 @@ const viajesPorRutaActiva = (V) => Math.max(1, Math.round(V / rutasActivas(V)));
 /** Rutas activas que tocan una estacion concreta. Cada ruta toca dos. */
 const rutasPorEstacion = (V, E) => Math.max(1, Math.round((rutasActivas(V) * 2) / E));
 
+/**
+ * Altas dadas en los ultimos 45 dias, que son las cohortes que todavia pueden
+ * cambiar. Se supone que un mes y medio trae tantas altas como personas activas
+ * hay: es generoso, y lo que importa es que NO crece con lo acumulado.
+ */
+const altasRecientes = (U, A) => Math.max(1, Math.min(U, A));
+
 /** Estaciones que se mueven en una pasada: dos por viaje aprobado. */
 const estacionesEnLaPasada = (S) =>
   Math.max(2, Math.min(60, Math.round((S / ventanasConMovimiento(S, 288)) * 2)));
+
+/**
+ * Rutas que se refrescan de mas en cada reconstruccion, por turno rotatorio.
+ *
+ * No es opcional: el agregado de una ruta lleva dentro el nombre y el avatar de
+ * cada piloto, y eso cambia sin que se mueva ninguna ruta (backend/src/agregados.js).
+ */
+const RUTAS_POR_TURNO = 3;
 
 /** Rutas que se mueven entre dos reconstrucciones (una cada 15 minutos). */
 const rutasEnLaVentana = (S) =>
@@ -143,8 +158,19 @@ const WORKER = [
   {
     nombre: 'metricas.resumir (una vez cada 6 h)',
     veces: () => 4,
-    coste: ({ U, V }) => min1(1) + U + V + min1(200),
-    detalle: 'la marca del agregado + TODOS los usuarios + TODOS los viajes + 200 dias',
+    // Las cohortes congeladas se copian del resumen anterior; las vivas salen de
+    // los usuarios dados de alta hace poco, a una lectura por cabeza para su
+    // ultimo trayecto. Los totales y las ventanas, de consultas de conteo.
+    coste: ({ U, V, A }) => min1(200) + min1(1) + altasRecientes(U, A) * 2
+      + min1(U / 1000) + min1(V / 1000) * 5,
+    detalle: 'los 200 dias + el resumen anterior + las altas recientes y su ultimo viaje '
+      + '+ los conteos de totales y ventanas',
+  },
+  {
+    nombre: 'avisarRachasEnPeligro (UNA vez al dia, a las 20:00)',
+    veces: () => 1,
+    coste: ({ U }) => U,
+    detalle: 'TODOS los usuarios, para ver a quien se le cae la racha',
   },
   {
     nombre: 'metricas.tocaResumir (por pasada)',
@@ -180,11 +206,12 @@ const WORKER = [
     // de la portada. Los rankings de pilotos, el de clanes y el mapa salen de
     // usuarios, clanes y estaciones_stats.
     coste: ({ U, V, C, E, S }) => U + C + E
-      + rutasEnLaVentana(S) * min1(viajesPorRutaActiva(V))
+      + (rutasEnLaVentana(S) + RUTAS_POR_TURNO) * min1(viajesPorRutaActiva(V))
       + min1(V / 1000)
       + min1(3),
     detalle: 'usuarios + clanes + estaciones + los viajes de las rutas movidas '
-      + '+ el conteo agregado + el indice, la portada y las rutas pendientes',
+      + 'y de las tres del turno de refresco + el conteo agregado '
+      + '+ el indice, la portada y las rutas pendientes',
   },
   {
     nombre: 'agregados.tocaReconstruir (por pasada con movimiento)',

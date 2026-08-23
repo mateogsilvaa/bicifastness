@@ -153,7 +153,7 @@ test('la retencion se calcula sin datos del navegador', () => {
   const servidor = leer('backend/src/metricas.js');
   const funcion = servidor.slice(
     servidor.indexOf('function calcularCohortes'),
-    servidor.indexOf('async function resumir'));
+    servidor.indexOf('async function ultimoDiaConViaje'));
 
   assert.ok(!funcion.includes('sesiones_web'),
     'las cohortes dependen de la analitica del navegador');
@@ -164,12 +164,13 @@ test('la retencion se calcula sin datos del navegador', () => {
 // --- Limitador del resumen caro (#34) ----------------------------------------
 
 test('el resumen caro no se rehace en cada pasada del worker', () => {
-  // `resumir` necesita `usuarios` y `tiempos_viaje` ENTEROS. El worker corre
-  // cada 5 minutos: hacerlo siempre costaba 288 x (usuarios + viajes) lecturas
-  // al dia, o sea 402.000 con los datos de hoy — ocho veces la cuota diaria del
-  // plan Spark, con seis personas usando la web y aunque no pasara nada.
+  // Cuando `resumir` leia `usuarios` y `tiempos_viaje` ENTEROS, hacerlo en cada
+  // pasada costaba 288 x (usuarios + viajes) lecturas al dia: 402.000 con los
+  // datos de hoy, ocho veces la cuota, con seis personas usando la web y aunque
+  // no pasara nada. Ya no las lee, pero el limitador sigue teniendo sentido:
+  // nadie mira la retencion a 30 dias esperando verla cambiar en cinco minutos.
   assert.ok(metricas.MINUTOS_ENTRE_RESUMENES >= 60,
-    'un intervalo corto devuelve el problema: son las dos colecciones enteras cada vez');
+    'un intervalo corto no aporta nada: la retencion a 30 dias no cambia en minutos');
 
   const ahora = Date.parse('2026-08-23T12:00:00Z');
   const hace = (minutos) => new Date(ahora - minutos * 60000).toISOString();

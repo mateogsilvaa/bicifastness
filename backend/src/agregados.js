@@ -130,6 +130,51 @@ async function tocaReconstruir(ahora = Date.now()) {
 }
 
 /**
+ * Cuantas rutas de mas se refrescan en cada reconstruccion parcial.
+ *
+ * EL PROBLEMA QUE RESUELVE. El agregado de una ruta lleva dentro el nombre, el
+ * avatar y el clan de cada piloto. Eso no cambia cuando cambia la ruta: cambia
+ * cuando alguien se renombra, se cambia el avatar o entra en un clan. En parcial
+ * solo se rehacen las rutas movidas, asi que ese piloto se quedaria con el
+ * nombre viejo en las diez tablas donde sale hasta que alguien volviera a subir
+ * un viaje a cada una.
+ *
+ * Antes lo tapaba la reconstruccion completa que caia cada seis horas con el
+ * resumen de metricas. El resumen ya no lee los viajes, asi que esa completa ya
+ * no ocurre y hace falta decirlo a proposito.
+ *
+ * TRES Y NO VEINTE. Con 600 rutas y unas 88 reconstrucciones al dia, tres por
+ * turno dan la vuelta al catalogo cada dos dias y medio, y cuestan unas 75
+ * lecturas por reconstruccion. Veinte lo arreglarian en tres horas y costarian
+ * 44.000 lecturas al dia: mas que todo lo que gasta hoy el worker junto.
+ *
+ * El turno es rotatorio y el cursor va en el propio indice, asi que no hay que
+ * acordarse de nada entre ejecuciones.
+ */
+const RUTAS_POR_TURNO = 3;
+
+/**
+ * Las `cuantas` rutas siguientes a `desde`, dando la vuelta al final.
+ *
+ * Pura, y con una razon: un turno que no diera la vuelta dejaria de refrescar el
+ * final del catalogo para siempre en cuanto el cursor llegara ahi, y eso no lo
+ * nota nadie hasta que alguien se queja de un nombre viejo.
+ */
+function turnoDeRutas(rutas, desde, cuantas = RUTAS_POR_TURNO) {
+  if (!Array.isArray(rutas) || !rutas.length || cuantas <= 0) return [];
+
+  const ordenadas = [...rutas].sort();
+  const corte = desde ? ordenadas.findIndex((r) => r > desde) : 0;
+  const arranque = corte === -1 ? 0 : corte;
+
+  const turno = [];
+  for (let i = 0; i < Math.min(cuantas, ordenadas.length); i++) {
+    turno.push(ordenadas[(arranque + i) % ordenadas.length]);
+  }
+  return turno;
+}
+
+/**
  * Donde se apuntan las rutas que esperan reconstruccion.
  *
  * Hace falta porque los dos frenos se estorban: si una pasada mueve la ruta
@@ -208,11 +253,12 @@ async function olvidarPendientes() {
  * @param {Object} conteosPrevios viajes por ruta que ya estaban (solo en parcial)
  * @param {Array}  rutasRehechas rutas que se han consultado (solo en parcial)
  * @param {number} totalViajes   viajes verificados que hay (solo en parcial)
+ * @param {string} refrescadaHasta  por donde va el turno de refresco
  */
 async function reconstruir({
   usuarios = [], viajes = [], clanes = [], estaciones = new Map(),
   parcial = false, rutasPrevias = [], conteosPrevios = {}, rutasRehechas = [],
-  totalViajes = null,
+  totalViajes = null, refrescadaHasta = null,
 }) {
   const escritos = {};
 
@@ -364,6 +410,10 @@ async function reconstruir({
   await db().doc('agregados/rutas').set({
     rutas: rutasConocidas,
     viajesPorRuta,
+    // Por donde va el turno de refresco. Va aqui y no en un documento aparte
+    // porque este ya se lee y se escribe en cada reconstruccion: guardarlo en
+    // otro sitio seria una lectura y una escritura de mas por nada.
+    ...(refrescadaHasta ? { refrescadaHasta } : {}),
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -442,6 +492,8 @@ async function reconstruir({
 
 module.exports = {
   reconstruir,
+  turnoDeRutas,
+  RUTAS_POR_TURNO,
   apuntarPendientes,
   leerPendientes,
   olvidarPendientes,

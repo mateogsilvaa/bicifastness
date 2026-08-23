@@ -219,6 +219,20 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "tiempos_viaje",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "verificado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaViaje",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

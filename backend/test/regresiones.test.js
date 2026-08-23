@@ -754,6 +754,11 @@ const CONSULTAS_COMPUESTAS = [
     campos: [['uid', 'ASCENDING'], ['verificado', 'ASCENDING'], ['creado', 'DESCENDING']],
   },
   {
+    donde: 'metricas.resumir(): viajes verificados por ventana, con consulta de conteo',
+    coleccion: 'tiempos_viaje',
+    campos: [['verificado', 'ASCENDING'], ['fechaViaje', 'ASCENDING']],
+  },
+  {
     donde: 'worker.reunirContexto(): mejores tiempos de la ruta',
     coleccion: 'tiempos_viaje',
     campos: [['ruta', 'ASCENDING'], ['verificado', 'ASCENDING'], ['tiempoSegundos', 'ASCENDING']],

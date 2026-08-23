@@ -68,6 +68,13 @@ function diasEntre(desde, hasta) {
   return Math.round((Date.parse(hasta) - Date.parse(desde)) / 86400000);
 }
 
+/** El lunes de la semana de una fecha, en YYYY-MM-DD. */
+function lunesDe(fecha) {
+  const lunes = new Date(fecha);
+  lunes.setUTCDate(lunes.getUTCDate() - ((lunes.getUTCDay() + 6) % 7));
+  return dia(lunes);
+}
+
 /**
  * Suma las sesiones del navegador en contadores diarios y borra el detalle
  * viejo.
@@ -157,9 +164,7 @@ function calcularCohortes(usuarios, viajes) {
 
     // Lunes de la semana del alta: agrupar por semana suaviza el ruido de los
     // dias sueltos sin perder la forma de la curva.
-    const lunes = new Date(alta);
-    lunes.setUTCDate(lunes.getUTCDate() - ((lunes.getUTCDay() + 6) % 7));
-    const semana = dia(lunes);
+    const semana = lunesDe(alta);
 
     if (!cohortes.has(semana)) {
       cohortes.set(semana, { semana, total: 0, d1: 0, d7: 0, d14: 0, d30: 0 });
@@ -190,33 +195,38 @@ function calcularCohortes(usuarios, viajes) {
     if (ultimo >= 30) cohorte.d30++;
   }
 
-  return [...cohortes.values()].sort((a, b) => b.semana.localeCompare(a.semana)).slice(0, 12);
+  return [...cohortes.values()]
+    .sort((a, b) => b.semana.localeCompare(a.semana))
+    .slice(0, SEMANAS_COHORTE);
 }
 
 /**
- * Resumen que lee el panel: un solo documento con todas las ventanas.
+ * Cada cuanto se rehace el resumen, en minutos.
  *
- * Que sea uno importa: la alternativa es que el panel lea 180 documentos de
- * `metricas/` cada vez que se abre.
- */
-/**
- * Cada cuanto se rehace el resumen caro, en minutos.
+ * Sigue teniendo sentido aunque el resumen ya no lea colecciones enteras: son
+ * unas cuantas consultas y una escritura, y nadie mira la retencion a 30 dias
+ * esperando verla cambiar en cinco minutos.
  *
- * `resumir` necesita `usuarios` y `tiempos_viaje` ENTEROS: la retencion por
- * cohortes y los viajes por ventana no salen de otro sitio. El worker corre
- * cada 5 minutos, asi que hacerlo en cada pasada costaba 288 x (usuarios +
- * viajes) lecturas al dia — 402.000 con 175 usuarios y 1.022 viajes, ocho veces
- * la cuota diaria del plan Spark, con seis personas usando la web y aunque no
- * pasara absolutamente nada.
- *
- * Seis horas son de sobra para un panel de metricas: nadie mira la retencion a
- * 30 dias y espera verla cambiar en cinco minutos. Baja el coste a 4 pasadas
- * al dia en vez de 288.
- *
- * Lo que SI sigue en cada pasada es `agregarSesiones`, que es la parte barata y
- * la que no puede esperar: poda el detalle viejo segun llega.
+ * Lo que SI sigue en cada pasada es `agregarSesiones`, que es la parte que no
+ * puede esperar: poda el detalle viejo segun llega.
  */
 const MINUTOS_ENTRE_RESUMENES = 360;
+
+/**
+ * Cuantas semanas de cohorte se conservan, y hasta cuando una puede cambiar.
+ *
+ * Una cohorte es "que porcentaje de los que se dieron de alta esa semana seguia
+ * subiendo trayectos a los 1, 7, 14 y 30 dias". Pasados esos 30 dias — mas los 6
+ * de la propia semana, mas un margen — el numero YA NO PUEDE CAMBIAR: esta
+ * congelado para siempre.
+ *
+ * Esa es toda la idea. Solo hay que recalcular las cohortes vivas, que salen de
+ * los usuarios dados de alta hace poco; las demas se copian del resumen
+ * anterior. Antes, para calcular una cifra que llevaba meses fija, se leian
+ * `usuarios` y `tiempos_viaje` ENTEROS cuatro veces al dia.
+ */
+const SEMANAS_COHORTE = 12;
+const DIAS_COHORTE_VIVA = 45;
 
 /**
  * ¿Toca rehacer el resumen caro?
@@ -273,13 +283,116 @@ async function tocaResumir(ahora = Date.now()) {
   }
 }
 
-async function resumir({ usuarios = [], viajes = [] } = {}) {
-  const diarios = await db().collection('metricas')
-    .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
-    .limit(200).get();
+/**
+ * El dia del ultimo trayecto verificado de un piloto, o `null`.
+ *
+ * Una lectura, con el indice `uid + verificado + fechaViaje` que ya existe. Es
+ * lo UNICO que las cohortes necesitan de los viajes de alguien: la pregunta es
+ * "¿hasta cuando siguio ahi?", y eso lo contesta el mas lejano.
+ */
+async function ultimoDiaConViaje(uid) {
+  const snap = await db().collection('tiempos_viaje')
+    .where('uid', '==', uid)
+    .where('verificado', '==', true)
+    .orderBy('fechaViaje', 'desc')
+    .limit(1)
+    .get();
+
+  if (snap.empty) return null;
+  return String(snap.docs[0].data().fechaViaje || '').slice(0, 10) || null;
+}
+
+/**
+ * Las cohortes, recalculando solo las que todavia pueden cambiar.
+ *
+ * Las congeladas se copian del resumen anterior. Las vivas salen de los
+ * usuarios dados de alta desde el lunes de hace `DIAS_COHORTE_VIVA` dias: se
+ * arranca en LUNES a proposito, porque si no la semana del corte saldria a
+ * medias — le faltarian los que se dieron de alta entre el lunes y el corte — y
+ * pisaria a la version completa que ya estaba guardada.
+ */
+async function cohortesVivas(previas = []) {
+  const corte = lunesDe(new Date(Date.now() - DIAS_COHORTE_VIVA * 86400000));
+
+  const nuevosSnap = await db().collection('usuarios')
+    .where('creado', '>=', new Date(`${corte}T00:00:00Z`))
+    .get();
+
+  const usuarios = nuevosSnap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+  const ultimos = await Promise.all(usuarios.map((u) => ultimoDiaConViaje(u.uid)));
+
+  // `calcularCohortes` solo mira el dia MAS LEJANO de cada uno, asi que un solo
+  // viaje por piloto — el ultimo — da exactamente el mismo resultado que
+  // pasarle su historial entero. Se reutiliza la funcion tal cual, con sus
+  // pruebas, en vez de escribir una segunda que calcule lo mismo de otra forma.
+  const viajes = usuarios
+    .map((u, i) => (ultimos[i] ? { uid: u.uid, fechaViaje: ultimos[i] } : null))
+    .filter(Boolean);
+
+  const vivas = calcularCohortes(usuarios, viajes).filter((c) => c.semana >= corte);
+  const congeladas = (previas || []).filter((c) => c && c.semana && c.semana < corte);
+
+  return [...vivas, ...congeladas]
+    .sort((a, b) => b.semana.localeCompare(a.semana))
+    .slice(0, SEMANAS_COHORTE);
+}
+
+/**
+ * Las cohortes calculadas a lo bestia: las dos colecciones enteras.
+ *
+ * Se usa UNA vez, la primera, y por un motivo concreto: se conservan doce
+ * semanas de cohorte pero solo seis y pico siguen vivas. Las otras cinco no se
+ * pueden deducir de nada — ya estan congeladas y sus datos no se vuelven a
+ * mirar — asi que o se calculan una vez o no existen nunca.
+ *
+ * A partir de ahi se copian del resumen anterior y esto no se vuelve a llamar.
+ */
+async function cohortesCompletas() {
+  const [usuariosSnap, viajesSnap] = await Promise.all([
+    db().collection('usuarios').get(),
+    db().collection('tiempos_viaje').where('verificado', '==', true).get(),
+  ]);
+
+  return calcularCohortes(
+    usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
+    viajesSnap.docs.map((d) => d.data()));
+}
+
+/** Cuantos documentos hay, sin traerselos: una lectura por cada mil. */
+async function contar(consulta) {
+  const conteo = await consulta.count().get();
+  return conteo.data().count;
+}
+
+/**
+ * Resumen que lee el panel: un solo documento con todas las ventanas.
+ *
+ * Que sea uno importa: la alternativa es que el panel lea 180 documentos de
+ * `metricas/` cada vez que se abre.
+ *
+ * DE DONDE VIENE. Esto leia `usuarios` y `tiempos_viaje` ENTEROS — 15.441
+ * lecturas con 15.000 viajes acumulados — y era el ultimo sitio del worker que
+ * lo hacia, o sea el ultimo coste que crecia solo por llevar tiempo abierto.
+ * Ahora nada de lo que pide crece con lo acumulado:
+ *
+ * - las cohortes congeladas se copian del resumen anterior;
+ * - las vivas salen de los usuarios dados de alta hace poco, a una lectura por
+ *   cabeza para su ultimo trayecto;
+ * - los totales y los viajes por ventana salen de consultas de conteo, que
+ *   cobran una lectura por cada MIL documentos contados.
+ */
+async function resumir() {
+  const [diarios, previo] = await Promise.all([
+    db().collection('metricas')
+      .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
+      .limit(200).get(),
+    db().doc('agregados/metricas').get(),
+  ]);
 
   const porDia = diarios.docs.map((d) => ({ dia: d.id, ...d.data() }));
   const hoy = dia(new Date());
+
+  const verificados = db().collection('tiempos_viaje').where('verificado', '==', true);
 
   const ventanas = {};
   for (const [nombre, dias] of Object.entries(VENTANAS)) {
@@ -297,16 +410,28 @@ async function resumir({ usuarios = [], viajes = [] } = {}) {
       registrosAbiertos: suma('registro_abierto'),
       registrosCompletados: suma('registro_completado'),
       // Viajes verificados en la ventana, que sale de los datos, no del cliente.
-      viajesVerificados: viajes.filter((v) => String(v.fechaViaje || '') >= desde).length,
+      viajesVerificados: await contar(verificados.where('fechaViaje', '>=', desde)),
     };
   }
 
+  const [usuariosTotal, viajesTotal] = await Promise.all([
+    contar(db().collection('usuarios')),
+    contar(verificados),
+  ]);
+
+  // La primera vez no hay de donde copiar las congeladas: se calculan a lo
+  // bestia una sola vez. Despues, siempre incremental.
+  const previas = previo.exists ? previo.data().cohortes : null;
+  const cohortes = Array.isArray(previas)
+    ? await cohortesVivas(previas)
+    : await cohortesCompletas();
+
   await db().doc('agregados/metricas').set({
     ventanas,
-    cohortes: calcularCohortes(usuarios, viajes),
+    cohortes,
     totales: {
-      usuarios: usuarios.length,
-      viajesVerificados: viajes.length,
+      usuarios: usuariosTotal,
+      viajesVerificados: viajesTotal,
     },
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -320,7 +445,13 @@ module.exports = {
   hayQueResumir,
   MINUTOS_ENTRE_RESUMENES,
   calcularCohortes,
+  cohortesVivas,
+  cohortesCompletas,
+  ultimoDiaConViaje,
+  lunesDe,
   resumir,
+  SEMANAS_COHORTE,
+  DIAS_COHORTE_VIVA,
   dia,
   diasEntre,
   VENTANAS,

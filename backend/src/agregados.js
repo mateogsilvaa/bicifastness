@@ -77,17 +77,141 @@ async function escribirAgregado(nombre, filas, extra = {}) {
 }
 
 /**
- * Reconstruye todos los agregados de una vez.
+ * Cada cuanto se rehacen los agregados, como minimo.
+ *
+ * Es el segundo de los dos frenos. El otro es el modo parcial de `reconstruir`,
+ * que baja el precio de UNA reconstruccion; este baja CUANTAS se hacen.
+ *
+ * Hacen falta los dos. Aun en parcial, una reconstruccion escribe los cuatro
+ * rankings de pilotos, el de clanes, el mapa, el indice y la portada: nueve
+ * escrituras largas que no dependen de lo que se haya movido. Hacerlo en cada
+ * pasada con movimiento son unas 163 veces al dia con 240 subidas, y no aporta
+ * nada frente a hacerlo cada cuarto de hora.
+ *
+ * Quince minutos no se notan. El worker ya llega con 5-15 de retraso — GitHub
+ * retrasa los cron programados — asi que la clasificacion nunca ha sido
+ * instantanea, y quien acaba de subir un trayecto ve su veredicto por el
+ * seguimiento en vivo del propio viaje, que no pasa por aqui.
+ */
+const MINUTOS_ENTRE_RECONSTRUCCIONES = 15;
+
+/**
+ * ¿Toca rehacer los agregados?
+ *
+ * Pura, para poder probar el limitador sin tocar Firestore. `undefined` o una
+ * marca ilegible devuelven `true`: es preferible una reconstruccion de mas que
+ * una clasificacion congelada para siempre.
+ */
+function hayQueReconstruir(marca, ahora = Date.now()) {
+  if (marca === null || marca === undefined) return true;
+
+  // `serverTimestamp()` vuelve como Timestamp, no como cadena. Contemplar solo
+  // el string haria que esto dijera siempre que si y el limitador no limitase.
+  const cuando = typeof marca?.toMillis === 'function' ? marca.toMillis() : Date.parse(marca);
+  if (!Number.isFinite(cuando)) return true;
+
+  return (ahora - cuando) >= MINUTOS_ENTRE_RECONSTRUCCIONES * 60000;
+}
+
+/**
+ * La misma pregunta, leyendo la marca del agregado de portada. Una lectura.
+ *
+ * Se mira en Firestore y no en una variable del proceso: el worker arranca de
+ * cero en cada ejecucion de Actions, asi que cualquier estado en memoria vale
+ * para una pasada.
+ */
+async function tocaReconstruir(ahora = Date.now()) {
+  try {
+    const snap = await db().doc('agregados/portada').get();
+    return hayQueReconstruir(snap.exists ? snap.data().actualizado : null, ahora);
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Donde se apuntan las rutas que esperan reconstruccion.
+ *
+ * Hace falta porque los dos frenos se estorban: si una pasada mueve la ruta
+ * 043-110 y el limitador de quince minutos decide que no toca reconstruir, esa
+ * ruta se perderia — el worker de Actions arranca de cero en cada ejecucion, asi
+ * que no hay memoria entre una y otra. La siguiente reconstruccion rehace solo
+ * las rutas de SU pasada y el agregado de 043-110 se queda viejo hasta que
+ * alguien vuelva a subir algo ahi.
+ *
+ * Vive en `config/`, que las reglas dejan leer solo a administracion: no es un
+ * agregado, no lo pinta nadie, y en `agregados/` seria un documento publico que
+ * no es una clasificacion.
+ */
+const PENDIENTES = 'config/agregados_pendientes';
+
+/** Apunta rutas para la proxima reconstruccion. Una escritura. */
+async function apuntarPendientes(rutas) {
+  const lista = [...new Set([...(rutas || [])].filter(Boolean).map(String))];
+  if (!lista.length) return 0;
+
+  await db().doc(PENDIENTES).set({
+    rutas: admin.firestore.FieldValue.arrayUnion(...lista),
+    actualizado: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return lista.length;
+}
+
+/** Las rutas apuntadas. Una lectura. */
+async function leerPendientes() {
+  try {
+    const doc = await db().doc(PENDIENTES).get();
+    const rutas = doc.exists ? doc.data().rutas : null;
+    return Array.isArray(rutas) ? rutas : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Vacia la lista. Se llama DESPUES de reconstruir, no antes: si la
+ * reconstruccion falla, las rutas siguen apuntadas para el proximo intento.
+ */
+async function olvidarPendientes() {
+  await db().doc(PENDIENTES).set({
+    rutas: [],
+    actualizado: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+}
+
+/**
+ * Reconstruye los agregados.
  *
  * Se le pasan los datos ya leidos porque el worker los tiene en la mano tras el
  * recalculo: volver a pedirlos aqui duplicaria la lectura mas cara que hace.
  *
- * @param {Array} usuarios  documentos de usuarios, con uid
- * @param {Array} viajes    viajes verificados
- * @param {Array} clanes    documentos de clanes, con id
- * @param {Map}   estaciones  id de estacion -> stats
+ * MODO PARCIAL. Los viajes solo hacen falta para dos cosas: los agregados POR
+ * RUTA y el contador de la portada. Las cuatro clasificaciones de pilotos, la de
+ * clanes y el mapa salen de `usuarios`, `clanes` y `estaciones_stats`. Asi que
+ * cuando solo se han movido unas rutas concretas no hace falta leer los viajes
+ * enteros: basta con los de esas rutas, y el resto del agregado sale igual. Es
+ * la diferencia entre 15.000 lecturas y 750 en cada reconstruccion.
+ *
+ * En parcial hay dos cosas que no se pueden deducir de lo que se ha leido y por
+ * eso se piden aparte: el total de viajes (`totalViajes`, que sale de una
+ * consulta de conteo) y las rutas que ya existian (`rutasPrevias`, del propio
+ * indice). Sin ellas la portada diria que hay tres viajes en total y el selector
+ * de rutas se quedaria con las tres ultimas.
+ *
+ * @param {Array}  usuarios     documentos de usuarios, con uid
+ * @param {Array}  viajes       viajes verificados: todos, o los de las rutas tocadas
+ * @param {Array}  clanes       documentos de clanes, con id
+ * @param {Map}    estaciones   id de estacion -> stats
+ * @param {boolean} parcial      `viajes` trae solo unas rutas, no todas
+ * @param {Array}  rutasPrevias  rutas que ya estaban en el indice (solo en parcial)
+ * @param {Array}  rutasRehechas rutas que se han consultado (solo en parcial)
+ * @param {number} totalViajes   viajes verificados que hay (solo en parcial)
  */
-async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones = new Map() }) {
+async function reconstruir({
+  usuarios = [], viajes = [], clanes = [], estaciones = new Map(),
+  parcial = false, rutasPrevias = [], rutasRehechas = [], totalViajes = null,
+}) {
   const escritos = {};
 
   // --- Pilotos, por modo -----------------------------------------------------
@@ -177,6 +301,19 @@ async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones
     if (!previo || v.tiempoSegundos < previo.tiempoSegundos) mejores.set(v.uid, v);
   }
 
+  // Una ruta consultada que no ha devuelto ningun viaje se ha quedado VACIA:
+  // le han anulado el ultimo. Hay que escribirla igualmente, con cero filas, o
+  // el agregado publico se queda ensenando una clasificacion que ya no existe.
+  // Se apuntan para sacarlas luego del indice.
+  const vaciadas = new Set();
+  if (parcial) {
+    for (const ruta of rutasRehechas) {
+      if (porRuta.has(ruta)) continue;
+      porRuta.set(ruta, new Map());
+      vaciadas.add(ruta);
+    }
+  }
+
   let rutasEscritas = 0;
   for (const [ruta, mejores] of porRuta) {
     const filas = [...mejores.values()]
@@ -202,8 +339,15 @@ async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones
   // --- Indice de rutas -------------------------------------------------------
   // El selector de `/clasificacion/` necesita saber que rutas existen sin leer
   // los 600 agregados de ruta.
+  //
+  // En parcial se UNE con lo que ya habia: `porRuta` solo tiene las rutas que se
+  // han movido, y sobrescribir con eso dejaria el selector con dos entradas.
+  const rutasConocidas = parcial
+    ? [...new Set([...rutasPrevias, ...porRuta.keys()])].filter((r) => !vaciadas.has(r)).sort()
+    : [...porRuta.keys()].sort();
+
   await db().doc('agregados/rutas').set({
-    rutas: [...porRuta.keys()].sort(),
+    rutas: rutasConocidas,
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -270,8 +414,10 @@ async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones
     pilotos: pilotos.length,
     usuarios: usuarios.length,
     clanes: clanes.length,
-    viajes: viajes.length,
-    rutas: porRuta.size,
+    // En parcial `viajes` son solo los de las rutas tocadas: el total viene de
+    // una consulta de conteo, que cuesta una lectura por cada mil viajes.
+    viajes: totalViajes === null ? viajes.length : totalViajes,
+    rutas: rutasConocidas.length,
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -280,6 +426,13 @@ async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones
 
 module.exports = {
   reconstruir,
+  apuntarPendientes,
+  leerPendientes,
+  olvidarPendientes,
+  PENDIENTES,
+  tocaReconstruir,
+  hayQueReconstruir,
+  MINUTOS_ENTRE_RECONSTRUCCIONES,
   escribirAgregado,
   limpiar,
   CAMPOS_PUBLICABLES,

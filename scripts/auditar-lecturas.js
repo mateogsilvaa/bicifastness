@@ -49,6 +49,42 @@ const min1 = (n) => Math.max(1, Math.round(n));
  */
 const viajesEnRuta = (V) => Math.max(1, Math.round(V / 20));
 
+/**
+ * Cuantas ventanas de tiempo tienen al menos una subida.
+ *
+ * No es "subidas partido por ventanas": con 240 subidas y 96 ventanas no salen
+ * 96 ventanas llenas ni 2,5 ventanas, salen las que toca. Con las subidas
+ * repartidas al azar, la probabilidad de que una ventana quede vacia es
+ * e^(-S/W), asi que las que tienen algo son W(1 - e^(-S/W)).
+ *
+ * Importa porque es exactamente lo que decide cuantas veces se reconstruyen los
+ * agregados, que es la operacion mas cara del worker.
+ */
+const ventanasConMovimiento = (subidas, ventanas) =>
+  Math.max(1, Math.round(ventanas * (1 - Math.exp(-subidas / ventanas))));
+
+/**
+ * Rutas que tienen algun viaje verificado, y viajes que acumula cada una.
+ *
+ * Hay 631 estaciones, o sea decenas de miles de pares posibles, pero solo se
+ * usan unas cuantas. Veinticinco viajes por ruta activa es lo que se ve en los
+ * datos de hoy, con tope en 600 rutas: a partir de ahi lo que crece es la
+ * ocupacion de cada una, no el numero de rutas.
+ */
+const rutasActivas = (V) => Math.min(600, Math.max(1, Math.round(V / 25)));
+const viajesPorRutaActiva = (V) => Math.max(1, Math.round(V / rutasActivas(V)));
+
+/** Rutas activas que tocan una estacion concreta. Cada ruta toca dos. */
+const rutasPorEstacion = (V, E) => Math.max(1, Math.round((rutasActivas(V) * 2) / E));
+
+/** Estaciones que se mueven en una pasada: dos por viaje aprobado. */
+const estacionesEnLaPasada = (S) =>
+  Math.max(2, Math.min(60, Math.round((S / ventanasConMovimiento(S, 288)) * 2)));
+
+/** Rutas que se mueven entre dos reconstrucciones (una cada 15 minutos). */
+const rutasEnLaVentana = (S) =>
+  Math.max(1, Math.min(rutasActivas(S * 60), Math.round(S / ventanasConMovimiento(S, 96))));
+
 // --- Pantallas ---------------------------------------------------------------------
 /**
  * Lecturas de UNA carga de cada pantalla, sacadas de las llamadas del propio
@@ -84,8 +120,8 @@ const PANTALLAS = [
   },
   {
     ruta: '/statssss/', veces: 0.1,
-    coste: ({ U, V, C, E }) => U + V + C + E,
-    detalle: 'las cuatro colecciones enteras',
+    coste: () => 2,
+    detalle: 'los agregados de portada y mapa',
   },
 ];
 
@@ -99,8 +135,10 @@ const WORKER = [
   {
     nombre: 'metricas.agregarSesiones (por pasada)',
     veces: () => 288,
-    coste: ({ A }) => min1(A * 2),
-    detalle: 'las sesiones del navegador sin agregar todavia',
+    // Cada sesion se suma una vez y se borra: entre pasada y pasada solo esta
+    // lo que ha llegado en esos cinco minutos.
+    coste: ({ A }) => min1((A * 2) / 288),
+    detalle: 'las sesiones llegadas desde la pasada anterior',
   },
   {
     nombre: 'metricas.resumir (una vez cada 6 h)',
@@ -122,15 +160,33 @@ const WORKER = [
   },
   {
     nombre: 'recalcularEstaciones (una vez por pasada CON viajes)',
-    veces: ({ S }) => Math.min(288, Math.max(1, Math.round(S / 8))),
-    coste: ({ S }) => min1(Math.min(60, S)),
-    detalle: 'una lectura por estacion tocada; usuarios y viajes vienen compartidos',
+    veces: ({ S }) => ventanasConMovimiento(S, 288),
+    // La influencia sobre una estacion sale SOLO de los viajes de las rutas que
+    // la tocan, y el indice de `agregados/rutas` dice cuales son. Antes esto
+    // leia `usuarios` y `tiempos_viaje` enteros.
+    coste: ({ U, V, E, S }) => min1(1) + U + estacionesEnLaPasada(S)
+      * (min1(1) + rutasPorEstacion(V, E) * min1(viajesPorRutaActiva(V))),
+    detalle: 'el indice de rutas + usuarios + los viajes de las rutas que tocan cada estacion',
   },
   {
-    nombre: 'reconstruirAgregados (una vez por pasada CON viajes)',
-    veces: ({ S }) => Math.min(288, Math.max(1, Math.round(S / 8))),
-    coste: ({ U, V, C, E }) => U + V + C + E,
-    detalle: 'usuarios y viajes (compartidos con el resumen de metricas) + clanes + estaciones',
+    nombre: 'reconstruirAgregados (parcial, como mucho cada 15 min)',
+    // 96 ventanas al dia; solo cuentan las que hayan tenido alguna subida.
+    veces: ({ S }) => ventanasConMovimiento(S, 96),
+    // Los viajes solo hacen falta para los agregados POR RUTA y para el contador
+    // de la portada. Los rankings de pilotos, el de clanes y el mapa salen de
+    // usuarios, clanes y estaciones_stats.
+    coste: ({ U, V, C, E, S }) => U + C + E
+      + rutasEnLaVentana(S) * min1(viajesPorRutaActiva(V))
+      + min1(V / 1000)
+      + min1(3),
+    detalle: 'usuarios + clanes + estaciones + los viajes de las rutas movidas '
+      + '+ el conteo agregado + el indice, la portada y las rutas pendientes',
+  },
+  {
+    nombre: 'agregados.tocaReconstruir (por pasada con movimiento)',
+    veces: ({ S }) => ventanasConMovimiento(S, 288),
+    coste: () => min1(1),
+    detalle: 'la marca del agregado de portada, para saber si toca',
   },
   {
     nombre: 'reunirContexto (por viaje procesado)',

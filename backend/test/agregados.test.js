@@ -76,3 +76,39 @@ test('las paginas caben en un documento de Firestore', () => {
 
   assert.ok(bytes < 1048576, `una pagina llena ocuparia ${bytes} bytes`);
 });
+
+// --- El limitador de reconstrucciones ------------------------------------------
+
+test('los agregados no se rehacen en cada pasada con movimiento', () => {
+  // Es el segundo de los dos frenos: el modo parcial abarata UNA reconstruccion
+  // y este recorta cuantas se hacen. Aun en parcial, cada una lee `usuarios` y
+  // `estaciones_stats` enteras y escribe nueve documentos largos, y con 240
+  // subidas al dia se llegaria aqui unas 163 veces (docs/COSTE.md).
+  assert.ok(agregados.MINUTOS_ENTRE_RECONSTRUCCIONES >= 10,
+    'un intervalo corto devuelve el problema: usuarios y estaciones enteras cada vez');
+
+  const ahora = Date.parse('2026-08-23T12:00:00Z');
+  const hace = (min) => new Date(ahora - min * 60000).toISOString();
+
+  assert.strictEqual(agregados.hayQueReconstruir(hace(2), ahora), false, 'recien hecho');
+  assert.strictEqual(
+    agregados.hayQueReconstruir(hace(agregados.MINUTOS_ENTRE_RECONSTRUCCIONES), ahora), true,
+    'justo en el limite');
+});
+
+test('ante la duda se reconstruye, en vez de dejar la clasificacion congelada', () => {
+  const ahora = Date.now();
+  assert.strictEqual(agregados.hayQueReconstruir(null, ahora), true, 'no existe todavia');
+  assert.strictEqual(agregados.hayQueReconstruir(undefined, ahora), true);
+  assert.strictEqual(agregados.hayQueReconstruir('lo que sea', ahora), true, 'marca ilegible');
+});
+
+test('acepta la marca tal y como la escribe Firestore', () => {
+  // `serverTimestamp()` vuelve como Timestamp, no como cadena. Contemplar solo
+  // el string haria que el limitador dijera siempre que si y no limitara nada.
+  const ahora = Date.parse('2026-08-23T12:00:00Z');
+  const timestamp = (min) => ({ toMillis: () => ahora - min * 60000 });
+
+  assert.strictEqual(agregados.hayQueReconstruir(timestamp(3), ahora), false);
+  assert.strictEqual(agregados.hayQueReconstruir(timestamp(60), ahora), true);
+});

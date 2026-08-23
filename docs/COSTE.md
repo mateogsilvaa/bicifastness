@@ -50,6 +50,41 @@ dominio de las estaciones se acumula y se recalcula **una vez al final**, con la
 carga que para entonces ya esta en la mano. Recalcular la misma estacion diez
 veces en una pasada daba diez veces el mismo resultado.
 
+### Reconstruir los agregados leia las cuatro colecciones enteras
+
+Y recalcular el dominio de una estacion, las dos grandes. Las dos cosas pasaban
+en **cada pasada del worker que hubiera movido algo**: 15.200 lecturas por
+pasada con 15.000 viajes acumulados, unas 163 veces al dia. **Dos millones y
+medio de lecturas diarias sin que nadie abriera la web.**
+
+Lo que lo desbloqueo fue mirar para que hacen falta los viajes de verdad:
+
+- Las cuatro clasificaciones de pilotos, la de clanes y el mapa **no los usan**.
+  Salen de `usuarios`, `clanes` y `estaciones_stats`.
+- Los viajes solo hacen falta para los agregados **por ruta** y para el contador
+  de la portada, que ahora sale de una consulta de agregacion.
+- La influencia sobre una estacion sale **solo de los viajes de las rutas que la
+  tocan**, y el indice de `agregados/rutas` dice cuales son sin recorrer nada.
+
+Asi que sabiendo QUE se ha movido, no hace falta leerlo todo. El worker apunta
+las rutas que toca durante la tanda y al final reconstruye en **modo parcial**.
+Y hay dos frenos, no uno: el parcial abarata UNA reconstruccion, y el limitador
+de quince minutos recorta CUANTAS se hacen. Hacen falta los dos, porque incluso
+en parcial cada reconstruccion escribe nueve documentos largos.
+
+Tres detalles que no son opcionales, y cada uno tiene su test:
+
+- Una ruta movida mientras el limitador espera **queda apuntada** en
+  `config/agregados_pendientes`. El worker de Actions arranca de cero en cada
+  ejecucion: sin eso, esa ruta se quedaria con el agregado viejo hasta que
+  alguien volviera a subir algo ahi.
+- El indice de rutas y el total de la portada **se conservan**. En parcial solo
+  se conocen las rutas movidas; sobrescribir con eso dejaria el selector de
+  `/clasificacion/` con una entrada y la portada diciendo que hay 8 viajes.
+- Si el indice de rutas todavia no existe, el dominio **se calcula por la via
+  cara**. Tomar "no lo se" por "no hay ninguna ruta" pondria la influencia a cero
+  y dejaria el mapa sin dueños de un dia para otro.
+
 ### `/territorio/` leia 631 documentos
 
 Era la ultima pantalla que recorria colecciones enteras. El agregado del mapa ya
@@ -77,26 +112,35 @@ cada visita a su perfil. Ahora pagina de 20 en 20 con `startAfter`, y el total
 sale de la consulta de conteo de Firestore, que cobra una lectura por cada 1.000
 documentos contados.
 
-**Resultado: de 423.291 lecturas al dia a 22.035. Del 847% de la cuota al 44%.**
+**Resultado con los datos de hoy: de 423.291 lecturas al dia a 21.979. Del 847%
+de la cuota al 44%.**
+
+Con 200 activos y 15.000 viajes acumulados, que es donde se ve si algo escala:
+reconstruir los agregados pasa de **15.765 lecturas cada vez a 858**, y
+recalcular el dominio de una tanda de estaciones de **15.200 a 394**. El total
+del escenario baja de 1.269.982 lecturas al dia a 504.949.
 
 ## Donde se esta hoy
 
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 22.035 | 44% |
-| u50 | 50 | 3000 | 143.316 | 287% **se agota** |
-| u200 | 200 | 15.000 | 1.269.982 | 2540% **se agota** |
-| u1000 | 1000 | 90.000 | 27.818.982 | 55638% **se agota** |
+| hoy | 6 | 1022 | 21.979 | 44% |
+| u50 | 50 | 3000 | 94.661 | 189% **se agota** |
+| u200 | 200 | 15.000 | 504.949 | 1010% **se agota** |
+| u1000 | 1000 | 90.000 | 5.661.732 | 11323% **se agota** |
 
 
 Tres cosas que hay que leer bien de esa tabla:
 
 1. **Hoy se cabe con holgura.** 44% de la cuota con seis personas.
-2. **Con 50 usuarios activos la cuota se agota en ocho horas.** Mejor que las
-   dos y media de partida, pero sigue sin llegar a medianoche.
-3. El crecimiento no es proporcional al numero de usuarios, es **cuadratico**:
-   varias operaciones del worker leen la coleccion entera de viajes, y esa
-   coleccion crece con los usuarios.
+2. **Con 50 usuarios activos la cuota se agota a las trece horas.** Mejor que
+   las ocho de la vuelta anterior y que las dos y media de partida, pero sigue
+   sin llegar a medianoche.
+3. El crecimiento sigue sin ser proporcional al numero de usuarios. Lo que queda
+   caro son las operaciones que **todavia** leen la coleccion entera de viajes
+   (`metricas.resumir` y `prepararDia`) y las que crecen con lo acumulado en una
+   ruta (`recalcularRuta`, `reunirContexto`), y esa coleccion crece con los
+   usuarios.
 
 La variable que mas duele no es cuanta gente hay, sino **cuantos viajes hay
 acumulados**, que sube todos los dias aunque no entre nadie nuevo.
@@ -105,10 +149,10 @@ acumulados**, que sube todos los dias aunque no entre nadie nuevo.
 
 | Pantalla | Lecturas por carga | De donde salen |
 |---|---:|---|
-| `/statssss/` | 15.765 | las cuatro colecciones enteras |
 | `/subir/` | 61 | perfil + sus 60 viajes mas recientes, para el limite diario |
 | `/yo/` | 25 | perfil + temporadas + el conteo + la primera pagina del historial (20) |
 | `/` | 7 | perfil + mision + config + clan + su ultimo viaje + el conteo + el agregado de la ruta |
+| `/statssss/` | 2 | los agregados de portada y mapa |
 | `/clasificacion/` | 1 | el agregado del modo; las visitas repetidas salen de la cache de sesion |
 | `/territorio/` | 1 | el agregado del mapa: clanes y estaciones en un solo documento |
 
@@ -118,52 +162,58 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 
 | Operacion del worker | Lecturas por vez | De donde salen |
 |---|---:|---|
-| reconstruirAgregados (una vez por pasada CON viajes) | 15.765 | usuarios y viajes (compartidos con el resumen de metricas) + clanes + estaciones |
 | metricas.resumir (una vez cada 6 h) | 15.441 | la marca del agregado + TODOS los usuarios + TODOS los viajes + 200 dias |
 | prepararDia, la parte cara (UNA vez al dia) | 15.000 | TODOS los viajes verificados, para elegir la ruta del dia |
+| reconstruirAgregados (parcial, como mucho cada 15 min) | 858 | usuarios + clanes + estaciones + los viajes de las rutas movidas + el conteo agregado + el indice, la portada y las rutas pendientes |
 | recalcularRuta (por viaje APROBADO) | 798 | los viajes de esa ruta + quien ya puntuaba en ella |
 | reunirContexto (por viaje procesado) | 640 | tiempos de la ruta (tope 200) + propios (tope 40) + huellas (tope 400) |
-| metricas.agregarSesiones (por pasada) | 400 | las sesiones del navegador sin agregar todavia |
+| recalcularEstaciones (una vez por pasada CON viajes) | 394 | el indice de rutas + usuarios + los viajes de las rutas que tocan cada estacion |
 | validarBasico y captura (por viaje procesado) | 62 | sus 60 viajes recientes + la captura + la distancia de la ruta |
-| recalcularEstaciones (una vez por pasada CON viajes) | 60 | una lectura por estacion tocada; usuarios y viajes vienen compartidos |
 | cola y bajas (por pasada) | 3 | las consultas de cola, recalculo pendiente y bajas |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
+| metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |
 | metricas.tocaResumir (por pasada) | 1 | la marca del agregado, para saber si toca el resumen caro |
+| agregados.tocaReconstruir (por pasada con movimiento) | 1 | la marca del agregado de portada, para saber si toca |
 
 ## Lo que queda, por impacto
 
-### 1. `reconstruirAgregados`
+Los numeros son del escenario u200: 200 activos al dia, 240 subidas y 15.000
+viajes acumulados.
 
-Lee las cuatro colecciones y se ejecuta una vez por cada pasada del worker que
-haya movido algo. Con 240 subidas al dia repartidas, son unas treinta pasadas y
-472.950 lecturas.
+### 1. `reunirContexto` — 153.600 lecturas/dia
 
-Es el precio de reconstruir desde cero. La palanca obvia es la misma que se uso
-con el resumen de metricas: no rehacerlo mas de cada N minutos. Como el worker
-ya llega con 5-15 minutos de retraso — GitHub retrasa los cron programados —,
-un limite de 15 minutos apenas se nota y divide el coste por tres. La alternativa
-de fondo es reconstruir solo lo que ha cambiado, que es bastante mas trabajo.
+640 lecturas por viaje procesado, y ya es el mas caro del worker. La buena
+noticia es que es **constante**: no empeora al crecer el proyecto, solo al subir
+mas viajes. El tope de 400 huellas de captura es el que mas pesa — dos tercios
+del total — y bajarlo apenas quita deteccion, porque un duplicado se sube casi
+siempre a los pocos dias del original.
 
-### 2. `/statssss/`
+### 2. `recalcularRuta` — 95.760 lecturas/dia
 
-Lee las cuatro colecciones enteras: 15.765 lecturas por visita, un tercio de la
-cuota diaria de una sentada. Deberia leer de `agregados/portada` y
-`agregados/metricas`, que ya existen y ya tienen los numeros que pinta.
+Se rehace por cada viaje aprobado, y no es un capricho: cambia la clasificacion
+y el siguiente viaje de la tanda tiene que verla al dia. Lo que cuesta son los
+viajes de esa ruta, que crecen sin techo. La salida es la misma que en
+`/clasificacion/`: solo el mejor tiempo de cada piloto compite, asi que bastaria
+con mantener por ruta un documento con esos mejores tiempos en vez de recorrer
+todos los viajes.
 
-### 3. `metricas.agregarSesiones`
+### 3. `reconstruirAgregados` — 75.504 lecturas/dia
 
-Lee `sesiones_web` entera en **cada pasada**, 288 veces al dia. Con 200 activos
-son 400 documentos por pasada: 115.200 al dia. Podar es barato, pero leerlo todo
-para podar no.
+Ya va en parcial y como mucho cada quince minutos. Lo que queda son `usuarios`
+(200) y `estaciones_stats` (500) enteros en cada reconstruccion, y esos si
+crecen. Las clasificaciones de pilotos necesitan a todo el mundo por definicion;
+lo que se puede acotar es el mapa, que solo cambia en las estaciones tocadas.
 
-### 4. `prepararDia` y `reunirContexto`
+### 4. `recalcularEstaciones` — 64.222 lecturas/dia
 
-`prepararDia` lee todos los viajes una vez al dia para elegir la ruta destacada.
-Es una sola vez, asi que no urge, pero crece con la coleccion.
+Mismo caso: lo caro que queda es leer `usuarios` entera para saber de que clan
+es cada piloto. Un documento con el mapa uid -> clan lo dejaria en una lectura.
 
-`reunirContexto` cuesta 640 lecturas por viaje procesado y es **constante**: no
-empeora al crecer el proyecto. El tope de 400 huellas es el que mas pesa y se
-puede bajar sin perder casi deteccion.
+### 5. `metricas.resumir` y `prepararDia`
+
+Los dos ultimos sitios que leen `tiempos_viaje` ENTERA. `resumir` va cada seis
+horas (61.764 al dia) y `prepararDia` una vez al dia (15.000). Ninguno urge, pero
+son los que hacen que el coste siga creciendo con lo acumulado.
 
 ## Lo que ya esta bien
 
@@ -177,8 +227,14 @@ puede bajar sin perder casi deteccion.
 - `prepararDia` corta en seco si la ruta del dia ya esta elegida: la parte cara
   ocurre una vez al dia, no 288.
 - `reunirContexto` tiene topes (200, 40, 400). 640 lecturas por viaje es mucho,
-  pero es **constante**: no empeora al crecer el proyecto. El tope de 400
-  huellas es el que mas pesa y se puede bajar sin perder casi deteccion.
+  pero es **constante**: no empeora al crecer el proyecto.
+- `/statssss/` lee dos agregados. Leia las cuatro colecciones enteras: 15.765
+  lecturas por visita, un tercio de la cuota diaria de una sentada.
+- `metricas.agregarSesiones` suma y borra: entre pasada y pasada solo esta lo
+  que ha llegado en esos cinco minutos. Leia `sesiones_web` entera 288 veces al
+  dia.
+- Los agregados se reconstruyen **solo con lo que se ha movido**, y como mucho
+  cada quince minutos.
 - La cache de distancias cuesta **una** lectura por viaje.
 - El worker consulta la cola con `limit`, asi que una pasada en vacio cuesta
   tres lecturas, no una por documento.

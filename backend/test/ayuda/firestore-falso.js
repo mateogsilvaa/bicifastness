@@ -180,11 +180,23 @@ class Consulta {
     return { docs, size: docs.length, empty: docs.length === 0 };
   }
 
-  /** La consulta de agregacion: una lectura por cada 1.000 contados. */
-  async count() {
-    const docs = this._resolver();
-    this.bd.lecturas += Math.max(1, Math.ceil(docs.length / 1000));
-    return { data: () => ({ count: docs.length }) };
+  /**
+   * La consulta de agregacion.
+   *
+   * Como en Firestore, `count()` NO lee: devuelve una consulta, y la lectura
+   * ocurre en su `get()`, a una por cada 1.000 documentos contados. Devolver
+   * aqui el resultado directamente haria pasar por bueno un `await c.count()`
+   * sin `get()`, que en produccion no cuenta nada.
+   */
+  count() {
+    const consulta = this;
+    return {
+      async get() {
+        const docs = consulta._resolver();
+        consulta.bd.lecturas += Math.max(1, Math.ceil(docs.length / 1000));
+        return { data: () => ({ count: docs.length }) };
+      },
+    };
   }
 
   _resolver() {

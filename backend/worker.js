@@ -47,6 +47,7 @@ const borrado = require('./src/borrado');
 const cuota = require('./src/cuota');
 const logros = require('./src/logros');
 const clanes = require('./src/clan-mantenimiento');
+const agregados = require('./src/agregados');
 const push = require('./src/push');
 const almacen = require('./src/db');
 const misiones = require('./src/misiones');
@@ -143,7 +144,17 @@ const AHORA = () => admin.firestore.FieldValue.serverTimestamp();
  */
 const estacionesTocadas = new Set();
 
+/**
+ * Rutas cuya clasificacion ha cambiado en esta ejecucion.
+ *
+ * Es lo que permite que la reconstruccion de agregados sea PARCIAL: los viajes
+ * solo hacen falta para los agregados por ruta, asi que sabiendo cuales se han
+ * movido se leen los de esas rutas y no los 15.000 (#36).
+ */
+const rutasTocadas = new Set();
+
 function apuntarEstaciones(ruta) {
+  if (ruta) rutasTocadas.add(String(ruta));
   for (const estacion of puntuacion.estacionesDe(ruta)) estacionesTocadas.add(estacion);
 }
 
@@ -1105,6 +1116,18 @@ async function main() {
   // movimiento — leerlas por separado costaba el doble (#34).
   const huboMovimiento = cuenta.aprobado > 0 || cuenta.rechazado > 0;
 
+  // Reconstruir los agregados lee las CUATRO colecciones enteras: es la
+  // operacion mas cara que queda. Hacerlo en cada pasada con movimiento son
+  // unas treinta veces al dia, y quince minutos de antiguedad no se notan —
+  // el worker ya llega con 5-15 de retraso, asi que la clasificacion nunca ha
+  // sido instantanea (docs/COSTE.md).
+  //
+  // Quien acaba de subir un trayecto ve su veredicto por el seguimiento en vivo
+  // del propio viaje, que no pasa por los agregados.
+  const rehacerAgregados = huboMovimiento
+    && !SIMULAR
+    && await agregados.tocaReconstruir().catch(() => true);
+
   // Modo degradado (#38): por encima del 95% de la cuota se deja de hacer lo
   // que mas lee. La clasificacion se queda con los datos de la ultima
   // reconstruccion — unos minutos vieja — en vez de que la web deje de
@@ -1118,7 +1141,15 @@ async function main() {
   const rehacerPesado = !SIMULAR && !degradado;
   let base = null;
 
-  if (rehacerPesado && (huboMovimiento || resumirMetricas || estacionesTocadas.size)) {
+  // `base` son `usuarios` y `tiempos_viaje` ENTEROS: 15.200 lecturas con los
+  // datos de u200. Solo se carga para el resumen de metricas, que es el unico
+  // que de verdad los necesita todos — la retencion por cohortes no sale de otro
+  // sitio — y que va como mucho cada seis horas.
+  //
+  // El dominio de las estaciones y los agregados ya no la piden: cada uno lee lo
+  // suyo acotado por ruta. Cuando el resumen SI toca, se la pasan y aprovechan
+  // la lectura que ya esta hecha (#34).
+  if (rehacerPesado && resumirMetricas) {
     base = await puntuacion.cargarBase();
   }
 
@@ -1130,9 +1161,31 @@ async function main() {
     estacionesTocadas.clear();
   }
 
-  if (rehacerPesado && huboMovimiento) {
-    const escritos = await puntuacion.reconstruirAgregados(base);
-    console.log(`Agregados reconstruidos: ${JSON.stringify(escritos)}`);
+  if (rehacerPesado && rehacerAgregados) {
+    // `base` gana a `rutasTocadas`: si ya estan los viajes leidos, la
+    // reconstruccion completa no cuesta mas y ademas limpia los agregados de las
+    // rutas que se hayan quedado sin viajes, que la parcial no puede ver.
+    //
+    // Sin `base` se rehacen las rutas de esta pasada MAS las que quedaron
+    // apuntadas de las pasadas que el limitador salto. Si no, una ruta movida
+    // durante esos quince minutos se quedaria con el agregado viejo.
+    const rutas = base ? null : new Set([...rutasTocadas, ...await agregados.leerPendientes()]);
+
+    const escritos = await puntuacion.reconstruirAgregados(base, rutas);
+    console.log(`Agregados reconstruidos (${base ? 'completa' : `parcial, ${rutas.size} rutas`}): `
+      + JSON.stringify(escritos));
+
+    // Despues de reconstruir, no antes: si falla, las rutas siguen apuntadas.
+    if (rutas) await agregados.olvidarPendientes();
+    rutasTocadas.clear();
+  } else if (huboMovimiento && !SIMULAR) {
+    // Se apuntan para la proxima: el proceso muere al acabar la ejecucion, asi
+    // que sin esto la ruta se quedaria con el agregado viejo. Vale para las dos
+    // razones por las que se llega aqui: el limitador de quince minutos y el
+    // modo degradado por cuota.
+    await agregados.apuntarPendientes(rutasTocadas).catch(() => {});
+    console.log(`Agregados: movimiento en ${rutasTocadas.size} rutas, sin reconstruir `
+      + 'todavia. Quedan apuntadas para la proxima.');
   }
 
   // Metricas, en dos mitades con coste MUY distinto.

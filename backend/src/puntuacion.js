@@ -296,12 +296,57 @@ async function recalcularEstaciones(estacionIds, base = null) {
   const unicas = [...new Set([...estacionIds].filter(Boolean).map(String))];
   if (!unicas.length) return 0;
 
-  const { viajes, usuarios } = base || await cargarBase();
+  const { viajes, usuarios } = base || await cargarEstaciones(unicas);
 
   for (const estacionId of unicas) {
     await recalcularEstacion(estacionId, viajes, usuarios);
   }
   return unicas.length;
+}
+
+/**
+ * Las rutas que tienen algun viaje verificado, del indice que deja el agregado.
+ *
+ * Devuelve `null` — no una lista vacia — si el indice todavia no existe. La
+ * diferencia importa: "no lo se" obliga a leer los viajes enteros, mientras que
+ * "no hay ninguna" borraria el territorio del mapa.
+ */
+async function rutasConViajes() {
+  try {
+    const doc = await db().doc('agregados/rutas').get();
+    if (!doc.exists) return null;
+    const rutas = doc.data().rutas;
+    return Array.isArray(rutas) && rutas.length ? rutas : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Lo que hace falta para recalcular el dominio de UNAS estaciones concretas.
+ *
+ * La influencia sobre una estacion sale de los viajes de las rutas que la tocan,
+ * y de ninguna otra (src/territorio.js). Asi que no hacen falta los 15.000
+ * viajes: bastan los de esas rutas, que el indice de `agregados/rutas` sabe
+ * cuales son sin tener que recorrer nada.
+ *
+ * Es el camino barato; si el indice no esta, se cae al caro y se leen todos. Ese
+ * respaldo no es decorativo: con la lista vacia la influencia saldria a cero y
+ * el mapa se quedaria sin dueños de un dia para otro.
+ */
+async function cargarEstaciones(estacionIds) {
+  const indice = await rutasConViajes();
+  if (!indice) return cargarBase();
+
+  const objetivo = new Set(estacionIds.map(String));
+  const rutas = indice.filter((ruta) => estacionesDe(ruta).some((e) => objetivo.has(e)));
+
+  const [viajes, usuariosSnap] = await Promise.all([
+    viajesDeRutas(rutas),
+    db().collection('usuarios').get(),
+  ]);
+
+  return { viajes, usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })) };
 }
 
 /** Las dos estaciones de una ruta, para acumularlas. */
@@ -352,24 +397,108 @@ async function cargarBase() {
 }
 
 /**
+ * Los viajes verificados de unas rutas concretas.
+ *
+ * Una consulta por ruta, cada una acotada por el indice `ruta + verificado`. Con
+ * 15.000 viajes repartidos en 600 rutas son unas decenas de lecturas por ruta,
+ * frente a los 15.000 de leerlas todas.
+ */
+async function viajesDeRutas(rutas) {
+  const unicas = [...new Set([...rutas].filter(Boolean).map(String))];
+  if (!unicas.length) return [];
+
+  const tandas = await Promise.all(unicas.map((ruta) => db().collection('tiempos_viaje')
+    .where('ruta', '==', ruta)
+    .where('verificado', '==', true)
+    .get()));
+
+  return tandas.flatMap((snap) => snap.docs.map((d) => d.data()));
+}
+
+/**
+ * Cuantos viajes verificados hay, sin leerlos.
+ *
+ * La consulta de agregacion cobra una lectura por cada 1.000 documentos
+ * contados: 15 en vez de 15.000. Solo se usa para el numero de la portada, asi
+ * que si fallara — es una consulta que necesita indice — no vale la pena tumbar
+ * la reconstruccion entera por ella.
+ */
+async function contarViajesVerificados() {
+  try {
+    const conteo = await db().collection('tiempos_viaje')
+      .where('verificado', '==', true)
+      .count()
+      .get();
+    return conteo.data().count;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Reconstruye los agregados que lee el navegador.
  *
- * `base` es opcional: si quien llama ya tiene cargados usuarios y viajes, se los
- * pasa y aqui no se vuelven a leer.
+ * Tres caminos, de mas barato a mas caro:
+ *
+ * 1. `base` viene dada — alguien ya ha leido usuarios y viajes en esta pasada
+ *    (el recalculo de estaciones, el resumen de metricas). Se aprovecha y sale
+ *    gratis, y ademas es COMPLETA: se rehacen todas las rutas, que es lo que
+ *    limpia el agregado de una ruta que se haya quedado sin viajes.
+ * 2. `rutas` trae las que se han movido y no hay base. Modo parcial: se leen
+ *    usuarios, los viajes de ESAS rutas y poco mas.
+ * 3. Ni una cosa ni otra: se lee todo, como antes.
+ *
+ * `rutas` no se usa cuando hay `base` a proposito: teniendo los viajes enteros
+ * en la mano, hacer la reconstruccion parcial no ahorra nada y pierde la
+ * limpieza de las rutas vacias.
  */
-async function reconstruirAgregados(base = null) {
-  const { viajes, usuarios } = base || await cargarBase();
+async function reconstruirAgregados(base = null, rutas = null) {
+  // Basta con que quien llama diga QUE rutas se han movido, aunque sean cero:
+  // una pasada que solo ha rechazado viajes, o en la que solo ha cambiado un
+  // clan, no mueve ninguna ruta y aun asi hay que rehacer las clasificaciones de
+  // pilotos y clanes — que salen de `usuarios` y `clanes`, no de los viajes.
+  const parcial = !base && rutas !== null && rutas !== undefined;
 
   const [clanesSnap, estacionesSnap] = await Promise.all([
     db().collection('clanes').get(),
     db().collection('estaciones_stats').get(),
   ]);
 
-  return agregados.reconstruir({
-    viajes,
-    usuarios,
+  const comunes = {
     clanes: clanesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
     estaciones: new Map(estacionesSnap.docs.map((d) => [d.id, d.data()])),
+  };
+
+  if (!parcial) {
+    const { viajes, usuarios } = base || await cargarBase();
+    return agregados.reconstruir({ ...comunes, viajes, usuarios });
+  }
+
+  const pedidas = [...new Set([...rutas].filter(Boolean).map(String))];
+
+  const [usuariosSnap, viajes, contados, indice, portada] = await Promise.all([
+    db().collection('usuarios').get(),
+    viajesDeRutas(pedidas),
+    contarViajesVerificados(),
+    db().doc('agregados/rutas').get(),
+    db().doc('agregados/portada').get(),
+  ]);
+
+  // Si el conteo falla se conserva el numero anterior. Lo que NO se puede hacer
+  // es dejar que caiga en `viajes.length`, que aqui son solo los de las rutas
+  // tocadas: la portada pasaria de "1.022 viajes" a "40".
+  const totalViajes = contados !== null
+    ? contados
+    : (portada.exists ? (portada.data().viajes || 0) : 0);
+
+  return agregados.reconstruir({
+    ...comunes,
+    viajes,
+    usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
+    parcial: true,
+    rutasPrevias: indice.exists ? (indice.data().rutas || []) : [],
+    rutasRehechas: pedidas,
+    totalViajes,
   });
 }
 
@@ -383,6 +512,10 @@ module.exports = {
   estacionesDe,
   reconstruirAgregados,
   cargarBase,
+  cargarEstaciones,
+  rutasConViajes,
+  viajesDeRutas,
+  contarViajesVerificados,
   puntosPorPosicion,
   multiplicadorRuta,
   escribirEnLotes,

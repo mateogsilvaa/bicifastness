@@ -20,6 +20,8 @@
  *   - Las capturas de sus viajes. Son fotos suyas.
  *   - La reserva de su nombre de piloto, para que quede libre.
  *   - Su pertenencia al clan.
+ *   - Sus suscripciones a los avisos push, que van dentro del perfil y se
+ *     borran con el.
  *
  *   - Los tiempos verificados NO se borran: se ANONIMIZAN. Es lo que dice la
  *     politica de privacidad, y tiene sentido — un ranking historico al que se

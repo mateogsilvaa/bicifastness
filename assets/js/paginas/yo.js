@@ -15,6 +15,12 @@ import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosC
 import { motivoDeViaje } from '/assets/js/motivos.js';
 import { vaciarCache } from '/assets/js/cache.js';
 import { sonidoActivo, activarSonido, sonar } from '/assets/js/celebrar.js';
+import {
+  soportado as soportadoPush, configurado as configuradoPush,
+  suscribir, desuscribir, suscripcionActual,
+} from '/assets/js/push.js';
+import { guardarSuscripcionPush, olvidarSuscripcionPush, ajustarAvisoPush } from '/assets/js/acciones.js';
+import { TIPOS as TIPOS_PUSH } from '/assets/data/push-tipos.js';
 
 iniciarPagina('yo');
 
@@ -52,6 +58,7 @@ async function cargarPerfil() {
   id('avisos-correo').checked = perfil.avisosCorreo !== false;
 
   pintarModos(perfil);
+  await montarAvisosPush(perfil);
   await cargarTemporadas();
 }
 
@@ -336,6 +343,80 @@ id('avisos-correo').addEventListener('change', async (evento) => {
     casilla.disabled = false;
   }
 });
+
+/**
+ * Los interruptores de los avisos push (#33).
+ *
+ * El primero es el maestro: sin suscripcion no hay a donde enviar, asi que los
+ * de tipo no significan nada hasta que exista. Darse de baja es apagar ese, y
+ * son dos toques.
+ */
+async function montarAvisosPush(perfil) {
+  if (!soportadoPush() || !configuradoPush()) return;
+
+  id('ajustes-push').classList.remove('oculto');
+
+  const suscripcion = await suscripcionActual();
+  const preferencias = perfil.push?.avisos || {};
+
+  const interruptor = (etiqueta, detalle, marcado, alCambiar, deshabilitado = false) => {
+    const casilla = el('input', {
+      attrs: { type: 'checkbox', checked: marcado ? '' : null, disabled: deshabilitado ? '' : null },
+      on: {
+        change: async (e) => {
+          e.target.disabled = true;
+          try {
+            await alCambiar(e.target.checked);
+            estado(id('msg-push'), '');
+          } catch (error) {
+            e.target.checked = !e.target.checked;
+            estado(id('msg-push'), `No se ha podido guardar: ${error.message}`, 'error');
+          } finally {
+            e.target.disabled = false;
+          }
+        },
+      },
+    });
+
+    return el('label', { clase: 'fila', estilo: { marginBottom: 'var(--e3)' } }, [
+      casilla,
+      el('span', {}, [
+        el('span', { texto: etiqueta }),
+        detalle ? el('span', { clase: 'clan', texto: detalle }) : null,
+      ]),
+    ]);
+  };
+
+  const nodos = [
+    interruptor(
+      'Recibir avisos en este dispositivo',
+      suscripcion ? 'Activado aqui. En otro movil hay que activarlo aparte.' : null,
+      Boolean(suscripcion),
+      async (activar) => {
+        if (activar) {
+          const nueva = await suscribir();
+          if (!nueva) throw new Error('el navegador no ha dado permiso');
+          await guardarSuscripcionPush(nueva);
+        } else {
+          const vieja = await desuscribir();
+          await olvidarSuscripcionPush(vieja);
+        }
+        // Se vuelve a montar: los de tipo dependen de que exista suscripcion.
+        await montarAvisosPush({ ...perfil, push: { ...perfil.push, suscripciones: activar ? [1] : [] } });
+      }),
+  ];
+
+  for (const [tipo, info] of Object.entries(TIPOS_PUSH)) {
+    nodos.push(interruptor(
+      info.etiqueta,
+      null,
+      preferencias[tipo] === undefined ? info.porDefecto : preferencias[tipo] === true,
+      (activo) => ajustarAvisoPush(tipo, activo),
+      !suscripcion));
+  }
+
+  reemplazar(id('lista-avisos'), nodos);
+}
 
 // El sonido va apagado salvo que se encienda a proposito: una web que suena
 // sola la primera vez que la abres en el metro es una web que se cierra (#51).

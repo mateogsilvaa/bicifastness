@@ -93,6 +93,12 @@ jobs:
           # el aviso se queda en el log del workflow, donde no lo lee nadie
           # hasta que ya es tarde.
           CORREO_ADMIN: ${{ secrets.CORREO_ADMIN }}
+          # Avisos push (#33). Sin ellas no se envia nada y no es un error: es
+          # el estado normal hasta que alguien genere el par con
+          # `node scripts/claves-push.js`.
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           # Cuanto se queda vivo dando pasadas, y cada cuanto. Con 0 vuelve al
           # comportamiento de antes: una mirada a la cola y a casa.
           VENTANA_MINUTOS: '4'

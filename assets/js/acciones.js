@@ -175,6 +175,9 @@ export async function exportarMisDatos() {
       creada: auth.currentUser?.metadata?.creationTime ?? null,
       ultimoAcceso: auth.currentUser?.metadata?.lastSignInTime ?? null,
     },
+    // El perfil lleva dentro `push`, con la suscripcion de cada dispositivo. Es
+    // un dato personal y sale entero en el export, sin recortar: el art. 15 no
+    // admite quedarse con lo que a uno le parezca relevante.
     perfil: perfil.exists() ? perfil.data() : null,
     temporadas: temporadas.docs.map((d) => ({ id: d.id, ...d.data() })),
     viajes: viajes.docs.map((d) => ({ id: d.id, ...d.data() })),
@@ -546,3 +549,39 @@ export async function confirmarEntrada(clanId) {
   await updateDoc(doc(db, 'usuarios', uidActual()), { clanId });
 }
 
+
+// --- Avisos push (#33) --------------------------------------------------------------
+
+/**
+ * Guarda la suscripcion de ESTE navegador.
+ *
+ * Se acumulan, no se sustituyen: el movil y el ordenador son dos navegadores
+ * distintos y cada uno tiene la suya. Guardar solo la ultima dejaria sin aviso
+ * al dispositivo que se este usando.
+ */
+export async function guardarSuscripcionPush(suscripcion) {
+  // `toJSON()` porque el objeto del navegador tiene metodos y Firestore solo
+  // admite datos.
+  const plana = typeof suscripcion.toJSON === 'function' ? suscripcion.toJSON() : suscripcion;
+
+  await updateDoc(doc(db, 'usuarios', uidActual()), {
+    'push.suscripciones': arrayUnion(plana),
+  });
+}
+
+/** Quita la suscripcion de este navegador. Darse de baja tiene que ser facil. */
+export async function olvidarSuscripcionPush(suscripcion) {
+  if (!suscripcion) return;
+  const plana = typeof suscripcion.toJSON === 'function' ? suscripcion.toJSON() : suscripcion;
+
+  await updateDoc(doc(db, 'usuarios', uidActual()), {
+    'push.suscripciones': arrayRemove(plana),
+  });
+}
+
+/** Enciende o apaga un tipo de aviso. */
+export async function ajustarAvisoPush(tipo, activo) {
+  await updateDoc(doc(db, 'usuarios', uidActual()), {
+    [`push.avisos.${tipo}`]: activo === true,
+  });
+}

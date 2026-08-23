@@ -46,6 +46,14 @@ modo mantenimiento no protege ni un dato. Lo unico que protege son las reglas.
 - [ ] Variable o secreto `CORREO_ADMIN` con la direccion a la que avisar cuando
       la cuota se acerque al limite (#38). Sin ella, el aviso solo sale en el
       log del workflow, donde no lo lee nadie
+- [ ] Claves de los avisos push (#33), si se quieren:
+      `node scripts/claves-push.js` y los tres secretos que imprime. La PUBLICA
+      va ademas en `assets/data/push-config.js`
+      (`VAPID_PUBLIC_KEY=... node scripts/build-push.js`) y se commitea: no es
+      un secreto, la necesita el navegador para suscribirse.
+      **Se generan UNA vez.** Cambiarlas invalida todas las suscripciones que
+      haya y hay que volver a pedir un permiso que el navegador no vuelve a
+      preguntar
 
 ## 4. El sitio se sirve (#2)
 

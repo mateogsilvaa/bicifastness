@@ -48,31 +48,96 @@ const FieldValue = {
   arrayRemove: (...v) => ({ [MARCA]: 'arrayRemove', v }),
 };
 
-/** Aplica los FieldValue de `parche` sobre `previo`. */
-function aplicar(previo = {}, parche = {}) {
-  const salida = { ...previo };
+/**
+ * Escribe en una ruta con puntos: `push.suscripciones` toca el campo de dentro,
+ * no crea una clave que se llame asi.
+ *
+ * Firestore lo hace en `update()` — no en `set()` — y el proyecto lo usa para
+ * las preferencias de aviso y las suscripciones. Sin esto, el doble creaba una
+ * clave literal `"push.suscripciones"` y el codigo parecia funcionar mientras
+ * el test miraba lo que no era.
+ */
+function escribirEnRuta(objeto, ruta, valor) {
+  const partes = ruta.split('.');
+  let actual = objeto;
+
+  for (const parte of partes.slice(0, -1)) {
+    if (typeof actual[parte] !== 'object' || actual[parte] === null) actual[parte] = {};
+    else actual[parte] = { ...actual[parte] };
+    actual = actual[parte];
+  }
+
+  const ultima = partes[partes.length - 1];
+  if (valor === undefined) delete actual[ultima];
+  else actual[ultima] = valor;
+}
+
+const leerDeRuta = (objeto, ruta) =>
+  ruta.split('.').reduce((o, k) => (o === undefined || o === null ? undefined : o[k]), objeto);
+
+/**
+ * Aplica los FieldValue de `parche` sobre `previo`.
+ * `conRutas` distingue `update` (que entiende los puntos) de `set` (que no).
+ */
+function aplicar(previo = {}, parche = {}, conRutas = false) {
+  const salida = JSON.parse(JSON.stringify(previo ?? {}, reemplazar));
+  // `reemplazar` convierte las fechas en `{__fecha}`; hay que devolverlas.
+  restaurarFechas(salida);
 
   for (const [clave, valor] of Object.entries(parche)) {
-    if (!esMarca(valor)) { salida[clave] = valor; continue; }
+    const anidada = conRutas && clave.includes('.');
 
-    switch (valor[MARCA]) {
-      case 'timestamp': salida[clave] = new Date(); break;
-      case 'delete': delete salida[clave]; break;
-      case 'increment': salida[clave] = (Number(salida[clave]) || 0) + valor.n; break;
-      case 'arrayUnion': {
-        const actual = Array.isArray(salida[clave]) ? salida[clave] : [];
-        salida[clave] = [...new Set([...actual, ...valor.v])];
-        break;
-      }
-      case 'arrayRemove': {
-        const actual = Array.isArray(salida[clave]) ? salida[clave] : [];
-        salida[clave] = actual.filter((x) => !valor.v.includes(x));
-        break;
-      }
-      default: throw new Error(`FieldValue desconocido: ${valor[MARCA]}`);
+    if (!esMarca(valor)) {
+      if (anidada) escribirEnRuta(salida, clave, valor);
+      else salida[clave] = valor;
+      continue;
     }
+
+    if (anidada) {
+      const actual = leerDeRuta(salida, clave);
+      escribirEnRuta(salida, clave, aplicarMarca(actual, valor));
+      continue;
+    }
+
+    const resultado = aplicarMarca(salida[clave], valor);
+    if (resultado === undefined) delete salida[clave];
+    else salida[clave] = resultado;
   }
   return salida;
+}
+
+/** Devuelve `undefined` para `delete()`. */
+function aplicarMarca(actual, valor) {
+  switch (valor[MARCA]) {
+    case 'timestamp': return new Date();
+    case 'delete': return undefined;
+    case 'increment': return (Number(actual) || 0) + valor.n;
+    case 'arrayUnion': {
+      const lista = Array.isArray(actual) ? actual : [];
+      // Comparacion por valor, no por referencia: una suscripcion es un objeto
+      // y `Set` no dedupe objetos iguales de origen distinto. Firestore si.
+      const clavesDe = (x) => JSON.stringify(x);
+      const vistas = new Set(lista.map(clavesDe));
+      return [...lista, ...valor.v.filter((x) => !vistas.has(clavesDe(x)))];
+    }
+    case 'arrayRemove': {
+      const lista = Array.isArray(actual) ? actual : [];
+      const fuera = new Set(valor.v.map((x) => JSON.stringify(x)));
+      return lista.filter((x) => !fuera.has(JSON.stringify(x)));
+    }
+    default: throw new Error(`FieldValue desconocido: ${valor[MARCA]}`);
+  }
+}
+
+/** Deshace la conversion de fechas que hace `reemplazar` al copiar. */
+function restaurarFechas(objeto) {
+  if (!objeto || typeof objeto !== 'object') return;
+  for (const [clave, valor] of Object.entries(objeto)) {
+    if (valor && typeof valor === 'object') {
+      if (valor.__fecha) objeto[clave] = new Date(valor.__fecha);
+      else restaurarFechas(valor);
+    }
+  }
 }
 
 // --- Consultas -----------------------------------------------------------------
@@ -204,7 +269,9 @@ class RefDocumento {
       // Firestore falla si el documento no existe; el doble tambien, o un error
       // real pasaria desapercibido en el ensayo.
       assert.ok(almacen.has(id), `update sobre un documento que no existe: ${this.ruta}`);
-      almacen.set(id, aplicar(almacen.get(id), datos));
+      // `update` entiende las rutas con puntos; `set` no. Es como funciona
+      // Firestore y el proyecto depende de ello.
+      almacen.set(id, aplicar(almacen.get(id), datos, true));
       return;
     }
 

@@ -134,6 +134,27 @@ Si hay datos personales de por medio, el RGPD da **72 horas** desde que se tiene
 constancia para notificar a la AEPD (art. 33), y obliga a avisar a las personas
 afectadas si el riesgo es alto (art. 34).
 
+### Los avisos push no llegan
+
+Por orden, de lo mas probable a lo menos:
+
+1. **No hay claves.** Sin `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` no se envia
+   nada, y no da error: es el estado normal hasta que alguien las genere.
+2. **La clave publica del sitio no coincide con la del worker.** El navegador
+   se suscribe con la del sitio y el worker firma con la suya: si no son el
+   mismo par, el servicio de push rechaza todo. Comprueba
+   `assets/data/push-config.js` contra el secreto.
+3. **iOS sin instalar.** Ahi el push no existe hasta que la web esta en la
+   pantalla de inicio. No es un fallo, es como funciona.
+4. **La suscripcion ha caducado.** El navegador la revoca al desinstalar la app
+   o al limpiar los datos del sitio. El worker las borra solo al recibir un 404
+   o un 410: no hay que hacer nada, pero esa persona tiene que volver a
+   activarlas.
+
+**Nunca cambies las claves** para arreglar nada. Cambiarlas invalida todas las
+suscripciones que haya, y volver a pedir el permiso no es posible: el navegador
+no lo pregunta dos veces.
+
 ### Los correos no llegan
 
 Resend, en `/admin/`. El worker registra cada entrega y reintenta las que
@@ -178,6 +199,9 @@ hace fallar el build:
 | `backend/lib/estaciones.json` | `scripts/build-estaciones.js` | en cada CI |
 | `assets/data/version.js` | `scripts/build-version.js` | en cada despliegue |
 | Las CSP de cada pagina | `scripts/aplicar-cabeceras.js` | a mano, desde `shared/cabeceras.json` |
+| `assets/data/insignias.js` y `backend/lib/insignias.json` | `scripts/build-insignias.js` | en cada CI |
+| `assets/data/push-tipos.js` | `scripts/build-push.js` | en cada CI |
+| `assets/data/push-config.js` | `scripts/build-push.js` | a mano, con la clave por entorno |
 | `backend/lib/distancias.json` | `scripts/build-distancias.js` | a mano, necesita red |
 | `backend/test/banco/*.png` | `scripts/build-capturas.js` | a mano |
 

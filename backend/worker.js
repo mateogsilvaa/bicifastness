@@ -47,6 +47,7 @@ const borrado = require('./src/borrado');
 const cuota = require('./src/cuota');
 const logros = require('./src/logros');
 const clanes = require('./src/clan-mantenimiento');
+const push = require('./src/push');
 const almacen = require('./src/db');
 const misiones = require('./src/misiones');
 const territorio = require('./src/territorio');
@@ -360,6 +361,8 @@ async function procesar(doc) {
 async function resolver(doc, veredicto) {
   const viaje = doc.data();
   const aprobado = veredicto.decision === 'aprobado';
+
+  await avisarPorPush(doc.id, viaje, veredicto.decision);
 
   await doc.ref.update({
     estado: veredicto.decision,
@@ -829,6 +832,84 @@ async function aplicarDecisionesManuales() {
 }
 
 /**
+ * Avisa por push de que un trayecto se ha resuelto (#33).
+ *
+ * Llega antes que el correo y sin molestar: es lo que la persona esta esperando
+ * desde que subio la captura. Nunca lanza — un fallo de push no puede tumbar la
+ * verificacion — y no se envia nada a quien no lo haya aceptado: `push.enviar`
+ * comprueba la suscripcion y el tipo de aviso.
+ */
+async function avisarPorPush(viajeId, viaje, decision) {
+  const textos = {
+    aprobado: { titulo: 'Trayecto verificado', cuerpo: 'Ya cuenta en la clasificacion.' },
+    rechazado: { titulo: 'Trayecto rechazado', cuerpo: 'Entra para ver por que.' },
+    revision: { titulo: 'Trayecto en revision', cuerpo: 'Lo va a mirar una persona.' },
+  };
+  const texto = textos[decision];
+  if (!texto) return;
+
+  try {
+    await push.enviar(viaje.uid, 'viajeResuelto', { ...texto, url: '/yo/' }, { simular: SIMULAR });
+  } catch (error) {
+    console.warn(`  push no enviado (${viajeId}):`, error.message);
+  }
+}
+
+/**
+ * Avisa a quien tiene la racha en peligro (#33).
+ *
+ * A las 20:00 de Madrid: queda tarde para salir, y es lo bastante pronto como
+ * para que dé tiempo. Antes seria pesado; mas tarde, inutil.
+ *
+ * Se manda UNA vez al dia por persona, y solo a quien tiene racha que perder y
+ * no ha salido todavia. Avisar a quien ya salio, o dos veces, es como se
+ * desactivan los avisos para siempre.
+ */
+async function avisarRachasEnPeligro(base) {
+  const hora = Number(new Date().toLocaleString('en-US', {
+    timeZone: 'Europe/Madrid', hour: '2-digit', hour12: false,
+  }));
+
+  // La ventana es de una hora: el worker corre cada cinco minutos y GitHub
+  // retrasa los cron, asi que exigir una hora exacta se saltaria dias enteros.
+  if (hora !== 20) return 0;
+
+  const usuarios = base?.usuarios || (await puntuacion.cargarBase()).usuarios;
+  const hoy = territorio.dia();
+  const enPeligro = push.rachaEnPeligro(usuarios, hoy);
+
+  if (!enPeligro.length) return 0;
+
+  let avisados = 0;
+  for (const usuario of enPeligro) {
+    try {
+      const resultado = await push.enviar(usuario.uid, 'rachaEnPeligro', {
+        titulo: `Tu racha de ${usuario.racha} dias`,
+        cuerpo: usuario.escudos > 0
+          ? 'Si no sales hoy se gasta un escudo.'
+          : 'Si no sales hoy la pierdes.',
+        url: '/subir/',
+      }, { simular: SIMULAR });
+
+      if (resultado.enviados > 0) {
+        avisados++;
+        // La marca del dia impide el segundo aviso. Se escribe DESPUES de
+        // enviar: al reves, un fallo de envio dejaria a la persona sin aviso y
+        // marcada como avisada.
+        if (!SIMULAR) {
+          await db.doc(`usuarios/${usuario.uid}`).update({ 'push.ultimoAvisoRacha': hoy });
+        }
+      }
+    } catch (error) {
+      console.warn(`  aviso de racha a ${usuario.uid}:`, error.message);
+    }
+  }
+
+  if (avisados) console.log(`Avisos de racha en peligro: ${avisados}.`);
+  return avisados;
+}
+
+/**
  * Lo que la gestion de clanes no puede hacer desde el navegador (#29).
  *
  * Al expulsar a alguien, o al disolver un clan, solo se toca el documento del
@@ -1098,6 +1179,11 @@ async function main() {
 
   console.log(`\nResumen: ${cuenta.aprobado} aprobados, ${cuenta.rechazado} rechazados, `
     + `${cuenta.revision} a revision, ${cuenta.error} con error.`);
+
+  // Los avisos de racha necesitan `usuarios`, que a esta altura ya esta cargada
+  // si ha habido movimiento. Si no la hay, la funcion la pide: pasa una vez al
+  // dia, a las 20:00, y es el aviso que justifica todo el push.
+  if (!degradado) await avisarRachasEnPeligro(base);
 
   // Lo ultimo, para contar tambien lo que ha costado el trabajo periodico.
   await cerrarCuota(cuotaAlEmpezar);

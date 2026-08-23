@@ -125,3 +125,62 @@ async function navegar(peticion) {
       || Response.error();
   }
 }
+
+// --- Avisos push (#33) ---------------------------------------------------------
+
+/**
+ * Un aviso que llega.
+ *
+ * `userVisibleOnly: true` obliga a enseñar SIEMPRE algo: si este manejador no
+ * muestra notificacion, el navegador enseña una generica ("Este sitio se ha
+ * actualizado en segundo plano") y, si se repite, revoca el permiso.
+ */
+self.addEventListener('push', (evento) => {
+  let datos = {};
+  try {
+    datos = evento.data ? evento.data.json() : {};
+  } catch {
+    // Un aviso con carga ilegible no puede quedarse sin enseñar nada, por lo de
+    // arriba: se enseña el texto por defecto.
+  }
+
+  const titulo = datos.titulo || 'BiciFastness';
+
+  evento.waitUntil(self.registration.showNotification(titulo, {
+    body: datos.cuerpo || '',
+    icon: '/images/icono/icono-192.png',
+    // El icono pequeño monocromo de la barra de estado en Android.
+    badge: '/images/icono/icono-96.png',
+    // Agrupa por tipo: dos avisos de racha el mismo dia se sustituyen en vez de
+    // apilarse. Sin esto, volver tras un rato es encontrarse ocho.
+    tag: datos.tipo || 'general',
+    renotify: false,
+    data: { url: datos.url || '/' },
+  }));
+});
+
+/**
+ * Al pulsar el aviso.
+ *
+ * Si ya hay una pestaña del sitio abierta se le lleva ahi en vez de abrir otra:
+ * acabar con cuatro pestañas de la misma web es lo que hace que la gente deje
+ * de pulsar los avisos.
+ */
+self.addEventListener('notificationclick', (evento) => {
+  evento.notification.close();
+  const destino = evento.notification.data?.url || '/';
+
+  evento.waitUntil((async () => {
+    const abiertas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+    for (const cliente of abiertas) {
+      if (new URL(cliente.url).origin === self.location.origin) {
+        await cliente.focus();
+        if ('navigate' in cliente) await cliente.navigate(destino);
+        return;
+      }
+    }
+
+    await self.clients.openWindow(destino);
+  })());
+});

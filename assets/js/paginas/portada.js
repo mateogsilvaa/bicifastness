@@ -11,13 +11,14 @@ import {
   auth, db, onAuthStateChanged, doc, getDoc,
   collection, getDocs, getCountFromServer, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
-import { crearPerfil, aceptarLegal } from '/assets/js/acciones.js';
+import { crearPerfil, aceptarLegal, guardarSuscripcionPush } from '/assets/js/acciones.js';
 import { iniciarPagina, pedirReaceptacion, nombreRuta, formatearTiempo, formatearFecha } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { seguirViaje, viajeRecordado, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
 import { ofrecerInstalacion, guardarResumenOffline } from '/assets/js/instalar.js';
 import { traerAgregado, puestoPorMarca } from '/assets/js/agregados.js';
 import { destacar } from '/assets/js/celebrar.js';
+import { ofrecerAvisos } from '/assets/js/push.js';
 
 iniciarPagina('ahora');
 
@@ -324,7 +325,15 @@ onAuthStateChanged(auth, async (usuario) => {
 
     // Solo sale si ya ha subido un viaje, si no esta instalada ya y si no dijo
     // que no antes.
-    ofrecerInstalacion(id('invitacion-instalar'));
+    // Instalar primero: en iOS el push NO existe hasta que la web esta en la
+    // pantalla de inicio, asi que ofrecer avisos antes seria ofrecer algo que
+    // ahi no se puede dar (#33).
+    const ofrecida = ofrecerInstalacion(id('invitacion-instalar'));
+    if (!ofrecida) {
+      ofrecerAvisos(id('invitacion-instalar'), {
+        alAceptar: guardarSuscripcionPush,
+      }).catch(() => { /* sin avisos se sigue igual */ });
+    }
 
     if (datos.username) {
       id('titulo-panel').textContent = datos.username.toUpperCase();

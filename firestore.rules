@@ -92,6 +92,16 @@ service cloud.firestore {
         && cambia().hasOnly(['favoritas', 'avatarUrl', 'consentimiento', 'avisosCorreo'])
         && (!('favoritas' in datos()) || datos().favoritas.size() <= 3);
 
+      // Avisos push (#33).
+      //
+      // Es suyo y solo suyo: donde recibe las notificaciones y cuales quiere.
+      // Va aparte de la lista cosmetica porque `push` es un mapa y conviene que
+      // se vea que aqui NO entra nada mas — ni la puntuacion ni el estado de la
+      // cuenta comparten regla con esto.
+      //
+      // Darse de baja no puede depender de nadie, igual que con el correo.
+      allow update: if esYo(uid) && cambia().hasOnly(['push']);
+
       // El clan al que pertenece (#29).
       //
       // Estaba fuera de las dos listas, asi que NADIE podia escribirlo: crear un

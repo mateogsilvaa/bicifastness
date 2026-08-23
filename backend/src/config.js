@@ -145,8 +145,8 @@ const RACHA = {
  * hash del documento, que es lo que exige el RGPD para poder demostrarlo.
  */
 const LEGAL = {
-  VERSION_TERMINOS: '1.2.0',
-  VERSION_PRIVACIDAD: '1.2.0',
+  VERSION_TERMINOS: '1.3.0',
+  VERSION_PRIVACIDAD: '1.3.0',
 };
 
 module.exports = { LIMITES, FISICA, TIEMPO, RIESGO, IMAGEN, PUNTOS, VIAJE, RACHA, LEGAL, HORARIO };

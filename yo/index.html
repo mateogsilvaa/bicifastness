@@ -93,6 +93,14 @@
     </label>
     <p class="mensaje" id="msg-avisos" aria-live="polite"></p>
 
+    <!-- Avisos push (#33). Toda la seccion se oculta si el navegador no puede:
+         ensenar interruptores que no hacen nada es peor que no ensenarlos. -->
+    <div id="ajustes-push" class="oculto" style="margin-bottom: var(--e4);">
+      <p class="etiqueta">Avisos en el movil</p>
+      <div id="lista-avisos"></div>
+      <p class="mensaje" id="msg-push" aria-live="polite"></p>
+    </div>
+
     <label class="fila" style="margin-bottom: var(--e4);">
       <input type="checkbox" id="sonido">
       <span>

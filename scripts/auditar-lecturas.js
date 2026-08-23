@@ -41,6 +41,14 @@ const CUOTA_LECTURAS = 50000;
  */
 const min1 = (n) => Math.max(1, Math.round(n));
 
+/**
+ * Viajes verificados que acumula una ruta.
+ *
+ * No se reparten por igual: unas pocas rutas concentran la mayoria. Un
+ * veinteavo del total en la mas transitada es conservador.
+ */
+const viajesEnRuta = (V) => Math.max(1, Math.round(V / 20));
+
 // --- Pantallas ---------------------------------------------------------------------
 /**
  * Lecturas de UNA carga de cada pantalla, sacadas de las llamadas del propio
@@ -61,8 +69,8 @@ const PANTALLAS = [
   },
   {
     ruta: '/territorio/', veces: 1,
-    coste: ({ C, E }) => C + E,
-    detalle: 'todos los clanes + un documento por estacion',
+    coste: () => 1,
+    detalle: 'el agregado del mapa: clanes y estaciones en un solo documento',
   },
   {
     ruta: '/yo/', veces: 1,
@@ -107,10 +115,16 @@ const WORKER = [
     detalle: 'la marca del agregado, para saber si toca el resumen caro',
   },
   {
-    nombre: 'recalcularTrasCambio (por viaje APROBADO)',
+    nombre: 'recalcularRuta (por viaje APROBADO)',
     veces: ({ S }) => Math.round(S * 0.5),
-    coste: ({ U, V }) => min1(Math.min(200, V)) + min1(U * 0.1) + V + U,
-    detalle: 'recalcularRuta + TODOS los viajes verificados + TODOS los usuarios',
+    coste: ({ U, V }) => min1(viajesEnRuta(V)) + min1(U * 0.1) + min1(U * 0.1),
+    detalle: 'los viajes de esa ruta + quien ya puntuaba en ella',
+  },
+  {
+    nombre: 'recalcularEstaciones (una vez por pasada CON viajes)',
+    veces: ({ S }) => Math.min(288, Math.max(1, Math.round(S / 8))),
+    coste: ({ S }) => min1(Math.min(60, S)),
+    detalle: 'una lectura por estacion tocada; usuarios y viajes vienen compartidos',
   },
   {
     nombre: 'reconstruirAgregados (una vez por pasada CON viajes)',

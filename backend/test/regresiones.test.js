@@ -1112,3 +1112,21 @@ test('los enlaces entre documentos de docs/ no estan rotos', () => {
     }
   }
 });
+
+test('el dominio de las estaciones no se recalcula viaje a viaje', () => {
+  // Recalcular el dominio de una estacion cuesta leer `tiempos_viaje` y
+  // `usuarios` ENTEROS. Hacerlo por cada viaje aprobado eran 15.464 lecturas
+  // por viaje con 15.000 acumulados: treinta y tres aprobaciones agotaban la
+  // cuota diaria del proyecto entero, y sin que nadie mirase la web — bastaba
+  // con que la gente subiera viajes (docs/COSTE.md).
+  const worker = leerCodigo('backend/worker.js');
+
+  assert.ok(!/recalcularTrasCambio/.test(worker),
+    'el worker vuelve a hacer el recalculo completo por viaje');
+  assert.match(worker, /recalcularEstaciones\(/, 'nadie rehace el dominio de las estaciones');
+
+  // Y esa llamada tiene que estar FUERA del bucle de la cola, igual que los
+  // agregados.
+  assert.ok(worker.indexOf('recalcularEstaciones(') > worker.indexOf('for (const doc of cola.docs)'),
+    'el dominio se recalcula dentro del bucle de la cola');
+});

@@ -251,22 +251,51 @@ async function recalcularEstacion(estacionId, viajesPrecargados = null, usuarios
 }
 
 /**
- * Recalculo completo tras aprobar o eliminar un viaje: puntos de la ruta y
- * dominio de las dos estaciones implicadas.
+ * Recalcula el dominio de varias estaciones de una tacada.
+ *
+ * Antes esto vivia dentro de `recalcularTrasCambio`, que se llamaba POR CADA
+ * VIAJE APROBADO y leia `tiempos_viaje` y `usuarios` enteros cada vez. Con
+ * 15.000 viajes acumulados eran 15.464 lecturas por viaje: treinta y tres
+ * aprobaciones agotaban la cuota diaria del proyecto entero, y no dependia de
+ * que nadie mirase la web — bastaba con que la gente subiera viajes
+ * (docs/COSTE.md).
+ *
+ * Ahora es el mismo patron que los agregados (#36): el worker acumula las
+ * estaciones tocadas durante la tanda y las recalcula UNA vez al final, con la
+ * carga que ya tiene en la mano. Recalcular la misma estacion diez veces en una
+ * pasada daba diez veces el mismo resultado.
+ *
+ * `base` es opcional: si no viene, se lee aqui.
  */
-async function recalcularTrasCambio(ruta) {
+async function recalcularEstaciones(estacionIds, base = null) {
+  const unicas = [...new Set([...estacionIds].filter(Boolean).map(String))];
+  if (!unicas.length) return 0;
+
+  const { viajes, usuarios } = base || await cargarBase();
+
+  for (const estacionId of unicas) {
+    await recalcularEstacion(estacionId, viajes, usuarios);
+  }
+  return unicas.length;
+}
+
+/** Las dos estaciones de una ruta, para acumularlas. */
+function estacionesDe(ruta) {
+  const partes = String(ruta || '').split('-');
+  return partes.length === 2 ? partes : [];
+}
+
+/**
+ * Recalculo completo tras aprobar o eliminar un viaje.
+ *
+ * Se conserva para quien necesite el efecto entero de una sola llamada, pero el
+ * worker NO la usa en el bucle: ahi separa los puntos de la ruta — que si hay
+ * que rehacer viaje a viaje, porque cambian la clasificacion — del dominio de
+ * las estaciones, que se acumula y se hace una vez al final.
+ */
+async function recalcularTrasCambio(ruta, base = null) {
   await recalcularRuta(ruta);
-
-  const [origen, destino] = ruta.split('-');
-  const [viajesSnap, usuariosSnap] = await Promise.all([
-    db().collection('tiempos_viaje').where('verificado', '==', true).get(),
-    db().collection('usuarios').get(),
-  ]);
-  const viajes = viajesSnap.docs.map((d) => d.data());
-  const usuarios = usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-
-  await recalcularEstacion(origen, viajes, usuarios);
-  await recalcularEstacion(destino, viajes, usuarios);
+  await recalcularEstaciones(estacionesDe(ruta), base);
 }
 
 /**
@@ -325,6 +354,8 @@ module.exports = {
   recalcularClan,
   recalcularEstacion,
   recalcularTrasCambio,
+  recalcularEstaciones,
+  estacionesDe,
   reconstruirAgregados,
   cargarBase,
   puntosPorPosicion,

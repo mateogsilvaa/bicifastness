@@ -36,6 +36,31 @@ El sintoma habria sido la web cayendose todas las tardes sin explicacion.
 - `reconstruirAgregados` y el resumen necesitan **las mismas dos colecciones**.
   Cuando coinciden — justo cuando ha habido movimiento — se cargan una sola vez.
 
+### `recalcularTrasCambio` leia las dos colecciones por cada viaje aprobado
+
+Recalcular el dominio de una estacion cuesta leer `tiempos_viaje` y `usuarios`
+enteros, y se hacia una vez por cada viaje que se aprobaba: 15.464 lecturas por
+viaje con 15.000 acumulados, o sea que **treinta y tres aprobaciones agotaban la
+cuota del proyecto entero**. Y no dependia de que nadie mirase la web: bastaba
+con que la gente subiera viajes.
+
+Ahora los puntos de la ruta si se rehacen viaje a viaje — cambian la
+clasificacion y el siguiente de la tanda tiene que verla al dia — pero el
+dominio de las estaciones se acumula y se recalcula **una vez al final**, con la
+carga que para entonces ya esta en la mano. Recalcular la misma estacion diez
+veces en una pasada daba diez veces el mismo resultado.
+
+### `/territorio/` leia 631 documentos
+
+Era la ultima pantalla que recorria colecciones enteras. El agregado del mapa ya
+existia — lo escribia el worker — y la pantalla simplemente no lo usaba: seguia
+leyendo `clanes` y `estaciones_stats` a mano (#27). Una lectura en vez de 631.
+
+De paso, el agregado deja fuera las estaciones donde no tiene influencia nadie,
+que son la inmensa mayoria al principio, y lleva un guardarrail de tamano: un
+documento tiene un tope duro de 1 MiB, y conviene enterarse al escribirlo y no
+cuando la escritura falle en produccion con el mapa lleno.
+
 ### La portada leia una ruta entera en cada visita
 
 `pintarUltimaMarca` traia todos los viajes del piloto y despues **todos los
@@ -52,24 +77,23 @@ cada visita a su perfil. Ahora pagina de 20 en 20 con `startAfter`, y el total
 sale de la consulta de conteo de Firestore, que cobra una lectura por cada 1.000
 documentos contados.
 
-**Resultado de las tres cosas: de 423.291 lecturas al dia a 29.397. Del 847% de
-la cuota al 59%.**
+**Resultado: de 423.291 lecturas al dia a 22.035. Del 847% de la cuota al 44%.**
 
 ## Donde se esta hoy
 
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 29.397 | 59% |
-| u50 | 50 | 3000 | 251.306 | 503% **se agota** |
-| u200 | 200 | 15.000 | 3.132.902 | 6266% **se agota** |
-| u1000 | 1000 | 90.000 | 80.597.982 | 161196% **se agota** |
+| hoy | 6 | 1022 | 22.035 | 44% |
+| u50 | 50 | 3000 | 143.316 | 287% **se agota** |
+| u200 | 200 | 15.000 | 1.269.982 | 2540% **se agota** |
+| u1000 | 1000 | 90.000 | 27.818.982 | 55638% **se agota** |
+
 
 Tres cosas que hay que leer bien de esa tabla:
 
-1. **Hoy se cabe, pero sin margen.** 59% de la cuota con seis personas. Hay
-   margen para un mal dia, no para crecer.
-2. **Con 50 usuarios activos la cuota se agota en cinco horas.** La web deja de
-   funcionar hasta medianoche.
+1. **Hoy se cabe con holgura.** 44% de la cuota con seis personas.
+2. **Con 50 usuarios activos la cuota se agota en ocho horas.** Mejor que las
+   dos y media de partida, pero sigue sin llegar a medianoche.
 3. El crecimiento no es proporcional al numero de usuarios, es **cuadratico**:
    varias operaciones del worker leen la coleccion entera de viajes, y esa
    coleccion crece con los usuarios.
@@ -82,11 +106,11 @@ acumulados**, que sube todos los dias aunque no entre nadie nuevo.
 | Pantalla | Lecturas por carga | De donde salen |
 |---|---:|---|
 | `/statssss/` | 15.765 | las cuatro colecciones enteras |
-| `/territorio/` | 525 | todos los clanes + un documento por estacion |
 | `/subir/` | 61 | perfil + sus 60 viajes mas recientes, para el limite diario |
 | `/yo/` | 25 | perfil + temporadas + el conteo + la primera pagina del historial (20) |
 | `/` | 7 | perfil + mision + config + clan + su ultimo viaje + el conteo + el agregado de la ruta |
 | `/clasificacion/` | 1 | el agregado del modo; las visitas repetidas salen de la cache de sesion |
+| `/territorio/` | 1 | el agregado del mapa: clanes y estaciones en un solo documento |
 
 _Con 200 usuarios activos y 15.000 viajes acumulados._
 
@@ -95,47 +119,51 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | Operacion del worker | Lecturas por vez | De donde salen |
 |---|---:|---|
 | reconstruirAgregados (una vez por pasada CON viajes) | 15.765 | usuarios y viajes (compartidos con el resumen de metricas) + clanes + estaciones |
-| recalcularTrasCambio (por viaje APROBADO) | 15.464 | recalcularRuta + TODOS los viajes verificados + TODOS los usuarios |
 | metricas.resumir (una vez cada 6 h) | 15.441 | la marca del agregado + TODOS los usuarios + TODOS los viajes + 200 dias |
 | prepararDia, la parte cara (UNA vez al dia) | 15.000 | TODOS los viajes verificados, para elegir la ruta del dia |
+| recalcularRuta (por viaje APROBADO) | 798 | los viajes de esa ruta + quien ya puntuaba en ella |
 | reunirContexto (por viaje procesado) | 640 | tiempos de la ruta (tope 200) + propios (tope 40) + huellas (tope 400) |
 | metricas.agregarSesiones (por pasada) | 400 | las sesiones del navegador sin agregar todavia |
 | validarBasico y captura (por viaje procesado) | 62 | sus 60 viajes recientes + la captura + la distancia de la ruta |
+| recalcularEstaciones (una vez por pasada CON viajes) | 60 | una lectura por estacion tocada; usuarios y viajes vienen compartidos |
 | cola y bajas (por pasada) | 3 | las consultas de cola, recalculo pendiente y bajas |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
 | metricas.tocaResumir (por pasada) | 1 | la marca del agregado, para saber si toca el resumen caro |
 
 ## Lo que queda, por impacto
 
-### 1. `recalcularTrasCambio`, en cada viaje aprobado
+### 1. `reconstruirAgregados`
 
-`backend/src/puntuacion.js`. Lee **todos los viajes verificados y todos los
-usuarios**, una vez por cada viaje que se aprueba. Con 15.000 viajes acumulados
-son 15.464 lecturas **por viaje**: treinta y tres aprobaciones agotan la cuota
-del proyecto entero.
+Lee las cuatro colecciones y se ejecuta una vez por cada pasada del worker que
+haya movido algo. Con 240 subidas al dia repartidas, son unas treinta pasadas y
+472.950 lecturas.
 
-Es la peor de las que quedan porque no depende de que nadie mire la web: basta
-con que la gente suba viajes.
+Es el precio de reconstruir desde cero. La palanca obvia es la misma que se uso
+con el resumen de metricas: no rehacerlo mas de cada N minutos. Como el worker
+ya llega con 5-15 minutos de retraso — GitHub retrasa los cron programados —,
+un limite de 15 minutos apenas se nota y divide el coste por tres. La alternativa
+de fondo es reconstruir solo lo que ha cambiado, que es bastante mas trabajo.
 
-Los agregados ya se reconstruyen una sola vez al final de la pasada (#36), pero
-esta se quedo por viaje. La salida mas simple es la misma: acumular las rutas
-tocadas y recalcular una vez al final. La de fondo es que `recalcularEstacion`
-solo necesita los viajes de las dos estaciones implicadas, no la coleccion
-entera.
+### 2. `/statssss/`
 
-### 2. `/territorio/`
+Lee las cuatro colecciones enteras: 15.765 lecturas por visita, un tercio de la
+cuota diaria de una sentada. Deberia leer de `agregados/portada` y
+`agregados/metricas`, que ya existen y ya tienen los numeros que pinta.
 
-Lee todos los clanes y **un documento por estacion**: hasta 631. Ademas de la
-cuota, son 631 documentos que un movil tiene que descargar y pintar en la calle.
+### 3. `metricas.agregarSesiones`
 
-Es exactamente lo que pide #27: un unico documento agregado del mapa. Los
-agregados ya existen y esta pantalla es la unica que se quedo sin usarlos.
+Lee `sesiones_web` entera en **cada pasada**, 288 veces al dia. Con 200 activos
+son 400 documentos por pasada: 115.200 al dia. Podar es barato, pero leerlo todo
+para podar no.
 
-### 3. `/statssss/`
+### 4. `prepararDia` y `reunirContexto`
 
-Lee las cuatro colecciones enteras. Se abre poco, asi que no es urgente, pero
-una sola visita cuesta un tercio de la cuota diaria. Deberia leer del agregado
-de metricas, que ya existe.
+`prepararDia` lee todos los viajes una vez al dia para elegir la ruta destacada.
+Es una sola vez, asi que no urge, pero crece con la coleccion.
+
+`reunirContexto` cuesta 640 lecturas por viaje procesado y es **constante**: no
+empeora al crecer el proyecto. El tope de 400 huellas es el que mas pesa y se
+puede bajar sin perder casi deteccion.
 
 ## Lo que ya esta bien
 

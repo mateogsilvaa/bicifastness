@@ -360,3 +360,93 @@ test('el cierre aguanta una base sin usuarios', async () => {
   const resultado = await temporadas.cerrar('2026-07');
   assert.strictEqual(resultado.archivados, 0);
 });
+
+// --- El mapa, en un solo documento (#27) ------------------------------------------
+
+test('el mapa entero cabe en un documento, con las 631 estaciones', async () => {
+  sembrar();
+
+  // El caso peor de verdad: TODAS las estaciones con influencia de varios
+  // clanes. En produccion no llegara a tanto, pero si el tope se supera hay que
+  // enterarse aqui y no cuando la escritura falle con el mapa lleno.
+  const ESTACIONES = require('../lib/estaciones.json');
+  const clanes = DATOS.clanes.slice(0, 8).map((c) => c.id);
+
+  bd.vaciar('estaciones_stats');
+  bd.sembrar('estaciones_stats', Object.keys(ESTACIONES).map((id) => ({
+    id,
+    clanDominante: clanes[0],
+    lider: clanes[1],
+    enDisputa: true,
+    cuota: Object.fromEntries(clanes.map((c, i) => [c, Number((12.5 - i * 0.1).toFixed(1))])),
+  })));
+
+  await puntuacion.reconstruirAgregados();
+
+  const mapa = bd.leer('agregados/mapa');
+  const bytes = Buffer.byteLength(JSON.stringify(mapa), 'utf8');
+
+  assert.ok(bytes < 1048576,
+    `el mapa ocupa ${bytes} bytes con ${Object.keys(ESTACIONES).length} estaciones y 8 clanes`);
+  assert.strictEqual(Object.keys(mapa.estaciones).length, Object.keys(ESTACIONES).length);
+  console.log(`  ${'agregado del mapa'.padEnd(34)} ${String(bytes).padStart(7)} bytes`);
+});
+
+test('el mapa no publica nada de los clanes que no se pinte', async () => {
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+
+  const mapa = bd.leer('agregados/mapa');
+  // De un clan solo viajan nombre y color. Ni miembros, ni lider, ni
+  // puntuacion: este documento lo lee cualquiera sin sesion (#60).
+  for (const [id, clan] of Object.entries(mapa.clanes)) {
+    assert.deepStrictEqual(Object.keys(clan).sort(), ['color', 'nombre'],
+      `el mapa publica de ${id} mas de lo que pinta: ${Object.keys(clan)}`);
+  }
+  assert.ok(!/miembros|lider|biciRating|uid/.test(JSON.stringify(mapa.clanes)));
+});
+
+test('las estaciones sin influencia no ocupan sitio en el mapa', async () => {
+  sembrar();
+
+  // La inmensa mayoria son neutras al principio. Meterlas todas con la cuota
+  // vacia es pagar bytes por nada.
+  bd.vaciar('estaciones_stats');
+  bd.sembrar('estaciones_stats', [
+    { id: '100', cuota: { 'clan-1': 80 }, clanDominante: 'clan-1' },
+    { id: '101', cuota: {} },
+    { id: '102' },
+  ]);
+
+  await puntuacion.reconstruirAgregados();
+  const mapa = bd.leer('agregados/mapa');
+
+  assert.ok(mapa.estaciones['100']);
+  assert.strictEqual(mapa.estaciones['101'], undefined, 'una estacion neutra ocupa sitio');
+  assert.strictEqual(mapa.estaciones['102'], undefined);
+  assert.strictEqual(mapa.resumen.conInfluencia, 1);
+});
+
+test('el mapa distingue controlada de en disputa', async () => {
+  sembrar();
+  bd.vaciar('estaciones_stats');
+  bd.sembrar('estaciones_stats', [
+    { id: '100', cuota: { 'clan-1': 80, 'clan-2': 20 }, clanDominante: 'clan-1', enDisputa: false },
+    { id: '101', cuota: { 'clan-1': 34, 'clan-2': 33, 'clan-3': 33 }, clanDominante: null, lider: 'clan-1', enDisputa: true },
+  ]);
+
+  await puntuacion.reconstruirAgregados();
+  const mapa = bd.leer('agregados/mapa');
+
+  assert.strictEqual(mapa.estaciones['100'].clan, 'clan-1');
+  assert.strictEqual(mapa.estaciones['100'].disputa, false);
+
+  // Dominar no es ir primero: con 34/33/33 la estacion esta en disputa, que es
+  // informacion distinta y mas util que declarar un dueño por un punto.
+  assert.strictEqual(mapa.estaciones['101'].clan, null);
+  assert.strictEqual(mapa.estaciones['101'].lider, 'clan-1');
+  assert.strictEqual(mapa.estaciones['101'].disputa, true);
+
+  assert.strictEqual(mapa.resumen.conDueno, 1);
+  assert.strictEqual(mapa.resumen.enDisputa, 1);
+});

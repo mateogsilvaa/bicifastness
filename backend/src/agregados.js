@@ -208,7 +208,16 @@ async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones
   // --- Mapa ------------------------------------------------------------------
   // Un documento en vez de ~600 lecturas de `estaciones_stats`.
   const mapa = {};
+  let conDueno = 0;
+  let enDisputa = 0;
+
   for (const [id, stats] of estaciones) {
+    // Las estaciones donde no tiene influencia nadie no se incluyen. Son la
+    // inmensa mayoria al principio, y no hay nada que contar de ellas: el mapa
+    // las pinta en gris por ausencia. Meterlas es pagar bytes por nada, y aqui
+    // los bytes son el limite.
+    if (!Object.keys(stats.cuota || {}).length) continue;
+
     mapa[id] = {
       // `clan` es quien CONTROLA (mas del 50%); `lider` es quien va primero.
       // No son lo mismo, y la diferencia es justo lo interesante del mapa: una
@@ -219,17 +228,37 @@ async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones
       disputa: Boolean(stats.enDisputa),
       cuota: stats.cuota || {},
     };
+
+    if (stats.clanDominante) conDueno++;
+    if (stats.enDisputa) enDisputa++;
   }
 
-  await db().doc('agregados/mapa').set({
+  const documentoMapa = {
     estaciones: mapa,
-    // Color y nombre de cada clan, para no tener que leer `clanes` ademas.
+    // Color y nombre de cada clan, para no tener que leer `clanes` ademas. SOLO
+    // eso: ni miembros, ni lider, ni puntuacion. Este documento lo lee
+    // cualquiera sin sesion (#60).
     clanes: Object.fromEntries(clanes.map((c) => [c.id, {
       nombre: c.nombre || c.id,
       color: c.color || null,
     }])),
+    // Para la leyenda: cuantas estan en juego y cuantas tienen dueño, sin tener
+    // que recorrer el mapa entero en el navegador.
+    resumen: { conInfluencia: Object.keys(mapa).length, conDueno, enDisputa },
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  };
+
+  // Un documento de Firestore tiene un tope duro de 1 MiB. Con 631 estaciones y
+  // varios clanes en cada una cabe de sobra, pero si algun dia deja de caber
+  // conviene enterarse aqui y no cuando la escritura falle en produccion con el
+  // mapa lleno y la partida en marcha.
+  const bytesMapa = Buffer.byteLength(JSON.stringify(documentoMapa), 'utf8');
+  if (bytesMapa > 900000) {
+    throw new Error(`el agregado del mapa ocupa ${bytesMapa} bytes: no cabe en un documento`);
+  }
+
+  await db().doc('agregados/mapa').set(documentoMapa);
+  escritos.mapa = Object.keys(mapa).length;
 
   // --- Portada ---------------------------------------------------------------
   await db().doc('agregados/portada').set({

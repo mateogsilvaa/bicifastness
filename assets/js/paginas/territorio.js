@@ -6,9 +6,9 @@
 // Fusiona /mapa/ y /clanes/. La estacion elegida y la pestaña viajan en la
 // query string, para que un enlace a una estacion concreta se pueda compartir.
 
-import { db, collection, getDocs } from '/assets/js/firebase.js';
 import { iniciarPagina, aplicarTema } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
+import { traerAgregado } from '/assets/js/agregados.js';
 
 iniciarPagina('territorio');
 
@@ -214,17 +214,30 @@ async function cargar() {
   fichaVacia();
 
   try {
-    const [clanesSnap, statsSnap, geojson] = await Promise.all([
-      getDocs(collection(db, 'clanes')),
-      getDocs(collection(db, 'estaciones_stats')),
+    // UNA lectura, no 631. Esta era la ultima pantalla que seguia recorriendo
+    // colecciones enteras: todos los clanes mas un documento por estacion. Ademas
+    // de la cuota, eran 631 documentos que un movil tenia que descargar y pintar
+    // en la calle (#27, docs/COSTE.md).
+    const [agregado, geojson] = await Promise.all([
+      traerAgregado('mapa'),
       fetch('/data/emt.geojson').then((r) => {
         if (!r.ok) throw new Error('No se ha podido cargar el mapa de estaciones.');
         return r.json();
       }),
     ]);
 
-    porClan = new Map(clanesSnap.docs.map((d) => [d.id, d.data()]));
-    porEstacion = new Map(statsSnap.docs.map((d) => [d.id, d.data()]));
+    porClan = new Map(Object.entries(agregado?.clanes || {}));
+
+    // El agregado llama `clan` a quien controla y `disputa` a si esta en juego;
+    // el resto de la pantalla usa los nombres largos. Se traduce aqui, en un
+    // sitio, en vez de repartir el detalle por toda la pantalla.
+    porEstacion = new Map(Object.entries(agregado?.estaciones || {})
+      .map(([id, e]) => [id, {
+        clanDominante: e.clan || null,
+        lider: e.lider || null,
+        cuota: e.cuota || {},
+        enDisputa: Boolean(e.disputa),
+      }]));
 
     L.geoJSON(geojson, {
       pointToLayer: (feature, latlng) =>

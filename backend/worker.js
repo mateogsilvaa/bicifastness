@@ -108,6 +108,24 @@ const db = arrancar();
 const AHORA = () => admin.firestore.FieldValue.serverTimestamp();
 
 /**
+ * Estaciones cuyo dominio hay que rehacer al final de la ejecucion.
+ *
+ * Recalcular el dominio de una estacion cuesta leer `tiempos_viaje` y
+ * `usuarios` ENTEROS. Hacerlo por cada viaje aprobado eran 15.464 lecturas por
+ * viaje con 15.000 acumulados: treinta y tres aprobaciones agotaban la cuota
+ * diaria del proyecto (docs/COSTE.md). Y encima recalcular la misma estacion
+ * diez veces en una pasada da diez veces el mismo resultado.
+ *
+ * Mismo patron que los agregados (#36): se apuntan aqui y se hacen una vez al
+ * final, con la carga que para entonces ya esta en la mano.
+ */
+const estacionesTocadas = new Set();
+
+function apuntarEstaciones(ruta) {
+  for (const estacion of puntuacion.estacionesDe(ruta)) estacionesTocadas.add(estacion);
+}
+
+/**
  * Comprueba lo que el navegador no puede garantizar por si solo.
  *
  * Las reglas de Firestore validan la forma del documento y que el dueno sea
@@ -335,7 +353,11 @@ async function resolver(doc, veredicto) {
 
   if (aprobado) {
     await premiar(doc, viaje);
-    await puntuacion.recalcularTrasCambio(viaje.ruta);
+    // Los puntos de la ruta SI se rehacen viaje a viaje: cambian la
+    // clasificacion y el siguiente viaje de la tanda tiene que verla al dia.
+    // El dominio de las estaciones se apunta y se hace una vez al final.
+    await puntuacion.recalcularRuta(viaje.ruta);
+    apuntarEstaciones(viaje.ruta);
   }
 
   // Las capturas rechazadas no aportan nada y ocupan cuota: el hash ya impide
@@ -750,7 +772,10 @@ async function aplicarDecisionesManuales() {
   }
 
   if (!SIMULAR) {
-    for (const ruta of rutas) await puntuacion.recalcularTrasCambio(ruta);
+    for (const ruta of rutas) {
+      await puntuacion.recalcularRuta(ruta);
+      apuntarEstaciones(ruta);
+    }
   }
 
   console.log(`Recalculadas ${rutas.size} rutas tras decisiones manuales.`);
@@ -841,8 +866,16 @@ async function main() {
   const resumirMetricas = !SIMULAR && await metricas.tocaResumir().catch(() => false);
   let base = null;
 
-  if (!SIMULAR && (huboMovimiento || resumirMetricas)) {
+  if (!SIMULAR && (huboMovimiento || resumirMetricas || estacionesTocadas.size)) {
     base = await puntuacion.cargarBase();
+  }
+
+  // El dominio de las estaciones que se han movido en esta ejecucion, de una
+  // tacada y con la carga ya hecha.
+  if (!SIMULAR && estacionesTocadas.size) {
+    const cuantas = await puntuacion.recalcularEstaciones(estacionesTocadas, base);
+    console.log(`Dominio recalculado en ${cuantas} estaciones.`);
+    estacionesTocadas.clear();
   }
 
   if (!SIMULAR && huboMovimiento) {

@@ -275,6 +275,9 @@ class FirestoreFalso {
     }
   }
 
+  /** Deja una coleccion vacia. Para sembrar un caso concreto encima de otro. */
+  vaciar(coleccion) { this._coleccion(coleccion).clear(); }
+
   contar(coleccion) { return this._coleccion(coleccion).size; }
   leer(ruta) {
     const { coleccion, id } = partir(ruta);

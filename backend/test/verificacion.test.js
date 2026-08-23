@@ -8,7 +8,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { evaluar, distanciaCalleMetros, velocidadKmh } = require('../src/verificacion');
+const { evaluar, distribucion, distanciaCalleMetros, velocidadKmh } = require('../src/verificacion');
 
 // Ruta real: 002 (Metro Callao) -> 110 (Intercambiador de Moncloa).
 const RUTA = '002-110';
@@ -181,27 +181,27 @@ test('velocidadKmh calcula bien', () => {
 
 test('un tiempo muy fuera de la distribucion de la ruta se marca', () => {
   // La ruta se corre habitualmente en torno a 600 s con poca dispersion.
-  const tiemposRuta = [590, 600, 605, 610, 615, 620, 625, 630];
-  const r = evaluar(contextoBase({ tiempoSegundos: 450, tiemposRuta, mejorTiempoRuta: 590 }));
+  const distribucionRuta = distribucion([590, 600, 605, 610, 615, 620, 625, 630]);
+  const r = evaluar(contextoBase({ tiempoSegundos: 450, distribucionRuta, mejorTiempoRuta: 590 }));
   assert.ok(r.señales.some((s) => s.codigo === 'atipico_estadistico'));
 });
 
 test('con pocas marcas no se aplica la estadistica (no hay muestra)', () => {
-  const r = evaluar(contextoBase({ tiempoSegundos: 450, tiemposRuta: [600, 620] }));
+  const r = evaluar(contextoBase({ tiempoSegundos: 450, distribucionRuta: distribucion([600, 620]) }));
   assert.ok(!r.señales.some((s) => s.codigo === 'atipico_estadistico'));
 });
 
 test('un tiempo normal dentro de la distribucion no molesta', () => {
-  const tiemposRuta = [560, 580, 600, 610, 620, 640, 660, 700];
-  const r = evaluar(contextoBase({ tiempoSegundos: 595, tiemposRuta }));
+  const distribucionRuta = distribucion([560, 580, 600, 610, 620, 640, 660, 700]);
+  const r = evaluar(contextoBase({ tiempoSegundos: 595, distribucionRuta }));
   assert.ok(!r.señales.some((s) => s.codigo === 'atipico_estadistico'));
   assert.strictEqual(r.decision, 'aprobado');
 });
 
 test('una ruta donde todos hacen el mismo tiempo no genera falsos positivos', () => {
   // Desviacion tipica cero: dividir por ella daria Infinity.
-  const tiemposRuta = [600, 600, 600, 600, 600, 600, 600];
-  const r = evaluar(contextoBase({ tiempoSegundos: 600, tiemposRuta }));
+  const distribucionRuta = distribucion([600, 600, 600, 600, 600, 600, 600]);
+  const r = evaluar(contextoBase({ tiempoSegundos: 600, distribucionRuta }));
   assert.ok(!r.señales.some((s) => s.codigo === 'atipico_estadistico'));
 });
 
@@ -256,7 +256,7 @@ test('varias señales debiles juntas mandan el viaje a revision', () => {
   const r = evaluar(contextoBase({
     tiempoSegundos: 600,
     lectura,
-    tiemposRuta: [700, 710, 715, 720, 725, 730, 740, 750],
+    distribucionRuta: distribucion([700, 710, 715, 720, 725, 730, 740, 750]),
     velocidadesPrevias: [9, 9.5, 10, 9.8, 10.2],
   }));
   assert.strictEqual(r.decision, 'revision');

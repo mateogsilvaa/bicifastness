@@ -262,9 +262,11 @@ function apuntarHuella(huella) {
 /** Contexto competitivo y estadistico que alimenta al motor. */
 async function reunirContexto(viaje, uid, hashSha) {
   const [rutaSnap, propiosSnap, huellas, exacta] = await Promise.all([
-    db.collection('tiempos_viaje')
-      .where('ruta', '==', viaje.ruta).where('verificado', '==', true)
-      .orderBy('tiempoSegundos', 'asc').limit(200).get(),
+    // El agregado de la ruta, no sus 200 mejores tiempos. Trae la distribucion
+    // calculada sobre TODOS los tiempos del tramo — que es lo que la
+    // comprobacion estadistica siempre quiso, y no lo que recibia — y el record
+    // vigente en la primera fila. Una lectura en vez de doscientas.
+    db.doc(`agregados/ruta-${viaje.ruta}`).get(),
     db.collection('tiempos_viaje')
       .where('uid', '==', uid).where('verificado', '==', true)
       .orderBy('creado', 'desc').limit(40).get(),
@@ -276,12 +278,16 @@ async function reunirContexto(viaje, uid, hashSha) {
     hashSha ? db.collection('huellas_captura').doc(hashSha).get() : Promise.resolve(null),
   ]);
 
-  const tiemposRuta = rutaSnap.docs.map((d) => d.data().tiempoSegundos);
+  const ruta = rutaSnap.exists ? rutaSnap.data() : {};
   const propios = propiosSnap.docs.map((d) => d.data());
 
   return {
-    tiemposRuta,
-    mejorTiempoRuta: tiemposRuta.length ? tiemposRuta[0] : null,
+    distribucionRuta: ruta.distribucion || null,
+    // El agregado esta ordenado por marca, asi que el record es la primera fila.
+    // Puede tener hasta quince minutos: un record recien batido y todavia no
+    // agregado se compara contra el anterior, que como mucho hace que un viaje
+    // buenisimo pase a revision. Es el lado correcto por el que equivocarse.
+    mejorTiempoRuta: ruta.filas?.length ? ruta.filas[0].marca : null,
     mejorTiempoPropio: propios
       .filter((v) => v.ruta === viaje.ruta)
       .reduce((mejor, v) => (mejor === null || v.tiempoSegundos < mejor ? v.tiempoSegundos : mejor), null),

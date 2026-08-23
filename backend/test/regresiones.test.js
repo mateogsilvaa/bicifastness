@@ -759,7 +759,7 @@ const CONSULTAS_COMPUESTAS = [
     campos: [['verificado', 'ASCENDING'], ['fechaViaje', 'ASCENDING']],
   },
   {
-    donde: 'worker.reunirContexto(): mejores tiempos de la ruta',
+    donde: 'puntuacion.recalcularRuta(): los mas rapidos de la ruta, para el podio',
     coleccion: 'tiempos_viaje',
     campos: [['ruta', 'ASCENDING'], ['verificado', 'ASCENDING'], ['tiempoSegundos', 'ASCENDING']],
   },

@@ -171,7 +171,7 @@ test('el motor decide sobre el banco lo que dice el banco', (t) => {
       hashPerceptual: '0f0f0f0f0f0f0f0f',
       shaPrevios: [],
       hashesPrevios: [],
-      tiemposRuta: [],
+      distribucionRuta: null,
       velocidadesPrevias: [],
       mejorTiempoRuta: null,
       mejorTiempoPropio: null,

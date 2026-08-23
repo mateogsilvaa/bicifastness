@@ -25,6 +25,7 @@ const admin = require('firebase-admin');
 // Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
 // que el contador de cuota (#38) vea TODO lo que hace el backend.
 const { db } = require('./db');
+const { distribucion } = require('./verificacion');
 
 /**
  * Lo UNICO que puede viajar a un documento de lectura publica.
@@ -391,9 +392,18 @@ async function reconstruir({
   // una vez al dia solo para elegir la ruta destacada.
   const brutosPorRuta = new Map();
 
+  // Y todos los tiempos de cada ruta, para su distribucion. La comprobacion
+  // antifraude que compara un tiempo con la media del tramo la sacaba de los 200
+  // MAS RAPIDOS, porque su consulta iba ordenada: en cuanto una ruta pasaba de
+  // 200 marcas medía contra la cola rapida y se iba deformando sola. Aqui estan
+  // TODOS, que es lo que la comprobacion siempre quiso (src/verificacion.js).
+  const tiemposPorRuta = new Map();
+
   for (const v of viajes) {
     if (!v.ruta) continue;
     brutosPorRuta.set(v.ruta, (brutosPorRuta.get(v.ruta) || 0) + 1);
+    if (!tiemposPorRuta.has(v.ruta)) tiemposPorRuta.set(v.ruta, []);
+    tiemposPorRuta.get(v.ruta).push(v.tiempoSegundos);
     if (!porRuta.has(v.ruta)) porRuta.set(v.ruta, new Map());
     const mejores = porRuta.get(v.ruta);
     const previo = mejores.get(v.uid);
@@ -430,7 +440,21 @@ async function reconstruir({
 
     // El id lleva la ruta dentro, asi que una pantalla pide exactamente la que
     // le hace falta y no las 600.
-    await escribirAgregado(`ruta-${ruta}`, filas, { ruta });
+    //
+    // `distribucion` NO se pinta: la usa el worker para la comprobacion
+    // estadistica del antifraude. Va aqui porque este es el unico sitio donde
+    // los tiempos de la ruta estan todos juntos, y asi verificar un viaje cuesta
+    // una lectura en vez de doscientas.
+    const { muestras, media, desviacion } = distribucion(tiemposPorRuta.get(ruta) || []);
+
+    await escribirAgregado(`ruta-${ruta}`, filas, {
+      ruta,
+      distribucion: {
+        muestras,
+        media: Math.round(media),
+        desviacion: Math.round(desviacion * 100) / 100,
+      },
+    });
     rutasEscritas++;
   }
   escritos.rutas = rutasEscritas;

@@ -261,25 +261,41 @@ function comprobarContexto({ tiempoSegundos, mejorTiempoRuta, mejorTiempoPropio,
  * distribucion es un detector mucho mejor: si un tiempo se sale varias
  * desviaciones tipicas por debajo de lo que consigue todo el mundo, algo pasa
  * aunque la velocidad media este dentro de lo teoricamente posible.
+ *
+ * Recibe la distribucion ya calculada, no la lista de tiempos, y eso arregla un
+ * fallo que no se veia: el worker le pasaba los 200 tiempos MAS RAPIDOS de la
+ * ruta, porque la consulta iba ordenada. En cuanto una ruta pasaba de 200
+ * marcas, "la media de la ruta" era la media de su cola rapida, no la de la
+ * ruta, y la comprobacion se iba deformando segun crecia el tramo — sin fallar
+ * nunca, que es lo peor que puede hacer un detector.
+ *
+ * Ahora sale de `agregados/ruta-{X}`, que el worker calcula sobre TODOS los
+ * tiempos verificados del tramo. De paso cuesta una lectura en vez de 200.
  */
-function comprobarEstadistica({ tiempoSegundos, tiemposRuta }) {
-  const muestras = (tiemposRuta || []).filter((t) => Number.isFinite(t));
-  if (muestras.length < FISICA.MINIMO_MUESTRAS_ESTADISTICA) return [];
+function distribucion(tiempos) {
+  const muestras = (tiempos || []).filter((t) => Number.isFinite(t));
+  if (!muestras.length) return { muestras: 0, media: 0, desviacion: 0 };
 
   const media = muestras.reduce((a, b) => a + b, 0) / muestras.length;
   const varianza = muestras.reduce((a, t) => a + (t - media) ** 2, 0) / muestras.length;
-  const desviacion = Math.sqrt(varianza);
+
+  return { muestras: muestras.length, media, desviacion: Math.sqrt(varianza) };
+}
+
+function comprobarEstadistica({ tiempoSegundos, distribucionRuta }) {
+  const { muestras, media, desviacion } = distribucionRuta || {};
+  if (!muestras || muestras < FISICA.MINIMO_MUESTRAS_ESTADISTICA) return [];
 
   // Sin dispersion no hay nada que medir (todos han hecho el mismo tiempo).
-  if (desviacion < 1) return [];
+  if (!desviacion || desviacion < 1) return [];
 
   const z = (media - tiempoSegundos) / desviacion;
   if (z < FISICA.DESVIACIONES_SOSPECHOSA) return [];
 
   return [señal('atipico_estadistico', 30,
     `El tiempo esta ${z.toFixed(1)} desviaciones por debajo de la media de la ruta ` +
-    `(${Math.round(media)}s de media en ${muestras.length} marcas).`,
-    { z: Number(z.toFixed(2)), mediaRuta: Math.round(media), muestras: muestras.length })];
+    `(${Math.round(media)}s de media en ${muestras} marcas).`,
+    { z: Number(z.toFixed(2)), mediaRuta: Math.round(media), muestras })];
 }
 
 // --- Comprobacion 6: perfil del propio piloto --------------------------------
@@ -373,4 +389,4 @@ function evaluar(contexto) {
   };
 }
 
-module.exports = { evaluar, distanciaCalleMetros, velocidadKmh };
+module.exports = { evaluar, distribucion, distanciaCalleMetros, velocidadKmh };

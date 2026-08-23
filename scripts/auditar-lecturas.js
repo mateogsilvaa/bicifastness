@@ -223,10 +223,11 @@ const WORKER = [
   {
     nombre: 'reunirContexto (por viaje procesado)',
     veces: ({ S }) => S,
-    // La ventana de huellas ya no va aqui: se lee una vez por ejecucion, no una
-    // por viaje. El duplicado exacto es una lectura por el id del documento.
-    coste: ({ V }) => min1(Math.min(200, V)) + min1(40) + min1(1),
-    detalle: 'tiempos de la ruta (tope 200) + propios (tope 40) + el duplicado exacto por id',
+    // Nada de esto crece: el agregado de la ruta trae la distribucion ya
+    // calculada, la ventana de huellas se lee una vez por ejecucion y el
+    // duplicado exacto es una lectura por el id del documento.
+    coste: () => min1(1) + min1(40) + min1(1),
+    detalle: 'el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id',
   },
   {
     nombre: 'la ventana de huellas (una vez por ejecucion CON viajes)',

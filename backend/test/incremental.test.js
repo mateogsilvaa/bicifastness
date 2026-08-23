@@ -39,6 +39,7 @@ require.cache[rutaAdmin].exports = {
 
 const puntuacion = require('../src/puntuacion');
 const agregados = require('../src/agregados');
+const verificacion = require('../src/verificacion');
 
 // --- Un proyecto de mentira, pero con la forma del de verdad ------------------
 
@@ -520,4 +521,53 @@ test('sin el agregado del mapa se leen todas las estaciones, no ninguna', async 
 
   assert.ok(Object.keys(bd.leer('agregados/mapa').estaciones).length > 0,
     'el mapa ha salido vacio en el primer arranque');
+});
+
+// --- La distribucion de la ruta, para el antifraude ------------------------------
+
+test('el agregado de la ruta lleva la distribucion de TODOS sus tiempos', async () => {
+  // El worker le pasaba al motor los 200 tiempos MAS RAPIDOS de la ruta, porque
+  // su consulta iba ordenada. En cuanto un tramo pasaba de 200 marcas, "la media
+  // de la ruta" era la media de su cola rapida: la comprobacion se iba
+  // deformando segun crecia el tramo, sin fallar nunca.
+  sembrar();
+
+  const ruta = RUTAS[0];
+  const lentos = Array.from({ length: 400 }, (_, k) => ({
+    id: `lento-${k}`,
+    uid: `u${k % USUARIOS}`,
+    ruta,
+    verificado: true,
+    tiempoSegundos: 2000 + k,
+    distanciaMetros: 2000,
+  }));
+  bd.sembrar('tiempos_viaje', lentos);
+
+  await puntuacion.reconstruirAgregados();
+
+  const todos = (await bd.collection('tiempos_viaje').get()).docs
+    .map((d) => d.data())
+    .filter((v) => v.ruta === ruta)
+    .map((v) => v.tiempoSegundos);
+
+  const esperada = verificacion.distribucion(todos);
+  const guardada = bd.leer(`agregados/ruta-${ruta}`).distribucion;
+
+  assert.strictEqual(guardada.muestras, todos.length,
+    'la distribucion no cubre todos los tiempos del tramo');
+  assert.strictEqual(guardada.media, Math.round(esperada.media));
+  assert.ok(Math.abs(guardada.desviacion - esperada.desviacion) < 0.01);
+
+  // Y lo que de verdad importa: no es la de los mas rapidos.
+  const soloRapidos = verificacion.distribucion([...todos].sort((a, b) => a - b).slice(0, 200));
+  assert.notStrictEqual(guardada.media, Math.round(soloRapidos.media),
+    'la media guardada coincide con la de los 200 mas rapidos');
+});
+
+test('la distribucion no se pinta: no lleva nada de nadie', async () => {
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+
+  const guardada = bd.leer(`agregados/ruta-${RUTAS[0]}`).distribucion;
+  assert.deepStrictEqual(Object.keys(guardada).sort(), ['desviacion', 'media', 'muestras']);
 });

@@ -45,6 +45,7 @@ const plantillas = require('./src/plantillas');
 const metricas = require('./src/metricas');
 const borrado = require('./src/borrado');
 const cuota = require('./src/cuota');
+const logros = require('./src/logros');
 const almacen = require('./src/db');
 const misiones = require('./src/misiones');
 const territorio = require('./src/territorio');
@@ -541,6 +542,7 @@ async function premiar(doc, viaje) {
 
   const refUsuario = db.doc(`usuarios/${viaje.uid}`);
   let puntos;
+  let ganadas = [];
 
   // Bonus por pedalear en territorio del propio clan. Se mira ANTES de la
   // transaccion: dentro no se pueden hacer lecturas sueltas despues de escribir,
@@ -568,6 +570,20 @@ async function premiar(doc, viaje) {
       territorioPropio: enCasa,
     });
 
+    // Insignias (#24). Se evaluan sobre el estado que va a QUEDAR, no sobre el
+    // que habia: si no, la que se gana con este viaje no se concede hasta el
+    // siguiente, y el momento en que la persona la esperaba ya paso.
+    //
+    // No cuesta ni una lectura: el documento ya esta leido para la transaccion,
+    // y las reglas del catalogo solo miran campos suyos. Conceder una medalla
+    // no puede salir mas caro que verificar el viaje que la gana.
+    const nuevasInsignias = logros.nuevas({
+      ...previo,
+      viajesVerificados: (previo.viajesVerificados || 0) + 1,
+      metrosTotales: (previo.metrosTotales || 0) + (metros || 0),
+      mejorRacha: racha.mejorRacha,
+    });
+
     tx.update(refUsuario, {
       viajesVerificados: admin.firestore.FieldValue.increment(1),
       metrosTotales: admin.firestore.FieldValue.increment(metros || 0),
@@ -578,7 +594,15 @@ async function premiar(doc, viaje) {
       escudos: racha.escudos,
       diasHastaEscudo: racha.diasHastaEscudo,
       ultimoDiaActivo: racha.ultimoDiaActivo,
+      // Solo si hay algo nuevo. La mayoria de los viajes no desbloquean nada, y
+      // un `arrayUnion` vacio es una escritura por viaje para confirmar que no
+      // hay novedad.
+      ...(nuevasInsignias.length
+        ? { logros: admin.firestore.FieldValue.arrayUnion(...nuevasInsignias) }
+        : {}),
     });
+
+    if (nuevasInsignias.length) ganadas = nuevasInsignias;
   });
 
   if (!puntos) return;
@@ -598,6 +622,8 @@ async function premiar(doc, viaje) {
     + `${kmh ? `, ${kmh.toFixed(1)} km/h` : ''}`
     + `${enCasa ? ', en territorio propio' : ''}`
     + `${medida && medida.estimada ? ', distancia estimada' : ''})`);
+
+  if (ganadas.length) console.log(`  insignias: ${ganadas.join(', ')}`);
 }
 
 /**

@@ -9,9 +9,9 @@ import {
   collection, getDocs, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
 import { iniciarPagina, nombreRuta, formatearFecha, formatearTiempo, normalizarEstacion } from '/assets/js/ui.js';
-import { id, el, estado, reemplazar, imagen, confirmar, avisar, esqueleto, pedirTexto } from '/assets/js/dom.js';
+import { id, el, icono, estado, reemplazar, imagen, confirmar, avisar, esqueleto, pedirTexto } from '/assets/js/dom.js';
 import { MOTIVOS_MANUALES, textoDeMotivo } from '/assets/js/motivos.js';
-import { DICCIONARIO_INSIGNIAS } from '/insignias.js';
+import { INSIGNIAS } from '/assets/data/insignias.js';
 import {
   resolverViaje, resolverReporte, verCaptura,
   gestionarInsignia, destacarRuta,
@@ -498,7 +498,7 @@ function seleccionar(objetivo) {
     `Editando: ${objetivo.nombre} (${objetivo.tipo === 'usuarios' ? 'piloto' : 'clan'})`;
 
   const rejilla = id('rejilla-insignias');
-  reemplazar(rejilla, Object.entries(DICCIONARIO_INSIGNIAS).map(([clave, info]) => {
+  reemplazar(rejilla, Object.entries(INSIGNIAS).map(([clave, info]) => {
     const casilla = el('input', {
       attrs: { type: 'checkbox', checked: objetivo.logros.includes(clave) ? '' : null },
       estilo: { width: '18px', height: '18px', accentColor: 'var(--azul)' },
@@ -523,7 +523,10 @@ function seleccionar(objetivo) {
 
     return el('div', { clase: 'fila-insignia' }, [
       el('span', { estilo: { display: 'flex', gap: '8px', alignItems: 'center' } }, [
-        el('i', { clase: info.icono, estilo: { color: info.color } }),
+        // Del sprite propio. Antes era `<i class="fi fi-rr-home">`, de una
+        // fuente de iconos que ninguna pagina carga ya y que la CSP no admite:
+        // se pintaban cajas vacias.
+        icono(info.icono),
         el('span', { texto: info.titulo }),
       ]),
       casilla,

@@ -10,7 +10,7 @@ import {
 } from '/assets/js/firebase.js';
 import { iniciarPagina, alternarTema, nombreRuta, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar, confirmar, pedirTexto, esqueleto } from '/assets/js/dom.js';
-import { generarNodosInsignias } from '/insignias.js';
+import { generarNodosInsignias } from '/assets/js/insignias.js';
 import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo } from '/assets/js/acciones.js';
 import { motivoDeViaje } from '/assets/js/motivos.js';
 import { vaciarCache } from '/assets/js/cache.js';

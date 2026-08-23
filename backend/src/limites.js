@@ -9,7 +9,6 @@
  * como se burla un contador leido-y-luego-escrito.
  */
 
-const admin = require('firebase-admin');
 const { ErrorApp } = require('./errores');
 const { inicioDelDiaMadrid } = require('./util');
 

@@ -172,7 +172,10 @@ const CLASES_MUERTAS = {
 
 for (const fichero of [...lista, ...modulos]) {
   const rel = path.relative(RAIZ, fichero).split(path.sep).join('/');
-  const contenido = fs.readFileSync(fichero, 'utf8');
+  // Sin comentarios: un comentario que EXPLICA la clase vieja — "antes era
+  // `<i class=\"fi ...\">`" — no es un uso, es documentacion, y hacerlo saltar
+  // obliga a escribir el historial en clave para no despertar al guardian.
+  const contenido = sinComentarios(fs.readFileSync(fichero, 'utf8'));
 
   for (const [muerta, reemplazo] of Object.entries(CLASES_MUERTAS)) {
     // `\\b` y no `\b`: dentro de una plantilla, `\b` es el caracter de

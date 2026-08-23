@@ -180,8 +180,67 @@ function revisionLenta({ tokenBaja = null, nombre, ruta }) {
   };
 }
 
+/**
+ * Aviso a la administracion de que la cuota se esta agotando (#38).
+ *
+ * NO lleva enlace de baja: no es un correo de producto, es el unico aviso de
+ * que la web va a dejar de funcionar dentro de unas horas. Darse de baja de
+ * esto es quedarse sin enterarse.
+ */
+function cuotaEnPeligro({ nivel, porcentaje, consumido, proyeccion, limites }) {
+  const pct = Math.round(porcentaje);
+
+  const titulos = {
+    atencion: `Cuota al ${pct}%`,
+    alerta: `Cuota al ${pct}%: quedan pocas horas`,
+    degradado: `Cuota al ${pct}%: modo degradado`,
+  };
+
+  const explicaciones = {
+    atencion: 'Da tiempo a mirar que lo esta gastando. Si sigue este ritmo, no llega a medianoche.',
+    alerta: 'A este ritmo la web deja de funcionar antes de que acabe el dia.',
+    degradado: 'Se ha desactivado lo que mas lee. La web sigue en pie, pero con menos datos frescos.',
+  };
+
+  const linea = (que, valor, limite) =>
+    `  ${que}: ${valor.toLocaleString('es-ES')} de ${limite.toLocaleString('es-ES')}`;
+
+  const proyectado = proyeccion
+    ? `\n\nProyeccion para hoy:\n${linea('lecturas', proyeccion.lecturas, limites.LECTURAS)}`
+      + `\n${linea('escrituras', proyeccion.escrituras, limites.ESCRITURAS)}`
+    : '';
+
+  return {
+    asunto: `BiciFastness — ${titulos[nivel] || titulos.atencion}`,
+    html: envolver({
+      titulo: titulos[nivel] || titulos.atencion,
+      contenido:
+        parrafo(escapar(explicaciones[nivel] || explicaciones.atencion))
+        + parrafo('Consumido hasta ahora, <strong>solo por el worker</strong>:')
+        + '<ul style="margin:0 0 14px;padding-left:20px;">'
+        + `<li>Lecturas: ${consumido.lecturas.toLocaleString('es-ES')} de ${limites.LECTURAS.toLocaleString('es-ES')}</li>`
+        + `<li>Escrituras: ${consumido.escrituras.toLocaleString('es-ES')} de ${limites.ESCRITURAS.toLocaleString('es-ES')}</li>`
+        + '</ul>'
+        // Lo que lee el navegador no pasa por el worker y no hay forma de
+        // contarlo desde aqui. Decirlo evita que alguien lea estas cifras como
+        // el total y se confie.
+        + parrafo('Lo que leen los navegadores NO esta contado aqui: el total real es mayor. '
+          + 'La cifra exacta esta en la consola de Firebase, en Uso.')
+        + boton('Ver el consumo', `${SITIO}/admin/metricas/`),
+    }),
+    texto: `${titulos[nivel] || titulos.atencion}\n\n${explicaciones[nivel] || explicaciones.atencion}`
+      + `\n\nConsumido hasta ahora, solo por el worker:\n`
+      + `${linea('lecturas', consumido.lecturas, limites.LECTURAS)}\n`
+      + `${linea('escrituras', consumido.escrituras, limites.ESCRITURAS)}`
+      + proyectado
+      + '\n\nLo que leen los navegadores no esta contado: el total real es mayor.\n'
+      + `${SITIO}/admin/metricas/\n`,
+  };
+}
+
 module.exports = {
   bienvenida,
+  cuotaEnPeligro,
   viajeRechazado,
   viajeAnulado,
   viajesVerificados,

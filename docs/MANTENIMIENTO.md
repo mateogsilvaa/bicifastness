@@ -12,8 +12,13 @@ Si vuelves al proyecto dentro de seis meses, con esto y con
    una persona esperando. Si la cola crece sola, algo se rompio en el worker.
 2. **El worker.** Actions → "Verificar viajes". Debe haber ejecuciones cada 5-15
    minutos y en verde. Varias rojas seguidas: mira la seccion de fallos.
-3. **La cuota.** Firebase Console → Uso. Si las lecturas del dia van por encima
-   de la mitad a media tarde, no llega a medianoche. Ver [COSTE.md](COSTE.md).
+3. **La cuota.** Ya no hace falta acordarse: el worker la vigila solo y avisa
+   por correo al 70% y al 90% (#38). La grafica de los ultimos catorce dias
+   esta en `/admin/metricas/`.
+
+   Lo que el worker cuenta es **su** consumo, que no es el total: lo que leen
+   los navegadores no pasa por ahi. La cifra real esta en Firebase Console →
+   Uso. Ver [COSTE.md](COSTE.md).
 4. **Errores nuevos.** `/admin/errores/`. Ordenados por a cuanta gente le pasa,
    que es lo que decide que arreglar primero.
 5. **El embudo.** `/admin/metricas/`. Si las subidas empezadas suben y las
@@ -94,18 +99,26 @@ no da un error que se entienda.
 
 ### La cuota se agota
 
-Sintoma: la web deja de cargar datos y la consola llena de
-`resource-exhausted`. **Se recupera sola a medianoche** (hora del Pacifico, que
-no es medianoche aqui).
+Deberia avisar antes de llegar aqui: al 70% y al 90% sale un correo a
+`CORREO_ADMIN`. Si llega el del 90%, quedan un par de horas.
+
+Por encima del **95%** el worker entra solo en **modo degradado**: deja de
+reconstruir agregados, de resumir metricas y de recalcular el dominio de las
+estaciones, pero **sigue verificando viajes**, que es lo que la gente esta
+esperando. La clasificacion se queda unos minutos vieja en vez de que la web
+caiga entera.
+
+Si aun asi se agota, el sintoma es que la web deja de cargar datos y la consola
+se llena de `resource-exhausted`. **Se recupera sola a medianoche** (hora del
+Pacifico, que no es medianoche aqui).
 
 Para el rato:
 
 1. Modo mantenimiento (abajo). Corta las lecturas de las pantallas caras.
 2. Desactiva el worker: Actions → "Verificar viajes" → Disable workflow.
 
-Para que no vuelva a pasar: [COSTE.md](COSTE.md). Los dos culpables conocidos
-son `recalcularTrasCambio`, que lee las dos colecciones enteras por cada viaje
-aprobado, y `/territorio/`, que lee un documento por estacion.
+Y despues, para que no vuelva: mira la grafica de `/admin/metricas/` y
+[COSTE.md](COSTE.md), que dice que operacion es la cara.
 
 ### Alguien esta raspando datos
 

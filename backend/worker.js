@@ -44,6 +44,8 @@ const correo = require('./src/correo');
 const plantillas = require('./src/plantillas');
 const metricas = require('./src/metricas');
 const borrado = require('./src/borrado');
+const cuota = require('./src/cuota');
+const almacen = require('./src/db');
 const misiones = require('./src/misiones');
 const territorio = require('./src/territorio');
 
@@ -104,7 +106,24 @@ function arrancar() {
   return admin.firestore();
 }
 
-const db = arrancar();
+/**
+ * Todo lo que hace el backend pasa por un contador (#38).
+ *
+ * Es la unica forma de saber lo que se gasta de verdad: docs/COSTE.md modela lo
+ * que DEBERIA costar cada operacion, pero no sabe cuanta gente entra hoy ni
+ * cuantos viajes hay ya acumulados.
+ *
+ * Se instala en `db.js`, no solo aqui: si se quedara en la instancia del worker
+ * mediria unicamente sus consultas directas, y los agregados, la puntuacion y
+ * las metricas — que es donde esta casi todo el gasto — quedarian fuera de la
+ * cuenta.
+ *
+ * El envoltorio delega en Firestore y solo suma; si el contador fallara, la
+ * operacion sigue adelante igual. Medir el consumo no puede ser el motivo de
+ * que el worker deje de verificar viajes.
+ */
+const { db, coste: costeDeLaPasada } = cuota.contar(arrancar());
+almacen.usar(db);
 const AHORA = () => admin.firestore.FieldValue.serverTimestamp();
 
 /**
@@ -783,6 +802,92 @@ async function aplicarDecisionesManuales() {
 }
 
 /**
+ * Estado de la cuota al empezar la ejecucion.
+ *
+ * Se lee UNA vez, al principio, y se usa para decidir si esta pasada tiene que
+ * ir en modo degradado. Una lectura al dia... bueno, 288, pero de un solo
+ * documento: es lo mas barato que se puede pagar por no quedarse sin web a las
+ * seis de la tarde.
+ */
+async function leerCuota() {
+  try {
+    const snap = await db.doc(`cuota/${cuota.dia()}`).get();
+    return snap.exists ? snap.data() : { lecturas: 0, escrituras: 0, avisado: null };
+  } catch {
+    // Sin dato no se degrada nada: prefiero gastar de mas a apagar la web por
+    // no haber podido leer un contador.
+    return { lecturas: 0, escrituras: 0, avisado: null };
+  }
+}
+
+/**
+ * Cierra la contabilidad de la pasada: la registra y avisa si toca (#38).
+ *
+ * Va lo ultimo a proposito, para contar tambien lo que ha costado el trabajo
+ * periodico. Nada de aqui puede tumbar el worker: si falla, se avisa por
+ * consola y se sigue.
+ */
+async function cerrarCuota(alEmpezar) {
+  if (SIMULAR) {
+    console.log(`\nCoste de la pasada (simulada): ${costeDeLaPasada.lecturas} lecturas, `
+      + `${costeDeLaPasada.escrituras} escrituras.`);
+    return;
+  }
+
+  const acumulado = {
+    lecturas: (alEmpezar.lecturas || 0) + costeDeLaPasada.lecturas,
+    escrituras: (alEmpezar.escrituras || 0) + costeDeLaPasada.escrituras,
+  };
+
+  const estado = cuota.nivel(acumulado);
+  console.log(`\nCoste de la pasada: ${costeDeLaPasada.lecturas} lecturas, `
+    + `${costeDeLaPasada.escrituras} escrituras. `
+    + `Hoy va el ${Math.round(estado.porcentaje)}% de la cuota (solo worker).`);
+
+  const aviso = cuota.avisoPendiente(acumulado, alEmpezar.avisado || null);
+
+  try {
+    await cuota.registrar(costeDeLaPasada);
+    if (aviso) {
+      await db.doc(`cuota/${cuota.dia()}`).set({ avisado: aviso.nivel }, { merge: true });
+    }
+  } catch (error) {
+    console.warn('No se ha podido registrar el consumo:', error.message);
+  }
+
+  if (!aviso) return;
+
+  const destinatario = process.env.CORREO_ADMIN;
+  if (!destinatario) {
+    console.warn(`::warning::Cuota al ${Math.round(aviso.porcentaje)}%, `
+      + 'y sin CORREO_ADMIN no hay a quien avisar.');
+    return;
+  }
+
+  try {
+    const mensaje = plantillas.cuotaEnPeligro({
+      nivel: aviso.nivel,
+      porcentaje: aviso.porcentaje,
+      consumido: acumulado,
+      proyeccion: cuota.estimar(acumulado),
+      limites: cuota.LIMITES,
+    });
+
+    const resultado = await correo.enviar({
+      ...mensaje,
+      para: destinatario,
+      remitente: REMITENTE,
+      apiKey: process.env.RESEND_API_KEY,
+    });
+
+    if (resultado.error) console.warn(`  aviso de cuota no enviado: ${resultado.error}`);
+    else console.log(`  avisado a la administracion: nivel ${aviso.nivel}.`);
+  } catch (error) {
+    console.warn('  no se ha podido avisar de la cuota:', error.message);
+  }
+}
+
+/**
  * Una pasada por la cola. Devuelve cuantos viajes habia.
  *
  * Separada de `main` para poder repetirla dentro de la misma ejecucion sin
@@ -828,6 +933,10 @@ async function main() {
 
   const cuenta = { aprobado: 0, rechazado: 0, revision: 0, error: 0 };
 
+  // Lo gastado hoy antes de empezar. Decide si esta pasada va en modo degradado.
+  const cuotaAlEmpezar = SIMULAR ? { lecturas: 0, escrituras: 0 } : await leerCuota();
+  const degradado = cuota.nivel(cuotaAlEmpezar).nivel === 'degradado';
+
   // En simulacion NO se dan mas pasadas: como no se escribe el veredicto, los
   // viajes siguen pendientes y la siguiente pasada volveria a analizar los
   // mismos, en bucle, hasta agotar la ventana.
@@ -863,22 +972,33 @@ async function main() {
   // dos cosas caen en la misma pasada — que es justo cuando ha habido
   // movimiento — leerlas por separado costaba el doble (#34).
   const huboMovimiento = cuenta.aprobado > 0 || cuenta.rechazado > 0;
-  const resumirMetricas = !SIMULAR && await metricas.tocaResumir().catch(() => false);
+
+  // Modo degradado (#38): por encima del 95% de la cuota se deja de hacer lo
+  // que mas lee. La clasificacion se queda con los datos de la ultima
+  // reconstruccion — unos minutos vieja — en vez de que la web deje de
+  // funcionar entera hasta medianoche. Los viajes se siguen verificando: eso es
+  // lo que la gente esta esperando.
+  if (degradado) {
+    console.log('::warning::Cuota por encima del 95%: se omiten agregados, metricas y dominio.');
+  }
+
+  const resumirMetricas = !SIMULAR && !degradado && await metricas.tocaResumir().catch(() => false);
+  const rehacerPesado = !SIMULAR && !degradado;
   let base = null;
 
-  if (!SIMULAR && (huboMovimiento || resumirMetricas || estacionesTocadas.size)) {
+  if (rehacerPesado && (huboMovimiento || resumirMetricas || estacionesTocadas.size)) {
     base = await puntuacion.cargarBase();
   }
 
   // El dominio de las estaciones que se han movido en esta ejecucion, de una
   // tacada y con la carga ya hecha.
-  if (!SIMULAR && estacionesTocadas.size) {
+  if (rehacerPesado && estacionesTocadas.size) {
     const cuantas = await puntuacion.recalcularEstaciones(estacionesTocadas, base);
     console.log(`Dominio recalculado en ${cuantas} estaciones.`);
     estacionesTocadas.clear();
   }
 
-  if (!SIMULAR && huboMovimiento) {
+  if (rehacerPesado && huboMovimiento) {
     const escritos = await puntuacion.reconstruirAgregados(base);
     console.log(`Agregados reconstruidos: ${JSON.stringify(escritos)}`);
   }
@@ -927,6 +1047,10 @@ async function main() {
 
   console.log(`\nResumen: ${cuenta.aprobado} aprobados, ${cuenta.rechazado} rechazados, `
     + `${cuenta.revision} a revision, ${cuenta.error} con error.`);
+
+  // Lo ultimo, para contar tambien lo que ha costado el trabajo periodico.
+  await cerrarCuota(cuotaAlEmpezar);
+
   process.exit(0);
 }
 

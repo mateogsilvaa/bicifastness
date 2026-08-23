@@ -89,6 +89,10 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          # A quien avisar cuando la cuota se acerque al limite (#38). Sin esto
+          # el aviso se queda en el log del workflow, donde no lo lee nadie
+          # hasta que ya es tarde.
+          CORREO_ADMIN: ${{ secrets.CORREO_ADMIN }}
           # Cuanto se queda vivo dando pasadas, y cada cuanto. Con 0 vuelve al
           # comportamiento de antes: una mirada a la cola y a casa.
           VENTANA_MINUTOS: '4'

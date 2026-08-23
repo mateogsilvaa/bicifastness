@@ -329,6 +329,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Consumo de cuota por dia (#38). Lo escribe el worker; el panel lo lee para
+    // la grafica. No lleva nada de nadie, pero tampoco le sirve al navegador de
+    // alguien que no administre.
+    match /cuota/{dia} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
+
     // Contadores diarios ya sumados. Solo administracion: el detalle de un dia
     // concreto no le hace falta a nadie mas.
     match /metricas/{dia} {

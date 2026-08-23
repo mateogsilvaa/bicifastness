@@ -186,28 +186,45 @@ class RefDocumento {
     return new Instantanea(id, this.bd._coleccion(coleccion).get(id), this);
   }
 
-  async set(datos, opciones = {}) {
-    this.bd.escrituras++;
+  /**
+   * La escritura de verdad, sin contar ni pasar por el metodo publico.
+   *
+   * Existe porque un lote de Firestore NO llama a `ref.set()`: lleva las
+   * operaciones a la red por su cuenta. Cuando el doble lo hacia asi, cualquier
+   * envoltorio sobre los metodos publicos — el contador de cuota, por ejemplo —
+   * contaba dos veces cada operacion de un lote.
+   */
+  _aplicar(operacion, datos, opciones = {}) {
     const { coleccion, id } = partir(this.ruta);
     const almacen = this.bd._coleccion(coleccion);
+
+    if (operacion === 'delete') { almacen.delete(id); return; }
+
+    if (operacion === 'update') {
+      // Firestore falla si el documento no existe; el doble tambien, o un error
+      // real pasaria desapercibido en el ensayo.
+      assert.ok(almacen.has(id), `update sobre un documento que no existe: ${this.ruta}`);
+      almacen.set(id, aplicar(almacen.get(id), datos));
+      return;
+    }
+
     const previo = opciones.merge ? almacen.get(id) : undefined;
     almacen.set(id, aplicar(previo, datos));
   }
 
+  async set(datos, opciones = {}) {
+    this.bd.escrituras++;
+    this._aplicar('set', datos, opciones);
+  }
+
   async update(datos) {
     this.bd.escrituras++;
-    const { coleccion, id } = partir(this.ruta);
-    const almacen = this.bd._coleccion(coleccion);
-    // Firestore falla si el documento no existe; el doble tambien, o un error
-    // real pasaria desapercibido en el ensayo.
-    assert.ok(almacen.has(id), `update sobre un documento que no existe: ${this.ruta}`);
-    almacen.set(id, aplicar(almacen.get(id), datos));
+    this._aplicar('update', datos);
   }
 
   async delete() {
     this.bd.escrituras++;
-    const { coleccion, id } = partir(this.ruta);
-    this.bd._coleccion(coleccion).delete(id);
+    this._aplicar('delete');
   }
 
   collection(nombre) { return new RefColeccion(this.bd, `${this.ruta}/${nombre}`); }
@@ -234,16 +251,22 @@ class Lote {
     this.bd = bd;
     this.operaciones = [];
   }
-  set(ref, datos, opciones) { this.operaciones.push(() => ref.set(datos, opciones)); return this; }
-  update(ref, datos) { this.operaciones.push(() => ref.update(datos)); return this; }
-  delete(ref) { this.operaciones.push(() => ref.delete()); return this; }
+  // Se apunta la escritura sin pasar por los metodos publicos de la referencia,
+  // igual que hace Firestore: un lote no llama a `ref.set()`.
+  set(ref, datos, opciones) { this.operaciones.push([ref, 'set', datos, opciones]); return this; }
+  update(ref, datos) { this.operaciones.push([ref, 'update', datos]); return this; }
+  delete(ref) { this.operaciones.push([ref, 'delete']); return this; }
 
   async commit() {
     // Un lote de Firestore admite 500 operaciones. Pasarse es un error en
     // produccion, asi que aqui tambien.
     assert.ok(this.operaciones.length <= 500,
       `lote de ${this.operaciones.length} operaciones: el maximo de Firestore es 500`);
-    for (const op of this.operaciones) await op();
+
+    for (const [ref, operacion, datos, opciones] of this.operaciones) {
+      this.bd.escrituras++;
+      ref._aplicar(operacion, datos, opciones);
+    }
     this.operaciones = [];
   }
 }

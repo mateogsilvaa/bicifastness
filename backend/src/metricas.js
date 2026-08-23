@@ -20,10 +20,27 @@
 
 const admin = require('firebase-admin');
 
-const db = () => admin.firestore();
+// Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
+// que el contador de cuota (#38) vea TODO lo que hace el backend.
+const { db } = require('./db');
 
-/** Cuantos dias se conserva el detalle de sesiones antes de podarlo. */
-const DIAS_DETALLE = 7;
+/**
+ * Cuantas sesiones se suman por pasada.
+ *
+ * Antes se leia `sesiones_web` ENTERA en cada pasada del worker — 288 veces al
+ * dia — para volver a sumar lo mismo y podar unas pocas. Con 200 activos eran
+ * 400 documentos por pasada, 115.200 lecturas al dia (docs/COSTE.md).
+ *
+ * Ahora cada sesion se suma UNA vez y se borra en el acto, asi que entre pasada
+ * y pasada la coleccion esta practicamente vacia y la lectura cuesta lo que
+ * haya llegado en esos cinco minutos. El tope existe para que un pico no se
+ * lleve el tiempo del worker, que es lo que verifica los viajes de todo el
+ * mundo; lo que no entre se suma en la siguiente.
+ *
+ * Borrar en el acto es ademas mejor para quien nos visita: el detalle por
+ * sesion deja de existir en cuanto esta contado.
+ */
+const MAX_SESIONES_POR_PASADA = 450;
 
 /**
  * Cuantos dias se conserva un error del cliente desde la ultima vez que paso.
@@ -59,18 +76,20 @@ function diasEntre(desde, hasta) {
  * sesion solo ocupa. Y menos documentos sueltos por ahi es menos superficie.
  */
 async function agregarSesiones() {
-  const sesiones = await db().collection('sesiones_web').get();
+  const sesiones = await db().collection('sesiones_web').limit(MAX_SESIONES_POR_PASADA).get();
   if (sesiones.empty) return { dias: 0, sesiones: 0 };
 
   /** dia -> { evento: total } */
   const porDia = new Map();
-  const limite = dia(new Date(Date.now() - DIAS_DETALLE * 86400000));
   const podar = [];
 
   for (const doc of sesiones.docs) {
     const datos = doc.data();
     const fecha = datos.dia;
-    if (!fecha) continue;
+
+    // Sin dia no se puede sumar a ningun contador, pero tampoco puede quedarse
+    // ahi para siempre haciendo que la consulta lo devuelva en cada pasada.
+    if (!fecha) { podar.push(doc.ref); continue; }
 
     if (!porDia.has(fecha)) porDia.set(fecha, { sesiones: 0 });
     const acumulado = porDia.get(fecha);
@@ -81,12 +100,21 @@ async function agregarSesiones() {
       acumulado[clave] = (acumulado[clave] || 0) + valor;
     }
 
-    if (fecha < limite) podar.push(doc.ref);
+    podar.push(doc.ref);
   }
 
+  // Los contadores se INCREMENTAN, no se reescriben. Antes se volvia a sumar la
+  // coleccion entera cada vez y se escribia el total absoluto, que salia bien
+  // pero solo porque no se borraba nada. Sumando lo nuevo sobre lo que ya
+  // habia, cada sesion se cuenta una vez y el detalle puede desaparecer.
   for (const [fecha, totales] of porDia) {
+    const incrementos = {};
+    for (const [clave, valor] of Object.entries(totales)) {
+      incrementos[clave] = admin.firestore.FieldValue.increment(valor);
+    }
+
     await db().doc(`metricas/${fecha}`).set({
-      ...totales,
+      ...incrementos,
       actualizado: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
   }
@@ -296,7 +324,7 @@ module.exports = {
   dia,
   diasEntre,
   VENTANAS,
-  DIAS_DETALLE,
+  MAX_SESIONES_POR_PASADA,
   DIAS_ERRORES,
   podarErrores,
 };

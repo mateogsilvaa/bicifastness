@@ -15,7 +15,9 @@ const rachas = require('./rachas');
 const agregados = require('./agregados');
 const territorio = require('./territorio');
 
-const db = () => admin.firestore();
+// Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
+// que el contador de cuota (#38) vea TODO lo que hace el backend.
+const { db } = require('./db');
 
 /** Puntos que da una posicion (0-indexada) en el ranking de una ruta. */
 function puntosPorPosicion(indice) {

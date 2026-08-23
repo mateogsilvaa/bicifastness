@@ -43,6 +43,9 @@ modo mantenimiento no protege ni un dato. Lo unico que protege son las reglas.
 - [ ] Visibilidad cambiada, **solo despues del paso 1**
 - [ ] Secreto `FIREBASE_SERVICE_ACCOUNT` creado
 - [ ] Secreto `RESEND_API_KEY` creado, si se quieren los avisos por correo
+- [ ] Variable o secreto `CORREO_ADMIN` con la direccion a la que avisar cuando
+      la cuota se acerque al limite (#38). Sin ella, el aviso solo sale en el
+      log del workflow, donde no lo lee nadie
 
 ## 4. El sitio se sirve (#2)
 

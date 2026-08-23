@@ -1130,3 +1130,58 @@ test('el dominio de las estaciones no se recalcula viaje a viaje', () => {
   assert.ok(worker.indexOf('recalcularEstaciones(') > worker.indexOf('for (const doc of cola.docs)'),
     'el dominio se recalcula dentro del bucle de la cola');
 });
+
+// --- Vigilancia de la cuota (#38) ------------------------------------------------
+
+test('todo lo que hace el worker pasa por el contador de cuota', () => {
+  // Si alguien vuelve a coger `admin.firestore()` directamente, esa parte deja
+  // de contarse y el aviso llega tarde o no llega. El aviso es lo unico que hay
+  // entre un dia malo y la web caida hasta medianoche.
+  const worker = leerCodigo('backend/worker.js');
+
+  assert.match(worker, /cuota\.contar\(arrancar\(\)\)/,
+    'el worker no envuelve Firestore con el contador');
+
+  // Y la instancia contada se instala para TODOS los modulos. Sin esto, el
+  // contador mide solo las consultas directas del worker y deja fuera los
+  // agregados, la puntuacion y las metricas, que es donde esta casi todo.
+  assert.match(worker, /almacen\.usar\(db\)/,
+    'la instancia contada no se instala: el resto del backend no se cuenta');
+
+  // `arrancar()` es la unica que la coge sin contar, y solo para envolverla.
+  const veces = (worker.match(/admin\.firestore\(\)/g) || []).length;
+  assert.strictEqual(veces, 1,
+    'hay codigo del worker que coge Firestore sin pasar por el contador');
+
+  // Y ningun modulo del backend se la coge por su cuenta.
+  const modulos = fs.readdirSync(path.join(RAIZ, 'backend/src'))
+    .filter((f) => f.endsWith('.js') && f !== 'db.js');
+
+  for (const modulo of modulos) {
+    assert.ok(!/const db = \(\) => admin\.firestore\(\)/.test(leerCodigo(`backend/src/${modulo}`)),
+      `${modulo} coge Firestore por su cuenta: lo que haga no se cuenta`);
+  }
+});
+
+test('el modo degradado apaga lo que mas lee, no la verificacion', () => {
+  const worker = leerCodigo('backend/worker.js');
+
+  assert.match(worker, /degradado/, 'no hay modo degradado');
+  // Lo que se apaga: agregados, metricas y dominio. Lo que NO: la cola.
+  assert.match(worker, /rehacerPesado/);
+  assert.ok(!/if \(degradado\) return/.test(worker),
+    'el modo degradado no puede saltarse la verificacion: es lo que la gente espera');
+});
+
+test('el consumo se registra al final, para contar tambien lo periodico', () => {
+  const worker = leerCodigo('backend/worker.js');
+  const main = worker.slice(worker.indexOf('async function main()'));
+
+  assert.ok(main.indexOf('cerrarCuota(') > main.indexOf('reconstruirAgregados('),
+    'la cuota se cierra antes del trabajo periodico: no contaria lo mas caro');
+});
+
+test('la coleccion de cuota no la lee cualquiera', () => {
+  assert.match(bloque('cuota'), /allow read: if esAdmin\(\)/);
+  assert.match(bloque('cuota'), /allow write: if false/);
+});

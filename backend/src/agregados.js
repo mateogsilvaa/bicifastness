@@ -22,7 +22,9 @@
 
 const admin = require('firebase-admin');
 
-const db = () => admin.firestore();
+// Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
+// que el contador de cuota (#38) vea TODO lo que hace el backend.
+const { db } = require('./db');
 
 /**
  * Lo UNICO que puede viajar a un documento de lectura publica.
@@ -262,7 +264,11 @@ async function reconstruir({ usuarios = [], viajes = [], clanes = [], estaciones
 
   // --- Portada ---------------------------------------------------------------
   await db().doc('agregados/portada').set({
+    // `pilotos` son los que PUNTUAN; `usuarios`, las cuentas que hay. No es lo
+    // mismo y se confunde facil: quien acaba de registrarse cuenta como cuenta
+    // pero todavia no aparece en ninguna clasificacion.
     pilotos: pilotos.length,
+    usuarios: usuarios.length,
     clanes: clanes.length,
     viajes: viajes.length,
     rutas: porRuta.size,

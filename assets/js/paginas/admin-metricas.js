@@ -7,7 +7,10 @@
 // documentos diarios cada vez que se abre el panel, que es justo el problema
 // que los agregados vienen a resolver.
 
-import { auth, db, doc, getDoc, onAuthStateChanged } from '/assets/js/firebase.js';
+import {
+  auth, db, doc, getDoc, onAuthStateChanged,
+  collection, getDocs, query, orderBy, limit,
+} from '/assets/js/firebase.js';
 import { iniciarPagina } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 
@@ -127,6 +130,61 @@ function pintarCohortes(cohortes) {
   ]));
 }
 
+/**
+ * Consumo de cuota, dia a dia (#38).
+ *
+ * Barras hechas con divs y no con una libreria de graficas: son catorce barras
+ * y meter una dependencia entera para eso costaria mas de descargar que todo lo
+ * que pinta. Ademas, una barra con su cifra al lado se lee con lector de
+ * pantalla; un canvas, no.
+ */
+function pintarCuota(dias) {
+  if (!dias.length) {
+    reemplazar(id('cuota'), el('div', { clase: 'vacio' }, [
+      el('h3', { texto: 'Sin datos de consumo' }),
+      el('p', { texto: 'El worker los registra en cada pasada.' }),
+    ]));
+    return;
+  }
+
+  // El limite del plan Spark. La barra se mide contra el, no contra el maximo
+  // de la serie: lo que importa no es que dia se gasto mas, es cuanto falta
+  // para quedarse sin web.
+  const LIMITE = 50000;
+
+  reemplazar(id('cuota'), el('div', { clase: 'pila' },
+    dias.map((d) => {
+      const porcentaje = Math.min(100, Math.round((d.lecturas / LIMITE) * 100));
+
+      const barra = el('div', {
+        attrs: { 'aria-hidden': 'true' },
+        estilo: {
+          height: '8px',
+          borderRadius: '2px',
+          background: porcentaje >= 90 ? 'var(--rojo)'
+            : porcentaje >= 70 ? 'var(--ambar)' : 'var(--verde)',
+          width: `${Math.max(2, porcentaje)}%`,
+        },
+      });
+
+      return el('div', { estilo: { marginBottom: 'var(--e3)' } }, [
+        el('div', { clase: 'fila separada' }, [
+          el('span', { clase: 'menor', texto: d.dia }),
+          // La cifra va en el texto, no solo en la barra: es lo que hace que
+          // esto se pueda leer sin ver.
+          el('span', {
+            clase: 'menor apagado',
+            texto: `${d.lecturas.toLocaleString('es-ES')} lecturas (${porcentaje}%)`
+              + ` · ${d.escrituras.toLocaleString('es-ES')} escrituras`,
+          }),
+        ]),
+        el('div', {
+          estilo: { background: 'var(--papel-3)', borderRadius: '2px', marginTop: 'var(--e1)' },
+        }, [barra]),
+      ]);
+    })));
+}
+
 // --- CSV ---------------------------------------------------------------------
 
 /** Mismo escapado que en la pagina de errores: Excel ejecuta formulas. */
@@ -197,6 +255,23 @@ onAuthStateChanged(auth, async (usuario) => {
     // volumen para que los porcentajes signifiquen algo.
     pintarEmbudo(resumen.ventanas?.mes || {});
     pintarCohortes(resumen.cohortes);
+
+    // Los ultimos catorce dias de consumo. Va aparte del agregado de metricas
+    // porque lo escribe el worker en cada pasada y el resumen solo cada seis
+    // horas: meterlo dentro obligaria a rehacer el resumen para actualizarlo.
+    try {
+      const cuota = await getDocs(query(
+        collection(db, 'cuota'),
+        orderBy('__name__', 'desc'),
+        limit(14),
+      ));
+      pintarCuota(cuota.docs
+        .map((d) => ({ dia: d.id, lecturas: d.data().lecturas || 0, escrituras: d.data().escrituras || 0 }))
+        .reverse());
+    } catch (error) {
+      // Que falle la grafica no puede llevarse por delante el resto del panel.
+      console.debug('No se ha podido cargar el consumo de cuota', error);
+    }
   } catch (error) {
     console.debug('No se han podido cargar las metricas', error);
     estado(id('mensaje'),

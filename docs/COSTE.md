@@ -184,6 +184,29 @@ puede bajar sin perder casi deteccion.
   tres lecturas, no una por documento.
 - Leaflet solo se carga en `/territorio/`, no en el arranque comun.
 
+## Y ahora se vigila sola
+
+Este documento modela lo que DEBERIA costar cada operacion. Lo que cuesta de
+verdad depende de cuanta gente entre hoy y de cuantos viajes haya acumulados, y
+eso solo se sabe midiendo.
+
+El worker lo mide (#38): toda la instancia de Firestore del backend va envuelta
+en un contador, y al final de cada pasada suma lo consumido a `cuota/{dia}`.
+
+- Al **70%** y al **90%** sale un correo a `CORREO_ADMIN`, una sola vez por
+  umbral: con el worker corriendo cada cinco minutos, avisar mientras se este
+  por encima serian 288 correos en un dia malo y a partir del tercero nadie los
+  lee.
+- Por encima del **95%** entra en **modo degradado**: deja de reconstruir
+  agregados, de resumir metricas y de recalcular el dominio de las estaciones,
+  pero sigue verificando viajes. La clasificacion se queda unos minutos vieja en
+  vez de que la web caiga entera hasta medianoche.
+- La grafica de los ultimos catorce dias esta en `/admin/metricas/`.
+
+**Lo que el worker cuenta no es el total.** Lo que leen los navegadores no pasa
+por ahi y no hay forma de contarlo sin pedirselo a Firebase. Es un suelo, y el
+aviso lo dice.
+
 ## Cuentas que no se han hecho aqui
 
 - **Escrituras.** El limite es 20.000 al dia y `reconstruirAgregados` escribe en

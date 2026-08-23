@@ -1393,3 +1393,64 @@ test('el codigo de invitacion no se puede adivinar', () => {
   assert.match(cuerpo, /crypto\.getRandomValues/);
   assert.ok(!/Math\.random/.test(cuerpo), 'el codigo de invitacion es predecible');
 });
+
+// --- Microinteracciones (#51) ------------------------------------------------------
+
+test('con prefers-reduced-motion no se mueve nada, pero se ve todo', () => {
+  // Es EL fallo de esto: dejar las partes en `opacity: 0` confiando en que la
+  // animacion las traiga. Con `animation: none !important` — que es justo lo
+  // que hace el bloque de movimiento reducido — se quedan invisibles para
+  // siempre, y quien pidio que no se moviera nada se queda sin contenido.
+  const css = leerCodigo('assets/css/app.css');
+
+  assert.match(css, /\.aparece\s*\{[^}]*opacity:\s*0/,
+    'el test ya no mira lo que cree mirar');
+
+  const reducido = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
+  assert.match(reducido, /\.aparece\s*\{\s*opacity:\s*1/,
+    'con movimiento reducido el contenido animado se queda invisible');
+});
+
+test('la clase que oculta solo se pone si se va a animar de verdad', () => {
+  // El cinturon del test de arriba: el JS tampoco debe marcar nodos para
+  // aparecer cuando sabe que no habra animacion.
+  const celebrar = leerCodigo('assets/js/celebrar.js');
+  const funcion = celebrar.slice(celebrar.indexOf('export function aparecerPorPartes'));
+  const cuerpo = funcion.slice(0, funcion.indexOf('\n}'));
+
+  assert.match(cuerpo, /sinMovimiento\(\)/,
+    'se marcan nodos para aparecer sin comprobar si el sistema anima');
+  assert.ok(cuerpo.indexOf('sinMovimiento()') < cuerpo.indexOf("classList.add('aparece')"),
+    'se marca el nodo antes de comprobar si va a animarse');
+});
+
+test('el sonido esta apagado por defecto', () => {
+  // Una web que suena sola la primera vez que la abres en el metro es una web
+  // que se cierra.
+  const celebrar = leerCodigo('assets/js/celebrar.js');
+  const funcion = celebrar.slice(celebrar.indexOf('export function sonidoActivo'));
+  const cuerpo = funcion.slice(0, funcion.indexOf('\n}'));
+
+  assert.match(cuerpo, /=== '1'/, 'el sonido no esta apagado salvo opt-in explicito');
+  assert.match(cuerpo, /catch/, 'en modo privado leer localStorage lanza');
+
+  // Y hay donde apagarlo.
+  assert.match(leer('yo/index.html'), /id="sonido"/, 'no hay ajuste para el sonido');
+});
+
+test('la celebracion no bloquea ni tapa la pantalla', () => {
+  // La animacion acompana. La persona acaba de subir algo y lo que quiere es
+  // ver el resultado, no cerrar una ventana.
+  const celebrar = leerCodigo('assets/js/celebrar.js');
+
+  assert.ok(!/showModal|dialog|position:\s*fixed/i.test(celebrar),
+    'la celebracion monta un dialogo o tapa la pantalla');
+  assert.ok(!/setTimeout/.test(celebrar),
+    'la aparicion se escalona con temporizadores en vez de con CSS');
+});
+
+test('el desglose de puntos no ensena multiplicadores que no multiplican', () => {
+  // Un "x1" es ruido y ademas hace pensar que se ha perdido algo.
+  const celebrar = leerCodigo('assets/js/celebrar.js');
+  assert.match(celebrar, /valor === 1\) continue/);
+});

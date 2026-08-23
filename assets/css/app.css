@@ -97,6 +97,9 @@
   --toque: 44px;
 
   --transicion: 120ms ease-out;
+  /* Retraso de la aparicion escalonada. Lo sobrescribe el JS por nodo; aqui
+     esta su valor por defecto, para que `.aparece` funcione sola. */
+  --retraso: 0ms;
 }
 
 [data-theme='dark'] {
@@ -789,9 +792,38 @@ body:has(.nav-inf) .cookies {
 
 /* --- Movimiento ------------------------------------------------------------ */
 
+/* Aparicion escalonada (#51). El retraso lo pone el JS en `--retraso`.
+   OJO: la clase la anade el JS SOLO cuando va a animar de verdad. Si se pusiera
+   siempre, con las animaciones desactivadas el contenido se quedaria en
+   `opacity: 0` para siempre — que es exactamente el fallo que este bloque de
+   abajo provocaria. */
+.aparece {
+  opacity: 0;
+  animation: aparecer 260ms ease-out var(--retraso, 0ms) forwards;
+}
+
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* La racha, cuando sube. Un pulso corto: llama la atencion y se quita de en
+   medio. */
+.pulso { animation: pulso 420ms ease-out; }
+
+@keyframes pulso {
+  0%   { transform: none; }
+  35%  { transform: scale(1.14); }
+  100% { transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition: none !important;
     animation: none !important;
   }
+
+  /* Y por si acaso: si algo se hubiera marcado para aparecer, que se vea. Con
+     `animation: none` la regla de arriba dejaria el `opacity: 0` puesto. */
+  .aparece { opacity: 1; }
 }

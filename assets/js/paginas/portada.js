@@ -17,6 +17,7 @@ import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { seguirViaje, viajeRecordado, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
 import { ofrecerInstalacion, guardarResumenOffline } from '/assets/js/instalar.js';
 import { traerAgregado, puestoPorMarca } from '/assets/js/agregados.js';
+import { destacar } from '/assets/js/celebrar.js';
 
 iniciarPagina('ahora');
 
@@ -49,9 +50,16 @@ function pintarRacha(perfil) {
     return;
   }
 
+  const contador = el('span', { clase: 'cifra', texto: String(dias) });
+
   reemplazar(id('racha'), el('div', { clase: `aviso ${activoHoy ? 'ok' : 'atencion'}` }, [
-    el('p', { clase: 'etiqueta', texto: `Racha de ${dias} ${dias === 1 ? 'dia' : 'dias'}` }),
+    el('p', { clase: 'etiqueta', texto: 'Racha' }),
+    el('div', { clase: 'fila', estilo: { alignItems: 'baseline', gap: 'var(--e2)' } }, [
+      contador,
+      el('span', { texto: dias === 1 ? 'dia' : 'dias' }),
+    ]),
     el('p', {
+      estilo: { marginBottom: '0' },
       texto: activoHoy
         ? 'Hoy ya esta salvado.'
         : escudos > 0
@@ -59,6 +67,28 @@ function pintarRacha(perfil) {
           : 'Hoy todavia no, y no te quedan escudos: si no sales, la pierdes.',
     }),
   ]));
+
+  // Solo cuando SUBE, y comparando con lo que habia la ultima vez que se miro.
+  // Pulsar en cada carga convierte el aviso en decoracion y deja de llamar la
+  // atencion, que es lo unico que tiene que hacer (#51).
+  if (subioLaRacha(dias)) destacar(contador);
+}
+
+/**
+ * ¿Ha subido la racha desde la ultima vez que se pinto?
+ *
+ * Se guarda en la pestana, no en el disco: lo que interesa es "ha cambiado
+ * desde que lo vi", y eso muere con la sesion. En `localStorage` un dato viejo
+ * de hace tres semanas dispararia una celebracion sin motivo.
+ */
+function subioLaRacha(dias) {
+  try {
+    const previa = Number(sessionStorage.getItem('bf_racha_vista'));
+    sessionStorage.setItem('bf_racha_vista', String(dias));
+    return Number.isFinite(previa) && dias > previa;
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -26,6 +26,7 @@
 import { db, doc, onSnapshot } from './firebase.js';
 import { el, reemplazar } from './dom.js';
 import { estadoDeViaje, motivoDeViaje } from './motivos.js';
+import { celebrarVerificado } from '/assets/js/celebrar.js';
 
 const CLAVE = 'viaje-en-curso';
 
@@ -116,6 +117,13 @@ export function tarjetaEstado(viaje, { conEnlace = true } = {}) {
     ]),
 
     el('p', { texto: textos.texto, estilo: { marginBottom: '0' } }),
+
+    // De donde salen los puntos, por partes (#51). Un total suelto no dice
+    // nada: quien no entiende como se han sumado no puede decidir que hacer
+    // distinto manana.
+    viaje?.estado === 'aprobado' && viaje?.puntosDesglose
+      ? el('div', { estilo: { marginTop: 'var(--e4)' } }, celebrarVerificado(viaje))
+      : null,
 
     motivo
       ? el('div', { clase: 'aviso error', estilo: { marginTop: 'var(--e4)', marginBottom: '0' } }, [

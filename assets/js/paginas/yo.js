@@ -14,6 +14,7 @@ import { generarNodosInsignias } from '/assets/js/insignias.js';
 import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo } from '/assets/js/acciones.js';
 import { motivoDeViaje } from '/assets/js/motivos.js';
 import { vaciarCache } from '/assets/js/cache.js';
+import { sonidoActivo, activarSonido, sonar } from '/assets/js/celebrar.js';
 
 iniciarPagina('yo');
 
@@ -334,6 +335,16 @@ id('avisos-correo').addEventListener('change', async (evento) => {
   } finally {
     casilla.disabled = false;
   }
+});
+
+// El sonido va apagado salvo que se encienda a proposito: una web que suena
+// sola la primera vez que la abres en el metro es una web que se cierra (#51).
+id('sonido').checked = sonidoActivo();
+id('sonido').addEventListener('change', (e) => {
+  activarSonido(e.target.checked);
+  // Al encenderlo suena una vez, que es la unica forma de saber que suena. Y
+  // ademas el gesto del clic es lo que autoriza al navegador a reproducir.
+  if (e.target.checked) sonar();
 });
 
 id('btn-tema').addEventListener('click', alternarTema);

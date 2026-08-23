@@ -110,6 +110,19 @@ const PUNTOS = {
   MULTIPLICADOR_RUTA_HISTORICA: 1.5,
   // Puntos que aporta cada piloto a su clan por dominar una estacion.
   ESTACION_POR_POSICION: [7, 5, 3, 1, 1, 1, 1, 1, 1, 1],
+  /**
+   * Cuantos viajes se leen de una ruta para rehacer su clasificacion.
+   *
+   * Solo puntuan los siete primeros (`POR_POSICION`), y solo cuenta el mejor
+   * tiempo de cada piloto, asi que basta con los mas rapidos: a quien se cae del
+   * podio se le quitan los puntos por la otra consulta, la de quien ya puntuaba.
+   *
+   * Sin tope, esto crecia sin fin — era la lectura mas cara del worker con 240
+   * subidas al dia (docs/COSTE.md). Para que 200 se quedara corto harian falta
+   * seis pilotos con casi doscientos viajes entre ellos, todos mas rapidos que
+   * el septimo: no es un escenario, es una anecdota.
+   */
+  TOPE_CLASIFICACION_RUTA: 200,
 };
 
 // --- Puntos de cada viaje ----------------------------------------------------

@@ -155,8 +155,11 @@ const WORKER = [
   {
     nombre: 'recalcularRuta (por viaje APROBADO)',
     veces: ({ S }) => Math.round(S * 0.5),
-    coste: ({ U, V }) => min1(viajesEnRuta(V)) + min1(U * 0.1) + min1(U * 0.1),
-    detalle: 'los viajes de esa ruta + quien ya puntuaba en ella',
+    // Acotado a los 200 mas rapidos de la ruta: solo puntuan los siete
+    // primeros, y a quien se cae del podio se le quitan los puntos por la otra
+    // consulta.
+    coste: ({ U, V }) => min1(Math.min(200, viajesEnRuta(V))) + min1(U * 0.1) + min1(U * 0.1),
+    detalle: 'los 200 mas rapidos de esa ruta + quien ya puntuaba en ella',
   },
   {
     nombre: 'recalcularEstaciones (una vez por pasada CON viajes)',
@@ -164,9 +167,10 @@ const WORKER = [
     // La influencia sobre una estacion sale SOLO de los viajes de las rutas que
     // la tocan, y el indice de `agregados/rutas` dice cuales son. Antes esto
     // leia `usuarios` y `tiempos_viaje` enteros.
-    coste: ({ U, V, E, S }) => min1(1) + U + estacionesEnLaPasada(S)
+    coste: ({ C, V, E, S }) => min1(1) + C + estacionesEnLaPasada(S)
       * (min1(1) + rutasPorEstacion(V, E) * min1(viajesPorRutaActiva(V))),
-    detalle: 'el indice de rutas + usuarios + los viajes de las rutas que tocan cada estacion',
+    detalle: 'el indice de rutas + los clanes (de ahi sale de quien es cada piloto) '
+      + '+ los viajes de las rutas que tocan cada estacion',
   },
   {
     nombre: 'reconstruirAgregados (parcial, como mucho cada 15 min)',
@@ -211,8 +215,10 @@ const WORKER = [
   {
     nombre: 'prepararDia, la parte cara (UNA vez al dia)',
     veces: () => 1,
-    coste: ({ V }) => V,
-    detalle: 'TODOS los viajes verificados, para elegir la ruta del dia',
+    // El conteo por ruta sale del indice que deja la reconstruccion de
+    // agregados. Antes leia `tiempos_viaje` entera.
+    coste: () => min1(1),
+    detalle: 'el indice de rutas, que ya trae cuantos viajes tiene cada tramo',
   },
   {
     nombre: 'validarBasico y captura (por viaje procesado)',

@@ -205,12 +205,14 @@ async function olvidarPendientes() {
  * @param {Map}    estaciones   id de estacion -> stats
  * @param {boolean} parcial      `viajes` trae solo unas rutas, no todas
  * @param {Array}  rutasPrevias  rutas que ya estaban en el indice (solo en parcial)
+ * @param {Object} conteosPrevios viajes por ruta que ya estaban (solo en parcial)
  * @param {Array}  rutasRehechas rutas que se han consultado (solo en parcial)
  * @param {number} totalViajes   viajes verificados que hay (solo en parcial)
  */
 async function reconstruir({
   usuarios = [], viajes = [], clanes = [], estaciones = new Map(),
-  parcial = false, rutasPrevias = [], rutasRehechas = [], totalViajes = null,
+  parcial = false, rutasPrevias = [], conteosPrevios = {}, rutasRehechas = [],
+  totalViajes = null,
 }) {
   const escritos = {};
 
@@ -293,8 +295,15 @@ async function reconstruir({
   const nombrePorUid = new Map(usuarios.map((u) => [u.uid, u]));
   const porRuta = new Map();
 
+  // Viajes EN CRUDO por ruta, no pilotos. Es lo que mira `misiones.rutaDelDia`
+  // para descartar los tramos que no mueve nadie, y contarlo aqui — donde los
+  // viajes ya estan leidos — le ahorra al worker recorrer la coleccion entera
+  // una vez al dia solo para elegir la ruta destacada.
+  const brutosPorRuta = new Map();
+
   for (const v of viajes) {
     if (!v.ruta) continue;
+    brutosPorRuta.set(v.ruta, (brutosPorRuta.get(v.ruta) || 0) + 1);
     if (!porRuta.has(v.ruta)) porRuta.set(v.ruta, new Map());
     const mejores = porRuta.get(v.ruta);
     const previo = mejores.get(v.uid);
@@ -346,8 +355,15 @@ async function reconstruir({
     ? [...new Set([...rutasPrevias, ...porRuta.keys()])].filter((r) => !vaciadas.has(r)).sort()
     : [...porRuta.keys()].sort();
 
+  // Lo mismo con los conteos: en parcial solo se conocen los de las rutas
+  // movidas, asi que se mezclan con los que ya habia.
+  const viajesPorRuta = parcial ? { ...conteosPrevios } : {};
+  for (const [ruta, cuantos] of brutosPorRuta) viajesPorRuta[ruta] = cuantos;
+  for (const ruta of vaciadas) delete viajesPorRuta[ruta];
+
   await db().doc('agregados/rutas').set({
     rutas: rutasConocidas,
+    viajesPorRuta,
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   });
 

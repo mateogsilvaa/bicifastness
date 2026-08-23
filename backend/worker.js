@@ -724,6 +724,28 @@ async function revertirPremio(doc, viaje) {
 }
 
 /**
+ * Cuantos viajes verificados tiene cada tramo.
+ *
+ * Sale del indice que deja la reconstruccion de agregados: una lectura. El
+ * respaldo cuenta a mano leyendo la coleccion entera, que es lo que se hacia
+ * siempre, y solo hace falta la primera vez, antes de que exista el indice.
+ */
+async function conteoPorRuta() {
+  const indice = await db.doc('agregados/rutas').get();
+  const conteos = indice.exists ? indice.data().viajesPorRuta : null;
+
+  if (conteos && Object.keys(conteos).length) return new Map(Object.entries(conteos));
+
+  const viajes = await db.collection('tiempos_viaje').where('verificado', '==', true).get();
+  const porRuta = new Map();
+  for (const d of viajes.docs) {
+    const ruta = d.data().ruta;
+    if (ruta) porRuta.set(ruta, (porRuta.get(ruta) || 0) + 1);
+  }
+  return porRuta;
+}
+
+/**
  * Deja listas las misiones del dia y la ruta destacada.
  *
  * Se llama en cada pasada y no pasa nada: las misiones se generan de forma
@@ -751,12 +773,13 @@ async function prepararDia() {
   if (datos.rutaDestacadaDia === hoy) return;
 
   // Cuantos viajes tiene cada tramo, para descartar los que no mueve nadie.
-  const viajes = await db.collection('tiempos_viaje').where('verificado', '==', true).get();
-  const porRuta = new Map();
-  for (const d of viajes.docs) {
-    const ruta = d.data().ruta;
-    if (ruta) porRuta.set(ruta, (porRuta.get(ruta) || 0) + 1);
-  }
+  //
+  // Sale del indice de rutas, que el worker ya deja escrito al reconstruir los
+  // agregados: una lectura en vez de la coleccion de viajes ENTERA, que con
+  // 15.000 acumulados era una de las tres cosas que quedaban leyendola entera.
+  // Si el indice todavia no existe — proyecto recien estrenado — se cuenta a
+  // mano una vez, que es exactamente lo que hacia antes siempre.
+  const porRuta = await conteoPorRuta();
 
   const recientes = Array.isArray(datos.rutasHistoricas) ? datos.rutasHistoricas.slice(-7) : [];
   const elegida = misiones.rutaDelDia(porRuta, recientes, hoy);

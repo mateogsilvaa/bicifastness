@@ -25,14 +25,14 @@ const test = require('node:test');
 const assert = require('node:assert');
 const Module = require('node:module');
 
-const { FirestoreFalso, FieldValue } = require('./ayuda/firestore-falso');
+const { FirestoreFalso, FieldValue, FieldPath } = require('./ayuda/firestore-falso');
 
 let bd = new FirestoreFalso();
 
 const rutaAdmin = require.resolve('firebase-admin');
 require.cache[rutaAdmin] = new Module(rutaAdmin, null);
 require.cache[rutaAdmin].exports = {
-  firestore: Object.assign(() => bd, { FieldValue }),
+  firestore: Object.assign(() => bd, { FieldValue, FieldPath }),
   initializeApp: () => {},
   credential: { cert: () => ({}), applicationDefault: () => ({}) },
 };
@@ -56,17 +56,19 @@ const POR_RUTA = 8;
 function sembrar() {
   bd = new FirestoreFalso();
 
-  bd.sembrar('clanes', [
-    { id: 'rojos', nombre: 'Rojos', color: '#f00', miembros: [], biciRating: 500 },
-    { id: 'azules', nombre: 'Azules', color: '#00f', miembros: [], biciRating: 300 },
-  ]);
+  // `miembros` y `clanId` tienen que decir lo mismo: la fuente de verdad de a
+  // que clan pertenece alguien es `clanes/{id}.miembros`, y sembrar los dos
+  // distintos daria un ensayo verde sobre datos que no pueden existir.
+  const miembros = { rojos: [], azules: [] };
+  const clanDe = (i) => (i % 2 === 0 ? 'rojos' : 'azules');
 
   const usuarios = [];
   for (let i = 0; i < USUARIOS; i++) {
+    miembros[clanDe(i)].push(`u${i}`);
     usuarios.push({
       id: `u${i}`,
       username: `piloto-${i}`,
-      clanId: i % 2 === 0 ? 'rojos' : 'azules',
+      clanId: clanDe(i),
       biciRating: 100 + i,
       viajesVerificados: 3,
       metrosTotales: 1000 * i,
@@ -76,6 +78,11 @@ function sembrar() {
     });
   }
   bd.sembrar('usuarios', usuarios);
+
+  bd.sembrar('clanes', [
+    { id: 'rojos', nombre: 'Rojos', color: '#f00', miembros: miembros.rojos, biciRating: 500 },
+    { id: 'azules', nombre: 'Azules', color: '#00f', miembros: miembros.azules, biciRating: 300 },
+  ]);
 
   const viajes = [];
   for (const ruta of RUTAS) {
@@ -267,4 +274,99 @@ test('una ruta que se queda sin viajes deja de tener clasificacion', async () =>
   assert.ok(!bd.leer('agregados/rutas').rutas.includes(RUTAS[0]),
     'la ruta vaciada sigue en el selector');
   assert.strictEqual(bd.leer('agregados/rutas').rutas.length, RUTAS.length - 1);
+});
+
+// --- El conteo por ruta del indice ---------------------------------------------
+
+test('el indice de rutas lleva cuantos viajes tiene cada tramo', async () => {
+  // Es lo que mira `misiones.rutaDelDia` para descartar los tramos que no mueve
+  // nadie. Contarlo aqui, donde los viajes ya estan leidos, le ahorra al worker
+  // recorrer `tiempos_viaje` ENTERA una vez al dia solo para eso.
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+
+  const conteos = bd.leer('agregados/rutas').viajesPorRuta;
+  assert.strictEqual(Object.keys(conteos).length, RUTAS.length);
+  assert.strictEqual(conteos[RUTAS[0]], POR_RUTA);
+});
+
+test('la parcial actualiza el conteo de su ruta sin borrar el resto', async () => {
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+
+  await bd.doc(`tiempos_viaje/${RUTAS[0]}-0`).delete();
+  await puntuacion.reconstruirAgregados(null, new Set([RUTAS[0]]));
+
+  const conteos = bd.leer('agregados/rutas').viajesPorRuta;
+  assert.strictEqual(conteos[RUTAS[0]], POR_RUTA - 1, 'la ruta movida no se ha actualizado');
+  assert.strictEqual(conteos[RUTAS[1]], POR_RUTA, 'las demas han perdido su conteo');
+  assert.strictEqual(Object.keys(conteos).length, RUTAS.length);
+});
+
+test('una ruta vaciada sale tambien del conteo', async () => {
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+
+  for (let k = 0; k < POR_RUTA; k++) await bd.doc(`tiempos_viaje/${RUTAS[0]}-${k}`).delete();
+  await puntuacion.reconstruirAgregados(null, new Set([RUTAS[0]]));
+
+  assert.ok(!(RUTAS[0] in bd.leer('agregados/rutas').viajesPorRuta),
+    'la ruta sin viajes sigue contando para la ruta del dia');
+});
+
+// --- El tope de la clasificacion por ruta ---------------------------------------
+
+test('rehacer la clasificacion de una ruta no lee la ruta entera', async () => {
+  // Solo puntuan los siete primeros y solo cuenta el mejor tiempo de cada
+  // piloto: leer los 15.000 viajes de una ruta transitada era pagar por lo que
+  // no se usa, y era la lectura mas cara del worker (docs/COSTE.md).
+  sembrar();
+
+  const ruta = RUTAS[0];
+  const muchos = [];
+  for (let k = 0; k < 900; k++) {
+    muchos.push({
+      id: `relleno-${k}`,
+      uid: `u${k % USUARIOS}`,
+      ruta,
+      verificado: true,
+      tiempoSegundos: 1000 + k,
+      distanciaMetros: 2000,
+    });
+  }
+  bd.sembrar('tiempos_viaje', muchos);
+
+  bd.reiniciarContador();
+  await puntuacion.recalcularRuta(ruta);
+
+  assert.ok(bd.coste.lecturas < 400,
+    `${bd.coste.lecturas} lecturas con 908 viajes en la ruta: no hay tope`);
+});
+
+test('el tope no cambia quien puntua', async () => {
+  // Los siete mejores tienen que salir igual con tope y sin el. Si el tope
+  // recortara por el sitio equivocado, el podio de una ruta transitada seria
+  // otro y nadie lo notaria hasta que alguien reclamara sus puntos.
+  sembrar();
+
+  const ruta = RUTAS[0];
+  bd.sembrar('tiempos_viaje', Array.from({ length: 500 }, (_, k) => ({
+    id: `lento-${k}`,
+    uid: `u${(k % (USUARIOS - 8)) + 8}`,
+    ruta,
+    verificado: true,
+    tiempoSegundos: 5000 + k,
+    distanciaMetros: 2000,
+  })));
+
+  await puntuacion.recalcularRuta(ruta);
+
+  // Los sembrados originales de la ruta son los mas rapidos (300 + k*7).
+  const mejores = [...Array(USUARIOS).keys()]
+    .map((i) => ({ uid: `u${i}`, puntos: (bd.leer(`usuarios/u${i}`).puntosPorRuta || {})[ruta] || 0 }))
+    .filter((x) => x.puntos > 0)
+    .sort((a, b) => b.puntos - a.puntos);
+
+  assert.strictEqual(mejores.length, 7, 'no puntuan exactamente siete pilotos');
+  assert.strictEqual(mejores[0].puntos, 80, 'el primero no lleva los puntos del primero');
 });

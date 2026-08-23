@@ -107,9 +107,14 @@ async function multiplicadorRuta(ruta) {
 async function recalcularRuta(ruta) {
   const multiplicador = await multiplicadorRuta(ruta);
 
+  // Ordenado y acotado: solo puntuan los siete primeros, asi que leer la ruta
+  // entera era pagar por lo que no se usa. El indice `ruta + verificado +
+  // tiempoSegundos` ya existe y sirve este orden sin nada nuevo.
   const snapshot = await db().collection('tiempos_viaje')
     .where('ruta', '==', ruta)
     .where('verificado', '==', true)
+    .orderBy('tiempoSegundos', 'asc')
+    .limit(PUNTOS.TOPE_CLASIFICACION_RUTA)
     .get();
 
   /** @type {Map<string, number>} uid -> mejor tiempo */
@@ -341,12 +346,25 @@ async function cargarEstaciones(estacionIds) {
   const objetivo = new Set(estacionIds.map(String));
   const rutas = indice.filter((ruta) => estacionesDe(ruta).some((e) => objetivo.has(e)));
 
-  const [viajes, usuariosSnap] = await Promise.all([
+  const [viajes, clanesSnap] = await Promise.all([
     viajesDeRutas(rutas),
-    db().collection('usuarios').get(),
+    db().collection('clanes').get(),
   ]);
 
-  return { viajes, usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })) };
+  // De `usuarios` aqui solo se usa una cosa: de que clan es cada piloto. Y eso
+  // esta en `clanes/{id}.miembros`, que son 25 documentos en vez de 200 — y es
+  // ademas la fuente de verdad: `usuarios.clanId` lo escribe cada uno en su
+  // propio documento, y sumar por ahi fue el agujero que se cerro en la
+  // puntuacion de clanes (#29).
+  //
+  // Quien no esta en ningun clan no aparece, que es justo lo que hace falta:
+  // `territorio` ignora los viajes sin clan.
+  const usuarios = [];
+  for (const clan of clanesSnap.docs) {
+    for (const uid of clan.data().miembros || []) usuarios.push({ uid, clanId: clan.id });
+  }
+
+  return { viajes, usuarios };
 }
 
 /** Las dos estaciones de una ruta, para acumularlas. */
@@ -497,6 +515,7 @@ async function reconstruirAgregados(base = null, rutas = null) {
     usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
     parcial: true,
     rutasPrevias: indice.exists ? (indice.data().rutas || []) : [],
+    conteosPrevios: indice.exists ? (indice.data().viajesPorRuta || {}) : {},
     rutasRehechas: pedidas,
     totalViajes,
   });

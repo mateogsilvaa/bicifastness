@@ -40,6 +40,22 @@ const reemplazar = (clave, valor) => (valor instanceof Date ? { __fecha: valor.t
 const MARCA = Symbol('fieldValue');
 const esMarca = (v) => v && typeof v === 'object' && v[MARCA];
 
+/**
+ * Ruta a un campo, por segmentos.
+ *
+ * Existe porque el nombre de una ruta ("002-110") no es un segmento valido en la
+ * notacion con puntos: empieza por digito y lleva un guion. `puntosPorRuta` se
+ * consulta con esto, y sin ello el doble parte por el punto y busca un campo que
+ * no existe — con lo que la consulta devuelve vacio y el test pasa sobre nada.
+ */
+class FieldPath {
+  constructor(...segmentos) { this.segmentos = segmentos.map(String); }
+}
+
+/** Segmentos de un campo, venga como cadena con puntos o como FieldPath. */
+const segmentosDe = (campo) =>
+  (campo instanceof FieldPath ? campo.segmentos : String(campo).split('.'));
+
 const FieldValue = {
   serverTimestamp: () => ({ [MARCA]: 'timestamp' }),
   delete: () => ({ [MARCA]: 'delete' }),
@@ -163,11 +179,11 @@ class Consulta {
   where(campo, op, valor) {
     assert.ok(['==', '!=', '>', '>=', '<', '<=', 'in', 'array-contains'].includes(op),
       `operador no soportado por el doble: ${op}`);
-    return this._con({ filtros: [...this.filtros, { campo, op, valor }] });
+    return this._con({ filtros: [...this.filtros, { campo: segmentosDe(campo), op, valor }] });
   }
 
   orderBy(campo, direccion = 'asc') {
-    return this._con({ orden: [...this.orden, { campo, direccion }] });
+    return this._con({ orden: [...this.orden, { campo: segmentosDe(campo), direccion }] });
   }
 
   limit(n) { return this._con({ tope: n }); }
@@ -227,8 +243,8 @@ class Consulta {
   }
 }
 
-const leerCampo = (datos, campo) =>
-  campo.split('.').reduce((o, k) => (o === undefined || o === null ? undefined : o[k]), datos);
+const leerCampo = (datos, segmentos) =>
+  segmentos.reduce((o, k) => (o === undefined || o === null ? undefined : o[k]), datos);
 
 function comparar(valor, op, referencia) {
   const norm = (v) => (v instanceof Date ? v.getTime() : v);
@@ -403,4 +419,4 @@ class FirestoreFalso {
   get coste() { return { lecturas: this.lecturas, escrituras: this.escrituras }; }
 }
 
-module.exports = { FirestoreFalso, FieldValue, aplicar };
+module.exports = { FirestoreFalso, FieldValue, FieldPath, aplicar };

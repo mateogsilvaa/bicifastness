@@ -205,13 +205,14 @@ const WORKER = [
     // Los viajes solo hacen falta para los agregados POR RUTA y para el contador
     // de la portada. Los rankings de pilotos, el de clanes y el mapa salen de
     // usuarios, clanes y estaciones_stats.
-    coste: ({ U, V, C, E, S }) => U + C + E
+    coste: ({ U, V, C, S }) => U + C
       + (rutasEnLaVentana(S) + RUTAS_POR_TURNO) * min1(viajesPorRutaActiva(V))
+      + min1(1) + estacionesEnLaPasada(S)
       + min1(V / 1000)
       + min1(3),
-    detalle: 'usuarios + clanes + estaciones + los viajes de las rutas movidas '
-      + 'y de las tres del turno de refresco + el conteo agregado '
-      + '+ el indice, la portada y las rutas pendientes',
+    detalle: 'usuarios + clanes + los viajes de las rutas movidas y de las tres del turno '
+      + '+ el agregado del mapa y las estaciones movidas + el conteo agregado '
+      + '+ el indice, la portada y lo que quedara pendiente',
   },
   {
     nombre: 'agregados.tocaReconstruir (por pasada con movimiento)',

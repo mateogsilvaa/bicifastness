@@ -190,39 +190,83 @@ function turnoDeRutas(rutas, desde, cuantas = RUTAS_POR_TURNO) {
  */
 const PENDIENTES = 'config/agregados_pendientes';
 
-/** Apunta rutas para la proxima reconstruccion. Una escritura. */
-async function apuntarPendientes(rutas) {
-  const lista = [...new Set([...(rutas || [])].filter(Boolean).map(String))];
-  if (!lista.length) return 0;
+const listaDe = (valores) => [...new Set([...(valores || [])].filter(Boolean).map(String))];
+
+/**
+ * Apunta rutas y estaciones para la proxima reconstruccion. Una escritura.
+ *
+ * Van juntas porque se pierden por el mismo motivo: la pasada las ha movido y el
+ * limitador ha dicho que todavia no toca reconstruir.
+ */
+async function apuntarPendientes(rutas, estaciones = []) {
+  const conRutas = listaDe(rutas);
+  const conEstaciones = listaDe(estaciones);
+  if (!conRutas.length && !conEstaciones.length) return 0;
 
   await db().doc(PENDIENTES).set({
-    rutas: admin.firestore.FieldValue.arrayUnion(...lista),
+    ...(conRutas.length
+      ? { rutas: admin.firestore.FieldValue.arrayUnion(...conRutas) }
+      : {}),
+    ...(conEstaciones.length
+      ? { estaciones: admin.firestore.FieldValue.arrayUnion(...conEstaciones) }
+      : {}),
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
 
-  return lista.length;
+  return conRutas.length + conEstaciones.length;
 }
 
-/** Las rutas apuntadas. Una lectura. */
+/** Lo apuntado. Una lectura. */
 async function leerPendientes() {
   try {
     const doc = await db().doc(PENDIENTES).get();
-    const rutas = doc.exists ? doc.data().rutas : null;
-    return Array.isArray(rutas) ? rutas : [];
+    const datos = doc.exists ? doc.data() : {};
+    return {
+      rutas: Array.isArray(datos.rutas) ? datos.rutas : [],
+      estaciones: Array.isArray(datos.estaciones) ? datos.estaciones : [],
+    };
   } catch {
-    return [];
+    return { rutas: [], estaciones: [] };
   }
 }
 
 /**
  * Vacia la lista. Se llama DESPUES de reconstruir, no antes: si la
- * reconstruccion falla, las rutas siguen apuntadas para el proximo intento.
+ * reconstruccion falla, lo apuntado sigue apuntado para el proximo intento.
  */
 async function olvidarPendientes() {
   await db().doc(PENDIENTES).set({
     rutas: [],
+    estaciones: [],
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
+}
+
+/**
+ * La entrada del mapa de una estacion, en la forma en que la escribe el
+ * agregado, y de vuelta.
+ *
+ * Las dos direcciones estan juntas a proposito: son la misma traduccion, y
+ * separarlas es como se acaba con un `disputa` que se lee de un campo que se
+ * escribe con otro nombre.
+ */
+function aEntradaDeMapa(stats) {
+  return {
+    // `clan` es quien CONTROLA (mas del 50%); `lider` es quien va primero.
+    clan: stats.clanDominante || null,
+    lider: stats.lider || null,
+    disputa: Boolean(stats.enDisputa),
+    cuota: stats.cuota || {},
+  };
+}
+
+function deEntradaDeMapa(entrada) {
+  return {
+    clanDominante: entrada.clan || null,
+    lider: entrada.lider || null,
+    enDisputa: Boolean(entrada.disputa),
+    cuota: entrada.cuota || {},
+  };
 }
 
 /**
@@ -430,16 +474,10 @@ async function reconstruir({
     // los bytes son el limite.
     if (!Object.keys(stats.cuota || {}).length) continue;
 
-    mapa[id] = {
-      // `clan` es quien CONTROLA (mas del 50%); `lider` es quien va primero.
-      // No son lo mismo, y la diferencia es justo lo interesante del mapa: una
-      // estacion con lider pero sin dueño esta en disputa, o sea que ahi hay
-      // algo que hacer.
-      clan: stats.clanDominante || null,
-      lider: stats.lider || null,
-      disputa: Boolean(stats.enDisputa),
-      cuota: stats.cuota || {},
-    };
+    // `clan` es quien CONTROLA (mas del 50%); `lider` es quien va primero. No son
+    // lo mismo, y la diferencia es justo lo interesante del mapa: una estacion
+    // con lider pero sin dueño esta en disputa, o sea que ahi hay algo que hacer.
+    mapa[id] = aEntradaDeMapa(stats);
 
     if (stats.clanDominante) conDueno++;
     if (stats.enDisputa) enDisputa++;
@@ -497,6 +535,8 @@ module.exports = {
   apuntarPendientes,
   leerPendientes,
   olvidarPendientes,
+  aEntradaDeMapa,
+  deEntradaDeMapa,
   PENDIENTES,
   tocaReconstruir,
   hayQueReconstruir,

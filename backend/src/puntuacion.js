@@ -449,6 +449,47 @@ async function contarViajesVerificados() {
 }
 
 /**
+ * El estado del mapa, sin leer `estaciones_stats` entera.
+ *
+ * El agregado del mapa YA guarda, de cada estacion, lo unico que la
+ * reconstruccion necesita: quien la controla, quien va primero, si esta en
+ * disputa y el reparto. Asi que sirve de punto de partida — una lectura — y solo
+ * hay que pedir las stats frescas de las estaciones que se han movido.
+ *
+ * Las que nadie ha tocado no han cambiado: `estaciones_stats` solo lo escribe
+ * `recalcularEstacion`, y el decaimiento se aplica ahi mismo, por diferencia de
+ * fechas, cuando le toca a esa estacion.
+ *
+ * Si el agregado del mapa todavia no existe se leen todas, que es lo que se
+ * hacia siempre. Sin ese respaldo, el primer arranque dejaria el mapa vacio.
+ */
+async function estacionesParaElMapa(tocadas) {
+  const mapa = await db().doc('agregados/mapa').get();
+  if (!mapa.exists) {
+    const snap = await db().collection('estaciones_stats').get();
+    return new Map(snap.docs.map((d) => [d.id, d.data()]));
+  }
+
+  const estaciones = new Map();
+  for (const [id, entrada] of Object.entries(mapa.data().estaciones || {})) {
+    estaciones.set(id, agregados.deEntradaDeMapa(entrada));
+  }
+
+  const pedidas = [...new Set([...(tocadas || [])].filter(Boolean).map(String))];
+  if (!pedidas.length) return estaciones;
+
+  const frescas = await db().getAll(...pedidas.map((id) => db().doc(`estaciones_stats/${id}`)));
+  for (const doc of frescas) {
+    // Una estacion sin documento no ha llegado a tener influencia de nadie: se
+    // saca del mapa en vez de dejar ahi la entrada vieja.
+    if (doc.exists) estaciones.set(doc.id, doc.data());
+    else estaciones.delete(doc.id);
+  }
+
+  return estaciones;
+}
+
+/**
  * Reconstruye los agregados que lee el navegador.
  *
  * Tres caminos, de mas barato a mas caro:
@@ -465,26 +506,28 @@ async function contarViajesVerificados() {
  * en la mano, hacer la reconstruccion parcial no ahorra nada y pierde la
  * limpieza de las rutas vacias.
  */
-async function reconstruirAgregados(base = null, rutas = null) {
+async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas = null) {
   // Basta con que quien llama diga QUE rutas se han movido, aunque sean cero:
   // una pasada que solo ha rechazado viajes, o en la que solo ha cambiado un
   // clan, no mueve ninguna ruta y aun asi hay que rehacer las clasificaciones de
   // pilotos y clanes — que salen de `usuarios` y `clanes`, no de los viajes.
   const parcial = !base && rutas !== null && rutas !== undefined;
 
-  const [clanesSnap, estacionesSnap] = await Promise.all([
-    db().collection('clanes').get(),
-    db().collection('estaciones_stats').get(),
-  ]);
-
-  const comunes = {
-    clanes: clanesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-    estaciones: new Map(estacionesSnap.docs.map((d) => [d.id, d.data()])),
-  };
+  const clanesSnap = await db().collection('clanes').get();
+  const clanes = clanesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   if (!parcial) {
-    const { viajes, usuarios } = base || await cargarBase();
-    return agregados.reconstruir({ ...comunes, viajes, usuarios });
+    const [{ viajes, usuarios }, estacionesSnap] = await Promise.all([
+      base ? Promise.resolve(base) : cargarBase(),
+      db().collection('estaciones_stats').get(),
+    ]);
+
+    return agregados.reconstruir({
+      clanes,
+      estaciones: new Map(estacionesSnap.docs.map((d) => [d.id, d.data()])),
+      viajes,
+      usuarios,
+    });
   }
 
   const movidas = [...new Set([...rutas].filter(Boolean).map(String))];
@@ -502,10 +545,11 @@ async function reconstruirAgregados(base = null, rutas = null) {
   const turno = agregados.turnoDeRutas(catalogo, indice.exists ? indice.data().refrescadaHasta : null);
   const pedidas = [...new Set([...movidas, ...turno])];
 
-  const [usuariosSnap, viajes, contados] = await Promise.all([
+  const [usuariosSnap, viajes, contados, estaciones] = await Promise.all([
     db().collection('usuarios').get(),
     viajesDeRutas(pedidas),
     contarViajesVerificados(),
+    estacionesParaElMapa(estacionesTocadas),
   ]);
 
   // Si el conteo falla se conserva el numero anterior. Lo que NO se puede hacer
@@ -516,7 +560,8 @@ async function reconstruirAgregados(base = null, rutas = null) {
     : (portada.exists ? (portada.data().viajes || 0) : 0);
 
   return agregados.reconstruir({
-    ...comunes,
+    clanes,
+    estaciones,
     viajes,
     usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
     parcial: true,
@@ -542,6 +587,7 @@ module.exports = {
   rutasConViajes,
   viajesDeRutas,
   contarViajesVerificados,
+  estacionesParaElMapa,
   puntosPorPosicion,
   multiplicadorRuta,
   escribirEnLotes,

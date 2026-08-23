@@ -1228,30 +1228,35 @@ async function main() {
   if (rehacerPesado && estacionesTocadas.size) {
     const cuantas = await puntuacion.recalcularEstaciones(estacionesTocadas);
     console.log(`Dominio recalculado en ${cuantas} estaciones.`);
-    estacionesTocadas.clear();
   }
 
   if (rehacerPesado && rehacerAgregados) {
-    // Las rutas de esta pasada MAS las que quedaron apuntadas de las pasadas que
-    // el limitador salto. Si no, una ruta movida durante esos quince minutos se
-    // quedaria con el agregado viejo.
-    const rutas = new Set([...rutasTocadas, ...await agregados.leerPendientes()]);
+    // Lo de esta pasada MAS lo que quedo apuntado de las pasadas que el
+    // limitador salto. Si no, una ruta o una estacion movidas durante esos
+    // quince minutos se quedarian con el agregado viejo.
+    const pendientes = await agregados.leerPendientes();
+    const rutas = new Set([...rutasTocadas, ...pendientes.rutas]);
+    const estaciones = new Set([...estacionesTocadas, ...pendientes.estaciones]);
 
-    const escritos = await puntuacion.reconstruirAgregados(null, rutas);
+    const escritos = await puntuacion.reconstruirAgregados(null, rutas, estaciones);
     console.log(`Agregados reconstruidos (${rutas.size} rutas movidas`
-      + ` + ${agregados.RUTAS_POR_TURNO} de turno): ${JSON.stringify(escritos)}`);
+      + ` + ${agregados.RUTAS_POR_TURNO} de turno, ${estaciones.size} estaciones): `
+      + JSON.stringify(escritos));
 
-    // Despues de reconstruir, no antes: si falla, las rutas siguen apuntadas.
+    // Despues de reconstruir, no antes: si falla, sigue todo apuntado.
     await agregados.olvidarPendientes();
     rutasTocadas.clear();
+    estacionesTocadas.clear();
   } else if (huboMovimiento && !SIMULAR) {
-    // Se apuntan para la proxima: el proceso muere al acabar la ejecucion, asi
+    // Se apunta para la proxima: el proceso muere al acabar la ejecucion, asi
     // que sin esto la ruta se quedaria con el agregado viejo. Vale para las dos
     // razones por las que se llega aqui: el limitador de quince minutos y el
     // modo degradado por cuota.
-    await agregados.apuntarPendientes(rutasTocadas).catch(() => {});
-    console.log(`Agregados: movimiento en ${rutasTocadas.size} rutas, sin reconstruir `
-      + 'todavia. Quedan apuntadas para la proxima.');
+    await agregados.apuntarPendientes(rutasTocadas, estacionesTocadas).catch(() => {});
+    console.log(`Agregados: movimiento en ${rutasTocadas.size} rutas y `
+      + `${estacionesTocadas.size} estaciones, sin reconstruir todavia. `
+      + 'Queda apuntado para la proxima.');
+    estacionesTocadas.clear();
   }
 
   // Metricas, en dos mitades con coste MUY distinto.

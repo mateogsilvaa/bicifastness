@@ -236,25 +236,27 @@ test('sin indice de rutas se lee todo, en vez de borrar el mapa', async () => {
 
 // --- Las rutas que esperan -----------------------------------------------------
 
-test('las rutas movidas mientras el limitador espera no se pierden', async () => {
+test('lo movido mientras el limitador espera no se pierde', async () => {
   sembrar();
 
   // Una pasada que mueve una ruta y a la que el limitador dice que no.
-  await agregados.apuntarPendientes(['001-002']);
+  await agregados.apuntarPendientes(['001-002'], ['001', '002']);
   // Otra, quince segundos despues.
-  await agregados.apuntarPendientes(['003-004', '001-002']);
+  await agregados.apuntarPendientes(['003-004', '001-002'], ['003']);
 
-  assert.deepStrictEqual((await agregados.leerPendientes()).sort(), ['001-002', '003-004']);
+  const pendientes = await agregados.leerPendientes();
+  assert.deepStrictEqual(pendientes.rutas.sort(), ['001-002', '003-004']);
+  assert.deepStrictEqual(pendientes.estaciones.sort(), ['001', '002', '003']);
 
   await agregados.olvidarPendientes();
-  assert.deepStrictEqual(await agregados.leerPendientes(), []);
+  assert.deepStrictEqual(await agregados.leerPendientes(), { rutas: [], estaciones: [] });
 });
 
-test('apuntar cero rutas no escribe nada', async () => {
+test('apuntar cero cosas no escribe nada', async () => {
   sembrar();
   bd.reiniciarContador();
 
-  assert.strictEqual(await agregados.apuntarPendientes([]), 0);
+  assert.strictEqual(await agregados.apuntarPendientes([], []), 0);
   assert.strictEqual(bd.coste.escrituras, 0);
 });
 
@@ -422,4 +424,100 @@ test('el turno no borra el indice al pasar por rutas que no se han movido', asyn
 
   assert.strictEqual(bd.leer('agregados/rutas').rutas.length, RUTAS.length);
   assert.strictEqual(Object.keys(bd.leer('agregados/rutas').viajesPorRuta).length, RUTAS.length);
+});
+
+// --- El mapa, sin leer estaciones_stats entera ---------------------------------
+
+/** Deja `estaciones_stats` con dominio en unas cuantas estaciones. */
+async function conDominio(cuales = ESTACIONES) {
+  await puntuacion.reconstruirAgregados();
+  await puntuacion.recalcularEstaciones(cuales);
+  await puntuacion.reconstruirAgregados(null, new Set(), new Set(cuales));
+}
+
+test('el mapa sale igual partiendo del agregado que leyendo las estaciones', async () => {
+  sembrar();
+  await conDominio();
+
+  const desdeElAgregado = bd.leer('agregados/mapa');
+
+  // La via cara: `estaciones_stats` entera, como se hacia antes.
+  const snap = await bd.collection('estaciones_stats').get();
+  const todas = new Map(snap.docs.map((d) => [d.id, d.data()]));
+  const usuarios = (await bd.collection('usuarios').get()).docs.map((d) => ({ uid: d.id, ...d.data() }));
+  const clanes = (await bd.collection('clanes').get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  await agregados.reconstruir({ usuarios, clanes, estaciones: todas, viajes: [] });
+  const desdeLasStats = bd.leer('agregados/mapa');
+
+  assert.deepStrictEqual(desdeElAgregado.estaciones, desdeLasStats.estaciones);
+  assert.deepStrictEqual(desdeElAgregado.resumen, desdeLasStats.resumen);
+});
+
+test('ida y vuelta de una entrada del mapa no pierde nada', () => {
+  // Las dos traducciones estan juntas en el codigo por esto: separarlas es como
+  // se acaba con un `disputa` que se lee de un campo que se escribe con otro
+  // nombre, y el mapa pintando todo en gris sin que falle nada.
+  const stats = {
+    clanDominante: 'rojos', lider: 'azules', enDisputa: true, cuota: { rojos: 0.6, azules: 0.4 },
+  };
+
+  assert.deepStrictEqual(
+    agregados.deEntradaDeMapa(agregados.aEntradaDeMapa(stats)),
+    stats);
+});
+
+test('rehacer el mapa no lee todas las estaciones', async () => {
+  sembrar();
+  await conDominio();
+
+  // Madrid tiene 631 estaciones; el resto del ensayo va con seis para que se
+  // pueda leer. Aqui hacen falta muchas, que es donde esta el problema.
+  const muchas = Array.from({ length: 300 }, (_, i) => ({
+    id: `9${String(i).padStart(3, '0')}`,
+    clanDominante: 'rojos',
+    lider: 'rojos',
+    enDisputa: false,
+    cuota: { rojos: 1 },
+  }));
+  bd.sembrar('estaciones_stats', muchas);
+  await puntuacion.reconstruirAgregados(null, new Set(), new Set(muchas.map((e) => e.id)));
+
+  bd.reiniciarContador();
+  const estaciones = await puntuacion.estacionesParaElMapa(['001']);
+
+  assert.ok(estaciones.size >= muchas.length,
+    `solo han vuelto ${estaciones.size} estaciones: se ha perdido el mapa`);
+  assert.ok(bd.coste.lecturas <= 2,
+    `${bd.coste.lecturas} lecturas para una estacion movida: sigue leyendolas todas`);
+});
+
+test('una estacion movida se actualiza en el mapa', async () => {
+  sembrar();
+  await conDominio();
+
+  // Los azules se llevan la estacion: se les da todos los viajes que la tocan.
+  const suyos = (await bd.collection('tiempos_viaje').get()).docs
+    .filter((d) => String(d.data().ruta).split('-').includes('001'));
+  for (const d of suyos) await d.ref.update({ uid: 'u1' });
+
+  await puntuacion.recalcularEstaciones(['001']);
+  await puntuacion.reconstruirAgregados(null, new Set(), new Set(['001']));
+
+  assert.strictEqual(bd.leer('agregados/mapa').estaciones['001'].clan, 'azules',
+    'el mapa se ha quedado con el dueño anterior');
+});
+
+test('sin el agregado del mapa se leen todas las estaciones, no ninguna', async () => {
+  // El respaldo del primer arranque. Si "no hay agregado" se tomara por "no hay
+  // estaciones", el mapa nacería vacío y nadie sabría por qué.
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+  await puntuacion.recalcularEstaciones(ESTACIONES);
+
+  await bd.doc('agregados/mapa').delete();
+  await puntuacion.reconstruirAgregados(null, new Set(), new Set());
+
+  assert.ok(Object.keys(bd.leer('agregados/mapa').estaciones).length > 0,
+    'el mapa ha salido vacio en el primer arranque');
 });

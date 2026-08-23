@@ -794,32 +794,52 @@ async function main() {
 
   // Los agregados se reconstruyen UNA VEZ al final, no por viaje: es la
   // operacion mas cara que hace el worker (#36).
-  if (!SIMULAR && (cuenta.aprobado > 0 || cuenta.rechazado > 0)) {
-    const escritos = await puntuacion.reconstruirAgregados();
+  //
+  // `usuarios` y `tiempos_viaje` se cargan aqui una sola vez y se comparten con
+  // el resumen de metricas, que necesita exactamente las mismas dos. Cuando las
+  // dos cosas caen en la misma pasada — que es justo cuando ha habido
+  // movimiento — leerlas por separado costaba el doble (#34).
+  const huboMovimiento = cuenta.aprobado > 0 || cuenta.rechazado > 0;
+  const resumirMetricas = !SIMULAR && await metricas.tocaResumir().catch(() => false);
+  let base = null;
+
+  if (!SIMULAR && (huboMovimiento || resumirMetricas)) {
+    base = await puntuacion.cargarBase();
+  }
+
+  if (!SIMULAR && huboMovimiento) {
+    const escritos = await puntuacion.reconstruirAgregados(base);
     console.log(`Agregados reconstruidos: ${JSON.stringify(escritos)}`);
   }
 
-  // Metricas: suma las sesiones del navegador en contadores diarios, poda el
-  // detalle viejo y recalcula la retencion. Se hace siempre, aunque no haya
-  // habido viajes: las visitas ocurren igual.
+  // Metricas, en dos mitades con coste MUY distinto.
+  //
+  // `agregarSesiones` es la barata y va en cada pasada: las visitas ocurren
+  // aunque no se suba ningun viaje, y ademas poda el detalle viejo segun llega.
+  //
+  // `resumir` es la cara: necesita `usuarios` y `tiempos_viaje` enteros, porque
+  // la retencion por cohortes no sale de otro sitio. Hacerlo en cada pasada
+  // costaba 288 x (usuarios + viajes) lecturas al dia — 402.000 con los datos
+  // de hoy, ocho veces la cuota diaria, con seis personas usando la web y
+  // aunque no pasara nada. Ahora va como mucho una vez por hora (#34).
   if (!SIMULAR) {
     try {
       const sesiones = await metricas.agregarSesiones();
-      const [usuariosSnap, viajesSnap] = await Promise.all([
-        db.collection('usuarios').get(),
-        db.collection('tiempos_viaje').where('verificado', '==', true).get(),
-      ]);
-
-      await metricas.resumir({
-        usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
-        viajes: viajesSnap.docs.map((d) => d.data()),
-      });
-
       console.log(`Metricas: ${sesiones.sesiones || 0} sesiones agregadas, `
         + `${sesiones.podados || 0} podadas.`);
     } catch (error) {
       // Que fallen las metricas no puede tumbar la verificacion de viajes.
-      console.warn('No se han podido actualizar las metricas:', error.message);
+      console.warn('No se han podido agregar las sesiones:', error.message);
+    }
+
+    try {
+      if (resumirMetricas) {
+        // `base` ya esta cargada: la comparte con los agregados.
+        await metricas.resumir(base || await puntuacion.cargarBase());
+        console.log('Metricas: resumen y cohortes recalculados.');
+      }
+    } catch (error) {
+      console.warn('No se ha podido recalcular el resumen de metricas:', error.message);
     }
   }
 

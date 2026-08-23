@@ -160,3 +160,42 @@ test('la retencion se calcula sin datos del navegador', () => {
   assert.ok(funcion.includes('fechaViaje') && funcion.includes('creado'),
     'las cohortes deberian salir de altas y trayectos');
 });
+
+// --- Limitador del resumen caro (#34) ----------------------------------------
+
+test('el resumen caro no se rehace en cada pasada del worker', () => {
+  // `resumir` necesita `usuarios` y `tiempos_viaje` ENTEROS. El worker corre
+  // cada 5 minutos: hacerlo siempre costaba 288 x (usuarios + viajes) lecturas
+  // al dia, o sea 402.000 con los datos de hoy — ocho veces la cuota diaria del
+  // plan Spark, con seis personas usando la web y aunque no pasara nada.
+  assert.ok(metricas.MINUTOS_ENTRE_RESUMENES >= 60,
+    'un intervalo corto devuelve el problema: son las dos colecciones enteras cada vez');
+
+  const ahora = Date.parse('2026-08-23T12:00:00Z');
+  const hace = (minutos) => new Date(ahora - minutos * 60000).toISOString();
+
+  assert.strictEqual(metricas.hayQueResumir(hace(5), ahora), false, 'recien hecho');
+  assert.strictEqual(metricas.hayQueResumir(hace(metricas.MINUTOS_ENTRE_RESUMENES), ahora), true,
+    'justo en el limite');
+  assert.strictEqual(metricas.hayQueResumir(hace(metricas.MINUTOS_ENTRE_RESUMENES - 1), ahora), false,
+    'un minuto antes del limite');
+});
+
+test('ante la duda se recalcula, en vez de dejar el panel congelado', () => {
+  const ahora = Date.now();
+  // Un panel congelado para siempre es peor que una lectura de mas.
+  assert.strictEqual(metricas.hayQueResumir(null, ahora), true, 'no existe todavia');
+  assert.strictEqual(metricas.hayQueResumir(undefined, ahora), true, 'sin marca');
+  assert.strictEqual(metricas.hayQueResumir('lo que sea', ahora), true, 'marca ilegible');
+});
+
+test('acepta la marca tal y como la escribe Firestore', () => {
+  // `serverTimestamp()` no vuelve como cadena, vuelve como Timestamp. Si solo
+  // se contemplara el string, el limitador no limitaria nada: diria siempre que
+  // toca y volveriamos a las 288 pasadas.
+  const ahora = Date.parse('2026-08-23T12:00:00Z');
+  const timestamp = (minutos) => ({ toMillis: () => ahora - minutos * 60000 });
+
+  assert.strictEqual(metricas.hayQueResumir(timestamp(10), ahora), false);
+  assert.strictEqual(metricas.hayQueResumir(timestamp(60 * 24), ahora), true);
+});

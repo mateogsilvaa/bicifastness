@@ -276,17 +276,44 @@ async function recalcularTrasCambio(ruta) {
  * todos los usuarios es la operacion mas cara del worker, y repetirla por cada
  * viaje aprobado es como se agota la cuota diaria (#36).
  */
-async function reconstruirAgregados() {
-  const [viajesSnap, usuariosSnap, clanesSnap, estacionesSnap] = await Promise.all([
+/**
+ * Lee de una vez las dos colecciones grandes.
+ *
+ * Existe para que no se lean dos veces en la misma pasada. `reconstruirAgregados`
+ * y el resumen de metricas necesitan las mismas dos, y cuando coinciden — que es
+ * justo cuando ha habido movimiento — cargarlas por separado costaba el doble
+ * (#34). Con los datos de hoy son 1.200 lecturas evitadas cada vez que se
+ * juntan.
+ */
+async function cargarBase() {
+  const [viajesSnap, usuariosSnap] = await Promise.all([
     db().collection('tiempos_viaje').where('verificado', '==', true).get(),
     db().collection('usuarios').get(),
+  ]);
+
+  return {
+    viajes: viajesSnap.docs.map((d) => d.data()),
+    usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
+  };
+}
+
+/**
+ * Reconstruye los agregados que lee el navegador.
+ *
+ * `base` es opcional: si quien llama ya tiene cargados usuarios y viajes, se los
+ * pasa y aqui no se vuelven a leer.
+ */
+async function reconstruirAgregados(base = null) {
+  const { viajes, usuarios } = base || await cargarBase();
+
+  const [clanesSnap, estacionesSnap] = await Promise.all([
     db().collection('clanes').get(),
     db().collection('estaciones_stats').get(),
   ]);
 
   return agregados.reconstruir({
-    viajes: viajesSnap.docs.map((d) => d.data()),
-    usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
+    viajes,
+    usuarios,
     clanes: clanesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
     estaciones: new Map(estacionesSnap.docs.map((d) => [d.id, d.data()])),
   });
@@ -299,6 +326,7 @@ module.exports = {
   recalcularEstacion,
   recalcularTrasCambio,
   reconstruirAgregados,
+  cargarBase,
   puntosPorPosicion,
   multiplicadorRuta,
   escribirEnLotes,

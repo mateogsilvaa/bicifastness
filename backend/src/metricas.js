@@ -158,6 +158,57 @@ function calcularCohortes(usuarios, viajes) {
  * Que sea uno importa: la alternativa es que el panel lea 180 documentos de
  * `metricas/` cada vez que se abre.
  */
+/**
+ * Cada cuanto se rehace el resumen caro, en minutos.
+ *
+ * `resumir` necesita `usuarios` y `tiempos_viaje` ENTEROS: la retencion por
+ * cohortes y los viajes por ventana no salen de otro sitio. El worker corre
+ * cada 5 minutos, asi que hacerlo en cada pasada costaba 288 x (usuarios +
+ * viajes) lecturas al dia — 402.000 con 175 usuarios y 1.022 viajes, ocho veces
+ * la cuota diaria del plan Spark, con seis personas usando la web y aunque no
+ * pasara absolutamente nada.
+ *
+ * Seis horas son de sobra para un panel de metricas: nadie mira la retencion a
+ * 30 dias y espera verla cambiar en cinco minutos. Baja el coste a 4 pasadas
+ * al dia en vez de 288.
+ *
+ * Lo que SI sigue en cada pasada es `agregarSesiones`, que es la parte barata y
+ * la que no puede esperar: poda el detalle viejo segun llega.
+ */
+const MINUTOS_ENTRE_RESUMENES = 360;
+
+/**
+ * ¿Toca rehacer el resumen caro?
+ *
+ * Se mira la marca del propio agregado, no una variable en memoria: el worker
+ * arranca de cero en cada ejecucion de GitHub Actions, asi que cualquier estado
+ * que viva en el proceso vale exactamente para una pasada.
+ *
+ * Ante la duda (no existe, no se puede leer, la marca es ilegible) devuelve
+ * `true`: es preferible una lectura de mas que un panel congelado para siempre.
+ */
+function hayQueResumir(marca, ahora = Date.now()) {
+  if (marca === null || marca === undefined) return true;
+
+  // `serverTimestamp()` no vuelve como cadena, vuelve como Timestamp. Si solo
+  // se contemplara el string, esto diria siempre que si y el limitador no
+  // limitaria nada.
+  const cuando = typeof marca?.toMillis === 'function' ? marca.toMillis() : Date.parse(marca);
+  if (!Number.isFinite(cuando)) return true;
+
+  return (ahora - cuando) >= MINUTOS_ENTRE_RESUMENES * 60000;
+}
+
+/** La misma pregunta, leyendo la marca de Firestore. Una lectura. */
+async function tocaResumir(ahora = Date.now()) {
+  try {
+    const snap = await db().doc('agregados/metricas').get();
+    return hayQueResumir(snap.exists ? snap.data().actualizado : null, ahora);
+  } catch {
+    return true;
+  }
+}
+
 async function resumir({ usuarios = [], viajes = [] } = {}) {
   const diarios = await db().collection('metricas')
     .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
@@ -201,6 +252,9 @@ async function resumir({ usuarios = [], viajes = [] } = {}) {
 
 module.exports = {
   agregarSesiones,
+  tocaResumir,
+  hayQueResumir,
+  MINUTOS_ENTRE_RESUMENES,
   calcularCohortes,
   resumir,
   dia,

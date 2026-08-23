@@ -662,11 +662,14 @@ test('los agregados se reconstruyen una vez por tanda, no por viaje', () => {
   // Leer todos los viajes y todos los usuarios es la operacion mas cara del
   // worker. Hacerla por cada viaje aprobado es como se agota la cuota (#36).
   const worker = leerCodigo('backend/worker.js');
-  const llamadas = (worker.match(/reconstruirAgregados\(\)/g) || []).length;
+  // Con argumento o sin el: desde #34 se le pasa la carga ya hecha para no leer
+  // usuarios y viajes dos veces en la misma pasada. Lo que importa sigue siendo
+  // cuantas veces se llama y desde donde.
+  const llamadas = (worker.match(/reconstruirAgregados\(/g) || []).length;
 
   assert.strictEqual(llamadas, 1, 'reconstruirAgregados se llama mas de una vez');
   // Y fuera del bucle que procesa la cola.
-  assert.ok(worker.indexOf('reconstruirAgregados()') > worker.indexOf('for (const doc of cola.docs)'),
+  assert.ok(worker.indexOf('reconstruirAgregados(') > worker.indexOf('for (const doc of cola.docs)'),
     'se reconstruye dentro del bucle de la cola');
 });
 

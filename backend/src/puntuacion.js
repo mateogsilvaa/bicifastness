@@ -387,20 +387,15 @@ async function recalcularTrasCambio(ruta, base = null) {
 }
 
 /**
- * Reconstruye los agregados que lee el navegador.
- *
- * Se llama UNA VEZ al final de la tanda, no por viaje: leer todos los viajes y
- * todos los usuarios es la operacion mas cara del worker, y repetirla por cada
- * viaje aprobado es como se agota la cuota diaria (#36).
- */
-/**
  * Lee de una vez las dos colecciones grandes.
  *
- * Existe para que no se lean dos veces en la misma pasada. `reconstruirAgregados`
- * y el resumen de metricas necesitan las mismas dos, y cuando coinciden — que es
- * justo cuando ha habido movimiento — cargarlas por separado costaba el doble
- * (#34). Con los datos de hoy son 1.200 lecturas evitadas cada vez que se
- * juntan.
+ * Queda un solo sitio que las necesita enteras: el resumen de metricas, que
+ * calcula la retencion por cohortes y no sale de otro lado. Va cada seis horas,
+ * y cuando toca se la pasa a la reconstruccion de agregados para que esa pasada
+ * salga completa sin pagarla dos veces (#34).
+ *
+ * Tambien es el respaldo del recalculo de dominio mientras no exista el indice
+ * de rutas.
  */
 async function cargarBase() {
   const [viajesSnap, usuariosSnap] = await Promise.all([
@@ -458,10 +453,10 @@ async function contarViajesVerificados() {
  *
  * Tres caminos, de mas barato a mas caro:
  *
- * 1. `base` viene dada — alguien ya ha leido usuarios y viajes en esta pasada
- *    (el recalculo de estaciones, el resumen de metricas). Se aprovecha y sale
- *    gratis, y ademas es COMPLETA: se rehacen todas las rutas, que es lo que
- *    limpia el agregado de una ruta que se haya quedado sin viajes.
+ * 1. `base` viene dada — el resumen de metricas, que va cada seis horas, ya ha
+ *    leido usuarios y viajes en esta pasada. Se aprovecha y sale gratis, y
+ *    ademas es COMPLETA: se rehacen todas las rutas, que es lo que limpia el
+ *    agregado de una ruta que se haya quedado sin viajes.
  * 2. `rutas` trae las que se han movido y no hay base. Modo parcial: se leen
  *    usuarios, los viajes de ESAS rutas y poco mas.
  * 3. Ni una cosa ni otra: se lee todo, como antes.

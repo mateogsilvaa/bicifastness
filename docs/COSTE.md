@@ -85,6 +85,29 @@ Tres detalles que no son opcionales, y cada uno tiene su test:
   cara**. Tomar "no lo se" por "no hay ninguna ruta" pondria la influencia a cero
   y dejaria el mapa sin dueños de un dia para otro.
 
+### La ventana de huellas se releia por cada viaje de la tanda
+
+`reunirContexto` traia las 400 huellas de captura mas recientes **por cada viaje
+procesado**. Son los mismos documentos: con 25 viajes en una pasada, 25 veces lo
+mismo. 153.600 lecturas al dia con 240 subidas, y era la operacion mas cara del
+worker una vez arreglados los agregados.
+
+Tres cambios, y el segundo mejora la deteccion en vez de empeorarla:
+
+- La ventana se lee **una vez por ejecucion** y se cachea. No arriesga nada:
+  `huellas_captura` esta cerrada en las reglas y solo la escribe este worker, las
+  ejecuciones no se solapan, y las huellas que crea la propia ejecucion se meten
+  en la cache segun se escriben.
+- El duplicado **byte a byte** ya no se busca recorriendo la ventana: el id del
+  documento ES el sha, asi que es una lectura directa. Cuesta 1 en vez de 400 y
+  **pilla el duplicado por viejo que sea** — antes se escapaba todo lo que
+  hubiera salido de la ventana.
+- La ventana perceptual baja de 400 a 150. Solo acota la comparacion blanda, la
+  que pilla una captura recomprimida o recortada, y eso se hace a los pocos dias
+  del original, no meses despues.
+
+De 640 lecturas por viaje procesado a 241, mas 150 una vez por ejecucion.
+
 ### `/territorio/` leia 631 documentos
 
 Era la ultima pantalla que recorria colecciones enteras. El agregado del mapa ya
@@ -112,28 +135,28 @@ cada visita a su perfil. Ahora pagina de 20 en 20 con `startAfter`, y el total
 sale de la consulta de conteo de Firestore, que cobra una lectura por cada 1.000
 documentos contados.
 
-**Resultado con los datos de hoy: de 423.291 lecturas al dia a 21.979. Del 847%
-de la cuota al 44%.**
+**Resultado con los datos de hoy: de 423.291 lecturas al dia a 19.489. Del 847%
+de la cuota al 39%.**
 
 Con 200 activos y 15.000 viajes acumulados, que es donde se ve si algo escala:
 reconstruir los agregados pasa de **15.765 lecturas cada vez a 858**, y
 recalcular el dominio de una tanda de estaciones de **15.200 a 394**. El total
-del escenario baja de 1.269.982 lecturas al dia a 504.949.
+del escenario baja de 1.269.982 lecturas al dia a 433.639.
 
 ## Donde se esta hoy
 
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 21.979 | 44% |
-| u50 | 50 | 3000 | 94.661 | 189% **se agota** |
-| u200 | 200 | 15.000 | 504.949 | 1010% **se agota** |
-| u1000 | 1000 | 90.000 | 5.661.732 | 11323% **se agota** |
+| hoy | 6 | 1022 | 19.489 | 39% |
+| u50 | 50 | 3000 | 78.821 | 158% **se agota** |
+| u200 | 200 | 15.000 | 433.639 | 867% **se agota** |
+| u1000 | 1000 | 90.000 | 5.225.532 | 10451% **se agota** |
 
 
 Tres cosas que hay que leer bien de esa tabla:
 
-1. **Hoy se cabe con holgura.** 44% de la cuota con seis personas.
-2. **Con 50 usuarios activos la cuota se agota a las trece horas.** Mejor que
+1. **Hoy se cabe con holgura.** 39% de la cuota con seis personas.
+2. **Con 50 usuarios activos la cuota se agota a las quince horas.** Mejor que
    las ocho de la vuelta anterior y que las dos y media de partida, pero sigue
    sin llegar a medianoche.
 3. El crecimiento sigue sin ser proporcional al numero de usuarios. Lo que queda
@@ -166,8 +189,9 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | prepararDia, la parte cara (UNA vez al dia) | 15.000 | TODOS los viajes verificados, para elegir la ruta del dia |
 | reconstruirAgregados (parcial, como mucho cada 15 min) | 858 | usuarios + clanes + estaciones + los viajes de las rutas movidas + el conteo agregado + el indice, la portada y las rutas pendientes |
 | recalcularRuta (por viaje APROBADO) | 798 | los viajes de esa ruta + quien ya puntuaba en ella |
-| reunirContexto (por viaje procesado) | 640 | tiempos de la ruta (tope 200) + propios (tope 40) + huellas (tope 400) |
 | recalcularEstaciones (una vez por pasada CON viajes) | 394 | el indice de rutas + usuarios + los viajes de las rutas que tocan cada estacion |
+| reunirContexto (por viaje procesado) | 241 | tiempos de la ruta (tope 200) + propios (tope 40) + el duplicado exacto por id |
+| la ventana de huellas (una vez por ejecucion CON viajes) | 150 | las 150 huellas mas recientes, cacheadas para toda la ejecucion |
 | validarBasico y captura (por viaje procesado) | 62 | sus 60 viajes recientes + la captura + la distancia de la ruta |
 | cola y bajas (por pasada) | 3 | las consultas de cola, recalculo pendiente y bajas |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
@@ -180,15 +204,7 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 Los numeros son del escenario u200: 200 activos al dia, 240 subidas y 15.000
 viajes acumulados.
 
-### 1. `reunirContexto` — 153.600 lecturas/dia
-
-640 lecturas por viaje procesado, y ya es el mas caro del worker. La buena
-noticia es que es **constante**: no empeora al crecer el proyecto, solo al subir
-mas viajes. El tope de 400 huellas de captura es el que mas pesa — dos tercios
-del total — y bajarlo apenas quita deteccion, porque un duplicado se sube casi
-siempre a los pocos dias del original.
-
-### 2. `recalcularRuta` — 95.760 lecturas/dia
+### 1. `recalcularRuta` — 95.760 lecturas/dia
 
 Se rehace por cada viaje aprobado, y no es un capricho: cambia la clasificacion
 y el siguiente viaje de la tanda tiene que verla al dia. Lo que cuesta son los
@@ -197,17 +213,24 @@ viajes de esa ruta, que crecen sin techo. La salida es la misma que en
 con mantener por ruta un documento con esos mejores tiempos en vez de recorrer
 todos los viajes.
 
-### 3. `reconstruirAgregados` — 75.504 lecturas/dia
+### 2. `reconstruirAgregados` — 75.504 lecturas/dia
 
 Ya va en parcial y como mucho cada quince minutos. Lo que queda son `usuarios`
 (200) y `estaciones_stats` (500) enteros en cada reconstruccion, y esos si
 crecen. Las clasificaciones de pilotos necesitan a todo el mundo por definicion;
 lo que se puede acotar es el mapa, que solo cambia en las estaciones tocadas.
 
-### 4. `recalcularEstaciones` — 64.222 lecturas/dia
+### 3. `recalcularEstaciones` — 64.222 lecturas/dia
 
 Mismo caso: lo caro que queda es leer `usuarios` entera para saber de que clan
 es cada piloto. Un documento con el mapa uid -> clan lo dejaria en una lectura.
+
+### 4. `reunirContexto` — 57.840 lecturas/dia
+
+241 por viaje procesado, casi todo el tope de 200 mejores tiempos de la ruta. Es
+**constante**: no empeora al crecer el proyecto, solo al subir mas viajes. El
+tope de 200 se puede bajar bastante — el veredicto solo usa la distribucion y el
+record — pero ya no es donde mas se gana.
 
 ### 5. `metricas.resumir` y `prepararDia`
 
@@ -226,8 +249,9 @@ son los que hacen que el coste siga creciendo con lo acumulado.
 - `/subir/` esta acotada con `limit(60)`.
 - `prepararDia` corta en seco si la ruta del dia ya esta elegida: la parte cara
   ocurre una vez al dia, no 288.
-- `reunirContexto` tiene topes (200, 40, 400). 640 lecturas por viaje es mucho,
-  pero es **constante**: no empeora al crecer el proyecto.
+- `reunirContexto` tiene topes y es **constante**: no empeora al crecer el
+  proyecto. La ventana de huellas se lee una vez por ejecucion, no una por viaje,
+  y el duplicado exacto es una lectura por el id del documento.
 - `/statssss/` lee dos agregados. Leia las cuatro colecciones enteras: 15.765
   lecturas por visita, un tercio de la cuota diaria de una sentada.
 - `metricas.agregarSesiones` suma y borra: entre pasada y pasada solo esta lo

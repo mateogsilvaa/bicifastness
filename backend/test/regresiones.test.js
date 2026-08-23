@@ -269,6 +269,31 @@ test('el worker es quien decide, y no se cuelga si algo falla', () => {
   assert.match(worker, /VIAJES_POR_DIA/);
 });
 
+test('la ventana de huellas no se relee por cada viaje de la tanda', () => {
+  // Era la lectura mas cara del worker: los MISMOS documentos, releidos enteros
+  // por cada viaje procesado. Con 25 viajes en una pasada, 25 veces lo mismo.
+  const worker = leerCodigo('backend/worker.js');
+
+  const carga = worker.match(/huellas_captura'\)\s*\n?\s*\.orderBy/g) || [];
+  assert.strictEqual(carga.length, 1,
+    'la ventana de huellas se lee en mas de un sitio');
+  assert.match(worker, /if \(huellasRecientes\) return huellasRecientes;/,
+    'la ventana no esta cacheada para la ejecucion');
+  // Lo que escribe esta misma ejecucion tiene que entrar en la cache, o subir
+  // dos veces la misma imagen en la misma pasada colaria la segunda.
+  assert.match(worker, /apuntarHuella\(/,
+    'las huellas nuevas no se meten en la cache');
+});
+
+test('el duplicado exacto se busca por el id del documento, no recorriendo', () => {
+  // El id de `huellas_captura` ES el sha. Buscarlo directo cuesta una lectura en
+  // vez de la ventana entera, y ademas pilla el duplicado por viejo que sea:
+  // recorriendo, se escapaba todo lo que hubiera salido de la ventana.
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /huellas_captura'\)\.doc\(hashSha\)\.get\(\)/,
+    'el duplicado byte a byte no se busca por id');
+});
+
 test('el workflow del worker no puede solaparse consigo mismo', () => {
   const flujo = leer('.github/workflows/verificar-viajes.yml');
   assert.match(flujo, /concurrency:/, 'dos workers a la vez procesarian los mismos viajes');

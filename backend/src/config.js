@@ -84,8 +84,21 @@ const IMAGEN = {
   // Distancia de Hamming sobre el dHash de 64 bits. 0 = identica.
   // <= 6 sobre capturas de movil distintas es practicamente la misma imagen.
   MAX_DISTANCIA_PERCEPTUAL: 6,
-  // Cuantos hashes recientes comparamos (los mas nuevos primero).
-  VENTANA_COMPARACION: 400,
+  /**
+   * Cuantos hashes recientes comparamos (los mas nuevos primero).
+   *
+   * Esto solo acota la comparacion PERCEPTUAL, la que pilla una captura
+   * recomprimida o recortada. La byte a byte no depende de esta ventana: el id
+   * del documento de `huellas_captura` ES el sha, asi que se busca directa y
+   * pilla el duplicado por viejo que sea.
+   *
+   * 150 y no 400 porque era la lectura mas cara del worker — 400 documentos por
+   * cada viaje procesado, 153.600 al dia con 240 subidas (docs/COSTE.md) — y lo
+   * que se pierde es poco: recomprimir una captura para colarla otra vez se hace
+   * a los pocos dias del original, no meses despues. Y aunque se pierda, es la
+   * comprobacion blanda: el duplicado exacto sigue siendo infalible.
+   */
+  VENTANA_COMPARACION: 150,
 };
 
 // --- Puntuacion de la competicion -------------------------------------------

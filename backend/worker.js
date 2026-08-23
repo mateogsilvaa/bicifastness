@@ -32,7 +32,7 @@
 
 const admin = require('firebase-admin');
 
-const { LIMITES, TIEMPO } = require('./src/config');
+const { LIMITES, TIEMPO, IMAGEN } = require('./src/config');
 const { construirRuta, inicioDelDiaMadrid } = require('./src/util');
 const imagen = require('./src/imagen');
 const { leerCaptura, elegirTrayecto, cerrar: cerrarOcr } = require('./src/ocr');
@@ -227,16 +227,53 @@ function rechazoDirecto(codigo, mensaje) {
   };
 }
 
+/**
+ * Huellas de captura recientes, una vez por ejecucion.
+ *
+ * Era la lectura mas cara del worker: la MISMA ventana de huellas, releida
+ * entera por cada viaje de la tanda. Con 25 viajes en una pasada eran 25 veces
+ * los mismos documentos (docs/COSTE.md).
+ *
+ * Cachear no arriesga nada aqui: `huellas_captura` no la escribe nadie mas — las
+ * reglas la tienen cerrada a cal y canto y solo la toca este worker con el Admin
+ * SDK — y las ejecuciones no se solapan (`concurrency` en el workflow). Las que
+ * escribe esta misma ejecucion se meten en la cache segun se crean, que es justo
+ * lo que hace falta para pillar a quien sube la misma imagen dos veces seguidas.
+ */
+let huellasRecientes = null;
+
+async function cargarHuellas() {
+  if (huellasRecientes) return huellasRecientes;
+
+  const snap = await db.collection('huellas_captura')
+    .orderBy('creado', 'desc').limit(IMAGEN.VENTANA_COMPARACION).get();
+
+  huellasRecientes = snap.docs.map((d) => ({ sha: d.id, ...d.data() }));
+  return huellasRecientes;
+}
+
+/** Mete en la cache una huella recien escrita, sin volver a leer. */
+function apuntarHuella(huella) {
+  if (!huellasRecientes) return;
+  huellasRecientes.unshift(huella);
+  huellasRecientes.length = Math.min(huellasRecientes.length, IMAGEN.VENTANA_COMPARACION);
+}
+
 /** Contexto competitivo y estadistico que alimenta al motor. */
-async function reunirContexto(viaje, uid) {
-  const [rutaSnap, propiosSnap, huellasSnap] = await Promise.all([
+async function reunirContexto(viaje, uid, hashSha) {
+  const [rutaSnap, propiosSnap, huellas, exacta] = await Promise.all([
     db.collection('tiempos_viaje')
       .where('ruta', '==', viaje.ruta).where('verificado', '==', true)
       .orderBy('tiempoSegundos', 'asc').limit(200).get(),
     db.collection('tiempos_viaje')
       .where('uid', '==', uid).where('verificado', '==', true)
       .orderBy('creado', 'desc').limit(40).get(),
-    db.collection('huellas_captura').orderBy('creado', 'desc').limit(400).get(),
+    cargarHuellas(),
+    // El duplicado byte a byte NO se busca recorriendo la ventana: el id del
+    // documento es el sha, asi que es una lectura directa. Ademas de costar una
+    // en vez de cuatrocientas, pilla el duplicado por viejo que sea, y antes se
+    // escapaba todo lo que hubiera salido de la ventana.
+    hashSha ? db.collection('huellas_captura').doc(hashSha).get() : Promise.resolve(null),
   ]);
 
   const tiemposRuta = rutaSnap.docs.map((d) => d.data().tiempoSegundos);
@@ -256,11 +293,21 @@ async function reunirContexto(viaje, uid) {
       .filter(Boolean),
     // `capturaId` viaja con la huella para poder distinguir "la misma imagen
     // otra vez" de "varios trayectos de la misma captura" (#11).
-    shaPrevios: huellasSnap.docs.map((d) => ({
-      sha: d.data().sha, tripId: d.data().tripId, uid: d.data().uid, capturaId: d.data().capturaId || null,
-    })),
-    hashesPrevios: huellasSnap.docs.map((d) => ({
-      dhash: d.data().dhash, tripId: d.data().tripId, capturaId: d.data().capturaId || null,
+    //
+    // Es una lista de cero o un elemento, no la ventana entera: la busqueda
+    // exacta ya la ha resuelto Firestore por el id del documento. El motor la
+    // sigue recibiendo con la misma forma porque lo que tiene que decidir — si
+    // el duplicado es de OTRA captura — no cambia.
+    shaPrevios: exacta && exacta.exists
+      ? [{
+        sha: exacta.id,
+        tripId: exacta.data().tripId,
+        uid: exacta.data().uid,
+        capturaId: exacta.data().capturaId || null,
+      }]
+      : [],
+    hashesPrevios: huellas.map((h) => ({
+      dhash: h.dhash, tripId: h.tripId, capturaId: h.capturaId || null,
     })),
   };
 }
@@ -313,7 +360,7 @@ async function procesar(doc) {
   ]);
 
   // 4. Contexto competitivo y lectura de la captura.
-  const contexto = await reunirContexto(viaje, uid);
+  const contexto = await reunirContexto(viaje, uid, hashSha);
 
   // De todos los trayectos que haya en la captura, el que dice ser este viaje.
   // Sin esto, subir los tres viajes de una misma captura acabaria con dos
@@ -358,11 +405,12 @@ async function procesar(doc) {
 
   // 6. Guardar la huella para que la captura no se pueda reutilizar. `create`
   // y no `set`: si ya existe hay que conservar la del viaje original.
-  await db.collection('huellas_captura').doc(hashSha).create({
-    sha: hashSha, dhash: hashPerceptual, tripId: doc.id, capturaId, uid, creado: AHORA(),
-  }).catch((error) => {
-    if (error.code !== 6) throw error; // 6 = ALREADY_EXISTS
-  });
+  const huella = { sha: hashSha, dhash: hashPerceptual, tripId: doc.id, capturaId, uid };
+  await db.collection('huellas_captura').doc(hashSha).create({ ...huella, creado: AHORA() })
+    .then(() => apuntarHuella(huella))
+    .catch((error) => {
+      if (error.code !== 6) throw error; // 6 = ALREADY_EXISTS
+    });
 
   await resolver(doc, veredicto);
   return veredicto.decision;

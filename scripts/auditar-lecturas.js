@@ -191,8 +191,16 @@ const WORKER = [
   {
     nombre: 'reunirContexto (por viaje procesado)',
     veces: ({ S }) => S,
-    coste: ({ V }) => min1(Math.min(200, V)) + min1(40) + min1(400),
-    detalle: 'tiempos de la ruta (tope 200) + propios (tope 40) + huellas (tope 400)',
+    // La ventana de huellas ya no va aqui: se lee una vez por ejecucion, no una
+    // por viaje. El duplicado exacto es una lectura por el id del documento.
+    coste: ({ V }) => min1(Math.min(200, V)) + min1(40) + min1(1),
+    detalle: 'tiempos de la ruta (tope 200) + propios (tope 40) + el duplicado exacto por id',
+  },
+  {
+    nombre: 'la ventana de huellas (una vez por ejecucion CON viajes)',
+    veces: ({ S }) => ventanasConMovimiento(S, 288),
+    coste: () => min1(150),
+    detalle: 'las 150 huellas mas recientes, cacheadas para toda la ejecucion',
   },
   {
     nombre: 'prepararDia (por pasada)',

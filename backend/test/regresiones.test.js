@@ -1015,3 +1015,86 @@ test('el indicador de foco se ve contra lo que tiene al lado', () => {
     }
   }
 });
+
+// --- Repaso legal (#55) ---------------------------------------------------------
+
+test('la version de cada documento legal coincide con la que registra el codigo', () => {
+  // El consentimiento se guarda con una version. Si el documento dice 1.2.0 y
+  // el codigo registra 1.1.0, lo que hay guardado no demuestra que se acepto
+  // ESE texto, que es justo lo que el RGPD pide poder demostrar.
+  const registrada = leer('backend/src/config.js').match(/VERSION_TERMINOS: '([^']+)'/)[1];
+
+  // Los cuatro no tienen por que ir a la vez: se sube el de la version que
+  // cambia. Lo que no puede pasar es que ninguno vaya por la version que se
+  // esta registrando.
+  const versiones = ['privacidad', 'terminos', 'cookies', 'aviso-legal'].map((doc) => {
+    const html = leer(`legal/${doc}/index.html`);
+    return { doc, version: (html.match(/class="version">Version ([\d.]+)/) || [])[1] };
+  });
+
+  for (const { doc, version } of versiones) {
+    assert.ok(version, `legal/${doc} no declara version`);
+  }
+  assert.ok(versiones.some((v) => v.version === registrada),
+    `el codigo registra ${registrada} y ningun documento legal esta en esa version: `
+    + versiones.map((v) => `${v.doc}=${v.version}`).join(', '));
+});
+
+test('la politica de privacidad no dice que no medimos, cuando si medimos', () => {
+  // La analitica propia entro despues de escribir la politica, y el texto
+  // seguia diciendo que no habia ninguna. Un documento legal que describe algo
+  // que no es lo que pasa es peor que no tenerlo.
+  const privacidad = leer('legal/privacidad/index.html');
+  const hayAnalitica = fs.existsSync(path.join(RAIZ, 'assets/js/metricas.js'));
+
+  if (!hayAnalitica) return;
+
+  assert.match(privacidad, /id="medicion"/,
+    'hay analitica propia y la politica no la describe');
+  assert.ok(!/no usamos cookies\s+de seguimiento ni herramientas de analitica\.\s*</.test(privacidad),
+    'la politica afirma que no hay analitica de ningun tipo');
+
+  // Y la de cookies tiene que explicar por que sigue sin haber banner.
+  assert.match(leer('legal/cookies/index.html'), /banner|consentimiento/i);
+});
+
+test('lo que la politica promete conservar tiene quien lo pode', () => {
+  // Un plazo de conservacion que no ejecuta nadie no es un plazo. Los errores
+  // del cliente solo se vaciaban a mano desde el panel, o sea nunca.
+  const privacidad = leer('legal/privacidad/index.html');
+  if (!/Errores de la aplicacion:/.test(privacidad)) return;
+
+  const metricas = leerCodigo('backend/src/metricas.js');
+  assert.match(metricas, /podarErrores/, 'la politica promete un plazo que no ejecuta nadie');
+  assert.match(leerCodigo('backend/worker.js'), /podarErrores\(/,
+    'la poda existe pero el worker no la llama');
+});
+
+test('el derecho de supresion lo ejecuta alguien', () => {
+  // Estuvo prometido en la politica, ofrecido en el perfil y admitido por las
+  // reglas, pero `solicitudes_borrado` no la procesaba nadie: las peticiones se
+  // acumulaban para siempre.
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /solicitudes_borrado/,
+    'nadie procesa las solicitudes de borrado de cuenta (RGPD art. 17)');
+  assert.match(worker, /procesarBorrados\(\)/);
+});
+
+test('el export incluye las subcolecciones, no solo el documento del perfil', () => {
+  // Las temporadas archivadas cuelgan del usuario como subcoleccion: no vienen
+  // dentro del perfil. Sin pedirlas aparte, el export se dejaba fuera todo el
+  // historial de competicion, que es justo lo que el art. 20 llama
+  // portabilidad.
+  const acciones = leerCodigo('assets/js/acciones.js');
+  const exportar = acciones.slice(acciones.indexOf('export async function exportarMisDatos'));
+  const cuerpo = exportar.slice(0, exportar.indexOf('export async function solicitarBorradoCuenta'));
+
+  assert.match(cuerpo, /'temporadas'/, 'el export se deja fuera las temporadas archivadas');
+  assert.match(cuerpo, /auth\.currentUser/, 'el export se deja fuera el correo, que vive en Auth');
+});
+
+test('sigue visible que esto no tiene nada que ver con BiciMAD ni con la EMT', () => {
+  const terminos = leer('legal/terminos/index.html');
+  assert.match(terminos, /No existe relacion alguna con BiciMAD/);
+  assert.match(terminos, /EMT/);
+});

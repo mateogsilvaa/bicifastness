@@ -25,6 +25,19 @@ const db = () => admin.firestore();
 /** Cuantos dias se conserva el detalle de sesiones antes de podarlo. */
 const DIAS_DETALLE = 7;
 
+/**
+ * Cuantos dias se conserva un error del cliente desde la ultima vez que paso.
+ *
+ * Existe porque la politica de privacidad promete un plazo, y un plazo que no
+ * ejecuta nadie no es un plazo. Hasta ahora `errores_cliente` solo se vaciaba a
+ * mano desde el panel, o sea nunca: los errores se acumulaban indefinidamente,
+ * con su traza y su ruta dentro.
+ *
+ * 90 dias es de sobra. Un error que no se ha repetido en tres meses o esta
+ * arreglado o no le importa a nadie.
+ */
+const DIAS_ERRORES = 90;
+
 /** Ventanas que ensena el panel. */
 const VENTANAS = { hoy: 1, semana: 7, mes: 30, semestre: 180 };
 
@@ -187,6 +200,29 @@ const MINUTOS_ENTRE_RESUMENES = 360;
  * Ante la duda (no existe, no se puede leer, la marca es ilegible) devuelve
  * `true`: es preferible una lectura de mas que un panel congelado para siempre.
  */
+/**
+ * Borra los errores del cliente que llevan mas de `DIAS_ERRORES` sin repetirse.
+ *
+ * Se filtra por `visto`, que es la ULTIMA vez que ocurrio: un error que sigue
+ * pasando no se borra por antiguo, se borra cuando deja de pasar.
+ */
+async function podarErrores(ahora = Date.now()) {
+  const limite = new Date(ahora - DIAS_ERRORES * 86400000);
+
+  const viejos = await db().collection('errores_cliente')
+    .where('visto', '<', limite)
+    .limit(450)
+    .get();
+
+  if (viejos.empty) return 0;
+
+  const lote = db().batch();
+  for (const doc of viejos.docs) lote.delete(doc.ref);
+  await lote.commit();
+
+  return viejos.size;
+}
+
 function hayQueResumir(marca, ahora = Date.now()) {
   if (marca === null || marca === undefined) return true;
 
@@ -261,4 +297,6 @@ module.exports = {
   diasEntre,
   VENTANAS,
   DIAS_DETALLE,
+  DIAS_ERRORES,
+  podarErrores,
 };

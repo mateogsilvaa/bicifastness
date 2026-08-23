@@ -43,6 +43,7 @@ const rachas = require('./src/rachas');
 const correo = require('./src/correo');
 const plantillas = require('./src/plantillas');
 const metricas = require('./src/metricas');
+const borrado = require('./src/borrado');
 const misiones = require('./src/misiones');
 const territorio = require('./src/territorio');
 
@@ -684,6 +685,42 @@ async function procesarBajas() {
 }
 
 /**
+ * Ejecuta las solicitudes de borrado de cuenta (RGPD art. 17).
+ *
+ * Esto no lo hacia nadie: la politica lo prometia, el perfil dejaba pedirlo y
+ * las peticiones se acumulaban en `solicitudes_borrado` sin que las procesara
+ * nunca nada. Prometer un derecho y no ejecutarlo es peor que no ofrecerlo.
+ *
+ * Se procesan pocas por pasada a proposito: cada una toca varias colecciones y
+ * una tanda grande se comeria el tiempo del worker, que es lo que verifica los
+ * viajes de todo el mundo. Como corre cada 5 minutos, cinco por pasada son
+ * 1.440 al dia: de sobra.
+ */
+async function procesarBorrados() {
+  const solicitudes = await db.collection('solicitudes_borrado').limit(5).get();
+  if (solicitudes.empty) return 0;
+
+  let hechos = 0;
+
+  for (const solicitud of solicitudes.docs) {
+    try {
+      const resumen = await borrado.ejecutar(solicitud.id, { simular: SIMULAR });
+      console.log(`  ${solicitud.id}: ${resumen.viajes} viajes anonimizados, `
+        + `${resumen.capturas} capturas y ${resumen.subcolecciones} documentos de subcoleccion borrados`);
+      hechos++;
+    } catch (error) {
+      // Que falle un borrado no puede parar los demas ni tumbar la
+      // verificacion. La solicitud se queda y se reintenta: `ejecutar` es
+      // idempotente justo para esto.
+      console.error(`  ERROR borrando ${solicitud.id}:`, error.message);
+    }
+  }
+
+  console.log(`Borrados de cuenta: ${hechos} de ${solicitudes.size} solicitudes.`);
+  return hechos;
+}
+
+/**
  * Aplica las decisiones que un administrador ha marcado desde el panel.
  *
  * El admin puede escribir `estado` gracias a su custom claim, pero recalcular
@@ -791,6 +828,7 @@ async function main() {
   await prepararDia();
   await aplicarDecisionesManuales();
   await procesarBajas();
+  await procesarBorrados();
 
   // Los agregados se reconstruyen UNA VEZ al final, no por viaje: es la
   // operacion mas cara que hace el worker (#36).
@@ -837,6 +875,13 @@ async function main() {
         // `base` ya esta cargada: la comparte con los agregados.
         await metricas.resumir(base || await puntuacion.cargarBase());
         console.log('Metricas: resumen y cohortes recalculados.');
+
+        // Los errores del cliente tienen un plazo de conservacion en la
+        // politica de privacidad, y un plazo que no ejecuta nadie no es un
+        // plazo: hasta ahora solo se vaciaban a mano desde el panel. Va aqui,
+        // con el resumen, porque tampoco necesita mas de cuatro veces al dia.
+        const podados = await metricas.podarErrores();
+        if (podados) console.log(`Errores del cliente podados: ${podados}.`);
       }
     } catch (error) {
       console.warn('No se ha podido recalcular el resumen de metricas:', error.message);

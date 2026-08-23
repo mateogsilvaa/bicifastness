@@ -152,15 +152,31 @@ export async function reportarViaje(viaje, motivo = 'Reportado desde el ranking'
 /** Descarga de todos los datos propios (derecho de acceso y portabilidad). */
 export async function exportarMisDatos() {
   const uid = uidActual();
-  const [perfil, viajes, reportes] = await Promise.all([
+  const [perfil, temporadas, viajes, reportes] = await Promise.all([
     getDoc(doc(db, 'usuarios', uid)),
+    // Las temporadas archivadas son una SUBCOLECCION: no vienen dentro del
+    // perfil, hay que pedirlas aparte. Sin esto, el export se dejaba fuera todo
+    // el historial de competicion, que es justo lo que el art. 20 del RGPD
+    // llama portabilidad.
+    getDocs(collection(db, 'usuarios', uid, 'temporadas')).catch(() => ({ docs: [] })),
     getDocs(query(collection(db, 'tiempos_viaje'), where('uid', '==', uid))),
     getDocs(query(collection(db, 'reportes'), where('reportanteUid', '==', uid))).catch(() => ({ docs: [] })),
   ]);
 
   return {
     exportadoEn: new Date().toISOString(),
+    // La cuenta sale de Firebase Auth, no del perfil: el correo vive alli y no
+    // se duplica en Firestore (#60). Sin esto, el export se quedaba sin el dato
+    // que el art. 15 obliga a devolver.
+    cuenta: {
+      uid,
+      email: auth.currentUser?.email ?? null,
+      emailVerificado: auth.currentUser?.emailVerified ?? null,
+      creada: auth.currentUser?.metadata?.creationTime ?? null,
+      ultimoAcceso: auth.currentUser?.metadata?.lastSignInTime ?? null,
+    },
     perfil: perfil.exists() ? perfil.data() : null,
+    temporadas: temporadas.docs.map((d) => ({ id: d.id, ...d.data() })),
     viajes: viajes.docs.map((d) => ({ id: d.id, ...d.data() })),
     reportesEnviados: reportes.docs.map((d) => ({ id: d.id, ...d.data() })),
   };

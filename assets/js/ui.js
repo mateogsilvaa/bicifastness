@@ -177,7 +177,7 @@ export function montarNavegacion(activo) {
  * servidor rechaza subir viajes si el consentimiento registrado no es el de la
  * version actual. Hay una prueba que comprueba que ambos valores no se separen.
  */
-export const VERSION_LEGAL = '1.1.0';
+export const VERSION_LEGAL = '1.2.0';
 
 /**
  * Si los textos legales han cambiado desde que la persona los acepto, se le pide

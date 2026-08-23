@@ -19,9 +19,13 @@
 const assert = require('node:assert');
 
 class Instantanea {
-  constructor(id, datos) {
+  constructor(id, datos, ref = null) {
     this.id = id;
     this._datos = datos;
+    // Las instantaneas de Firestore llevan `ref`, y el codigo tira de ella para
+    // borrar y actualizar sin volver a construir la ruta. Sin esto el doble
+    // parece funcionar hasta que algo hace `doc.ref.update()`.
+    this.ref = ref;
   }
   get exists() { return this._datos !== undefined; }
   data() { return this._datos === undefined ? undefined : estructurar(this._datos); }
@@ -141,7 +145,8 @@ class Consulta {
     }
     if (this.tope !== null) filas = filas.slice(0, this.tope);
 
-    return filas.map(({ id, datos }) => new Instantanea(id, datos));
+    return filas.map(({ id, datos }) =>
+      new Instantanea(id, datos, new RefDocumento(this.bd, `${this.coleccion}/${id}`)));
   }
 }
 
@@ -178,7 +183,7 @@ class RefDocumento {
   async get() {
     this.bd.lecturas++;
     const { coleccion, id } = partir(this.ruta);
-    return new Instantanea(id, this.bd._coleccion(coleccion).get(id));
+    return new Instantanea(id, this.bd._coleccion(coleccion).get(id), this);
   }
 
   async set(datos, opciones = {}) {

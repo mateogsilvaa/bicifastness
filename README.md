@@ -431,28 +431,19 @@ El plan completo esta en [`docs/ROADMAP.md`](docs/ROADMAP.md), repartido en
 hitos e issues. Las reglas del juego que se esta construyendo, en
 [`docs/JUEGO.md`](docs/JUEGO.md).
 
-### Tareas pendientes antes de publicar
+### Antes de publicar
+
+El checklist completo, con el orden y el porque de cada paso, esta en
+[`docs/LANZAMIENTO.md`](docs/LANZAMIENTO.md). Vive ahi y no aqui para que no
+haya dos copias que se separen.
 
 **El orden importa.** El historial de git todavia contiene la contrasena de
 Gmail en claro, y el worker solo es gratis e ilimitado si el repositorio es
 publico: hacerlo publico antes de purgar el historial es publicar esa
 contrasena.
 
-1. - [ ] Rotar **todas** las credenciales de la tabla del principio (issue #1)
-2. - [ ] Purgar el historial de git (`git filter-repo`) o dar el repositorio por comprometido
-3. - [ ] Borrar la coleccion `secrets` de Firestore
-4. - [ ] Apagar la instancia de PocketBase y el tunel de ngrok
-5. - [ ] **Solo entonces**: hacer publico el repositorio
-6. - [ ] Crear el secreto de GitHub `FIREBASE_SERVICE_ACCOUNT`
-7. - [ ] Comprobar que el proyecto de Vercel apunta a `main` (issue #2)
-8. - [ ] Autorizar el dominio de Vercel en Firebase Auth y en reCAPTCHA (issue #4)
-9. - [ ] Poner `RECAPTCHA_SITE_KEY` en `assets/js/firebase.js`
-10. - [ ] Rellenar los datos del responsable en los cuatro documentos legales (issue #55)
-11. - [ ] Crear el primer administrador con `scripts/set-admin.js`
-12. - [ ] Ejecutar la migracion de datos, primero con `--simular` (issue #54)
-13. - [ ] **Reactivar los cron**, que estan comentados a proposito: `verificar-viajes.yml` y `periodicas.yml`
-14. - [ ] Ensayar `periodicas.yml` a mano con `simular: true` ANTES de la primera vez de verdad
-15. - [ ] Borrar el bloque `redirects` de `vercel.json` (issue #7)
+Y para cuando ya este abierto: [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md)
+dice que mirar cada semana, que mirar cada mes y que hacer cuando algo falla.
 
 El cron del worker esta apagado a proposito: sin credenciales no puede hacer
 nada, y cada despertar mandaba un correo de fallo y gastaba un minuto de Actions

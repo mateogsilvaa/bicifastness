@@ -191,9 +191,12 @@ Tres reglas de orden que conviene no saltarse:
 
 ## Estado
 
-Lo hecho hasta ahora vive en la rama `roadmap-y-migracion-a-pages`, ya subida.
-Sigue sin fusionarse con `main`: el sitio esta en mantenimiento y la salida es
-el issue #7.
+Lo hecho hasta ahora vive en la rama `roadmap-y-migracion-a-pages` y en la que
+cuelga de ella. Sigue sin fusionarse con `main`: el sitio esta en mantenimiento
+y la salida es el issue #7.
+
+**Ojo con esto**, que ya costo trabajo duplicado una vez: `main` esta muy por
+detras. Antes de empezar nada, comprobar de que rama se parte.
 
 | Issue | Estado |
 |---|---|
@@ -214,6 +217,13 @@ el issue #7.
 | #8 La captura como unico dato | **Hecho.** La lectura corre en el navegador y solo se confirma. Cuesta ~6 MB la primera subida de cada navegador |
 | #11 Varios trayectos | **Hecho.** Se lee la lista entera, se descarta lo ya subido y se eligen cuales subir; todos comparten una sola captura |
 | #58 Runs en rojo | **Hecho.** Cron apagado hasta el lanzamiento |
+| #6 Distancias | **Hecho** el modulo, el generador y el bucle con el worker. Falta ejecutarlo contra OSRM: la tabla se commitea vacia |
+| #34 Coste por pantalla | **Hecho.** Modelo ejecutable en `scripts/auditar-lecturas.js` y `docs/COSTE.md`. De paso, arreglado lo que se llevaba el 95% de las lecturas |
+| #37 Cache y paginacion | **Hecho.** Persistencia local, agregados en sesion, historial paginado y las dos consultas sin techo, cerradas |
+| #52 PWA | **Hecho.** Manifiesto, iconos maskable, pantalla offline util e invitacion tras el primer viaje |
+| #55 Repaso legal | **Hecho** lo que depende del codigo. Faltan los datos del responsable, que no puedo rellenar yo |
+| #56 Ensayo general | **Hecho.** Las periodicas corren sobre 200 usuarios y 5.000 viajes en el CI, contando lecturas |
+| #57 y #7 Documentacion | **Hecho.** `LANZAMIENTO.md`, `MANTENIMIENTO.md`, `ENSAYO.md` y `COSTE.md` |
 
 ### Lo que encontro el banco de capturas
 
@@ -236,6 +246,24 @@ tesseract por captura (ahora uno por tanda) y el temporizador de la carrera
 contra el OCR nunca se cancelaba, dejando un `setTimeout` de un minuto vivo por
 cada lectura.
 
+### Lo que destapo medir en vez de suponer
+
+Tres cosas que nadie habria encontrado leyendo el codigo, y que solo salieron al
+escribir algo que las midiera:
+
+1. **`metricas.resumir` se llevaba el 95% de todas las lecturas del proyecto.**
+   Corria en cada pasada del worker — 288 veces al dia — leyendo `usuarios` y
+   `tiempos_viaje` enteros, hubiera pasado algo o no. Con los datos de hoy son
+   402.000 lecturas diarias, ocho veces la cuota, con seis personas usando la
+   web. El sintoma habria sido la web cayendose todas las tardes sin
+   explicacion. Ver [COSTE.md](COSTE.md).
+2. **El derecho de supresion no lo ejecutaba nadie.** La politica lo prometia,
+   el perfil dejaba pedirlo, las reglas admitian la solicitud y
+   `solicitudes_borrado` se llenaba sin que la procesara nada.
+3. **La portada leia una ruta entera en cada visita.** Sin `limit`: una ruta
+   popular con 3.000 marcas costaba 3.000 lecturas por visita a la pantalla que
+   mas se abre.
+
 ### Lo que queda pendiente y no cuelga de ningun issue
 
 El objeto `auditoria` vive dentro del documento del viaje, y las reglas dejan
@@ -245,9 +273,16 @@ navegador sigue viendo los mensajes con sus umbrales dentro. Cerrarlo pide mover
 la auditoria a una coleccion que solo lea la administracion y dejar en el viaje
 un codigo de motivo, que es una migracion de los viajes que ya existen.
 
+Ademas, dos cosas que docs/COSTE.md deja medidas y sin arreglar:
+`recalcularTrasCambio` sigue leyendo las dos colecciones enteras por cada viaje
+aprobado, y `/territorio/` es la unica pantalla que se quedo sin usar los
+agregados y lee hasta 631 documentos (#27). Las dos hay que resolverlas antes de
+abrir a mucha gente.
+
 Lo que no puedo hacer yo: rotar credenciales (#1), purgar el historial, tocar la
-consola de Firebase (#4), ejecutar el generador de distancias contra OSRM y
-conseguir capturas reales de BiciMAD para el banco (#16 y #10).
+consola de Firebase (#4), rellenar los datos del responsable en los documentos
+legales (#55), ejecutar el generador de distancias contra OSRM y conseguir
+capturas reales de BiciMAD para el banco (#16 y #10).
 
 ## Prioridades
 

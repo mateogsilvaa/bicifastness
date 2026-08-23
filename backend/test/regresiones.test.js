@@ -1098,3 +1098,17 @@ test('sigue visible que esto no tiene nada que ver con BiciMAD ni con la EMT', (
   assert.match(terminos, /No existe relacion alguna con BiciMAD/);
   assert.match(terminos, /EMT/);
 });
+
+test('los enlaces entre documentos de docs/ no estan rotos', () => {
+  // Un enlace roto en la documentacion no falla en ninguna parte: se descubre
+  // el dia que alguien vuelve al proyecto y lo sigue. Que es exactamente el dia
+  // en que esta documentacion tiene que servir para algo.
+  const docs = fs.readdirSync(path.join(RAIZ, 'docs')).filter((f) => f.endsWith('.md'));
+
+  for (const doc of docs) {
+    const texto = leer(`docs/${doc}`);
+    for (const [, destino] of texto.matchAll(/\]\(([A-Z][A-Za-z]+\.md)(#[^)]*)?\)/g)) {
+      assert.ok(docs.includes(destino), `docs/${doc} enlaza a ${destino}, que no existe`);
+    }
+  }
+});

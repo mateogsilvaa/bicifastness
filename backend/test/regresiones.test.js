@@ -351,19 +351,44 @@ test('el sistema de diseno no admite sombras', () => {
 });
 
 /**
- * Paginas que todavia arrastran su propio <style>, del redisenio a medias.
+ * Paginas a las que se les admite un <style> propio, y por que.
  *
- * Esta lista SOLO puede encoger. El test falla en los dos sentidos:
- *   - si una pagina que no esta aqui define estilos, es una regresion
- *   - si una de aqui ya no los define, hay que quitarla de la lista
+ * `/admin/` no es parte del sitio publico: es la pantalla de trabajo de quien
+ * modera. Sus estilos — el visor de capturas a pantalla completa, la tabla de
+ * cotejo, la rejilla de reportes — no los usa ninguna otra pagina, y meterlos
+ * en `app.css` los haria descargar a todo el mundo para nada.
  *
- * Lo segundo importa tanto como lo primero: una lista de excepciones que nadie
- * poda deja de significar nada y acaba tapando el problema que vigila.
+ * La excepcion NO es barra libre: el test de abajo comprueba que esos estilos
+ * no pisan ninguna clase comun y que no llevan un solo color a mano. Una
+ * pantalla que redefine `.container` o `.seccion` se lleva por delante piezas
+ * compartidas y nadie sabe por que se ven distintas alli.
  */
-const PENDIENTES_DE_REDISENIO = [
+const CON_ESTILOS_PROPIOS = [
   'admin/index.html',
-  'statssss/index.html',
 ];
+
+test('los estilos propios del panel no pisan el sistema de diseno', () => {
+  const css = leer('assets/css/app.css');
+  const comunes = new Set([...css.matchAll(/^\.([a-z0-9-]+)/gm)].map((m) => m[1]));
+
+  for (const pagina of CON_ESTILOS_PROPIOS) {
+    const bloque = (leer(pagina).match(/<style>([\s\S]*?)<\/style>/) || [])[1];
+    if (!bloque) continue;
+
+    // Redefinir una clase comun desde una pagina suelta es como se rompen las
+    // piezas compartidas: dejan de verse igual en un sitio y nadie sabe por que.
+    const propias = new Set([...bloque.matchAll(/^\s*\.([a-z0-9-]+)/gm)].map((m) => m[1]));
+    const pisadas = [...propias].filter((c) => comunes.has(c));
+    assert.deepStrictEqual(pisadas, [],
+      `${pagina} redefine clases de app.css: ${pisadas.join(', ')}`);
+
+    // Y ni un color a mano: el siguiente que se anada ya no sale de los tokens,
+    // y en tema oscuro se ve lo que sea.
+    const literales = bloque.match(/#[0-9a-fA-F]{3,8}\b/g) || [];
+    assert.deepStrictEqual(literales, [],
+      `${pagina} lleva colores literales: ${literales.join(', ')}`);
+  }
+});
 
 test('ninguna pagina nueva define estilos propios', () => {
   // "Un componente = una clase en app.css". Un <style> suelto es como el
@@ -377,12 +402,14 @@ test('ninguna pagina nueva define estilos propios', () => {
     .filter((p) => p !== 'mantenimiento/index.html')
     .filter((p) => /<style[^>]*>/.test(leer(p)));
 
-  const nuevas = conEstilos.filter((p) => !PENDIENTES_DE_REDISENIO.includes(p));
+  const nuevas = conEstilos.filter((p) => !CON_ESTILOS_PROPIOS.includes(p));
   assert.deepStrictEqual(nuevas, [], `paginas con <style> propio: ${nuevas.join(', ')}`);
 
-  const yaLimpias = PENDIENTES_DE_REDISENIO.filter((p) => !conEstilos.includes(p));
+  // La lista tambien tiene que encoger: una excepcion que ya no hace falta y
+  // que nadie poda deja de significar nada y acaba tapando lo que vigila.
+  const yaLimpias = CON_ESTILOS_PROPIOS.filter((p) => !conEstilos.includes(p));
   assert.deepStrictEqual(yaLimpias, [],
-    `ya no tienen estilos propios, quitalas de PENDIENTES_DE_REDISENIO: ${yaLimpias.join(', ')}`);
+    `ya no tienen estilos propios, quitalas de CON_ESTILOS_PROPIOS: ${yaLimpias.join(', ')}`);
 });
 
 test('los avisos fijos no tapan la barra inferior', () => {

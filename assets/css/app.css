@@ -64,6 +64,9 @@
   /* Acento: sale del logo. Solo accion y posicion actual. */
   --azul: #0071C3;
   --azul-osc: #005391;
+  /* Texto encima del azul solido (chips, contadores). No puede ser `--papel`:
+     en tema oscuro `--papel` es casi negro y el chip se volveria ilegible. */
+  --sobre-azul: #FFFFFF;
 
   /* Señales */
   --lima: #E8FF3A;
@@ -202,6 +205,11 @@ p { margin: 0 0 var(--e4); text-wrap: pretty; max-width: 64ch; }
 .puesto { font-size: 22px; font-weight: 700; }
 
 /* --- Contenedores ---------------------------------------------------------- */
+
+/* Las pantallas de datos (el panel) piden mas ancho: una tabla de cotejo o una
+   rejilla de reportes no caben en la medida de lectura. Es una variante del
+   sistema, no un `.container` redefinido en una pagina suelta. */
+.container.ancho { max-width: 1200px; }
 
 .container {
   width: 100%;
@@ -773,6 +781,11 @@ body:has(.nav-inf) .cookies {
 .rejilla { display: grid; gap: var(--e4); }
 @media (min-width: 700px) { .rejilla.dos { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 900px) { .rejilla.tres { grid-template-columns: repeat(3, 1fr); } }
+/* Cuatro cifras sueltas (estadisticas). En movil van de dos en dos: cuatro en
+   columna obligan a bajar para ver la ultima, y son datos que se leen de un
+   vistazo o no se leen. */
+@media (min-width: 560px) { .rejilla.cuatro { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 900px) { .rejilla.cuatro { grid-template-columns: repeat(4, 1fr); } }
 
 /* --- Movimiento ------------------------------------------------------------ */
 

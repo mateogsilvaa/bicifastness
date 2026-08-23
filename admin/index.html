@@ -23,8 +23,6 @@
    *
    * Y todo con los tokens del sistema: ni un pixel ni un color a mano.
    */
-  .container { max-width: 1200px; }
-
   /* Contador de cola, al lado del titulo. Cifras monoespaciadas para que no
    * baile el ancho al pasar de 9 a 10. */
   .contador {
@@ -33,11 +31,13 @@
     font-weight: 700;
     font-size: 13px;
     background: var(--azul);
-    color: #fff;
+    color: var(--sobre-azul);
     border-radius: 999px;
     padding: var(--e1) var(--e3);
   }
-  .seccion > h2 { display: flex; align-items: center; gap: var(--e3); }
+  /* Scoped al panel: `.seccion` es una clase comun y un selector de
+     descendencia sobre ella acaba afectando a lo que no debe. */
+  .titulo-cola { display: flex; align-items: center; gap: var(--e3); }
 
   /* Rejilla propia: las tarjetas de reporte piden un ancho minimo mayor que el
    * de la rejilla comun, que reparte en columnas fijas. */
@@ -172,12 +172,12 @@
 <nav id="nav-principal"></nav>
 <div id="nav-inferior"></div>
 
-<main class="container" id="principal">
+<main class="container ancho" id="principal">
   <p id="cargando" style="color: var(--tinta-3);">Comprobando permisos...</p>
 
   <div id="panel" class="oculto">
     <section class="seccion">
-      <h2>Cola de revision <span class="contador" id="cuenta-revision">0</span></h2>
+      <h2 class="titulo-cola">Cola de revision <span class="contador" id="cuenta-revision">0</span></h2>
       <p class="meta">
         Aqui solo llega lo que el analisis automatico no ha podido decidir por si
         solo. Lo aprobado y lo rechazado en automatico no aparece en esta lista.
@@ -189,7 +189,7 @@
     </section>
 
     <section class="seccion">
-      <h2>Reportes de la comunidad <span class="contador" id="cuenta-reportes">0</span></h2>
+      <h2 class="titulo-cola">Reportes de la comunidad <span class="contador" id="cuenta-reportes">0</span></h2>
       <div class="rejilla-admin" id="rejilla-reportes"></div>
     </section>
 

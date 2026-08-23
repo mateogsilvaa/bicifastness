@@ -13,14 +13,6 @@
 <meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
 <link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<style>
-  .container { max-width: 900px; text-align: center; }
-  .rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-top: 30px; }
-  .cifra { background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio); padding: 30px 20px; }
-  .cifra i { font-size: 2rem; color: var(--azul); display: block; margin-bottom: 12px; }
-  .cifra strong { display: block; font-size: 2.4rem; font-weight: 900; }
-  .cifra span { font-size: .82rem; color: var(--tinta-3); text-transform: uppercase; font-weight: 600; }
-</style>
 </head>
 <body>
 <a href="#principal" class="saltar-contenido">Saltar al contenido</a>
@@ -28,29 +20,30 @@
 <div id="nav-inferior"></div>
 
 <main class="container" id="principal">
-  <h2>Estadisticas</h2>
+  <p class="etiqueta">El circuito, en numeros</p>
+  <h1 class="d2">Estadisticas</h1>
   <p class="mensaje" id="mensaje" aria-live="polite">Cargando...</p>
 
-  <div class="rejilla" id="rejilla" hidden>
-    <div class="cifra">
+  <div class="rejilla cuatro seccion" id="rejilla" hidden>
+    <div class="bloque">
       <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#perfil"></use></svg>
-      <strong id="c-pilotos">-</strong>
-      <span>Pilotos registrados</span>
+      <p class="cifra" id="c-pilotos" style="margin: var(--e2) 0 0;">-</p>
+      <p class="etiqueta">Pilotos registrados</p>
     </div>
-    <div class="cifra">
+    <div class="bloque">
       <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#ruta"></use></svg>
-      <strong id="c-viajes">-</strong>
-      <span>Tiempos verificados</span>
+      <p class="cifra" id="c-viajes" style="margin: var(--e2) 0 0;">-</p>
+      <p class="etiqueta">Tiempos verificados</p>
     </div>
-    <div class="cifra">
-      <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#comprobado"></use></svg>
-      <strong id="c-clanes">-</strong>
-      <span>Clanes activos</span>
+    <div class="bloque">
+      <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#clan"></use></svg>
+      <p class="cifra" id="c-clanes" style="margin: var(--e2) 0 0;">-</p>
+      <p class="etiqueta">Clanes activos</p>
     </div>
-    <div class="cifra">
+    <div class="bloque">
       <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#mapa"></use></svg>
-      <strong id="c-estaciones">-</strong>
-      <span>Estaciones conquistadas</span>
+      <p class="cifra" id="c-estaciones" style="margin: var(--e2) 0 0;">-</p>
+      <p class="etiqueta">Estaciones conquistadas</p>
     </div>
   </div>
 </main>

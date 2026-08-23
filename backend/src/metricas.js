@@ -358,10 +358,23 @@ async function cohortesCompletas() {
     viajesSnap.docs.map((d) => d.data()));
 }
 
-/** Cuantos documentos hay, sin traerselos: una lectura por cada mil. */
-async function contar(consulta) {
-  const conteo = await consulta.count().get();
-  return conteo.data().count;
+/**
+ * Cuantos documentos hay, sin traerselos: una lectura por cada mil.
+ *
+ * Si la consulta falla se devuelve `respaldo` en vez de tumbar el resumen
+ * entero. El caso concreto es el dia del despliegue: un indice compuesto nuevo
+ * tarda unos minutos en construirse, y durante ese rato la consulta da error.
+ * Perder un numero unas horas es molesto; perder tambien las cohortes, que no se
+ * pueden recalcular hacia atras, no.
+ */
+async function contar(consulta, respaldo = 0) {
+  try {
+    const conteo = await consulta.count().get();
+    return conteo.data().count;
+  } catch (error) {
+    console.warn('No se ha podido contar:', error.message);
+    return respaldo;
+  }
 }
 
 /**
@@ -391,6 +404,7 @@ async function resumir() {
 
   const porDia = diarios.docs.map((d) => ({ dia: d.id, ...d.data() }));
   const hoy = dia(new Date());
+  const antes = previo.exists ? previo.data() : {};
 
   const verificados = db().collection('tiempos_viaje').where('verificado', '==', true);
 
@@ -410,18 +424,19 @@ async function resumir() {
       registrosAbiertos: suma('registro_abierto'),
       registrosCompletados: suma('registro_completado'),
       // Viajes verificados en la ventana, que sale de los datos, no del cliente.
-      viajesVerificados: await contar(verificados.where('fechaViaje', '>=', desde)),
+      viajesVerificados: await contar(verificados.where('fechaViaje', '>=', desde),
+        antes.ventanas?.[nombre]?.viajesVerificados || 0),
     };
   }
 
   const [usuariosTotal, viajesTotal] = await Promise.all([
-    contar(db().collection('usuarios')),
-    contar(verificados),
+    contar(db().collection('usuarios'), antes.totales?.usuarios || 0),
+    contar(verificados, antes.totales?.viajesVerificados || 0),
   ]);
 
   // La primera vez no hay de donde copiar las congeladas: se calculan a lo
   // bestia una sola vez. Despues, siempre incremental.
-  const previas = previo.exists ? previo.data().cohortes : null;
+  const previas = antes.cohortes ?? null;
   const cohortes = Array.isArray(previas)
     ? await cohortesVivas(previas)
     : await cohortesCompletas();

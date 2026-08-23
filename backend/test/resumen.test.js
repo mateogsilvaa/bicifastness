@@ -252,3 +252,34 @@ test('el resumen conserva las cohortes congeladas aunque desaparezcan sus datos'
   assert.deepStrictEqual(segunda.filter((c) => c.semana < corte), congeladas,
     'las cohortes congeladas se han recalculado y se han perdido');
 });
+
+test('si el conteo falla se conserva el numero anterior, no se pierde el resumen', async () => {
+  // Pasa el dia del despliegue: un indice compuesto nuevo tarda unos minutos en
+  // construirse y hasta entonces la consulta de conteo da error. Perder un
+  // numero unas horas es molesto; perder tambien las cohortes, que no se pueden
+  // recalcular hacia atras, no.
+  const { viajes } = sembrar();
+
+  await metricas.resumir();
+  const bueno = bd.leer('agregados/metricas');
+  assert.strictEqual(bueno.totales.viajesVerificados, viajes.length);
+
+  // El prototipo de Consulta, no el de la coleccion: `where()` devuelve una
+  // Consulta, asi que parchear el de la coleccion dejaria pasar justo las
+  // consultas que interesa romper — y el ensayo saldria verde sobre nada.
+  const consulta = Object.getPrototypeOf(bd.collection('tiempos_viaje').where('x', '==', 1));
+  const original = consulta.count;
+  consulta.count = () => { throw new Error('The query requires an index'); };
+
+  try {
+    await metricas.resumir();
+  } finally {
+    consulta.count = original;
+  }
+
+  const degradado = bd.leer('agregados/metricas');
+  assert.strictEqual(degradado.totales.viajesVerificados, viajes.length,
+    'el total se ha ido a cero en vez de conservarse');
+  assert.deepStrictEqual(degradado.cohortes, bueno.cohortes,
+    'las cohortes se han perdido por un conteo que fallaba');
+});

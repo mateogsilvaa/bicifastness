@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="BiciFastness sin conexion.">
+<title>Sin conexion | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+
+<!--
+  Esta es la pagina que sirve el service worker cuando NO hay red. No puede
+  depender de nada que haya que descargar en ese momento, asi que no lleva ni
+  navegacion ni pie: los monta `ui.js`, que a su vez arrastra Firebase.
+-->
+
+<main class="container" id="principal">
+  <p class="etiqueta">Sin conexion</p>
+  <h1 class="d2">No hay red</h1>
+  <p class="menor apagado seccion">
+    Esto es lo ultimo que sabemos de ti, guardado en este movil.
+  </p>
+
+  <!-- Se rellena con el resumen guardado. Si no hay, se queda fuera. -->
+  <section id="resumen" class="bloque oculto"></section>
+
+  <p id="sin-resumen" class="menor apagado oculto">
+    Todavia no hay nada guardado en este dispositivo. En cuanto entres una vez
+    con red, podras ver aqui tu puntuacion aunque estes en el metro.
+  </p>
+
+  <section class="seccion">
+    <h2 class="h2">Mientras tanto</h2>
+    <ul class="menor apagado">
+      <li>Haz la captura del viaje en la app de BiciMAD y guardala.</li>
+      <li>Subela cuando vuelvas a tener cobertura: el tiempo que cuenta es el
+        del trayecto, no el de la subida.</li>
+      <li>Tienes 30 dias para reclamar un viaje.</li>
+    </ul>
+  </section>
+
+  <div class="fila seccion">
+    <button id="reintentar" class="btn">Volver a intentarlo</button>
+    <a class="btn secundario" href="/">Ir a la portada</a>
+  </div>
+</main>
+
+<script type="module" src="/assets/js/paginas/offline.js"></script>
+</body>
+</html>

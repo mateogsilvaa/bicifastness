@@ -7,6 +7,7 @@ import { ESTACIONES } from '../data/estaciones.js';
 import { el, id, icono, reemplazar } from './dom.js';
 import { vigilarErrores } from './errores.js';
 import { medir } from './metricas.js';
+import { registrarServiceWorker } from './instalar.js';
 
 // --- Antiframing -------------------------------------------------------------
 /**
@@ -301,4 +302,8 @@ export function iniciarPagina(seccionActiva) {
   montarNavegacion(seccionActiva);
   montarPieLegal();
   montarAvisoCookies();
+  // Sin service worker no hay ni instalacion ni pantalla offline (#52). Se
+  // registra en todas las paginas porque cualquiera puede ser la primera que
+  // alguien abre.
+  registrarServiceWorker();
 }

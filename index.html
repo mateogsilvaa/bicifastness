@@ -8,6 +8,10 @@
 <meta name="description" content="Compite con tus tiempos de BiciMAD en Madrid. Rankings por ruta, clanes y dominio de estaciones.">
 <title>BiciFastness | El circuito urbano de Madrid</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body>
@@ -76,6 +80,9 @@
     <div id="ruta-del-dia"></div>
     <div id="ultima-marca"></div>
     <div id="estado-clan"></div>
+
+    <!-- Invitacion a instalar. Solo aparece tras el primer viaje subido (#52). -->
+    <div id="invitacion-instalar" class="oculto"></div>
 
     <div class="fila" style="flex-wrap: wrap; margin-top: var(--e5);">
       <a class="btn" href="/subir/">Subir un trayecto</a>

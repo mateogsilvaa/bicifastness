@@ -15,6 +15,7 @@ import { crearPerfil, aceptarLegal } from '/assets/js/acciones.js';
 import { iniciarPagina, pedirReaceptacion, nombreRuta, formatearTiempo, formatearFecha } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { seguirViaje, viajeRecordado, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
+import { ofrecerInstalacion, guardarResumenOffline } from '/assets/js/instalar.js';
 
 iniciarPagina('ahora');
 
@@ -278,6 +279,14 @@ onAuthStateChanged(auth, async (usuario) => {
 
     const datos = perfil.data();
     pedirReaceptacion(datos, aceptarLegal);
+
+    // Copia minima para que /offline/ pueda ensenar algo util en vez del error
+    // del navegador. Son datos propios y no salen de este movil.
+    guardarResumenOffline(datos);
+
+    // Solo sale si ya ha subido un viaje, si no esta instalada ya y si no dijo
+    // que no antes.
+    ofrecerInstalacion(id('invitacion-instalar'));
 
     if (datos.username) {
       id('titulo-panel').textContent = datos.username.toUpperCase();

@@ -31,6 +31,7 @@ import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { revisar, LIMITES_CLIENTE } from '/assets/js/precheck.js';
 import { extraer, cerrar as cerrarLector } from '/assets/js/extraccion.js';
 import { seguirViaje, recordarViaje, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
+import { marcarPrimerViaje } from '/assets/js/instalar.js';
 
 iniciarPagina('subir');
 
@@ -565,6 +566,11 @@ id('form-viaje').addEventListener('submit', async (evento) => {
     );
 
     seguirEste(viajeId);
+
+    // A partir de aqui tiene sentido invitarle a instalar la app: ya sabe para
+    // que sirve. La invitacion sale en la portada, no aqui, para no meter ruido
+    // justo en el momento de la confirmacion (#52).
+    marcarPrimerViaje();
 
     // Vuelta al paso 1, listo para el siguiente.
     id('form-viaje').reset();

@@ -14,8 +14,8 @@
  */
 
 import {
-  db, auth, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
-  query, where, serverTimestamp, arrayUnion, arrayRemove, writeBatch,
+  db, auth, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  query, where, serverTimestamp, arrayUnion, arrayRemove, writeBatch, Timestamp,
   avatarPorDefecto,
 } from './firebase.js';
 import { VERSION_LEGAL } from './ui.js';
@@ -291,6 +291,23 @@ export async function suspenderUsuario(uid, suspender, motivo = null) {
 }
 
 // --- Clanes ----------------------------------------------------------------------
+//
+// Cada funcion de aqui manda EXACTAMENTE los campos que su regla permite. Las
+// reglas distinguen tres papeles y una via abierta a cualquiera:
+//
+//   lider      plantilla + oficiales + liderazgo + identidad del clan
+//   oficial    plantilla (aceptar y expulsar), nada mas
+//   miembro    irse
+//   cualquiera meter o sacar su propia solicitud
+//
+// `usuarios/{uid}.clanId` lo escribe cada uno en su documento, pero la regla
+// solo lo admite si el clan YA le lista como miembro. La fuente de verdad de la
+// plantilla es `clanes/{id}.miembros`, y de ahi es de donde suma el worker: si
+// se fiara del campo del usuario, cualquiera le inflaria la puntuacion a un clan
+// ajeno con cuentas nuevas.
+
+/** Con mas gente deja de sentirse como un equipo. Mismo tope que en las reglas. */
+export const MAX_MIEMBROS = 50;
 
 export async function crearClan({ nombre, descripcion, color }) {
   const uid = uidActual();
@@ -306,22 +323,25 @@ export async function crearClan({ nombre, descripcion, color }) {
   const existente = await getDoc(doc(db, 'clanes', clanId));
   if (existente.exists()) throw new Error('Ya existe un clan con ese nombre.');
 
-  const lote = writeBatch(db);
-  lote.set(doc(db, 'clanes', clanId), {
+  // El clan PRIMERO y el `clanId` del usuario despues, en dos pasos y no en un
+  // lote: la regla del usuario comprueba que el clan ya le liste como miembro,
+  // y dentro de un lote ese clan todavia no existe.
+  await setDoc(doc(db, 'clanes', clanId), {
     clanId,
     nombre: limpio,
     descripcion: String(descripcion || '').slice(0, 160),
     color,
     lider: uid,
     miembros: [uid],
+    oficiales: [],
     solicitudes: [],
     biciRating: 0,
     numMiembros: 1,
     logros: [],
     creado: serverTimestamp(),
   });
-  lote.update(doc(db, 'usuarios', uid), { clanId });
-  await lote.commit();
+
+  await updateDoc(doc(db, 'usuarios', uid), { clanId });
   return clanId;
 }
 
@@ -329,64 +349,200 @@ export async function solicitarEntrada(clanId) {
   await updateDoc(doc(db, 'clanes', clanId), { solicitudes: arrayUnion(uidActual()) });
 }
 
+/** Retira la propia solicitud. La misma regla que la de arriba, al reves. */
+export async function retirarSolicitud(clanId) {
+  await updateDoc(doc(db, 'clanes', clanId), { solicitudes: arrayRemove(uidActual()) });
+}
+
+/**
+ * Acepta o rechaza a un candidato. Lider u oficial.
+ *
+ * Al aceptar solo se toca el CLAN: el `clanId` del nuevo miembro lo escribe el,
+ * porque su documento solo lo puede escribir el. Hasta que entre, la plantilla
+ * del clan ya le lista, que es lo que cuenta para la puntuacion.
+ */
 export async function responderSolicitud(clanId, candidatoUid, aceptar) {
   const snap = await getDoc(doc(db, 'clanes', clanId));
   if (!snap.exists()) throw new Error('Ese clan ya no existe.');
 
   const clan = snap.data();
-  const lote = writeBatch(db);
 
-  if (aceptar) {
-    lote.update(snap.ref, {
-      solicitudes: arrayRemove(candidatoUid),
-      miembros: arrayUnion(candidatoUid),
-      numMiembros: clan.miembros.length + 1,
-    });
-    lote.update(doc(db, 'usuarios', candidatoUid), { clanId });
-  } else {
-    lote.update(snap.ref, { solicitudes: arrayRemove(candidatoUid) });
+  if (!aceptar) {
+    await updateDoc(snap.ref, { solicitudes: arrayRemove(candidatoUid) });
+    return;
   }
 
-  await lote.commit();
+  if ((clan.miembros || []).length >= MAX_MIEMBROS) {
+    throw new Error(`Un clan no puede pasar de ${MAX_MIEMBROS} miembros.`);
+  }
+
+  await updateDoc(snap.ref, {
+    solicitudes: arrayRemove(candidatoUid),
+    miembros: arrayUnion(candidatoUid),
+    numMiembros: clan.miembros.length + 1,
+  });
 }
 
+/**
+ * Expulsa a un miembro. Lider u oficial.
+ *
+ * Solo se le saca de la plantilla del clan. Su `clanId` se queda apuntando a un
+ * clan que ya no le lista, y eso lo limpia el worker: nadie mas que esa persona
+ * puede escribir su documento, y no se le va a pedir que colabore en su propia
+ * expulsion. La puntuacion no se ve afectada porque suma desde `miembros`.
+ */
 export async function expulsarMiembro(clanId, miembroUid) {
   const snap = await getDoc(doc(db, 'clanes', clanId));
-  const lote = writeBatch(db);
-  lote.update(snap.ref, {
+  if (!snap.exists()) throw new Error('Ese clan ya no existe.');
+
+  const clan = snap.data();
+  if (clan.lider === miembroUid) throw new Error('No se puede expulsar al lider.');
+
+  await updateDoc(snap.ref, {
     miembros: arrayRemove(miembroUid),
-    numMiembros: Math.max(0, snap.data().miembros.length - 1),
+    // Al salir pierde el cargo: si volviera a entrar, seria oficial otra vez sin
+    // que nadie lo hubiera decidido.
+    oficiales: arrayRemove(miembroUid),
+    numMiembros: Math.max(0, (clan.miembros || []).length - 1),
   });
-  lote.update(doc(db, 'usuarios', miembroUid), { clanId: null });
-  await lote.commit();
+}
+
+/** Nombra o retira un oficial. Solo el lider. */
+export async function cambiarOficial(clanId, miembroUid, nombrar) {
+  const snap = await getDoc(doc(db, 'clanes', clanId));
+  if (!snap.exists()) throw new Error('Ese clan ya no existe.');
+
+  if (nombrar && !(snap.data().miembros || []).includes(miembroUid)) {
+    throw new Error('Solo se puede nombrar oficial a alguien del clan.');
+  }
+
+  await updateDoc(snap.ref, {
+    oficiales: nombrar ? arrayUnion(miembroUid) : arrayRemove(miembroUid),
+  });
+}
+
+/**
+ * Traspasa el liderazgo. Solo el lider, y solo a alguien de dentro.
+ *
+ * Es lo que permite irse sin disolver el clan, y lo que hace que un clan
+ * sobreviva a que su fundador se canse.
+ */
+export async function cederLiderazgo(clanId, nuevoLiderUid) {
+  const snap = await getDoc(doc(db, 'clanes', clanId));
+  if (!snap.exists()) throw new Error('Ese clan ya no existe.');
+
+  const clan = snap.data();
+  if (clan.lider !== uidActual()) throw new Error('Solo el lider puede ceder el mando.');
+  if (!(clan.miembros || []).includes(nuevoLiderUid)) {
+    throw new Error('El nuevo lider tiene que ser del clan.');
+  }
+
+  await updateDoc(snap.ref, {
+    lider: nuevoLiderUid,
+    // El nuevo lider ya no necesita ser oficial, y el anterior pasa a serlo:
+    // asi quien monto el clan no se queda sin poder ayudar a gestionarlo.
+    oficiales: arrayUnion(clan.lider),
+  });
 }
 
 export async function abandonarClan(clanId) {
   const uid = uidActual();
   const snap = await getDoc(doc(db, 'clanes', clanId));
+
   if (snap.exists() && snap.data().lider === uid) {
     throw new Error('Eres el lider. Cede el liderazgo o disuelve el clan antes de irte.');
   }
 
-  const lote = writeBatch(db);
   if (snap.exists()) {
-    lote.update(snap.ref, {
+    const clan = snap.data();
+    await updateDoc(snap.ref, {
       miembros: arrayRemove(uid),
-      numMiembros: Math.max(0, snap.data().miembros.length - 1),
+      oficiales: arrayRemove(uid),
+      numMiembros: Math.max(0, (clan.miembros || []).length - 1),
     });
   }
-  lote.update(doc(db, 'usuarios', uid), { clanId: null });
-  await lote.commit();
+
+  // Ahora si: el clan ya no me lista, y la regla admite ponerlo a null siempre.
+  await updateDoc(doc(db, 'usuarios', uid), { clanId: null });
 }
 
 export async function disolverClan(clanId) {
   const snap = await getDoc(doc(db, 'clanes', clanId));
   if (!snap.exists()) return;
+  if (snap.data().lider !== uidActual()) throw new Error('Solo el lider puede disolver el clan.');
 
-  const lote = writeBatch(db);
-  for (const miembro of snap.data().miembros || []) {
-    lote.update(doc(db, 'usuarios', miembro), { clanId: null });
-  }
-  lote.delete(snap.ref);
-  await lote.commit();
+  // El `clanId` de los demas se queda colgando y lo limpia el worker: nadie
+  // puede escribir el documento de otro. El de quien disuelve, aqui mismo.
+  await deleteDoc(snap.ref);
+  await updateDoc(doc(db, 'usuarios', uidActual()), { clanId: null });
 }
+
+// --- Invitaciones ------------------------------------------------------------------
+
+/** Cuanto vale un enlace de invitacion, por defecto. */
+const DIAS_INVITACION = 7;
+
+/**
+ * Crea un enlace de invitacion. Solo el lider.
+ *
+ * El codigo es el id del documento y es lo unico que hace falta saber para
+ * usarlo, asi que tiene que ser imposible de adivinar y la coleccion no se
+ * puede listar (lo impide la regla). 128 bits de `crypto`, no `Math.random()`:
+ * un codigo predecible es una puerta abierta a cualquiera.
+ */
+export async function crearInvitacion(clanId, { dias = DIAS_INVITACION, maxUsos = 1 } = {}) {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  const codigo = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+  const caduca = new Date(Date.now() + dias * 86400000);
+
+  await setDoc(doc(db, 'invitaciones', codigo), {
+    clanId,
+    creadaPor: uidActual(),
+    creada: serverTimestamp(),
+    caduca: Timestamp.fromDate(caduca),
+    usos: 0,
+    maxUsos,
+  });
+
+  return { codigo, caduca, enlace: `${window.location.origin}/territorio/?invitacion=${codigo}` };
+}
+
+export async function retirarInvitacion(codigo) {
+  await deleteDoc(doc(db, 'invitaciones', codigo));
+}
+
+/**
+ * Usa un enlace de invitacion.
+ *
+ * El cliente NO se mete solo en el clan: deja una solicitud marcada con el
+ * codigo, y el worker comprueba la caducidad y los usos y la resuelve. Si el
+ * contador de usos lo llevara el navegador, un codigo de un solo uso valdria
+ * para todo el que lo tenga.
+ */
+export async function usarInvitacion(codigo) {
+  const snap = await getDoc(doc(db, 'invitaciones', codigo));
+  if (!snap.exists()) throw new Error('Esa invitacion no existe o ya se ha retirado.');
+
+  const invitacion = snap.data();
+  const caduca = invitacion.caduca?.toDate?.();
+
+  // Se comprueba aqui para poder decirlo claro, pero quien decide es el worker:
+  // esto es un aviso, no el control.
+  if (caduca && caduca < new Date()) throw new Error('Esa invitacion ha caducado.');
+  if ((invitacion.usos || 0) >= (invitacion.maxUsos || 1)) {
+    throw new Error('Esa invitacion ya se ha usado.');
+  }
+
+  await updateDoc(doc(db, 'clanes', invitacion.clanId), {
+    solicitudes: arrayUnion(uidActual()),
+  });
+
+  return invitacion.clanId;
+}
+
+/** Confirma la entrada despues de que el clan te haya aceptado. */
+export async function confirmarEntrada(clanId) {
+  await updateDoc(doc(db, 'usuarios', uidActual()), { clanId });
+}
+

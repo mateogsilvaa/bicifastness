@@ -189,13 +189,36 @@ async function escribirEnLotes(escrituras, tamano = 450) {
   }
 }
 
-/** Suma el biciRating de los miembros de un clan. */
+/**
+ * Suma el biciRating de los miembros de un clan.
+ *
+ * La plantilla sale de `clanes/{id}.miembros`, que es lo que el lider gestiona y
+ * lo que las reglas protegen. ANTES salia de consultar `usuarios` por su campo
+ * `clanId`, y ese campo lo escribe cada usuario en su propio documento: bastaba
+ * con ponerselo a mano para sumarle puntos a un clan ajeno con cuentas nuevas
+ * (#29). Las reglas ya no lo permiten, pero la puntuacion tampoco tiene por que
+ * fiarse de un campo que no es la fuente de verdad.
+ *
+ * De paso es mas barato: `getAll` de N miembros en vez de recorrer `usuarios`
+ * entera, que crece con el proyecto mientras que un clan tiene tope (#34).
+ */
 async function recalcularClan(clanId) {
   if (!clanId) return;
-  const miembros = await db().collection('usuarios').where('clanId', '==', clanId).get();
-  const total = miembros.docs.reduce((suma, d) => suma + (d.data().biciRating || 0), 0);
+
+  const clan = await db().doc(`clanes/${clanId}`).get();
+  if (!clan.exists) return;
+
+  const miembros = clan.data().miembros || [];
+  if (!miembros.length) {
+    await db().doc(`clanes/${clanId}`).set({ biciRating: 0, numMiembros: 0 }, { merge: true });
+    return;
+  }
+
+  const documentos = await db().getAll(...miembros.map((uid) => db().doc(`usuarios/${uid}`)));
+  const total = documentos.reduce((suma, d) => suma + (d.exists ? (d.data().biciRating || 0) : 0), 0);
+
   await db().doc(`clanes/${clanId}`).set(
-    { biciRating: total, numMiembros: miembros.size },
+    { biciRating: total, numMiembros: miembros.length },
     { merge: true }
   );
 }

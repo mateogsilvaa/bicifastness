@@ -46,6 +46,7 @@ const metricas = require('./src/metricas');
 const borrado = require('./src/borrado');
 const cuota = require('./src/cuota');
 const logros = require('./src/logros');
+const clanes = require('./src/clan-mantenimiento');
 const almacen = require('./src/db');
 const misiones = require('./src/misiones');
 const territorio = require('./src/territorio');
@@ -828,6 +829,29 @@ async function aplicarDecisionesManuales() {
 }
 
 /**
+ * Lo que la gestion de clanes no puede hacer desde el navegador (#29).
+ *
+ * Al expulsar a alguien, o al disolver un clan, solo se toca el documento del
+ * clan: nadie puede escribir en el documento de otra persona, y a quien acaban
+ * de expulsar no se le va a pedir que colabore. Su `clanId` se queda apuntando
+ * a un clan que ya no le lista.
+ *
+ * No afecta a la puntuacion — el clan suma desde su plantilla — pero su perfil
+ * dice que sigue en un clan del que ya no es.
+ */
+async function mantenerClanes() {
+  try {
+    const limpiados = await clanes.limpiarHuerfanos({ simular: SIMULAR });
+    if (limpiados) console.log(`Clanes: ${limpiados} usuario(s) sin clan actualizado(s).`);
+    return limpiados;
+  } catch (error) {
+    // Que esto falle no puede parar la verificacion de viajes.
+    console.warn('No se han podido limpiar los clanes:', error.message);
+    return 0;
+  }
+}
+
+/**
  * Estado de la cuota al empezar la ejecucion.
  *
  * Se lee UNA vez, al principio, y se usa para decidir si esta pasada tiene que
@@ -989,6 +1013,7 @@ async function main() {
   await aplicarDecisionesManuales();
   await procesarBajas();
   await procesarBorrados();
+  await mantenerClanes();
 
   // Los agregados se reconstruyen UNA VEZ al final, no por viaje: es la
   // operacion mas cara que hace el worker (#36).

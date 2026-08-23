@@ -92,6 +92,24 @@ service cloud.firestore {
         && cambia().hasOnly(['favoritas', 'avatarUrl', 'consentimiento', 'avisosCorreo'])
         && (!('favoritas' in datos()) || datos().favoritas.size() <= 3);
 
+      // El clan al que pertenece (#29).
+      //
+      // Estaba fuera de las dos listas, asi que NADIE podia escribirlo: crear un
+      // clan, aceptar a alguien o expulsarlo fallaban contra las reglas y la
+      // gestion de clanes no funcionaba desde el navegador.
+      //
+      // Irse siempre se puede. Entrar, solo si el clan YA te lista como
+      // miembro: sin esa comprobacion, cualquiera se declara miembro de
+      // cualquier clan escribiendo un campo suyo, y como la puntuacion del clan
+      // se sumaba consultando por este campo, se le podia inflar a un clan
+      // ajeno con cuentas nuevas.
+      allow update: if esYo(uid)
+        && cambia().hasOnly(['clanId'])
+        && (
+          datos().clanId == null
+          || get(/databases/$(database)/documents/clanes/$(datos().clanId)).data.miembros.hasAny([uid])
+        );
+
       // La administracion concede insignias y suspende cuentas. No puede tocar
       // la puntuacion: esa la calcula el worker a partir de los tiempos, y
       // dejarla editable a mano reabriria la puerta a inflarla.
@@ -239,9 +257,30 @@ service cloud.firestore {
     match /clanes/{clanId} {
       allow read: if true;
 
+      // Con mas gente deja de sentirse como un equipo y empieza a ser una lista.
+      // El tope tambien impide que acabe todo el mundo en el mismo clan y el
+      // mapa se quede sin partida.
+      function cabeAlguienMas() {
+        return datos().miembros.size() <= 50;
+      }
+
+      function esLider() {
+        return autenticado() && previo().lider == request.auth.uid;
+      }
+
+      // Un oficial gestiona la plantilla del dia a dia — aceptar solicitudes,
+      // expulsar — pero NO puede tocar el liderazgo ni disolver el clan. Si
+      // pudiera, ser oficial y ser lider serian lo mismo.
+      function esOficial() {
+        return autenticado()
+          && previo().oficiales is list
+          && previo().oficiales.hasAny([request.auth.uid]);
+      }
+
       allow create: if autenticado()
         && datos().lider == request.auth.uid
         && datos().miembros == [request.auth.uid]
+        && datos().oficiales.size() == 0
         && datos().solicitudes.size() == 0
         && datos().biciRating == 0
         && datos().logros.size() == 0
@@ -249,21 +288,83 @@ service cloud.firestore {
         && datos().nombre.size() >= 3 && datos().nombre.size() <= 28
         && datos().color.matches('^#[0-9a-fA-F]{6}$');
 
-      // El lider gestiona la plantilla; cualquiera puede meter o sacar su propia
-      // solicitud. Las insignias y la puntuacion solo las toca el worker.
-      allow update: if autenticado() && (
-        (
-          previo().lider == request.auth.uid
-          && cambia().hasOnly(['miembros', 'solicitudes', 'numMiembros', 'descripcion', 'color', 'lider'])
-        )
-        || (
-          cambia().hasOnly(['solicitudes'])
-          && datos().solicitudes.hasOnly(previo().solicitudes.concat([request.auth.uid]))
-          && previo().solicitudes.hasOnly(datos().solicitudes.concat([request.auth.uid]))
-        )
-      );
+      // --- Lo que puede el lider -------------------------------------------
+      // Todo lo de un oficial, mas nombrarlos, ceder el liderazgo y cambiar la
+      // identidad del clan.
+      allow update: if esLider()
+        && cambia().hasOnly([
+          'miembros', 'solicitudes', 'numMiembros',
+          'oficiales', 'lider', 'descripcion', 'color',
+        ])
+        && cabeAlguienMas()
+        // El nuevo lider tiene que estar dentro. Ceder el mando a alguien de
+        // fuera deja el clan sin nadie que pueda gestionarlo.
+        && (!('lider' in cambia()) || datos().miembros.hasAny([datos().lider]))
+        // Y los oficiales, tambien.
+        && (!('oficiales' in cambia()) || datos().miembros.hasAll(datos().oficiales));
 
-      allow delete: if autenticado() && previo().lider == request.auth.uid;
+      // --- Lo que puede un oficial ------------------------------------------
+      allow update: if esOficial()
+        && cambia().hasOnly(['miembros', 'solicitudes', 'numMiembros'])
+        && cabeAlguienMas()
+        // No puede echar al lider, ni echarse a si mismo del cargo por esta via.
+        && datos().miembros.hasAny([previo().lider]);
+
+      // --- Lo que puede cualquiera ------------------------------------------
+      // Meter o sacar su PROPIA solicitud. Las dos comprobaciones juntas
+      // significan "la unica diferencia entre las dos listas soy yo".
+      allow update: if autenticado()
+        && cambia().hasOnly(['solicitudes'])
+        && datos().solicitudes.hasOnly(previo().solicitudes.concat([request.auth.uid]))
+        && previo().solicitudes.hasOnly(datos().solicitudes.concat([request.auth.uid]));
+
+      // Irse del clan. Cualquiera puede, menos el lider: dejaria el clan sin
+      // quien lo gestione. Antes tiene que ceder el mando o disolverlo.
+      allow update: if autenticado()
+        && cambia().hasOnly(['miembros', 'numMiembros', 'oficiales'])
+        && previo().lider != request.auth.uid
+        && previo().miembros.hasAny([request.auth.uid])
+        && !datos().miembros.hasAny([request.auth.uid])
+        // Y solo se saca a si mismo: el resto de la lista queda igual.
+        && previo().miembros.hasOnly(datos().miembros.concat([request.auth.uid]));
+
+      allow delete: if esLider();
+    }
+
+    // --- Invitaciones a un clan (#29) ---------------------------------------
+    //
+    // El id del documento ES el codigo del enlace, y es lo unico que hace falta
+    // saber para entrar. Por eso NO se puede listar la coleccion: solo se puede
+    // pedir un codigo concreto, que es como funciona un enlace de invitacion.
+    //
+    // Las escribe el navegador porque son del lider, pero quien las CONSUME no
+    // las toca: aceptar una invitacion es que el lider te meta en `miembros`.
+    // Marcarla como usada lo hace el worker, que es quien puede escribir en dos
+    // documentos a la vez sin que el cliente decida el resultado.
+    match /invitaciones/{codigo} {
+      // `get` si, `list` no: sin esto, cualquiera se descarga todos los codigos
+      // vigentes y se cuela en cualquier clan.
+      allow get: if autenticado();
+      allow list: if false;
+
+      allow create: if autenticado()
+        && datos().keys().hasOnly(['clanId', 'creadaPor', 'creada', 'caduca', 'usos', 'maxUsos'])
+        && datos().creadaPor == request.auth.uid
+        && get(/databases/$(database)/documents/clanes/$(datos().clanId)).data.lider == request.auth.uid
+        && datos().usos == 0
+        && datos().maxUsos is int
+        && datos().maxUsos >= 1 && datos().maxUsos <= 50
+        && datos().caduca is timestamp
+        // Una invitacion eterna no es una invitacion, es una puerta abierta.
+        && datos().caduca > request.time
+        && datos().caduca < request.time + duration.value(30, 'd');
+
+      // Retirarla antes de tiempo es cosa del lider.
+      allow delete: if autenticado() && previo().creadaPor == request.auth.uid;
+
+      // El contador de usos lo lleva el worker: si lo llevara el cliente, un
+      // codigo de un solo uso valdria para todo el que lo tenga.
+      allow update: if false;
     }
 
     match /estaciones_stats/{estacionId} {

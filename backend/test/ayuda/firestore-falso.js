@@ -289,6 +289,19 @@ class FirestoreFalso {
   doc(ruta) { return new RefDocumento(this, ruta); }
   batch() { return new Lote(this); }
 
+  /**
+   * Lee varios documentos de una tacada. Cuenta una lectura por documento, y
+   * devuelve tambien los que no existen: Firestore hace lo mismo, y el codigo
+   * que lo usa cuenta con que la lista salga en el mismo orden que entro.
+   */
+  async getAll(...refs) {
+    this.lecturas += Math.max(1, refs.length);
+    return refs.map((ref) => {
+      const { coleccion, id } = partir(ref.ruta);
+      return new Instantanea(id, this._coleccion(coleccion).get(id), ref);
+    });
+  }
+
   /** Mete documentos sin contarlos: es la preparacion, no el ensayo. */
   sembrar(coleccion, documentos, clave = 'id') {
     const almacen = this._coleccion(coleccion);

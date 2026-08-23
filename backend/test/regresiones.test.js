@@ -1296,3 +1296,100 @@ test('cada campo de formulario tiene su etiqueta', () => {
   assert.deepStrictEqual(huerfanos, [],
     `hay campos sin etiqueta:\n  ${huerfanos.join('\n  ')}`);
 });
+
+// --- Gestion de clanes (#29) -------------------------------------------------------
+
+test('el clan al que perteneces lo puedes escribir, pero solo si el clan te lista', () => {
+  // Estaba fuera de las dos listas de campos escribibles, asi que NADIE podia
+  // escribirlo: crear un clan, aceptar a alguien o expulsarlo fallaban contra
+  // las reglas y la gestion de clanes no funcionaba desde el navegador.
+  const usuarios = bloque('usuarios');
+  assert.match(usuarios, /cambia\(\)\.hasOnly\(\['clanId'\]\)/,
+    'nadie puede escribir clanId: la gestion de clanes no funciona');
+
+  // Y la comprobacion que impide declararse miembro de cualquier clan.
+  assert.match(usuarios, /clanes\/\$\(datos\(\)\.clanId\)\)\.data\.miembros\.hasAny/,
+    'cualquiera puede declararse miembro de cualquier clan');
+});
+
+test('la puntuacion de un clan no se fia de un campo que escribe el usuario', () => {
+  // `clanId` lo escribe cada uno en su documento. Sumar consultando por el
+  // significaba que bastaba con ponerselo a mano para inflarle los puntos a un
+  // clan ajeno con cuentas nuevas.
+  const puntuacion = leerCodigo('backend/src/puntuacion.js');
+  const funcion = puntuacion.slice(puntuacion.indexOf('async function recalcularClan'));
+  const cuerpo = funcion.slice(0, funcion.indexOf('\n}'));
+
+  assert.ok(!/where\('clanId'/.test(cuerpo),
+    'la puntuacion del clan sale de un campo que escribe el propio usuario');
+  assert.match(cuerpo, /\.miembros/, 'la plantilla del clan es la fuente de verdad');
+});
+
+test('los tres papeles del clan pueden cosas distintas', () => {
+  const clanes = bloque('clanes');
+
+  // Si un oficial pudiera tocar el liderazgo, ser oficial y ser lider serian lo
+  // mismo y el rol no significaria nada.
+  const deOficial = clanes.match(/allow update: if esOficial\(\)[\s\S]*?;/)[0];
+  assert.ok(!/'lider'/.test(deOficial), 'un oficial puede cambiar el liderazgo');
+  assert.ok(!/'oficiales'/.test(deOficial), 'un oficial puede nombrarse mas oficiales');
+
+  // El lider si, pero solo a alguien de dentro: cederlo a alguien de fuera deja
+  // el clan sin nadie que pueda gestionarlo.
+  const deLider = clanes.match(/allow update: if esLider\(\)[\s\S]*?;/)[0];
+  assert.match(deLider, /datos\(\)\.miembros\.hasAny\(\[datos\(\)\.lider\]\)/);
+});
+
+test('el lider no puede irse dejando el clan sin nadie al mando', () => {
+  const clanes = bloque('clanes');
+  const salida = clanes.match(/allow update: if autenticado\(\)\s*&& cambia\(\)\.hasOnly\(\['miembros', 'numMiembros', 'oficiales'\]\)[\s\S]*?;/)[0];
+
+  assert.match(salida, /previo\(\)\.lider != request\.auth\.uid/);
+  // Y al irse solo se saca a si mismo.
+  assert.match(salida, /previo\(\)\.miembros\.hasOnly\(datos\(\)\.miembros\.concat\(\[request\.auth\.uid\]\)\)/);
+});
+
+test('un clan tiene tope de miembros', () => {
+  // Sin tope acaba todo el mundo en el mismo clan y el mapa se queda sin
+  // partida.
+  const clanes = bloque('clanes');
+  assert.match(clanes, /datos\(\)\.miembros\.size\(\) <= \d+/);
+
+  // Y el navegador usa el mismo numero, no uno parecido.
+  const acciones = leerCodigo('assets/js/acciones.js');
+  const enReglas = Number(clanes.match(/datos\(\)\.miembros\.size\(\) <= (\d+)/)[1]);
+  const enCliente = Number(acciones.match(/MAX_MIEMBROS = (\d+)/)[1]);
+  assert.strictEqual(enCliente, enReglas,
+    `las reglas admiten ${enReglas} y el cliente cree que son ${enCliente}`);
+});
+
+test('los codigos de invitacion no se pueden listar', () => {
+  // El id del documento ES el codigo, y es lo unico que hace falta para entrar.
+  // Con `list`, cualquiera se descarga todos los vigentes.
+  const invitaciones = bloque('invitaciones');
+  assert.match(invitaciones, /allow list: if false/);
+  assert.match(invitaciones, /allow get: if autenticado\(\)/);
+});
+
+test('una invitacion no puede ser eterna, y la crea quien manda', () => {
+  const invitaciones = bloque('invitaciones');
+
+  assert.match(invitaciones, /datos\(\)\.caduca > request\.time/);
+  assert.match(invitaciones, /duration\.value\(\d+, 'd'\)/,
+    'una invitacion sin tope de caducidad es una puerta abierta');
+
+  // Y solo el lider del clan al que invita.
+  assert.match(invitaciones, /\.data\.lider == request\.auth\.uid/);
+  assert.match(invitaciones, /datos\(\)\.usos == 0/);
+});
+
+test('el codigo de invitacion no se puede adivinar', () => {
+  // `Math.random()` es predecible: con el codigo en la URL y sin poder listar la
+  // coleccion, adivinarlo es la unica via de entrada, y no puede estar abierta.
+  const acciones = leerCodigo('assets/js/acciones.js');
+  const funcion = acciones.slice(acciones.indexOf('export async function crearInvitacion'));
+  const cuerpo = funcion.slice(0, funcion.indexOf('\n}'));
+
+  assert.match(cuerpo, /crypto\.getRandomValues/);
+  assert.ok(!/Math\.random/.test(cuerpo), 'el codigo de invitacion es predecible');
+});

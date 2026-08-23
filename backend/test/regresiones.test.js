@@ -1185,3 +1185,87 @@ test('la coleccion de cuota no la lee cualquiera', () => {
   assert.match(bloque('cuota'), /allow read: if esAdmin\(\)/);
   assert.match(bloque('cuota'), /allow write: if false/);
 });
+
+// --- Accesibilidad tras el rediseno (#53) ----------------------------------------
+
+test('todo lo que recibe un mensaje de estado se anuncia', () => {
+  // `estado()` escribe en estos elementos: errores de subida, veredictos,
+  // confirmaciones. Sin `aria-live`, quien usa un lector de pantalla no se
+  // entera de que su viaje ha sido rechazado — el texto aparece y no lo dice
+  // nadie. Es la clase de fallo que no se ve mirando la pantalla.
+  const sinAnunciar = [];
+
+  for (const pagina of paginasHtml()) {
+    const html = leer(pagina);
+    for (const [etiqueta] of html.matchAll(/<[a-z]+[^>]*\bid="(?:mensaje|msg-[a-z-]+)"[^>]*>/g)) {
+      if (!/aria-live=/.test(etiqueta)) sinAnunciar.push(`${pagina}: ${etiqueta.trim()}`);
+    }
+  }
+
+  assert.deepStrictEqual(sinAnunciar, [],
+    `hay mensajes de estado que un lector de pantalla no anuncia:\n  ${sinAnunciar.join('\n  ')}`);
+});
+
+test('ningun boton se queda sin nombre accesible', () => {
+  // Un boton que solo lleva un icono se anuncia como "boton" y ya. Pasa al
+  // sustituir texto por un SVG y no acordarse del `aria-label`.
+  const mudos = [];
+
+  for (const pagina of paginasHtml()) {
+    const html = leer(pagina);
+    for (const [entero, atributos, contenido] of html.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>/g)) {
+      if (/aria-label=|aria-labelledby=/.test(atributos)) continue;
+
+      // Texto de verdad: lo que queda al quitar etiquetas y los SVG, que son
+      // decorativos.
+      const texto = contenido.replace(/<svg[\s\S]*?<\/svg>/g, '').replace(/<[^>]+>/g, '').trim();
+      if (!texto) mudos.push(`${pagina}: ${entero.slice(0, 80)}`);
+    }
+  }
+
+  assert.deepStrictEqual(mudos, [],
+    `hay botones sin nombre accesible:\n  ${mudos.join('\n  ')}`);
+});
+
+test('el mapa se puede recorrer con el teclado', () => {
+  // Un mapa que solo se usa con el dedo deja fuera a gente. Leaflet no pone el
+  // foco en los marcadores salvo que se le diga.
+  const territorio = leerCodigo('assets/js/paginas/territorio.js');
+  assert.match(territorio, /keyboard = true/,
+    'los marcadores del mapa quedan fuera del alcance del teclado');
+});
+
+test('cada campo de formulario tiene su etiqueta', () => {
+  const huerfanos = [];
+
+  for (const pagina of paginasHtml()) {
+    const html = leer(pagina);
+
+    // Explicita: <label for="x">. Es la unica que funciona cuando la etiqueta
+    // no puede envolver al campo.
+    const porFor = new Set(
+      [...html.matchAll(/<label[^>]*\bfor="([^"]+)"/g)].map((m) => m[1]));
+
+    // Implicita: el campo va DENTRO del <label>. Vale igual, y es lo normal en
+    // las casillas de consentimiento, donde el texto es la etiqueta.
+    const porAnidamiento = new Set();
+    for (const [, dentro] of html.matchAll(/<label\b[^>]*>([\s\S]*?)<\/label>/g)) {
+      for (const m of dentro.matchAll(/<(?:input|select|textarea)[^>]*\bid="([^"]+)"/g)) {
+        porAnidamiento.add(m[1]);
+      }
+    }
+
+    for (const [entero, atributos] of html.matchAll(/<(?:input|select|textarea)([^>]*)>/g)) {
+      if (/type="(?:hidden|submit|button)"/.test(atributos)) continue;
+      if (/aria-label=|aria-labelledby=/.test(atributos)) continue;
+
+      const id = (atributos.match(/\bid="([^"]+)"/) || [])[1];
+      if (!id || (!porFor.has(id) && !porAnidamiento.has(id))) {
+        huerfanos.push(`${pagina}: ${entero.slice(0, 80)}`);
+      }
+    }
+  }
+
+  assert.deepStrictEqual(huerfanos, [],
+    `hay campos sin etiqueta:\n  ${huerfanos.join('\n  ')}`);
+});

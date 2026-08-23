@@ -185,6 +185,26 @@ Las dos ultimas son la excepcion: necesitan red o tiempo, y un CI que dependa de
 una instancia de cortesia ajena se cae el dia que esa instancia tenga un mal
 dia.
 
+## Lo que el CI ya no deja pasar
+
+Sin necesidad de acordarse, `npm test` falla si:
+
+- Un color de texto baja del 4,5:1 de la WCAG AA sobre cualquier superficie, en
+  claro o en oscuro.
+- El indicador de foco baja del 3:1 contra lo que tiene al lado.
+- Un elemento que recibe mensajes de estado se queda sin `aria-live`.
+- Un boton se queda sin nombre accesible, por ejemplo al cambiar su texto por un
+  icono.
+- Un campo de formulario se queda sin etiqueta, explicita o envolviendolo.
+- Un agregado publica un campo que no sale en pantalla.
+- Una consulta compuesta se queda sin su indice declarado.
+- `vercel.json` lleva una clave que su esquema rechazaria.
+- Un enlace entre documentos de `docs/` apunta a algo que no existe.
+
+Lo que **no** comprueba nadie y hay que hacer a mano: probar con un lector de
+pantalla de verdad los dos recorridos que importan — registrarse y subir un
+viaje —, y mirar el sitio en un movil de verdad.
+
 ## Antes de tocar nada
 
 ```bash

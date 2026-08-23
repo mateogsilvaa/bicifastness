@@ -49,13 +49,15 @@ const min1 = (n) => Math.max(1, Math.round(n));
 const PANTALLAS = [
   {
     ruta: '/', veces: 3,
-    coste: ({ U, V }) => 1 + 1 + 1 + 1 + viajesDe(U, V) + viajesEnRuta(V),
-    detalle: 'perfil + mision + config + clan + TODOS sus viajes + TODOS los viajes de su ultima ruta',
+    coste: () => 1 + 1 + 1 + 1 + 1 + 1 + 1,
+    detalle: 'perfil + mision + config + clan + su ultimo viaje + el conteo + el agregado de la ruta',
   },
   {
     ruta: '/clasificacion/', veces: 2,
-    coste: () => 2,
-    detalle: 'el agregado del modo, y el de clanes si se abre esa pestana',
+    // La cache de sesion se come las visitas repetidas dentro de los 2 minutos
+    // de vigencia, que son la mayoria del ir y venir entre pantallas.
+    coste: () => 1,
+    detalle: 'el agregado del modo; las visitas repetidas salen de la cache de sesion',
   },
   {
     ruta: '/territorio/', veces: 1,
@@ -64,8 +66,8 @@ const PANTALLAS = [
   },
   {
     ruta: '/yo/', veces: 1,
-    coste: ({ U, V }) => 1 + 3 + viajesDe(U, V),
-    detalle: 'perfil + temporadas + TODO su historial, sin paginar',
+    coste: () => 1 + 3 + 1 + 20,
+    detalle: 'perfil + temporadas + el conteo + la primera pagina del historial (20)',
   },
   {
     ruta: '/subir/', veces: 1,
@@ -79,17 +81,7 @@ const PANTALLAS = [
   },
 ];
 
-/** Viajes que acumula un piloto medio. */
-const viajesDe = (U, V) => min1(V / Math.max(1, U));
 
-/**
- * Viajes verificados que acumula una ruta.
- *
- * No se reparten por igual: unas pocas rutas concentran la mayoria. Un quinto
- * del total en la ruta mas transitada es conservador, y es justo la que sale en
- * la portada de mucha gente.
- */
-const viajesEnRuta = (V) => min1(V / 20);
 
 // --- Worker ------------------------------------------------------------------------
 /**

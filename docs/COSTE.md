@@ -18,50 +18,61 @@ node scripts/auditar-lecturas.js --comprobar  # falla si algo se dispara
 Se modela en vez de medir en vivo porque lo que hay que saber no es lo que
 cuesta hoy con seis usuarios, sino **como crece**.
 
-## Lo que ya encontro
+## Lo que ya encontro, y ya esta arreglado
 
-Nada mas escribir el modelo salto una operacion que se llevaba **el 95% de todas
-las lecturas del proyecto**:
+### `metricas.resumir` se llevaba el 95% de todas las lecturas
 
-`metricas.resumir` necesita `usuarios` y `tiempos_viaje` enteros — la retencion
-por cohortes no sale de otro sitio — y se ejecutaba **en cada pasada del
-worker**, o sea 288 veces al dia, hubiera pasado algo o no. Con los datos de hoy
-eso son **402.000 lecturas diarias, ocho veces la cuota, con seis personas
-usando la web y sin que ocurriera absolutamente nada**.
+Necesita `usuarios` y `tiempos_viaje` enteros — la retencion por cohortes no
+sale de otro sitio — y se ejecutaba **en cada pasada del worker**, o sea 288
+veces al dia, hubiera pasado algo o no. Con los datos de hoy eso son **402.000
+lecturas diarias, ocho veces la cuota, con seis personas usando la web y sin que
+ocurriera absolutamente nada**.
 
 El sintoma habria sido la web cayendose todas las tardes sin explicacion.
-
-Arreglado con dos cambios pequenos:
 
 - El resumen caro va como mucho **una vez cada 6 horas**. Nadie mira la
   retencion a 30 dias esperando verla cambiar en cinco minutos. Lo que si sigue
   en cada pasada es `agregarSesiones`, que es la parte barata.
 - `reconstruirAgregados` y el resumen necesitan **las mismas dos colecciones**.
-  Cuando coinciden — justo cuando ha habido movimiento — ahora se cargan una
-  sola vez y se comparten.
+  Cuando coinciden — justo cuando ha habido movimiento — se cargan una sola vez.
 
-Resultado: de **423.291** lecturas al dia a **30.291**. Del 847% de la cuota al
-61%.
+### La portada leia una ruta entera en cada visita
+
+`pintarUltimaMarca` traia todos los viajes del piloto y despues **todos los
+viajes verificados de su ultima ruta**. Esa segunda consulta no tenia techo
+ninguno: una ruta popular con 3.000 marcas costaba 3.000 lecturas cada vez que
+alguien abria la portada, que es la pantalla que mas se abre.
+
+Ahora el puesto sale del agregado de la ruta, que el worker ya deja ordenado.
+
+### `/yo/` traia el historial entero para pintar tres filas
+
+Quien lleva un ano usando esto acumula cientos de viajes, y se pagaban todos en
+cada visita a su perfil. Ahora pagina de 20 en 20 con `startAfter`, y el total
+sale de la consulta de conteo de Firestore, que cobra una lectura por cada 1.000
+documentos contados.
+
+**Resultado de las tres cosas: de 423.291 lecturas al dia a 29.397. Del 847% de
+la cuota al 59%.**
 
 ## Donde se esta hoy
 
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 30.291 | 61% |
-| u50 | 50 | 3000 | 282.406 | 565% **se agota** |
-| u200 | 200 | 15.000 | 3.627.702 | 7255% **se agota** |
-| u1000 | 1000 | 90.000 | 94.369.982 | 188740% **se agota** |
+| hoy | 6 | 1022 | 29.397 | 59% |
+| u50 | 50 | 3000 | 251.306 | 503% **se agota** |
+| u200 | 200 | 15.000 | 3.132.902 | 6266% **se agota** |
+| u1000 | 1000 | 90.000 | 80.597.982 | 161196% **se agota** |
 
 Tres cosas que hay que leer bien de esa tabla:
 
-1. **Hoy se cabe, pero sin margen.** 61% de la cuota con seis personas. Hay
+1. **Hoy se cabe, pero sin margen.** 59% de la cuota con seis personas. Hay
    margen para un mal dia, no para crecer.
-2. **Con 50 usuarios activos la cuota se agota en cuatro horas.** La web deja de
+2. **Con 50 usuarios activos la cuota se agota en cinco horas.** La web deja de
    funcionar hasta medianoche.
 3. El crecimiento no es proporcional al numero de usuarios, es **cuadratico**:
-   varias operaciones leen la coleccion entera de viajes, y esa coleccion crece
-   con los usuarios. Multiplicar por 4 los usuarios multiplica por 13 las
-   lecturas.
+   varias operaciones del worker leen la coleccion entera de viajes, y esa
+   coleccion crece con los usuarios.
 
 La variable que mas duele no es cuanta gente hay, sino **cuantos viajes hay
 acumulados**, que sube todos los dias aunque no entre nadie nuevo.
@@ -71,11 +82,11 @@ acumulados**, que sube todos los dias aunque no entre nadie nuevo.
 | Pantalla | Lecturas por carga | De donde salen |
 |---|---:|---|
 | `/statssss/` | 15.765 | las cuatro colecciones enteras |
-| `/` | 817 | perfil + mision + config + clan + TODOS sus viajes + TODOS los viajes de su ultima ruta |
 | `/territorio/` | 525 | todos los clanes + un documento por estacion |
-| `/yo/` | 67 | perfil + temporadas + TODO su historial, sin paginar |
 | `/subir/` | 61 | perfil + sus 60 viajes mas recientes, para el limite diario |
-| `/clasificacion/` | 2 | el agregado del modo, y el de clanes si se abre esa pestana |
+| `/yo/` | 25 | perfil + temporadas + el conteo + la primera pagina del historial (20) |
+| `/` | 7 | perfil + mision + config + clan + su ultimo viaje + el conteo + el agregado de la ruta |
+| `/clasificacion/` | 1 | el agregado del modo; las visitas repetidas salen de la cache de sesion |
 
 _Con 200 usuarios activos y 15.000 viajes acumulados._
 
@@ -94,7 +105,7 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
 | metricas.tocaResumir (por pasada) | 1 | la marca del agregado, para saber si toca el resumen caro |
 
-## Lo que queda por arreglar, por impacto
+## Lo que queda, por impacto
 
 ### 1. `recalcularTrasCambio`, en cada viaje aprobado
 
@@ -107,10 +118,10 @@ Es la peor de las que quedan porque no depende de que nadie mire la web: basta
 con que la gente suba viajes.
 
 Los agregados ya se reconstruyen una sola vez al final de la pasada (#36), pero
-esta se quedo por viaje. `recalcularEstacion` solo necesita los viajes de las
-dos estaciones implicadas, no la coleccion entera; con un indice por estacion
-deja de crecer con el total. La alternativa mas simple es acumular las rutas
-tocadas y recalcular una vez al final, como ya se hace con los agregados.
+esta se quedo por viaje. La salida mas simple es la misma: acumular las rutas
+tocadas y recalcular una vez al final. La de fondo es que `recalcularEstacion`
+solo necesita los viajes de las dos estaciones implicadas, no la coleccion
+entera.
 
 ### 2. `/territorio/`
 
@@ -118,21 +129,9 @@ Lee todos los clanes y **un documento por estacion**: hasta 631. Ademas de la
 cuota, son 631 documentos que un movil tiene que descargar y pintar en la calle.
 
 Es exactamente lo que pide #27: un unico documento agregado del mapa. Los
-agregados ya existen (`backend/src/agregados.js`) y esta pantalla es la unica
-que se quedo sin usarlos.
+agregados ya existen y esta pantalla es la unica que se quedo sin usarlos.
 
-### 3. La portada y `/yo/`
-
-Las dos hacen consultas **sin `limit`**:
-
-- La portada lee todos los viajes del piloto y despues **todos los viajes
-  verificados de su ultima ruta**. Esa segunda no tiene techo: una ruta popular
-  con 3.000 marcas cuesta 3.000 lecturas por visita a la portada.
-- `/yo/` lee el historial entero para pintar las primeras filas.
-
-Las dos se arreglan con paginacion, que es #37.
-
-### 4. `/statssss/`
+### 3. `/statssss/`
 
 Lee las cuatro colecciones enteras. Se abre poco, asi que no es urgente, pero
 una sola visita cuesta un tercio de la cuota diaria. Deberia leer del agregado
@@ -140,8 +139,12 @@ de metricas, que ya existe.
 
 ## Lo que ya esta bien
 
-- `/clasificacion/` cuesta **2** lecturas. Era la pantalla mas cara del proyecto
-  y ahora lee de un agregado. Es el patron a copiar.
+- `/clasificacion/` cuesta **1** lectura, y las visitas repetidas dentro de la
+  misma pestana cuestan **cero**. Era la pantalla mas cara del proyecto. Es el
+  patron a copiar.
+- Los conteos van con la consulta de agregacion de Firestore, que cobra **una
+  lectura por cada 1.000 documentos contados**. Traerse la coleccion para hacer
+  `.length` costaba una por documento.
 - `/subir/` esta acotada con `limit(60)`.
 - `prepararDia` corta en seco si la ruta del dia ya esta elegida: la parte cara
   ocurre una vez al dia, no 288.
@@ -151,6 +154,7 @@ de metricas, que ya existe.
 - La cache de distancias cuesta **una** lectura por viaje.
 - El worker consulta la cola con `limit`, asi que una pasada en vacio cuesta
   tres lecturas, no una por documento.
+- Leaflet solo se carga en `/territorio/`, no en el arranque comun.
 
 ## Cuentas que no se han hecho aqui
 
@@ -159,6 +163,7 @@ de metricas, que ya existe.
 - **Ancho de banda.** Traerse 15.000 documentos no solo cuesta cuota: cuesta
   megas en un movil, en la calle. Eso no lo mide este modelo y es lo que decide
   si la app se siente rapida.
-- El modelo supone que ninguna pantalla cachea nada entre visitas. Cuando entre
-  la persistencia local (#37), las visitas repetidas dentro de una sesion
-  dejaran de contar.
+- La cache local de Firestore (#37) sirve sin gastar cuota las consultas que no
+  han cambiado, pero el modelo **no la descuenta**: cuanto ahorra depende de
+  cuanto se repita cada persona, y suponerlo es como se acaba con un numero
+  optimista que no protege de nada. Lo que hay aqui es el techo.

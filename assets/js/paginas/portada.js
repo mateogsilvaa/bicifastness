@@ -9,13 +9,14 @@
 
 import {
   auth, db, onAuthStateChanged, doc, getDoc,
-  collection, getDocs, query, where,
+  collection, getDocs, getCountFromServer, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
 import { crearPerfil, aceptarLegal } from '/assets/js/acciones.js';
 import { iniciarPagina, pedirReaceptacion, nombreRuta, formatearTiempo, formatearFecha } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { seguirViaje, viajeRecordado, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
 import { ofrecerInstalacion, guardarResumenOffline } from '/assets/js/instalar.js';
+import { traerAgregado, puestoPorMarca } from '/assets/js/agregados.js';
 
 iniciarPagina('ahora');
 
@@ -161,13 +162,31 @@ async function pintarUltimaMarca(uid) {
   reemplazar(destino, el('div', { clase: 'esqueleto fila' }));
 
   try {
-    const mios = await getDocs(query(
-      collection(db, 'tiempos_viaje'),
-      where('uid', '==', uid),
-      where('verificado', '==', true),
-    ));
+    // Tres consultas acotadas en vez de dos sin techo (#37).
+    //
+    // Antes esto leia TODOS los viajes del piloto y despues TODOS los viajes
+    // verificados de su ultima ruta. La segunda no tenia limite ninguno: una
+    // ruta popular con 3.000 marcas costaba 3.000 lecturas cada vez que alguien
+    // abria la portada, que es la pantalla que mas se abre.
+    const [ultimoSnap, total] = await Promise.all([
+      // El mas reciente por fecha de VIAJE, no de subida: es el que la persona
+      // recuerda haber hecho.
+      getDocs(query(
+        collection(db, 'tiempos_viaje'),
+        where('uid', '==', uid),
+        where('verificado', '==', true),
+        orderBy('fechaViaje', 'desc'),
+        limit(1),
+      )),
+      // Cuenta sin traerse nada: una lectura por cada 1.000 contados.
+      getCountFromServer(query(
+        collection(db, 'tiempos_viaje'),
+        where('uid', '==', uid),
+        where('verificado', '==', true),
+      )),
+    ]);
 
-    if (mios.empty) {
+    if (ultimoSnap.empty) {
       reemplazar(destino, el('div', { clase: 'vacio' }, [
         el('h3', { texto: 'Todavia no tienes ningun trayecto' }),
         el('p', { texto: 'Sube la captura de tu proximo viaje y empiezas a puntuar.' }),
@@ -175,46 +194,35 @@ async function pintarUltimaMarca(uid) {
       return;
     }
 
-    const viajes = mios.docs.map((d) => d.data());
-    // El mas reciente por fecha de viaje, no por fecha de subida: es el que la
-    // persona recuerda haber hecho.
-    const ultimo = viajes.slice().sort((a, b) =>
-      String(b.fechaViaje || '').localeCompare(String(a.fechaViaje || '')))[0];
+    const ultimo = ultimoSnap.docs[0].data();
+    const cuantos = total.data().count;
 
-    // Puesto en esa ruta, contando solo la mejor marca de cada piloto.
-    const enRuta = await getDocs(query(
-      collection(db, 'tiempos_viaje'),
-      where('ruta', '==', ultimo.ruta),
-      where('verificado', '==', true),
-    ));
-
-    const mejorPorPiloto = new Map();
-    for (const d of enRuta.docs) {
-      const v = d.data();
-      const previo = mejorPorPiloto.get(v.uid);
-      if (!previo || v.tiempoSegundos < previo) mejorPorPiloto.set(v.uid, v.tiempoSegundos);
-    }
-
-    const orden = [...mejorPorPiloto.entries()].sort((a, b) => a[1] - b[1]);
-    const puesto = orden.findIndex(([u]) => u === uid) + 1;
-
+    // El puesto sale del agregado de la ruta, que el worker ya deja ordenado y
+    // con una fila por piloto. Una lectura, y ademas cacheada en la pestana.
+    const agregado = await traerAgregado(`ruta-${ultimo.ruta}`);
+    const { puesto, total: pilotos } = puestoPorMarca(agregado, ultimo.tiempoSegundos);
+    const mejor = agregado?.filas?.[0]?.marca ?? null;
     reemplazar(destino, el('div', { clase: 'bloque' }, [
       el('p', { clase: 'etiqueta', texto: nombreRuta(ultimo.ruta) }),
       el('p', { clase: 'crono', texto: formatearTiempo(ultimo.tiempoSegundos), estilo: { margin: '0 0 var(--e4)' } }),
 
       el('div', { clase: 'fila', estilo: { gap: 'var(--e6)', flexWrap: 'wrap' } }, [
-        dato('Tu puesto', puesto ? `${puesto} de ${orden.length}` : '—'),
+        dato('Tu puesto', puesto ? `${puesto} de ${pilotos}` : '—'),
         dato('Fecha', ultimo.fechaViaje ? formatearFecha(ultimo.fechaViaje) : '—', 'menor'),
-        dato('Trayectos', String(viajes.length)),
+        dato('Trayectos', String(cuantos)),
       ]),
 
       // Solo se ofrece batir el record si no es tuyo: proponerselo a quien ya lo
-      // tiene es ruido.
+      // tiene es ruido. `mejor` sale de la primera fila del agregado, que ya
+      // viene ordenada; si el agregado aun no existe, no se dice nada en vez de
+      // inventarse un tiempo.
       puesto === 1
         ? el('p', { clase: 'menor apagado', estilo: { marginTop: 'var(--e4)', marginBottom: '0' },
             texto: 'Tienes el record de esta ruta. A ver cuanto lo aguantas.' })
-        : el('p', { clase: 'menor apagado', estilo: { marginTop: 'var(--e4)', marginBottom: '0' },
-            texto: `El mejor tiempo de esta ruta esta en ${formatearTiempo(orden[0][1])}.` }),
+        : mejor !== null
+          ? el('p', { clase: 'menor apagado', estilo: { marginTop: 'var(--e4)', marginBottom: '0' },
+              texto: `El mejor tiempo de esta ruta esta en ${formatearTiempo(mejor)}.` })
+          : null,
     ]));
   } catch (error) {
     console.debug('No se ha podido cargar la ultima marca', error);

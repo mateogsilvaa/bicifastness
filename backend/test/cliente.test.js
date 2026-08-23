@@ -382,3 +382,144 @@ test('lo que lee el navegador es una propuesta, no un dato de confianza', () => 
   assert.strictEqual(usos.length, 0,
     'el worker usa `correcciones` para algo; hoy solo debe ser telemetria');
 });
+
+// --- Cache de sesion y paginacion (#37) --------------------------------------
+
+/**
+ * `cache.js` no importa nada, asi que se carga tal cual. Lo que si necesita es
+ * un `sessionStorage`: en Node no existe.
+ */
+function conSessionStorage(inicial = {}) {
+  const datos = new Map(Object.entries(inicial));
+  globalThis.sessionStorage = {
+    getItem: (k) => (datos.has(k) ? datos.get(k) : null),
+    setItem: (k, v) => datos.set(k, String(v)),
+    removeItem: (k) => datos.delete(k),
+    get length() { return datos.size; },
+    key: (i) => [...datos.keys()][i],
+  };
+  // `Object.keys(sessionStorage)` es lo que usa `vaciarCache`.
+  Object.defineProperty(globalThis.sessionStorage, Symbol.iterator, { value: undefined });
+  return datos;
+}
+
+test('un agregado recien guardado se sirve de la cache, sin ir a Firestore', async () => {
+  conSessionStorage();
+  const { leerCache, guardarCache } = await cargarModuloCliente('assets/js/cache.js');
+
+  const ahora = Date.parse('2026-08-23T12:00:00Z');
+  guardarCache('ranking-general', { filas: [{ pos: 1 }] }, ahora);
+
+  assert.deepStrictEqual(leerCache('ranking-general', ahora + 1000), { filas: [{ pos: 1 }] });
+});
+
+test('un agregado viejo se descarta en vez de pintarse desfasado', async () => {
+  conSessionStorage();
+  const { leerCache, guardarCache, VIGENCIA_MS } = await cargarModuloCliente('assets/js/cache.js');
+
+  const ahora = Date.parse('2026-08-23T12:00:00Z');
+  guardarCache('ranking-general', { filas: [] }, ahora);
+
+  assert.notStrictEqual(leerCache('ranking-general', ahora + VIGENCIA_MS - 1), undefined,
+    'justo antes de caducar todavia vale');
+  assert.strictEqual(leerCache('ranking-general', ahora + VIGENCIA_MS + 1), undefined,
+    'pasada la vigencia hay que volver a preguntar');
+});
+
+test('"todavia no existe" tambien se cachea, para no preguntar en cada pantalla', async () => {
+  conSessionStorage();
+  const { leerCache, guardarCache } = await cargarModuloCliente('assets/js/cache.js');
+
+  const ahora = Date.now();
+  guardarCache('ruta-100-101', null, ahora);
+
+  // `null` es "ya se pregunto y no hay"; `undefined` es "no hay nada guardado".
+  // Confundirlos devuelve una lectura por pantalla para un documento que no
+  // existe.
+  assert.strictEqual(leerCache('ruta-100-101', ahora), null);
+});
+
+test('la cache no revienta cuando el navegador no deja escribir', async () => {
+  // Modo privado de Safari: `setItem` LANZA. Quedarse sin cache es molesto;
+  // quedarse sin pantalla, no.
+  globalThis.sessionStorage = {
+    getItem: () => { throw new Error('no'); },
+    setItem: () => { throw new Error('no'); },
+    removeItem: () => { throw new Error('no'); },
+  };
+  const { leerCache, guardarCache, vaciarCache } = await cargarModuloCliente('assets/js/cache.js');
+
+  assert.doesNotThrow(() => guardarCache('x', { a: 1 }));
+  assert.strictEqual(leerCache('x'), undefined);
+  assert.doesNotThrow(() => vaciarCache());
+});
+
+test('lo guardado corrupto no tumba la pantalla', async () => {
+  conSessionStorage({ 'bf_agregado:roto': 'esto no es json' });
+  const { leerCache } = await cargarModuloCliente('assets/js/cache.js');
+  assert.strictEqual(leerCache('roto'), undefined);
+});
+
+test('la cache es de sesion, nunca de disco', async () => {
+  // `localStorage` sobrevive dias. Un agregado guardado ahi no aporta nada y es
+  // una copia mas que mantener; y `sessionStorage` ya es del origen, no de la
+  // sesion de Firebase, asi que ni ahi van datos de una persona concreta.
+  const codigo = leer('assets/js/cache.js')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  assert.ok(!/localStorage/.test(codigo), 'la cache de agregados no debe ir a localStorage');
+});
+
+test('el puesto sale del agregado, sin recorrer la coleccion', async () => {
+  // `agregados.js` importa firebase.js, que no se puede cargar desde Node. Se
+  // prueba la parte pura, que es la que tiene logica.
+  const codigo = leer('assets/js/agregados.js')
+    .replace(/^import[\s\S]*?from '[^']+';$/gm, '');
+  const { puestoPorMarca } = await import(
+    `data:text/javascript;base64,${Buffer.from(codigo, 'utf8').toString('base64')}`);
+
+  const agregado = {
+    total: 9,
+    filas: [
+      { pos: 1, nombre: 'Ana', marca: 700 },
+      { pos: 2, nombre: 'Bea', marca: 760 },
+      { pos: 3, nombre: 'Caj', marca: 800 },
+    ],
+  };
+
+  assert.deepStrictEqual(puestoPorMarca(agregado, 760), { puesto: 2, total: 9 });
+  // El total sale del agregado, no de las filas: viene paginado de 200 en 200.
+  assert.strictEqual(puestoPorMarca(agregado, 700).total, 9);
+});
+
+test('quien no aparece en el agregado sale sin puesto, no con uno inventado', async () => {
+  const codigo = leer('assets/js/agregados.js')
+    .replace(/^import[\s\S]*?from '[^']+';$/gm, '');
+  const { puestoPorMarca } = await import(
+    `data:text/javascript;base64,${Buffer.from(codigo, 'utf8').toString('base64')}`);
+
+  const agregado = { total: 300, filas: [{ pos: 1, marca: 700 }] };
+
+  // Un agregado se parte en paginas de 200 y aqui solo se mira la primera: en
+  // una ruta con mas de 200 pilotos, quien este por debajo no sale.
+  assert.deepStrictEqual(puestoPorMarca(agregado, 999), { puesto: 0, total: 300 });
+  assert.deepStrictEqual(puestoPorMarca(null, 700), { puesto: 0, total: 0 });
+});
+
+test('el historial y la portada consultan con techo', async () => {
+  // Las dos hacian consultas sin `limit`. La de la portada no tenia ningun
+  // techo: traia TODOS los viajes verificados de una ruta, asi que una ruta
+  // popular con 3.000 marcas costaba 3.000 lecturas por visita a la portada
+  // (#37, docs/COSTE.md).
+  const yo = leer('assets/js/paginas/yo.js');
+  assert.match(yo, /limit\(POR_PAGINA\)/, 'el historial vuelve a traerse entero');
+  assert.match(yo, /startAfter\(/, 'sin startAfter no hay paginacion, hay recorte');
+  assert.match(yo, /getCountFromServer\(/,
+    'contar trayectos trayendose la coleccion cuesta una lectura por trayecto');
+
+  const portada = leer('assets/js/paginas/portada.js');
+  assert.match(portada, /traerAgregado\(`ruta-/,
+    'el puesto vuelve a calcularse recorriendo los viajes de la ruta');
+  assert.ok(!/where\('ruta', '==', ultimo\.ruta\)/.test(portada),
+    'sigue la consulta sin techo sobre los viajes de la ruta');
+});

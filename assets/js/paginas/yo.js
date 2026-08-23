@@ -6,13 +6,14 @@
 
 import {
   auth, db, onAuthStateChanged, signOut,
-  collection, getDocs, query, where, orderBy, doc, getDoc,
+  collection, getDocs, getCountFromServer, query, where, orderBy, limit, startAfter, doc, getDoc,
 } from '/assets/js/firebase.js';
 import { iniciarPagina, alternarTema, nombreRuta, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar, confirmar, pedirTexto, esqueleto } from '/assets/js/dom.js';
 import { generarNodosInsignias } from '/insignias.js';
 import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo } from '/assets/js/acciones.js';
 import { motivoDeViaje } from '/assets/js/motivos.js';
+import { vaciarCache } from '/assets/js/cache.js';
 
 iniciarPagina('yo');
 
@@ -38,6 +39,7 @@ async function cargarPerfil() {
   id('nombre').textContent = perfil.username || 'Piloto';
   id('rating').textContent = perfil.biciRating || 0;
   id('verificados').textContent = perfil.viajesVerificados || 0;
+  contarTrayectos();
   id('clan').textContent = perfil.clanId ? `Clan: ${perfil.clanId}` : 'Sin clan';
   id('avatar').src = perfil.avatarUrl
     || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(perfil.username || 'P')}&backgroundColor=0071c3`;
@@ -115,19 +117,71 @@ async function cargarTemporadas() {
   }
 }
 
-async function cargarHistorial() {
-  const contenedor = id('historial');
-  reemplazar(contenedor, esqueleto(3, 74));
+/**
+ * Cuantos trayectos ha subido, verificados o no.
+ *
+ * Con la consulta de conteo, no trayendose la coleccion: Firestore cobra UNA
+ * lectura por cada 1.000 documentos contados. Antes el numero salia de
+ * `snapshot.size` sobre el historial entero, o sea una lectura por trayecto solo
+ * para poner una cifra en pantalla (#37).
+ *
+ * Si falla, la tarjeta se queda como esta en vez de enseñar un cero que seria
+ * mentira.
+ */
+async function contarTrayectos() {
   try {
-    const snapshot = await getDocs(query(
+    const total = await getCountFromServer(query(
       collection(db, 'tiempos_viaje'),
       where('uid', '==', usuario.uid),
-      orderBy('creado', 'desc')
     ));
+    id('total-viajes').textContent = total.data().count;
+  } catch (error) {
+    console.debug('No se ha podido contar los trayectos', error);
+  }
+}
 
-    id('total-viajes').textContent = snapshot.size;
+/**
+ * Viajes por pagina del historial.
+ *
+ * Antes se traia el historial ENTERO para pintar las primeras filas. Quien lleva
+ * un ano usando esto acumula cientos de viajes, y todos se pagaban en cada
+ * visita a su perfil aunque solo mirara los tres ultimos (#37).
+ *
+ * Veinte llenan mas de una pantalla de movil, que es el listón: la primera carga
+ * tiene que enseñar mas de lo que cabe, o el boton de "ver mas" aparece antes de
+ * que a nadie le haga falta.
+ */
+const POR_PAGINA = 20;
 
-    if (snapshot.empty) {
+/** Ultimo documento de la pagina traida, para pedir la siguiente desde ahi. */
+let ultimoVisto = null;
+let quedanMas = true;
+
+async function cargarHistorial({ mas = false } = {}) {
+  const contenedor = id('historial');
+  if (!mas) {
+    reemplazar(contenedor, esqueleto(3, 74));
+    ultimoVisto = null;
+    quedanMas = true;
+  }
+
+  try {
+    // `startAfter` continua desde donde se quedo la pagina anterior. Es
+    // paginacion de verdad: Firestore solo cobra los documentos que devuelve,
+    // no los que se salta.
+    const partes = [
+      collection(db, 'tiempos_viaje'),
+      where('uid', '==', usuario.uid),
+      orderBy('creado', 'desc'),
+      ...(ultimoVisto ? [startAfter(ultimoVisto)] : []),
+      limit(POR_PAGINA),
+    ];
+    const snapshot = await getDocs(query(...partes));
+
+    ultimoVisto = snapshot.docs[snapshot.docs.length - 1] || ultimoVisto;
+    quedanMas = snapshot.size === POR_PAGINA;
+
+    if (snapshot.empty && !mas) {
       reemplazar(contenedor, el('div', { clase: 'vacio' }, [
         el('p', { texto: 'Aun no has subido ningun viaje.', estilo: { margin: '0 0 12px', fontWeight: '700' } }),
         el('a', { texto: 'Subir mi primer tiempo', attrs: { href: '/subir/' },
@@ -136,7 +190,7 @@ async function cargarHistorial() {
       return;
     }
 
-    reemplazar(contenedor, snapshot.docs.map((d) => {
+    const filas = snapshot.docs.map((d) => {
       const viaje = d.data();
       // El chip lleva SIEMPRE la palabra: el color no puede ser el unico
       // portador del estado.
@@ -180,10 +234,39 @@ async function cargarHistorial() {
               texto: 'Has pedido revision humana. Un administrador lo mirara.' })
           : null,
       ]);
-    }));
+    });
+
+    // La primera pagina reemplaza el esqueleto; las siguientes se anaden debajo,
+    // para no perder el sitio en el que estaba la persona leyendo.
+    if (mas) {
+      id('ver-mas')?.remove();
+      contenedor.append(...filas);
+    } else {
+      reemplazar(contenedor, filas);
+    }
+
+    if (quedanMas) contenedor.append(botonVerMas());
   } catch (error) {
-    reemplazar(contenedor, el('p', { texto: `No se ha podido cargar el historial: ${error.message}` }));
+    const mensaje = el('p', { texto: `No se ha podido cargar el historial: ${error.message}` });
+    if (mas) contenedor.append(mensaje);
+    else reemplazar(contenedor, mensaje);
   }
+}
+
+function botonVerMas() {
+  return el('button', {
+    clase: 'btn secundario',
+    texto: 'Ver mas trayectos',
+    attrs: { type: 'button', id: 'ver-mas' },
+    on: {
+      click: async (evento) => {
+        const boton = evento.currentTarget;
+        boton.disabled = true;
+        boton.textContent = 'Cargando...';
+        await cargarHistorial({ mas: true });
+      },
+    },
+  });
 }
 
 /** Por que se rechazo, en castellano y sin contar como funciona el antifraude. */
@@ -255,6 +338,9 @@ id('avisos-correo').addEventListener('change', async (evento) => {
 
 id('btn-tema').addEventListener('click', alternarTema);
 id('btn-salir').addEventListener('click', async () => {
+  // Aunque los agregados sean publicos, dejar en la pestana los datos de la
+  // sesion anterior confunde a quien entre despues con otra cuenta.
+  vaciarCache();
   await signOut(auth);
   window.location.replace('/entrar/');
 });

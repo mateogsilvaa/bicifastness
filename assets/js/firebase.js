@@ -17,9 +17,11 @@ import {
   sendEmailVerification, browserLocalPersistence,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
-  getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
-  deleteDoc, query, where, orderBy, limit, serverTimestamp, increment,
-  arrayUnion, arrayRemove, writeBatch, Timestamp, onSnapshot,
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
+  deleteDoc, query, where, orderBy, limit, startAfter, serverTimestamp, increment,
+  arrayUnion, arrayRemove, writeBatch, Timestamp, onSnapshot, getDocsFromCache,
+  getCountFromServer,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import {
   initializeAppCheck, ReCaptchaV3Provider,
@@ -66,7 +68,34 @@ export const app = initializeApp(configuracion);
 export const auth = initializeAuth(app, {
   persistence: browserLocalPersistence,
 });
-export const db = getFirestore(app);
+/**
+ * Firestore con cache local persistente (#37).
+ *
+ * Sin esto, volver a una pantalla ya visitada vuelve a pagar todas sus lecturas.
+ * Con la cache en IndexedDB, una consulta que no ha cambiado se sirve del disco
+ * del propio movil y **no cuenta en la cuota diaria**, que es el limite que de
+ * verdad aprieta en el plan Spark (ver docs/COSTE.md).
+ *
+ * `persistentMultipleTabManager` y no el de una sola pestana: con el sencillo,
+ * abrir la web en dos pestanas deja a la segunda SIN cache y sin aviso. Pasa mas
+ * de lo que parece, porque la app se abre desde enlaces.
+ *
+ * Es `initializeFirestore` y no `getFirestore` porque la cache solo se puede
+ * declarar en la creacion. Y va con try: en modo privado de Safari IndexedDB
+ * puede no estar disponible, y quedarse sin cache es peor que quedarse sin web.
+ */
+function crearFirestore() {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch (error) {
+    console.warn('Sin cache local de Firestore; se leera todo de red.', error);
+    return initializeFirestore(app, {});
+  }
+}
+
+export const db = crearFirestore();
 
 if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('__')) {
   initializeAppCheck(app, {
@@ -81,12 +110,19 @@ export {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut, sendPasswordResetEmail, sendEmailVerification,
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, increment,
+  query, where, orderBy, limit, startAfter, serverTimestamp, increment,
   arrayUnion, arrayRemove, writeBatch, Timestamp,
   // `onSnapshot` se usa SOLO sobre documentos sueltos, nunca sobre una
   // coleccion: cada cambio escuchado es una lectura facturada (ver
   // assets/js/estado-viaje.js).
   onSnapshot,
+  // Lee SOLO de la cache local, sin tocar la red ni gastar cuota. Lanza si no
+  // hay nada cacheado, asi que quien lo use tiene que tener un plan B.
+  getDocsFromCache,
+  // Cuenta sin traerse los documentos: Firestore cobra UNA lectura por cada
+  // 1.000 contados. Para poner un numero en pantalla es lo correcto; traerse la
+  // coleccion para hacer `.length` cuesta una lectura por documento.
+  getCountFromServer,
 };
 
 /**

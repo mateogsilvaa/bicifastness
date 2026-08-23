@@ -18,6 +18,7 @@
 import { db, doc, getDoc } from '/assets/js/firebase.js';
 import { iniciarPagina, nombreRuta, formatearTiempo } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
+import { leerCache, guardarCache } from '/assets/js/cache.js';
 
 iniciarPagina('clasificacion');
 
@@ -40,7 +41,13 @@ const MODOS = {
     explica: 'La racha mas larga que has mantenido. Premia aparecer.' },
 };
 
-/** Agregados ya pedidos, para no volver a pedirlos al cambiar de pestaña. */
+/**
+ * Agregados ya pedidos, para no volver a pedirlos al cambiar de pestaña.
+ *
+ * Este Map dura lo que dure la pagina. Detras hay una cache de sesion
+ * (`cache.js`) que ademas sobrevive a irse a otra pantalla y volver, que es el
+ * caso que de verdad gastaba lecturas repetidas (#37).
+ */
 const cache = new Map();
 
 /** Motivo del ultimo fallo de lectura, si lo hubo. */
@@ -57,10 +64,20 @@ let fallo = null;
 async function traer(nombre) {
   if (cache.has(nombre)) return cache.get(nombre);
 
+  // Lo guardado en esta pestana, si sigue siendo reciente. `undefined` es "no
+  // hay nada"; `null` es "ya se pregunto y todavia no existe", que tambien se
+  // cachea para no volver a preguntar.
+  const guardado = leerCache(nombre);
+  if (guardado !== undefined) {
+    cache.set(nombre, guardado);
+    return guardado;
+  }
+
   try {
     const snap = await getDoc(doc(db, 'agregados', nombre));
     const datos = snap.exists() ? snap.data() : null;
     cache.set(nombre, datos);
+    guardarCache(nombre, datos);
     return datos;
   } catch (error) {
     // Que falle UN agregado no puede tumbar la pantalla entera: cada panel se

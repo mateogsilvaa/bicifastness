@@ -707,6 +707,16 @@ const CONSULTAS_COMPUESTAS = [
     campos: [['ruta', 'ASCENDING'], ['verificado', 'ASCENDING'], ['tiempoSegundos', 'ASCENDING']],
   },
   {
+    donde: 'portada.pintarUltimaMarca(): el ultimo trayecto por fecha de viaje',
+    coleccion: 'tiempos_viaje',
+    campos: [['uid', 'ASCENDING'], ['verificado', 'ASCENDING'], ['fechaViaje', 'DESCENDING']],
+  },
+  {
+    donde: 'yo.cargarHistorial(): historial paginado, mas reciente primero',
+    coleccion: 'tiempos_viaje',
+    campos: [['uid', 'ASCENDING'], ['creado', 'DESCENDING']],
+  },
+  {
     donde: 'puntuacion.recalcularClan(): miembros ordenados',
     coleccion: 'usuarios',
     campos: [['clanId', 'ASCENDING'], ['biciRating', 'DESCENDING']],

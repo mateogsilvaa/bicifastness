@@ -99,6 +99,28 @@ try {
 }
 
 /**
+ * De donde sale el `.traineddata`, y por que no de internet.
+ *
+ * El fichero ya esta en el repositorio: `assets/ocr/spa.traineddata.gz`, que es
+ * el que usa el navegador. Sin `langPath`, tesseract.js lo baja de un CDN en
+ * cada arranque en frio, y eso mete una dependencia de red DENTRO del pipeline
+ * de verificacion: si el CDN tarda o no responde, la tanda entera se va a
+ * revision manual por un motivo que no tiene nada que ver con las capturas.
+ * Es el mismo argumento por el que se quito Gemini (#10).
+ *
+ * Ademas hace que los tests corran sin red y que el arranque del worker deje de
+ * pagar 2 MB de descarga en cada ejecucion de Actions.
+ *
+ * Si el fichero no estuviera, se deja `langPath` sin poner y tesseract vuelve a
+ * bajarlo: preferimos el camino lento al que no funciona.
+ */
+const IDIOMA_LOCAL = path.join(__dirname, '..', '..', 'assets', 'ocr');
+const HAY_IDIOMA_LOCAL = fs.existsSync(path.join(IDIOMA_LOCAL, `${IDIOMA}.traineddata.gz`));
+if (!HAY_IDIOMA_LOCAL) {
+  console.warn(`Sin ${IDIOMA}.traineddata.gz en assets/ocr: tesseract lo bajara de la red.`);
+}
+
+/**
  * Marcadores de que la imagen es de la app BiciMAD.
  *
  * Sustituye al veredicto `es_bicimad` de la IA por algo comprobable. Es una
@@ -291,6 +313,7 @@ async function obtenerWorker() {
 
   worker = await Tesseract.createWorker(IDIOMA, 1, {
     cachePath: CACHE,
+    ...(HAY_IDIOMA_LOCAL ? { langPath: IDIOMA_LOCAL, gzip: true } : {}),
     errorHandler: (datos) => { fallo = datos; },
   });
   await worker.setParameters({

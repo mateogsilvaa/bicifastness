@@ -14,6 +14,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const ocr = require('../src/ocr');
 
@@ -163,4 +165,20 @@ test('un bloque sin las dos estaciones no cuenta como trayecto', () => {
 test('elegirTrayecto no toca la lectura cuando solo hay uno', () => {
   const lectura = { origen: '002', destino: '110', trayectos: [{ origen: '002', destino: '110' }] };
   assert.strictEqual(ocr.elegirTrayecto(lectura, '002-110'), lectura);
+});
+
+test('el idioma del OCR sale del repositorio, no de la red', () => {
+  // Sin `langPath`, tesseract.js baja el `.traineddata` de un CDN en cada
+  // arranque en frio. Eso mete una dependencia de red DENTRO del pipeline de
+  // verificacion: si el CDN tarda o no responde, la tanda entera acaba en
+  // revision manual por un motivo que no tiene nada que ver con las capturas.
+  // Es el mismo argumento por el que se quito Gemini (#10).
+  //
+  // El fichero ya esta en el repositorio porque lo usa el navegador, asi que la
+  // descarga no aportaba mas que un punto de fallo y 2 MB por ejecucion.
+  const fichero = path.join(__dirname, '..', '..', 'assets', 'ocr', 'spa.traineddata.gz');
+  assert.ok(fs.existsSync(fichero), 'falta assets/ocr/spa.traineddata.gz, que usan el navegador y el worker');
+
+  const fuente = fs.readFileSync(path.join(__dirname, '..', 'src', 'ocr.js'), 'utf8');
+  assert.match(fuente, /langPath/, 'ocr.js volveria a bajar el idioma de la red en cada arranque');
 });

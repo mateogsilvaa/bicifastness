@@ -368,6 +368,36 @@ test('el modo mantenimiento de Vercel tapa tambien las paginas existentes', () =
   assert.strictEqual(redir.permanent, false, 'un 308 se cachearia en el navegador');
 });
 
+test('vercel.json no lleva claves que el esquema no conozca', () => {
+  // El fichero llevo un tiempo comentarios dentro con la convencion de la clave
+  // "//". Es JSON valido, asi que no lo veia ni el lint ni los tests, pero
+  // Vercel rechaza cualquier clave que no conozca y el despliegue NI EMPIEZA:
+  //   The vercel.json schema validation failed: should NOT have additional property "//"
+  // El resultado es que ningun despliegue llega a construirse y nada avisa.
+  // Si anades una clave nueva, anadela aqui: es el momento de comprobar que
+  // Vercel la conoce. La explicacion larga esta en docs/DESPLIEGUE.md.
+  const PERMITIDAS = new Set([
+    '$schema', 'cleanUrls', 'trailingSlash', 'redirects', 'rewrites',
+    'headers', 'buildCommand', 'outputDirectory', 'installCommand',
+    'framework', 'ignoreCommand', 'regions', 'redirects', 'crons',
+  ]);
+
+  const conf = JSON.parse(leer('vercel.json'));
+  for (const clave of Object.keys(conf)) {
+    assert.ok(PERMITIDAS.has(clave), `vercel.json lleva la clave "${clave}", que rompe el despliegue entero`);
+  }
+
+  // Y tampoco dentro de las reglas de cabeceras o redirects, que es donde se
+  // colo la segunda vez.
+  const CLAVES_REGLA = new Set(['source', 'headers', 'destination', 'permanent',
+    'has', 'missing', 'statusCode']);
+  for (const regla of [...(conf.headers || []), ...(conf.redirects || [])]) {
+    for (const clave of Object.keys(regla)) {
+      assert.ok(CLAVES_REGLA.has(clave), `una regla de vercel.json lleva la clave "${clave}"`);
+    }
+  }
+});
+
 test('el despliegue no publica el backend ni los scripts', () => {
   const ignorados = leer('.vercelignore').split('\n').map((l) => l.trim());
   for (const carpeta of ['backend/', 'scripts/', '.github/']) {

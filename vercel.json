@@ -1,18 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
 
-  "//": [
-    "El sitio se sirve desde Vercel, conectado a la rama main de este repo.",
-    "",
-    "MODO MANTENIMIENTO ACTIVO. El bloque `redirects` de abajo manda todo a la",
-    "pagina de obras. En Vercel los redirects se evaluan ANTES del sistema de",
-    "ficheros, asi que tapan tambien las paginas que existen: sin eso, entrar a",
-    "/admin/ escribiendo la URL seguiria funcionando.",
-    "",
-    "PARA VOLVER A ABRIR LA WEB: borra el bloque `redirects` entero y haz push.",
-    "No hace falta tocar nada mas."
-  ],
-
   "cleanUrls": true,
   "trailingSlash": true,
 
@@ -47,7 +35,6 @@
       ]
     },
     {
-      "//": "Sin hash en el nombre, `immutable` dejaria a la gente con el CSS viejo para siempre.",
       "source": "/(.*).(js|css|html)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
     },

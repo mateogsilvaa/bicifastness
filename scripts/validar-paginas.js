@@ -4,6 +4,8 @@
  *   1. que todas las rutas de import existen en disco
  *   2. que los recursos locales referenciados (css, js, imagenes) existen
  *   3. que no queda ningun innerHTML fuera de comentarios
+ *   4. que lleva la CSP de `shared/cabeceras.json` al dia
+ *   5. que no tiene JavaScript incrustado, que la CSP bloquearia
  *
  * Esto pilla los enlaces rotos, que es el fallo mas facil de colar al mover
  * ficheros de sitio y el que ninguna otra herramienta del proyecto detecta:
@@ -14,22 +16,28 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const RAIZ = path.join(__dirname, '..');
 const IGNORAR = ['node_modules', '.git', 'backend', '.modulos'];
 
-function paginas(dir, encontradas = []) {
+function buscar(dir, extension, encontradas = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     if (IGNORAR.includes(e.name)) continue;
     const completo = path.join(dir, e.name);
-    if (e.isDirectory()) paginas(completo, encontradas);
-    else if (e.name.endsWith('.html')) encontradas.push(completo);
+    if (e.isDirectory()) buscar(completo, extension, encontradas);
+    else if (e.name.endsWith(extension)) encontradas.push(completo);
   }
   return encontradas;
 }
 
+const paginas = (dir, encontradas) => buscar(dir, '.html', encontradas);
+
+// Las exclusiones de `:` y `/` antes del comentario evitan que una URL se trague
+// el resto del fichero: `https://*.basemaps.cartocdn.com`, que sale en la CSP de
+// todas las paginas, abre un `/*` que no cierra hasta el siguiente `*/` real.
 const sinComentarios = (texto) => texto
-  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/(^|[^:/])\/\*[\s\S]*?\*\//g, '$1')
   .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
   .replace(/<!--[\s\S]*?-->/g, '');
 
@@ -40,14 +48,12 @@ for (const pagina of lista) {
   const rel = path.relative(RAIZ, pagina).split(path.sep).join('/');
   const html = fs.readFileSync(pagina, 'utf8');
 
-  const modulo = html.match(/<script type="module">([\s\S]*?)<\/script>/);
-  if (modulo) {
-    for (const m of modulo[1].matchAll(/from\s+['"](\/[^'"]+)['"]/g)) {
-      if (!fs.existsSync(path.join(RAIZ, m[1]))) {
-        console.error(`IMPORT   ${rel} -> ${m[1]} no existe`);
-        errores++;
-      }
-    }
+  // El JavaScript de las paginas vive en assets/js/paginas/. Un <script> en
+  // linea lo bloquearia la CSP, que declara `script-src 'self'` sin
+  // 'unsafe-inline': la pagina se veria bien y no haria nada.
+  if (/<script(?![^>]*\bsrc=)[^>]*>\s*\S/.test(html)) {
+    console.error(`INLINE   ${rel} lleva JavaScript incrustado, que la CSP bloquea`);
+    errores++;
   }
 
   for (const m of html.matchAll(/(?:href|src)="(\/[^"#?]+)"/g)) {
@@ -66,5 +72,136 @@ for (const pagina of lista) {
   }
 }
 
-console.log(`${lista.length} paginas revisadas — ${errores} ${errores === 1 ? 'error' : 'errores'}`);
+// --- Imports de los modulos --------------------------------------------------
+// Antes esto se comprobaba sobre el <script type="module"> incrustado. Ahora el
+// codigo vive en ficheros sueltos, asi que hay que mirarlos ahi o se dejaria de
+// comprobar sin que nadie se entere.
+const modulos = buscar(path.join(RAIZ, 'assets/js'), '.js');
+
+for (const modulo of modulos) {
+  const rel = path.relative(RAIZ, modulo).split(path.sep).join('/');
+  const codigo = fs.readFileSync(modulo, 'utf8');
+
+  for (const m of codigo.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
+    const ruta = m[1];
+    if (!ruta.startsWith('/') && !ruta.startsWith('.')) continue; // paquete externo
+
+    const destino = ruta.startsWith('/')
+      ? path.join(RAIZ, ruta)
+      : path.resolve(path.dirname(modulo), ruta);
+
+    if (!fs.existsSync(destino)) {
+      console.error(`IMPORT   ${rel} -> ${ruta} no existe`);
+      errores++;
+    }
+  }
+
+  if (/\.innerHTML\s*\+?=/.test(sinComentarios(codigo))) {
+    console.error(`XSS      ${rel} asigna innerHTML`);
+    errores++;
+  }
+}
+
+// --- Tokens de diseno ---------------------------------------------------------
+/**
+ * Un `var(--loquesea)` que no existe no da error en ninguna parte: el navegador
+ * descarta la declaracion y sigue. La propiedad se queda con lo que herede, asi
+ * que el fallo es SILENCIOSO y solo se ve mirando la pantalla con atencion.
+ *
+ * Como se colo: el rediseno (#49) renombro los tokens — `--error` paso a
+ * `--rojo`, `--text-muted` a `--tinta-3` — y el codigo que los pedia por el
+ * nombre viejo se quedo sin color. Los mensajes de estado salian los cuatro del
+ * mismo color que el texto normal (un error no se distinguia de un aviso) y el
+ * aviso flotante que sustituye a `alert()` salia transparente y colocado fuera
+ * de la pantalla, porque su `bottom` era un `calc()` con una variable que no
+ * existia.
+ *
+ * Una pagina puede definir tokens propios en su `<style>`: la de mantenimiento
+ * es autocontenida a proposito y no depende de `app.css`.
+ */
+const definidos = (texto) =>
+  new Set([...texto.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+
+const TOKENS = definidos(
+  fs.readFileSync(path.join(RAIZ, 'assets/css/app.css'), 'utf8')
+  + fs.readFileSync(path.join(RAIZ, 'assets/css/legal.css'), 'utf8')
+);
+
+for (const fichero of [...lista, ...modulos, ...buscar(path.join(RAIZ, 'assets/css'), '.css')]) {
+  const rel = path.relative(RAIZ, fichero).split(path.sep).join('/');
+  const contenido = fs.readFileSync(fichero, 'utf8');
+  const propios = definidos(
+    [...contenido.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('')
+  );
+
+  for (const token of new Set([...contenido.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]))) {
+    if (TOKENS.has(token) || propios.has(token)) continue;
+    console.error(`TOKEN    ${rel} usa ${token}, que no existe en el sistema de diseno`);
+    errores++;
+  }
+}
+
+// --- Clases del diseno viejo --------------------------------------------------
+/**
+ * Una clase que no existe tampoco da error: el elemento sale sin estilo y ya.
+ * Igual que con los tokens, el fallo es mudo y solo se ve mirando.
+ *
+ * Estas son las clases de la v1 que el rediseno (#49) sustituyo. Se quedaron
+ * vivas en el HTML y en el JS despues de cambiar la hoja de estilos, con
+ * consecuencias que nadie habia visto:
+ *
+ *   - el DIALOGO de confirmacion salia sin caja (fondo transparente sobre el
+ *     velo oscuro) y con los botones nativos del sistema, grises y con texto
+ *     negro. El de "Eliminar mi cuenta" era identico al de "Cancelar".
+ *   - `/statssss/` tenia cuatro iconos de una fuente que no se carga — y que la
+ *     CSP no dejaria cargar —, o sea cuatro huecos vacios.
+ *
+ * No se comprueban TODAS las clases sin estilo a proposito: hay clases que solo
+ * son un asidero para el JS y no tienen por que llevar estilo. Lo que se
+ * persigue aqui es que no vuelva lo que ya se migro.
+ */
+const CLASES_MUERTAS = {
+  card: 'bloque',
+  row: 'rejilla dos',
+  'form-group': 'campo',
+  'bottom-nav': 'nada: lo pone ui.js al pintar la barra',
+  'btn-fantasma': 'btn plano',
+  'btn-peligro': 'btn peligro',
+  fi: 'el sprite propio, con <use href="/assets/img/iconos.svg#...">',
+};
+
+for (const fichero of [...lista, ...modulos]) {
+  const rel = path.relative(RAIZ, fichero).split(path.sep).join('/');
+  // Sin comentarios: un comentario que EXPLICA la clase vieja — "antes era
+  // `<i class=\"fi ...\">`" — no es un uso, es documentacion, y hacerlo saltar
+  // obliga a escribir el historial en clave para no despertar al guardian.
+  const contenido = sinComentarios(fs.readFileSync(fichero, 'utf8'));
+
+  for (const [muerta, reemplazo] of Object.entries(CLASES_MUERTAS)) {
+    // `\\b` y no `\b`: dentro de una plantilla, `\b` es el caracter de
+    // retroceso, no el limite de palabra de la expresion regular. Escrito mal,
+    // este guardian no encuentra nunca nada y parece que todo esta bien.
+    const patron = new RegExp(`(class="|clase: '|className = ')[^"']*\\b${muerta}\\b`);
+    if (patron.test(contenido)) {
+      console.error(`CLASE    ${rel} usa "${muerta}", del diseno viejo. Ahora es: ${reemplazo}`);
+      errores++;
+    }
+  }
+}
+
+// --- CSP ---------------------------------------------------------------------
+// Se delega en el propio generador para no tener la politica escrita en dos
+// sitios, que es justo lo que este proyecto intenta no hacer.
+try {
+  execFileSync('node', [path.join(__dirname, 'aplicar-cabeceras.js'), '--comprobar'], {
+    stdio: ['ignore', 'ignore', 'inherit'],
+  });
+} catch {
+  errores++;
+}
+
+console.log(
+  `${lista.length} paginas y ${modulos.length} modulos revisados — ` +
+  `${errores} ${errores === 1 ? 'error' : 'errores'}`
+);
 process.exit(errores ? 1 : 0);

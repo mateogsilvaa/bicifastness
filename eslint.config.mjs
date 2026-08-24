@@ -6,7 +6,15 @@ import globals from 'globals';
  * ambito en el JavaScript incrustado en las paginas.
  */
 export default [
-  { ignores: ['**/node_modules/**', 'assets/data/**', 'backend/lib/**', 'data/**'] },
+  {
+    ignores: [
+      '**/node_modules/**', 'assets/data/**', 'backend/lib/**', 'data/**',
+      // Motor y modelo del OCR del navegador: son ficheros de terceros,
+      // minificados, que copia `scripts/build-ocr.js`. Analizarlos no dice nada
+      // de este proyecto y llena la salida de ruido.
+      'assets/ocr/**',
+    ],
+  },
   {
     files: ['**/*.js', '**/*.mjs'],
     languageOptions: {

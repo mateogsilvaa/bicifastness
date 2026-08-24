@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Clasificacion de BiciFastness: mejores tiempos por ruta, pilotos y clanes de BiciMAD en Madrid.">
+<title>Clasificacion | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<main class="container" id="principal">
+  <h1 class="d2">Clasificacion</h1>
+
+  <!--
+    Tres criterios para la misma pregunta: quien va por delante. Antes eran dos
+    paginas distintas (/ranking/ y /bicirating/) que respondian a lo mismo.
+  -->
+  <div class="pestanas" role="tablist" aria-label="Criterio de clasificacion">
+    <button type="button" role="tab" id="tab-rutas" aria-controls="panel-rutas" aria-selected="true">Rutas</button>
+    <button type="button" role="tab" id="tab-pilotos" aria-controls="panel-pilotos" aria-selected="false">Pilotos</button>
+    <button type="button" role="tab" id="tab-clanes" aria-controls="panel-clanes" aria-selected="false">Clanes</button>
+  </div>
+
+  <!-- RUTAS -->
+  <section id="panel-rutas" role="tabpanel" aria-labelledby="tab-rutas">
+    <div class="campo" style="max-width: 440px;">
+      <label for="selector-ruta">Ruta</label>
+      <select id="selector-ruta"></select>
+    </div>
+    <p class="mensaje" id="msg-rutas" aria-live="polite"></p>
+    <div id="tabla-rutas"></div>
+  </section>
+
+  <!-- PILOTOS -->
+  <section id="panel-pilotos" role="tabpanel" aria-labelledby="tab-pilotos" class="oculto">
+    <!--
+      Los tres modos del juego. Existen para que un fondista se vea primero en
+      Fondo aunque este el ultimo en Sprint: es lo que hace que el juego no sea
+      solo de velocistas.
+    -->
+    <div class="campo" style="max-width: 440px;">
+      <label for="selector-modo">Modo</label>
+      <select id="selector-modo">
+        <option value="general">General &mdash; suma de todo</option>
+        <option value="sprint">Sprint &mdash; puntos por tramo</option>
+        <option value="fondo">Fondo &mdash; kilometros</option>
+        <option value="constancia">Constancia &mdash; mejor racha</option>
+      </select>
+    </div>
+    <p class="menor apagado" id="explica-modo"></p>
+    <p class="mensaje" id="msg-pilotos" aria-live="polite"></p>
+    <div id="tabla-pilotos"></div>
+  </section>
+
+  <!-- CLANES -->
+  <section id="panel-clanes" role="tabpanel" aria-labelledby="tab-clanes" class="oculto">
+    <p class="menor apagado">Suma del BiciRating de los miembros de cada clan.</p>
+    <p class="mensaje" id="msg-clanes" aria-live="polite"></p>
+    <div id="tabla-clanes"></div>
+  </section>
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/clasificacion.js"></script>
+</body>
+</html>

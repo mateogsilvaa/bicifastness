@@ -15,7 +15,9 @@ const { ErrorApp } = require('./errores');
 const { limpiarTexto } = require('./util');
 const { contienePalabrasProhibidas } = require('./badwords');
 
-const db = () => admin.firestore();
+// Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
+// que el contador de cuota (#38) vea TODO lo que hace el backend.
+const { db } = require('./db');
 const AHORA = () => admin.firestore.FieldValue.serverTimestamp();
 
 const MAX_MIEMBROS = 20;

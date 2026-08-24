@@ -2,93 +2,219 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Panel de administracion | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <style>
-  .container { max-width: 1200px; }
-  .seccion { margin-bottom: 40px; }
-  .seccion > h2 { display: flex; align-items: center; gap: 10px; }
-  .contador { background: var(--primary); color: #fff; border-radius: 20px; padding: 2px 12px; font-size: .8rem; }
-  .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; margin-top: 16px; }
-  .tarjeta { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radio); padding: 16px; }
-  .tarjeta.riesgo-alto { border-color: var(--error); background: rgba(255,90,90,.06); }
-  .tarjeta.riesgo-medio { border-color: var(--aviso); background: rgba(255,176,32,.05); }
-  .cabecera { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 6px; gap: 10px; }
-  .meta { font-size: .78rem; color: var(--text-muted); line-height: 1.6; }
-  .veredicto { margin: 12px 0; padding: 10px 12px; border-radius: var(--radio-s); background: var(--bg-input); font-size: .8rem; }
-  .veredicto ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.6; }
-  .veredicto li { margin-bottom: 4px; }
-  .acciones { display: flex; gap: 10px; margin-top: 14px; }
-  .acciones button { margin: 0; padding: 10px; font-size: .85rem; }
-  .btn-aprobar { background: var(--exito); color: #04140a; }
-  .btn-rechazar { background: transparent; border: 1px solid var(--error); color: var(--error); }
-  .btn-ver { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
-  .buscador { position: relative; }
-  .resultados { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radio-s); max-height: 260px; overflow-y: auto; z-index: 50; display: none; }
-  .resultados div { padding: 10px 14px; cursor: pointer; display: flex; justify-content: space-between; font-size: .9rem; }
-  .resultados div:hover { background: var(--bg-input); }
-  .insignias { display: none; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 16px; }
-  .fila-insignia { display: flex; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 10px 14px; border-radius: var(--radio-s); font-size: .85rem; }
-  .vacio { grid-column: 1/-1; color: var(--text-muted); padding: 20px; text-align: center; }
-  #visor { position: fixed; inset: 0; background: rgba(4,6,10,.93); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
-  #visor img { max-width: 92%; max-height: 88vh; border-radius: var(--radio-s); }
+  /* Estilos propios del panel de administracion.
+   *
+   * Solo lo que NO esta en el sistema de diseno. Aqui no se redefine ninguna
+   * clase de `app.css`: la version anterior pisaba `.rejilla` y `.vacio`, o sea
+   * que esta pantalla se llevaba por delante dos piezas comunes y nadie sabia
+   * por que se veian distintas aqui.
+   *
+   * Y todo con los tokens del sistema: ni un pixel ni un color a mano.
+   */
+  /* Contador de cola, al lado del titulo. Cifras monoespaciadas para que no
+   * baile el ancho al pasar de 9 a 10. */
+  .contador {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 13px;
+    background: var(--azul);
+    color: var(--sobre-azul);
+    border-radius: 999px;
+    padding: var(--e1) var(--e3);
+  }
+  /* Scoped al panel: `.seccion` es una clase comun y un selector de
+     descendencia sobre ella acaba afectando a lo que no debe. */
+  .titulo-cola { display: flex; align-items: center; gap: var(--e3); }
 
-  .tarjeta { transition: border-color var(--transicion); box-shadow: var(--sombra-media); }
-  .contador { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; font-weight: 700; }
-  .veredicto { border: 1px solid var(--border); }
-  .acciones button { min-height: 44px; }
+  /* Rejilla propia: las tarjetas de reporte piden un ancho minimo mayor que el
+   * de la rejilla comun, que reparte en columnas fijas. */
+  .rejilla-admin {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: var(--e4);
+    margin-top: var(--e4);
+  }
+
+  .tarjeta {
+    background: var(--papel);
+    border: var(--borde);
+    padding: var(--e4);
+    transition: border-color var(--transicion);
+  }
+  /* El tinte sale del propio token, no de un rgba escrito a mano: asi sigue
+   * cuadrando si el color de la señal cambia. */
+  .tarjeta.riesgo-alto {
+    border-color: var(--rojo);
+    background: color-mix(in srgb, var(--rojo) 7%, var(--papel));
+  }
+  .tarjeta.riesgo-medio {
+    border-color: var(--ambar);
+    background: color-mix(in srgb, var(--ambar) 7%, var(--papel));
+  }
+
+  .cabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--e3);
+    font-weight: 700;
+    margin-bottom: var(--e2);
+  }
+  .meta { font-size: 13px; color: var(--tinta-3); line-height: 1.6; }
+
+  .veredicto {
+    margin: var(--e3) 0;
+    padding: var(--e3);
+    border: var(--borde);
+    background: var(--papel-2);
+    font-size: 13px;
+  }
+  .veredicto ul { margin: var(--e2) 0 0; padding-left: var(--e5); line-height: 1.6; }
+  .veredicto li { margin-bottom: var(--e1); }
+
+  .acciones { display: flex; gap: var(--e3); margin-top: var(--e4); }
+  .acciones .btn { margin: 0; }
+
+  /* Buscador de piloto o clan. */
+  .buscador { position: relative; }
+  .resultados {
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    z-index: 50;
+    display: none;
+    max-height: 260px;
+    overflow-y: auto;
+    background: var(--papel);
+    border: var(--borde);
+  }
+  .resultados div {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--e3) var(--e4);
+    cursor: pointer;
+  }
+  .resultados div:hover { background: var(--papel-2); }
+
+  .insignias {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--e2);
+    margin-top: var(--e4);
+  }
+  .fila-insignia {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--papel-2);
+    padding: var(--e3) var(--e4);
+    font-size: 14px;
+  }
+
+  /* Captura a pantalla completa. */
+  #visor {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: var(--e5);
+    background: color-mix(in srgb, var(--tinta) 92%, transparent);
+  }
+  #visor img { max-width: 92%; max-height: 88vh; }
+
+  /* --- Cola de revision (#15) ---------------------------------------------
+   * Dos columnas en cuanto hay sitio: la captura a la izquierda y todo lo que
+   * hace falta para decidir a la derecha. En movil se apilan.
+   */
+  .caso { display: grid; gap: var(--e5); align-items: start; }
+  @media (min-width: 900px) {
+    .caso { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); }
+    /* La captura sigue a la vista mientras se lee el resto. */
+    .caso-captura { position: sticky; top: var(--e4); }
+  }
+  .caso-captura img { display: block; width: 100%; border: var(--borde); }
+
+  .cotejo { width: 100%; border-collapse: collapse; margin: var(--e4) 0; font-size: 14px; }
+  .cotejo th, .cotejo td { padding: var(--e2) var(--e3); border-bottom: var(--borde); text-align: left; }
+  .cotejo thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--tinta-3); }
+  .cotejo tbody th { font-weight: 600; color: var(--tinta-3); width: 30%; }
+  /* La fila que no cuadra es LA informacion de esta pantalla: se ve sola. */
+  .cotejo tr.difiere td:last-child { color: var(--rojo); font-weight: 800; }
+  .cotejo tr.difiere th { color: var(--rojo); }
+
+  .atajos { margin-top: var(--e4); }
+  .atajos kbd {
+    font-family: var(--mono);
+    font-size: 12px;
+    border: var(--borde);
+    border-bottom-width: 2px;
+    padding: var(--e1) var(--e2);
+    margin: 0 var(--e1);
+  }
 </style>
 </head>
 <body>
 <a href="#principal" class="saltar-contenido">Saltar al contenido</a>
 <nav id="nav-principal"></nav>
-<div class="bottom-nav" id="nav-inferior"></div>
+<div id="nav-inferior"></div>
 
-<main class="container" id="principal">
-  <p id="cargando" style="color: var(--text-muted);">Comprobando permisos...</p>
+<main class="container ancho" id="principal">
+  <p id="cargando" style="color: var(--tinta-3);">Comprobando permisos...</p>
 
   <div id="panel" class="oculto">
     <section class="seccion">
-      <h2>Viajes en revision <span class="contador" id="cuenta-revision">0</span></h2>
+      <h2 class="titulo-cola">Cola de revision <span class="contador" id="cuenta-revision">0</span></h2>
       <p class="meta">
         Aqui solo llega lo que el analisis automatico no ha podido decidir por si
         solo. Lo aprobado y lo rechazado en automatico no aparece en esta lista.
       </p>
-      <div class="rejilla" id="rejilla-revision"></div>
+
+      <!-- Un caso cada vez: todo lo necesario para decidir, a la vez en pantalla. -->
+      <p class="aviso error oculto" id="aviso-cola" role="status"></p>
+      <div id="caso"></div>
     </section>
 
     <section class="seccion">
-      <h2>Reportes de la comunidad <span class="contador" id="cuenta-reportes">0</span></h2>
-      <div class="rejilla" id="rejilla-reportes"></div>
+      <h2 class="titulo-cola">Reportes de la comunidad <span class="contador" id="cuenta-reportes">0</span></h2>
+      <div class="rejilla-admin" id="rejilla-reportes"></div>
     </section>
 
     <section class="seccion">
       <h2>Ruta destacada</h2>
-      <div class="card" style="margin-top: 16px;">
-        <div class="row">
-          <div class="form-group">
+      <div class="bloque">
+        <div class="rejilla dos">
+          <div class="campo">
             <label for="ruta-origen">Salida</label>
             <input type="text" id="ruta-origen" maxlength="4" placeholder="002">
           </div>
-          <div class="form-group">
+          <div class="campo">
             <label for="ruta-destino">Meta</label>
             <input type="text" id="ruta-destino" maxlength="4" placeholder="110">
           </div>
         </div>
         <button id="btn-destacar">Destacar ruta</button>
-        <p class="mensaje" id="msg-destacar"></p>
+        <p class="mensaje" id="msg-destacar" aria-live="polite"></p>
       </div>
     </section>
 
     <section class="seccion">
       <h2>Insignias</h2>
-      <div class="card" style="margin-top: 16px;">
-        <div class="form-group buscador">
+      <div class="bloque">
+        <div class="campo buscador">
           <label for="busca-objetivo">Buscar piloto o clan</label>
           <input type="text" id="busca-objetivo" autocomplete="off" placeholder="Escribe un nombre">
           <div class="resultados" id="resultados-busqueda"></div>
@@ -100,13 +226,13 @@
 
     <section class="seccion">
       <h2>Administradores</h2>
-      <div class="card" style="margin-top: 16px;">
+      <div class="bloque">
         <p class="meta">
           El rol de administrador es un custom claim de Firebase Auth y solo se
           puede conceder con credenciales de servicio, que nunca deben llegar al
           navegador. Se hace desde tu ordenador:
         </p>
-        <pre class="meta" style="background:var(--bg-input); padding:12px; border-radius:8px; overflow-x:auto;">GOOGLE_APPLICATION_CREDENTIALS=./clave.json node scripts/set-admin.js correo@ejemplo.com</pre>
+        <pre class="meta" style="background:var(--papel-2); padding:12px; border-radius:8px; overflow-x:auto;">GOOGLE_APPLICATION_CREDENTIALS=./clave.json node scripts/set-admin.js correo@ejemplo.com</pre>
         <p class="meta">Quien lo reciba debe cerrar sesion y volver a entrar.</p>
       </div>
     </section>
@@ -116,324 +242,6 @@
 <div id="visor" role="dialog" aria-modal="true" aria-label="Captura ampliada"></div>
 <footer id="pie-legal"></footer>
 
-<script type="module">
-  import {
-    auth, db, onAuthStateChanged,
-    collection, getDocs, query, where, orderBy,
-  } from '/assets/js/firebase.js';
-  import { iniciarPagina, nombreRuta, formatearFecha, formatearTiempo, normalizarEstacion } from '/assets/js/ui.js';
-  import { id, el, estado, reemplazar, imagen, confirmar, avisar, esqueleto } from '/assets/js/dom.js';
-  import { DICCIONARIO_INSIGNIAS } from '/insignias.js';
-  import {
-    resolverViaje, resolverReporte, verCaptura,
-    gestionarInsignia, destacarRuta,
-  } from '/assets/js/acciones.js';
-
-  iniciarPagina('admin');
-
-
-  // --- Control de acceso ---
-  onAuthStateChanged(auth, async (usuario) => {
-    if (!usuario) { window.location.replace('/entrar/'); return; }
-
-    // El rol se lee del token, que va firmado por Firebase. La version anterior
-    // lo leia de un documento de Firestore que el propio usuario podia escribir,
-    // asi que cualquiera se concedia el panel a si mismo.
-    const token = await usuario.getIdTokenResult(true);
-    if (token.claims.admin !== true) {
-      id('cargando').textContent = 'No tienes permisos de administrador.';
-      setTimeout(() => window.location.replace('/home/'), 1500);
-      return;
-    }
-
-    id('cargando').classList.add('oculto');
-    id('panel').classList.remove('oculto');
-    cargarRevision();
-    cargarReportes();
-    cargarObjetivos();
-  });
-
-  // --- Viajes en revision ---
-  async function cargarRevision() {
-    const rejilla = id('rejilla-revision');
-    reemplazar(rejilla, esqueleto(3, 200));
-
-    try {
-      const snapshot = await getDocs(query(
-        collection(db, 'tiempos_viaje'),
-        where('estado', '==', 'revision'),
-        orderBy('creado', 'desc')
-      ));
-
-      id('cuenta-revision').textContent = snapshot.size;
-
-      if (snapshot.empty) {
-        reemplazar(rejilla, el('div', { clase: 'vacio', texto: 'Todo al dia. No hay nada esperando revision.' }));
-        return;
-      }
-
-      reemplazar(rejilla, snapshot.docs.map((doc) => tarjetaViaje(doc.id, doc.data())));
-    } catch (error) {
-      reemplazar(rejilla, el('div', { clase: 'vacio', texto: `Error al cargar: ${error.message}` }));
-    }
-  }
-
-  /**
-   * Tarjeta de un viaje.
-   * Todo el texto entra por textContent y los botones por addEventListener.
-   * La version anterior construia esto con `innerHTML +=` interpolando
-   * `email_real` y `foto_url` — dos campos que controlaba quien subia el viaje —
-   * tanto dentro del HTML como dentro de atributos onclick. Registrandose con un
-   * nombre preparado se ejecutaba JavaScript aqui, en la sesion del admin.
-   */
-  function tarjetaViaje(viajeId, viaje) {
-    const auditoria = viaje.auditoria || {};
-    const riesgo = auditoria.riesgo || 0;
-    const clase = riesgo >= 50 ? 'riesgo-alto' : riesgo >= 25 ? 'riesgo-medio' : '';
-
-    const botonAprobar = el('button', {
-      clase: 'btn-aprobar', texto: 'Aprobar',
-      on: { click: () => decidir(viajeId, 'aprobar', botonAprobar) },
-    });
-    const botonRechazar = el('button', {
-      clase: 'btn-rechazar', texto: 'Rechazar',
-      on: { click: () => decidir(viajeId, 'rechazar', botonRechazar) },
-    });
-
-    return el('article', { clase: `tarjeta ${clase}`, attrs: { 'data-viaje': viajeId } }, [
-      el('div', { clase: 'cabecera' }, [
-        el('span', { texto: nombreRuta(viaje.ruta) }),
-        el('span', { texto: formatearTiempo(viaje.tiempoSegundos) }),
-      ]),
-
-      el('p', { clase: 'meta' }, [
-        el('strong', { texto: viaje.username || 'Sin nombre' }),
-        ` · ${formatearFecha(viaje.fechaViaje)}`,
-        el('br'),
-        auditoria.metros ? `${auditoria.metros} m estimados · ${auditoria.kmh} km/h de media` : '',
-      ]),
-
-      el('div', { clase: 'veredicto' }, [
-        el('strong', { texto: `Riesgo ${riesgo} — ${auditoria.resumen || 'sin analisis'}` }),
-        auditoria.señales?.length
-          ? el('ul', {}, auditoria.señales.map((s) => el('li', { texto: `[${s.gravedad}] ${s.mensaje}` })))
-          : null,
-      ]),
-
-      el('button', {
-        clase: 'btn-ver', texto: 'Ver captura',
-        on: { click: (e) => abrirCaptura(viajeId, e.currentTarget) },
-      }),
-
-      el('div', { clase: 'acciones' }, [botonRechazar, botonAprobar]),
-    ]);
-  }
-
-  async function decidir(viajeId, accion, boton) {
-    const confirmado = await confirmar(
-      accion === 'aprobar'
-        ? 'Aprobar este viaje y anadirlo al ranking?'
-        : 'Rechazar este viaje? Dejara de contar para el ranking.',
-      { textoAceptar: accion === 'aprobar' ? 'Aprobar' : 'Rechazar', peligroso: accion === 'rechazar' }
-    );
-    if (!confirmado) return;
-
-    boton.disabled = true;
-    boton.textContent = 'Guardando...';
-    try {
-      await resolverViaje(viajeId, accion);
-      document.querySelector(`[data-viaje="${CSS.escape(viajeId)}"]`)?.remove();
-      const contador = id('cuenta-revision');
-      contador.textContent = Math.max(0, Number(contador.textContent) - 1);
-    } catch (error) {
-      boton.disabled = false;
-      boton.textContent = accion === 'aprobar' ? 'Aprobar' : 'Rechazar';
-      avisar(error.message);
-    }
-  }
-
-  /** Pide al servidor una URL firmada de 10 minutos y la muestra. */
-  async function abrirCaptura(viajeId, boton) {
-    const original = boton.textContent;
-    boton.disabled = true;
-    boton.textContent = 'Abriendo...';
-    try {
-      const url = await verCaptura(viajeId);
-      const visor = id('visor');
-      reemplazar(visor, imagen(url, { attrs: { alt: 'Captura del viaje' } }));
-      visor.style.display = 'flex';
-    } catch (error) {
-      avisar(error.message);
-    } finally {
-      boton.disabled = false;
-      boton.textContent = original;
-    }
-  }
-
-  const visor = id('visor');
-  visor.addEventListener('click', () => { visor.style.display = 'none'; });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') visor.style.display = 'none';
-  });
-
-  // --- Reportes ---
-  async function cargarReportes() {
-    const rejilla = id('rejilla-reportes');
-    try {
-      const snapshot = await getDocs(query(
-        collection(db, 'reportes'),
-        where('estado', '==', 'pendiente'),
-        orderBy('creado', 'desc')
-      ));
-
-      id('cuenta-reportes').textContent = snapshot.size;
-
-      if (snapshot.empty) {
-        reemplazar(rejilla, el('div', { clase: 'vacio', texto: 'No hay reportes pendientes.' }));
-        return;
-      }
-
-      reemplazar(rejilla, snapshot.docs.map((doc) => {
-        const reporte = doc.data();
-        const botonBorrar = el('button', {
-          clase: 'btn-rechazar', texto: 'Eliminar viaje',
-          on: { click: () => resolver(doc.id, 'eliminar_viaje', botonBorrar, reporte.viajeId) },
-        });
-        const botonIgnorar = el('button', {
-          clase: 'btn-ver', texto: 'Falsa alarma',
-          on: { click: () => resolver(doc.id, 'ignorar', botonIgnorar, reporte.viajeId) },
-        });
-
-        return el('article', { clase: 'tarjeta riesgo-alto', attrs: { 'data-reporte': doc.id } }, [
-          el('div', { clase: 'cabecera' }, [el('span', { texto: `Reporte en ${nombreRuta(reporte.ruta)}` })]),
-          el('p', { clase: 'meta', texto: reporte.motivo || 'Sin motivo indicado.' }),
-          el('button', {
-            clase: 'btn-ver', texto: 'Ver captura reportada',
-            on: { click: (e) => abrirCaptura(reporte.viajeId, e.currentTarget) },
-          }),
-          el('div', { clase: 'acciones' }, [botonIgnorar, botonBorrar]),
-        ]);
-      }));
-    } catch (error) {
-      reemplazar(rejilla, el('div', { clase: 'vacio', texto: `Error: ${error.message}` }));
-    }
-  }
-
-  async function resolver(reporteId, accion, boton, viajeId) {
-    const confirmado = await confirmar(
-      accion === 'ignorar' ? 'Marcar este reporte como falsa alarma?' : 'Eliminar el viaje reportado del ranking?',
-      { peligroso: accion !== 'ignorar' }
-    );
-    if (!confirmado) return;
-
-    boton.disabled = true;
-    try {
-      await resolverReporte(reporteId, accion, viajeId);
-      document.querySelector(`[data-reporte="${CSS.escape(reporteId)}"]`)?.remove();
-      const contador = id('cuenta-reportes');
-      contador.textContent = Math.max(0, Number(contador.textContent) - 1);
-    } catch (error) {
-      boton.disabled = false;
-      avisar(error.message);
-    }
-  }
-
-  // --- Ruta destacada ---
-  id('btn-destacar').addEventListener('click', async () => {
-    const boton = id('btn-destacar');
-    boton.disabled = true;
-    try {
-      const ruta = `${normalizarEstacion(id('ruta-origen').value)}-${normalizarEstacion(id('ruta-destino').value)}`;
-      await destacarRuta(ruta);
-      estado(id('msg-destacar'), `Ruta ${ruta} destacada y puntuaciones recalculadas.`, 'exito');
-    } catch (error) {
-      estado(id('msg-destacar'), error.message, 'error');
-    } finally {
-      boton.disabled = false;
-    }
-  });
-
-  // --- Insignias ---
-  let objetivos = [];
-
-  async function cargarObjetivos() {
-    const [usuarios, clanes] = await Promise.all([
-      getDocs(collection(db, 'usuarios')),
-      getDocs(collection(db, 'clanes')),
-    ]);
-    objetivos = [
-      ...usuarios.docs.map((d) => ({ id: d.id, tipo: 'usuarios', nombre: d.data().username || d.id, logros: d.data().logros || [] })),
-      ...clanes.docs.map((d) => ({ id: d.id, tipo: 'clanes', nombre: d.data().nombre || d.id, logros: d.data().logros || [] })),
-    ];
-  }
-
-  id('busca-objetivo').addEventListener('input', (evento) => {
-    const termino = evento.target.value.trim().toLowerCase();
-    const caja = id('resultados-busqueda');
-
-    if (!termino) { caja.style.display = 'none'; return; }
-
-    const encontrados = objetivos
-      .filter((o) => o.nombre.toLowerCase().includes(termino))
-      .slice(0, 10);
-
-    reemplazar(caja, encontrados.length
-      ? encontrados.map((o) => el('div', {
-        on: { click: () => seleccionar(o) },
-      }, [
-        el('span', { texto: o.nombre }),
-        el('span', { texto: o.tipo === 'usuarios' ? 'Piloto' : 'Clan', estilo: { color: 'var(--text-muted)' } }),
-      ]))
-      : [el('div', { texto: 'Sin resultados', estilo: { color: 'var(--text-muted)' } })]);
-
-    caja.style.display = 'block';
-  });
-
-  document.addEventListener('click', (e) => {
-    if (e.target.id !== 'busca-objetivo') id('resultados-busqueda').style.display = 'none';
-  });
-
-  function seleccionar(objetivo) {
-    id('busca-objetivo').value = '';
-    id('resultados-busqueda').style.display = 'none';
-    id('objetivo-actual').textContent =
-      `Editando: ${objetivo.nombre} (${objetivo.tipo === 'usuarios' ? 'piloto' : 'clan'})`;
-
-    const rejilla = id('rejilla-insignias');
-    reemplazar(rejilla, Object.entries(DICCIONARIO_INSIGNIAS).map(([clave, info]) => {
-      const casilla = el('input', {
-        attrs: { type: 'checkbox', checked: objetivo.logros.includes(clave) ? '' : null },
-        estilo: { width: '18px', height: '18px', accentColor: 'var(--primary)' },
-        on: {
-          change: async (e) => {
-            const otorgar = e.target.checked;
-            e.target.disabled = true;
-            try {
-              await gestionarInsignia(objetivo.tipo, objetivo.id, clave, otorgar);
-              objetivo.logros = otorgar
-                ? [...objetivo.logros, clave]
-                : objetivo.logros.filter((l) => l !== clave);
-            } catch (error) {
-              e.target.checked = !otorgar;
-              avisar(error.message);
-            } finally {
-              e.target.disabled = false;
-            }
-          },
-        },
-      });
-
-      return el('div', { clase: 'fila-insignia' }, [
-        el('span', { estilo: { display: 'flex', gap: '8px', alignItems: 'center' } }, [
-          el('i', { clase: info.icono, estilo: { color: info.color } }),
-          el('span', { texto: info.titulo }),
-        ]),
-        casilla,
-      ]);
-    }));
-    rejilla.style.display = 'grid';
-  }
-
-</script>
+<script type="module" src="/assets/js/paginas/admin.js"></script>
 </body>
 </html>

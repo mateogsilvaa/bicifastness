@@ -2,21 +2,25 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Politica de privacidad | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <link rel="stylesheet" href="/assets/css/legal.css">
 </head>
 <body>
 <nav id="nav-principal"></nav>
-<div class="bottom-nav" id="nav-inferior"></div>
+<div id="nav-inferior"></div>
 
 <main class="legal">
   <h1>Politica de privacidad</h1>
-  <p class="version">Version 1.0.0 &middot; En vigor desde el 26 de julio de 2026</p>
+  <p class="version">Version 1.3.0 &middot; En vigor desde el 23 de agosto de 2026</p>
 
   <div class="recuadro alerta">
     <p><strong>Pendiente de completar antes de publicar.</strong> Rellena los
@@ -147,9 +151,85 @@
     <p>
       <strong>No hacemos publicidad ni perfilado comercial</strong>, no vendemos
       ni cedemos tus datos a terceros con fines comerciales, y no usamos cookies
-      de seguimiento ni herramientas de analitica.
+      de seguimiento ni herramientas de analitica de terceros.
     </p>
   </div>
+
+  <h2 id="medicion">3 bis. Que medimos, y como</h2>
+  <p>
+    Medimos tres cosas, todas con herramientas propias y ninguna con cookies ni
+    identificadores que sobrevivan a la pestaña. Lo contamos con detalle porque
+    lo que no se explica no se puede consentir.
+  </p>
+
+  <h3>Uso de la web</h3>
+  <p>
+    Guardamos <strong>cuantas veces ocurre cada paso</strong> del recorrido de
+    subir un trayecto: paginas vistas, subidas empezadas, enviadas y fallidas,
+    registros empezados y completados. Sirve para saber por donde se cae la
+    gente y arreglarlo.
+  </p>
+  <p>
+    Cada sesion escribe <strong>un unico documento con contadores</strong>, con
+    el dia, la version de la app y un identificador aleatorio que se genera al
+    abrir la pestaña y desaparece al cerrarla. <strong>No hay cookie, ni
+    almacenamiento persistente, ni huella del navegador.</strong> Dos visitas
+    tuyas en dias distintos son, para esta medicion, dos desconocidos. El
+    detalle se agrega en contadores diarios y se borra en cuanto esta contado,
+    normalmente en menos de quince minutos.
+  </p>
+
+  <h3>Errores de la aplicacion</h3>
+  <p>
+    Cuando algo falla en tu navegador guardamos el mensaje del error, su traza
+    tecnica, <strong>la ruta</strong> de la pagina (no la direccion completa),
+    la familia de navegador (Chrome, Safari, Firefox), la version de la app, el
+    ancho de la ventana y si habia sesion iniciada o no. <strong>No se guarda tu
+    identificador de usuario, ni tu correo, ni nada que permita saber a quien le
+    paso.</strong>
+  </p>
+  <p>
+    Los errores iguales se agrupan, y de cada uno se cuenta a cuantas
+    <em>sesiones</em> les ha pasado, no cuantas veces. Es lo que permite decidir
+    que arreglar primero sin seguir a nadie.
+  </p>
+
+  <h3>Si la gente vuelve</h3>
+  <p>
+    Esta pregunta <strong>no se responde rastreando</strong>. Se calcula
+    cruzando datos que ya tenemos por otro motivo: la fecha de alta de las
+    cuentas y las fechas de los trayectos verificados. El resultado son
+    <strong>porcentajes agregados</strong> por grupos de alta; no se elabora ni
+    se guarda ningun perfil individual, y no se toma ninguna decision sobre ti a
+    partir de ello.
+  </p>
+  <p>
+    La base legal de las tres es el <strong>interes legitimo</strong>
+    (art. 6.1.f RGPD) en mantener el servicio en pie y arreglar lo que se rompe.
+    Al no usar cookies ni identificadores persistentes, no entra en el
+    art. 22.2 de la LSSI y por eso no hay banner: lo explicamos en la
+    <a href="/legal/cookies/">politica de cookies</a>.
+  </p>
+
+  <h3>Avisos en el movil</h3>
+  <p>
+    Si los activas, guardamos la <strong>suscripcion push</strong> que genera tu
+    navegador: una direccion del servicio de notificaciones de tu navegador
+    (Google, Apple o Mozilla, segun cual uses) y dos claves que solo sirven para
+    cifrar el aviso.
+  </p>
+  <p>
+    No es un identificador nuestro ni nos dice nada de ti: no lleva tu nombre,
+    ni tu correo, ni el modelo del movil. Sirve para una sola cosa, que es tener
+    a donde enviar. Se guarda una por dispositivo, porque cada navegador genera
+    la suya.
+  </p>
+  <p>
+    Los avisos los envia el proceso que verifica los trayectos, y solo de lo que
+    hayas dejado activado. <strong>Se apagan de uno en uno desde tu perfil</strong>,
+    y al apagarlos la suscripcion se borra. La base legal es tu consentimiento
+    (art. 6.1.a RGPD), que das al activarlos y retiras al apagarlos.
+  </p>
 
   <h2 id="conservacion">4. Cuanto tiempo los guardamos</h2>
   <ul>
@@ -158,6 +238,9 @@
     <li><strong>Tiempos verificados:</strong> se conservan de forma indefinida como registro historico de la competicion. Si eliminas tu cuenta, <strong>se anonimizan</strong>: dejan de estar asociados a ti y no permiten reidentificarte.</li>
     <li><strong>Huellas de capturas:</strong> 24 meses. Son la unica forma de impedir que una imagen ya usada vuelva a colarse.</li>
     <li><strong>Registro de consentimiento:</strong> mientras dure la relacion y 3 anos mas, como plazo de prescripcion de las infracciones graves en materia de proteccion de datos (art. 30 LOPDGDD).</li>
+    <li><strong>Medicion de uso:</strong> el detalle por sesion se agrega en contadores diarios y <strong>se borra en cuanto esta contado</strong>, normalmente en menos de quince minutos. Los contadores diarios, que ya no permiten distinguir sesiones, se conservan como historico del producto.</li>
+    <li><strong>Errores de la aplicacion:</strong> 90 dias desde la ultima vez que se produjo cada uno.</li>
+    <li><strong>Suscripcion a los avisos:</strong> mientras los tengas activados. Se borra al apagarlos, y tambien sola cuando tu navegador deja de reconocerla (al desinstalar la app o limpiar los datos del sitio).</li>
     <li><strong>Registros tecnicos:</strong> segun los plazos de retencion de Google Firebase, en general no superiores a 12 meses.</li>
   </ul>
 
@@ -178,18 +261,40 @@
           <td>Union Europea (region <code>europe-west1</code>), con posible acceso desde EE. UU.</td>
         </tr>
         <tr>
-          <td>Google Ireland Limited (Gemini API)</td>
-          <td>Analisis automatico de las capturas de verificacion.</td>
-          <td>Union Europea / EE. UU.</td>
+          <td>Vercel Inc.</td>
+          <td>Alojamiento del sitio web.</td>
+          <td>EE. UU., con red de distribucion en la Union Europea.</td>
+        </tr>
+        <tr>
+          <td>Resend (Plus Five Five, Inc.)</td>
+          <td>Envio de los avisos por correo sobre tus trayectos.</td>
+          <td>EE. UU.</td>
+        </tr>
+        <tr>
+          <td>GitHub, Inc.</td>
+          <td>Ejecucion del proceso que verifica las capturas.</td>
+          <td>EE. UU.</td>
         </tr>
       </tbody>
     </table>
   </div>
   <p>
+    El analisis de las capturas <strong>ya no usa ningun servicio de
+    inteligencia artificial</strong>: se hace con reconocimiento de texto que se
+    ejecuta en nuestro propio proceso, y la imagen no sale de nuestra
+    infraestructura.
+  </p>
+  <p>
     Ademas, tu <strong>nombre de piloto, avatar, tiempos verificados, puntuacion,
     insignias y equipo son publicos</strong> y visibles por cualquier persona que
-    visite el sitio, incluso sin registrarse. Tu <strong>correo electronico nunca
-    se publica</strong>.
+    visite el sitio, incluso sin registrarse. Tu <strong>correo electronico no se
+    publica ni se guarda en la base de datos</strong>: lo custodia unicamente el
+    servicio de autenticacion.
+  </p>
+  <p>
+    Puedes <strong>desactivar los avisos por correo</strong> cuando quieras desde
+    tu perfil, o desde el enlace que lleva cada correo, que funciona sin
+    necesidad de iniciar sesion.
   </p>
 
   <h2 id="transferencias">6. Transferencias fuera de la Union Europea</h2>
@@ -245,7 +350,7 @@
   <div class="recuadro">
     <p>
       <strong>De forma inmediata y sin esperas:</strong> desde
-      <a href="/profile/">tu perfil</a> puedes descargar todos tus datos en
+      <a href="/yo/">tu perfil</a> puedes descargar todos tus datos en
       formato JSON (acceso y portabilidad) y eliminar tu cuenta por completo
       (supresion).
     </p>
@@ -302,9 +407,6 @@
 </main>
 
 <footer id="pie-legal"></footer>
-<script type="module">
-  import { iniciarPagina } from '/assets/js/ui.js';
-  iniciarPagina('');
-</script>
+<script type="module" src="/assets/js/paginas/legal-privacidad.js"></script>
 </body>
 </html>

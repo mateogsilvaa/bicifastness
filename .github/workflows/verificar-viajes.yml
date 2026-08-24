@@ -9,10 +9,22 @@ name: Verificar viajes
 # repositorios publicos.
 
 on:
-  schedule:
-    # Cada 5 minutos. GitHub puede retrasar las ejecuciones programadas cuando
-    # hay mucha carga, asi que el retardo real ronda los 5-15 minutos.
-    - cron: '*/5 * * * *'
+  # ---------------------------------------------------------------------------
+  # EL CRON ESTA APAGADO A PROPOSITO HASTA EL LANZAMIENTO. Volver a activarlo es
+  # quitar el comentario de las dos lineas de abajo, y esta anotado en el
+  # checklist del README y en el issue #7.
+  #
+  # Por que: sin `FIREBASE_SERVICE_ACCOUNT` el worker no puede hacer nada, pero
+  # el cron se despierta igual. Ademas de mandar un correo de fallo por
+  # ejecucion, en un repositorio PRIVADO cada una gasta cuota: Actions factura
+  # por minuto empezado, asi que 288 despertares al dia son 288 minutos contra
+  # el limite de 2.000 al mes, para no hacer nada.
+  #
+  # Cada 5 minutos. GitHub puede retrasar las ejecuciones programadas cuando hay
+  # mucha carga, asi que el retardo real ronda los 5-15 minutos.
+  # schedule:
+  #   - cron: '*/5 * * * *'
+
   # Para poder lanzarlo a mano desde la pestana Actions sin esperar al reloj.
   workflow_dispatch:
     inputs:
@@ -30,7 +42,10 @@ concurrency:
 jobs:
   verificar:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # La ejecucion se queda unos minutos dando pasadas a la cola (VENTANA_MINUTOS
+    # en worker.js), asi que el limite tiene que dejar sitio a la ventana mas el
+    # trabajo periodico del final.
+    timeout-minutes: 12
 
     steps:
       - uses: actions/checkout@v4
@@ -41,16 +56,63 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      # `setup-node` cachea la CARPETA DE NPM, no las dependencias: con solo eso
+      # `npm ci` sigue instalando y compilando sharp en cada ejecucion, que es de
+      # lo mas lento del arranque. Esto cachea node_modules ya instalado.
+      - name: Cache de dependencias del worker
+        id: modulos
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: worker-modulos-${{ runner.os }}-node20-${{ hashFiles('backend/package-lock.json') }}
+
       - name: Instalar dependencias
+        if: steps.modulos.outputs.cache-hit != 'true'
         working-directory: backend
         run: npm ci
 
-      - name: Regenerar datos compartidos
-        run: node scripts/build-estaciones.js
+      # El modelo de idioma del OCR son varios megas que tesseract se baja la
+      # primera vez. Sin esto, cada ejecucion los vuelve a bajar.
+      - name: Cache del idioma del OCR
+        uses: actions/cache@v4
+        with:
+          path: backend/.tesseract
+          key: tesseract-spa-${{ runner.os }}
+
+      # Ya NO se regeneran aqui los datos compartidos: `assets/data` y
+      # `backend/lib` estan en el repositorio, y `ci.yml` falla si no coinciden
+      # con sus fuentes. Regenerarlos en cada pasada del cron era ~10 s por
+      # ejecucion para reescribir dos ficheros identicos.
 
       - name: Procesar la cola
         working-directory: backend
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: node worker.js ${{ inputs.simular && '--simular' || '' }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          # A quien avisar cuando la cuota se acerque al limite (#38). Sin esto
+          # el aviso se queda en el log del workflow, donde no lo lee nadie
+          # hasta que ya es tarde.
+          CORREO_ADMIN: ${{ secrets.CORREO_ADMIN }}
+          # Avisos push (#33). Sin ellas no se envia nada y no es un error: es
+          # el estado normal hasta que alguien genere el par con
+          # `node scripts/claves-push.js`.
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          # Cuanto se queda vivo dando pasadas, y cada cuanto. Con 0 vuelve al
+          # comportamiento de antes: una mirada a la cola y a casa.
+          VENTANA_MINUTOS: '4'
+          ESPERA_SEGUNDOS: '45'
+        run: |
+          # Mientras no haya credenciales no hay nada que verificar, y el cron
+          # se despierta igual. Sin esta salida limpia, cada ejecucion cuenta
+          # como fallo y manda un correo: son ~288 al dia.
+          #
+          # El worker SI debe morir con error si le falta la credencial (lo hace
+          # en worker.js): decidir que el proyecto todavia no esta configurado
+          # es cosa del workflow, no suya.
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::warning::Sin FIREBASE_SERVICE_ACCOUNT: no hay cola que procesar. Crea los secretos (README, apartado 3)."
+            exit 0
+          fi
+          node worker.js ${{ inputs.simular && '--simular' || '' }}

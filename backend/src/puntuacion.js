@@ -10,13 +10,82 @@
  */
 
 const admin = require('firebase-admin');
-const { PUNTOS } = require('./config');
+const { PUNTOS, VIAJE } = require('./config');
+const rachas = require('./rachas');
+const agregados = require('./agregados');
+const territorio = require('./territorio');
 
-const db = () => admin.firestore();
+// Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
+// que el contador de cuota (#38) vea TODO lo que hace el backend.
+const { db } = require('./db');
 
 /** Puntos que da una posicion (0-indexada) en el ranking de una ruta. */
 function puntosPorPosicion(indice) {
   return PUNTOS.POR_POSICION[indice] ?? 0;
+}
+
+// --- Puntos de un viaje suelto -----------------------------------------------
+/**
+ * Lo que suma un trayecto por si mismo, al margen de la clasificacion del tramo.
+ *
+ * Este es el cambio que hace que el juego deje de ser solo de velocistas: un
+ * fondista de 6 km a 12 km/h y un velocista de 1,5 km a 20 km/h acaban en el
+ * mismo orden de magnitud. Los numeros y su justificacion, en `config.js` y en
+ * docs/JUEGO.md.
+ *
+ * Devuelve tambien el desglose, porque un jugador que no entiende de donde
+ * salen sus puntos no confia en la puntuacion.
+ *
+ * @param {object} viaje
+ * @param {number} viaje.distanciaMetros
+ * @param {number} [viaje.velocidadKmh]
+ * @param {number} [viaje.multiplicadorRuta]  x2 si es la ruta del dia
+ * @param {number} [viaje.racha]              dias de racha del piloto
+ * @param {boolean} [viaje.territorioPropio]  toca estacion que controla su clan
+ * @param {boolean} [viaje.puntua]            false pasado el cupo diario
+ */
+function calcularPuntosViaje({
+  distanciaMetros,
+  velocidadKmh = null,
+  multiplicadorRuta = 1,
+  racha = 0,
+  territorioPropio = false,
+  puntua = true,
+} = {}) {
+  const km = Math.max(0, Number(distanciaMetros) || 0) / 1000;
+  const kmh = Math.max(0, Number(velocidadKmh) || 0);
+
+  const base = VIAJE.BASE;
+  const porDistancia = Math.round(km * VIAJE.PUNTOS_POR_KM);
+  // El maximo(0, ...) es lo que hace que un trayecto lento no reste: sigue
+  // sumando por base y por distancia.
+  const porVelocidad = Math.round(
+    Math.max(0, kmh - VIAJE.VELOCIDAD_UMBRAL_KMH) * VIAJE.PUNTOS_POR_KMH
+  );
+
+  const bruto = base + porDistancia + porVelocidad;
+
+  const multRacha = rachas.multiplicador(racha);
+  const multTerritorio = territorioPropio ? VIAJE.MULTIPLICADOR_TERRITORIO : 1;
+  const multRuta = Number(multiplicadorRuta) || 1;
+
+  // Pasado el cupo diario el viaje se registra en las estadisticas pero no da
+  // puntos. El cupo lo cuenta el worker sobre Firestore, nunca el navegador.
+  const total = puntua ? Math.round(bruto * multRacha * multRuta * multTerritorio) : 0;
+
+  return {
+    total,
+    puntua,
+    desglose: {
+      base,
+      distancia: porDistancia,
+      velocidad: porVelocidad,
+      subtotal: bruto,
+      multiplicadorRacha: multRacha,
+      multiplicadorRuta: multRuta,
+      multiplicadorTerritorio: multTerritorio,
+    },
+  };
 }
 
 /** Multiplicador de la ruta segun si esta destacada o es historica. */
@@ -38,9 +107,14 @@ async function multiplicadorRuta(ruta) {
 async function recalcularRuta(ruta) {
   const multiplicador = await multiplicadorRuta(ruta);
 
+  // Ordenado y acotado: solo puntuan los siete primeros, asi que leer la ruta
+  // entera era pagar por lo que no se usa. El indice `ruta + verificado +
+  // tiempoSegundos` ya existe y sirve este orden sin nada nuevo.
   const snapshot = await db().collection('tiempos_viaje')
     .where('ruta', '==', ruta)
     .where('verificado', '==', true)
+    .orderBy('tiempoSegundos', 'asc')
+    .limit(PUNTOS.TOPE_CLASIFICACION_RUTA)
     .get();
 
   /** @type {Map<string, number>} uid -> mejor tiempo */
@@ -120,21 +194,51 @@ async function escribirEnLotes(escrituras, tamano = 450) {
   }
 }
 
-/** Suma el biciRating de los miembros de un clan. */
+/**
+ * Suma el biciRating de los miembros de un clan.
+ *
+ * La plantilla sale de `clanes/{id}.miembros`, que es lo que el lider gestiona y
+ * lo que las reglas protegen. ANTES salia de consultar `usuarios` por su campo
+ * `clanId`, y ese campo lo escribe cada usuario en su propio documento: bastaba
+ * con ponerselo a mano para sumarle puntos a un clan ajeno con cuentas nuevas
+ * (#29). Las reglas ya no lo permiten, pero la puntuacion tampoco tiene por que
+ * fiarse de un campo que no es la fuente de verdad.
+ *
+ * De paso es mas barato: `getAll` de N miembros en vez de recorrer `usuarios`
+ * entera, que crece con el proyecto mientras que un clan tiene tope (#34).
+ */
 async function recalcularClan(clanId) {
   if (!clanId) return;
-  const miembros = await db().collection('usuarios').where('clanId', '==', clanId).get();
-  const total = miembros.docs.reduce((suma, d) => suma + (d.data().biciRating || 0), 0);
+
+  const clan = await db().doc(`clanes/${clanId}`).get();
+  if (!clan.exists) return;
+
+  const miembros = clan.data().miembros || [];
+  if (!miembros.length) {
+    await db().doc(`clanes/${clanId}`).set({ biciRating: 0, numMiembros: 0 }, { merge: true });
+    return;
+  }
+
+  const documentos = await db().getAll(...miembros.map((uid) => db().doc(`usuarios/${uid}`)));
+  const total = documentos.reduce((suma, d) => suma + (d.exists ? (d.data().biciRating || 0) : 0), 0);
+
   await db().doc(`clanes/${clanId}`).set(
-    { biciRating: total, numMiembros: miembros.size },
+    { biciRating: total, numMiembros: miembros.length },
     { merge: true }
   );
 }
 
 /**
- * Recalcula que clan domina una estacion.
- * Cada ruta que toca la estacion reparte puntos entre los 10 mejores tiempos;
- * el clan de cada piloto se los lleva.
+ * Recalcula la influencia de los clanes sobre una estacion.
+ *
+ * Antes repartia solo por posicion en el ranking de tiempos, o sea que el mapa
+ * era un juego exclusivo de velocistas. Ahora pesa presencia, velocidad y
+ * kilometros (ver src/territorio.js), y lo acumulado DECAE con los dias.
+ *
+ * El decaimiento se aplica por diferencia de fechas y no "una vez al dia": asi
+ * da igual cuando corra el worker, y si un dia no corre, al siguiente aplica los
+ * dos. Un cron que se salta un dia dejaria el territorio congelado sin que nadie
+ * lo note.
  */
 async function recalcularEstacion(estacionId, viajesPrecargados = null, usuariosPrecargados = null) {
   const viajes = viajesPrecargados
@@ -144,78 +248,347 @@ async function recalcularEstacion(estacionId, viajesPrecargados = null, usuarios
 
   const clanPorUid = new Map(usuarios.map((u) => [u.uid, u.clanId || null]));
   const objetivo = String(estacionId);
+  const hoy = territorio.dia();
 
-  // Agrupamos por ruta los viajes que tocan esta estacion.
-  const porRuta = new Map();
-  for (const viaje of viajes) {
-    if (!viaje.ruta) continue;
-    const [origen, destino] = viaje.ruta.split('-');
-    if (origen !== objetivo && destino !== objetivo) continue;
-    if (!porRuta.has(viaje.ruta)) porRuta.set(viaje.ruta, []);
-    porRuta.get(viaje.ruta).push(viaje);
-  }
+  const ref = db().doc(`estaciones_stats/${objetivo}`);
+  const previo = await ref.get();
+  const datos = previo.exists ? previo.data() : {};
 
-  const puntosClan = {};
-  for (const lista of porRuta.values()) {
-    // Solo el mejor tiempo de cada piloto compite por el territorio.
-    const mejorPorPiloto = new Map();
-    for (const v of lista) {
-      const previo = mejorPorPiloto.get(v.uid);
-      if (!previo || v.tiempoSegundos < previo.tiempoSegundos) mejorPorPiloto.set(v.uid, v);
-    }
+  // 1. Lo acumulado pierde fuelle desde la ultima vez.
+  const acumuladoDecaido = territorio.decaer(
+    datos.acumulado || {},
+    datos.ultimoDecaimiento || hoy,
+    hoy);
 
-    const top = [...mejorPorPiloto.values()]
-      .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos)
-      .slice(0, PUNTOS.ESTACION_POR_POSICION.length);
+  // 2. Lo que aporta la actividad actual.
+  const nuevo = territorio.influenciaDelPeriodo(objetivo, viajes, clanPorUid);
 
-    top.forEach((viaje, indice) => {
-      const clanId = clanPorUid.get(viaje.uid);
-      if (!clanId) return;
-      puntosClan[clanId] = (puntosClan[clanId] || 0) + PUNTOS.ESTACION_POR_POSICION[indice];
-    });
-  }
+  // 3. Reparto y quien controla.
+  const reparto = territorio.repartir(acumuladoDecaido, nuevo);
 
-  let dominante = null;
-  let maximo = 0;
-  let total = 0;
-  for (const [clanId, puntos] of Object.entries(puntosClan)) {
-    total += puntos;
-    if (puntos > maximo) { maximo = puntos; dominante = clanId; }
-  }
-
-  await db().doc(`estaciones_stats/${objetivo}`).set({
+  await ref.set({
     estacionId: objetivo,
-    clanDominante: dominante,
-    totalPuntos: total,
-    detalle: puntosClan,
+    acumulado: reparto.acumulado,
+    cuota: reparto.cuota,
+    clanDominante: reparto.dominante,
+    lider: reparto.lider,
+    enDisputa: reparto.enDisputa,
+    ultimoDecaimiento: hoy,
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
+
+  return reparto;
 }
 
 /**
- * Recalculo completo tras aprobar o eliminar un viaje: puntos de la ruta y
- * dominio de las dos estaciones implicadas.
+ * Recalcula el dominio de varias estaciones de una tacada.
+ *
+ * Antes esto vivia dentro de `recalcularTrasCambio`, que se llamaba POR CADA
+ * VIAJE APROBADO y leia `tiempos_viaje` y `usuarios` enteros cada vez. Con
+ * 15.000 viajes acumulados eran 15.464 lecturas por viaje: treinta y tres
+ * aprobaciones agotaban la cuota diaria del proyecto entero, y no dependia de
+ * que nadie mirase la web — bastaba con que la gente subiera viajes
+ * (docs/COSTE.md).
+ *
+ * Ahora es el mismo patron que los agregados (#36): el worker acumula las
+ * estaciones tocadas durante la tanda y las recalcula UNA vez al final, con la
+ * carga que ya tiene en la mano. Recalcular la misma estacion diez veces en una
+ * pasada daba diez veces el mismo resultado.
+ *
+ * `base` es opcional: si no viene, se lee aqui.
  */
-async function recalcularTrasCambio(ruta) {
-  await recalcularRuta(ruta);
+async function recalcularEstaciones(estacionIds, base = null) {
+  const unicas = [...new Set([...estacionIds].filter(Boolean).map(String))];
+  if (!unicas.length) return 0;
 
-  const [origen, destino] = ruta.split('-');
+  const { viajes, usuarios } = base || await cargarEstaciones(unicas);
+
+  for (const estacionId of unicas) {
+    await recalcularEstacion(estacionId, viajes, usuarios);
+  }
+  return unicas.length;
+}
+
+/**
+ * Las rutas que tienen algun viaje verificado, del indice que deja el agregado.
+ *
+ * Devuelve `null` — no una lista vacia — si el indice todavia no existe. La
+ * diferencia importa: "no lo se" obliga a leer los viajes enteros, mientras que
+ * "no hay ninguna" borraria el territorio del mapa.
+ */
+async function rutasConViajes() {
+  try {
+    const doc = await db().doc('agregados/rutas').get();
+    if (!doc.exists) return null;
+    const rutas = doc.data().rutas;
+    return Array.isArray(rutas) && rutas.length ? rutas : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Lo que hace falta para recalcular el dominio de UNAS estaciones concretas.
+ *
+ * La influencia sobre una estacion sale de los viajes de las rutas que la tocan,
+ * y de ninguna otra (src/territorio.js). Asi que no hacen falta los 15.000
+ * viajes: bastan los de esas rutas, que el indice de `agregados/rutas` sabe
+ * cuales son sin tener que recorrer nada.
+ *
+ * Es el camino barato; si el indice no esta, se cae al caro y se leen todos. Ese
+ * respaldo no es decorativo: con la lista vacia la influencia saldria a cero y
+ * el mapa se quedaria sin dueños de un dia para otro.
+ */
+async function cargarEstaciones(estacionIds) {
+  const indice = await rutasConViajes();
+  if (!indice) return cargarBase();
+
+  const objetivo = new Set(estacionIds.map(String));
+  const rutas = indice.filter((ruta) => estacionesDe(ruta).some((e) => objetivo.has(e)));
+
+  const [viajes, clanesSnap] = await Promise.all([
+    viajesDeRutas(rutas),
+    db().collection('clanes').get(),
+  ]);
+
+  // De `usuarios` aqui solo se usa una cosa: de que clan es cada piloto. Y eso
+  // esta en `clanes/{id}.miembros`, que son 25 documentos en vez de 200 — y es
+  // ademas la fuente de verdad: `usuarios.clanId` lo escribe cada uno en su
+  // propio documento, y sumar por ahi fue el agujero que se cerro en la
+  // puntuacion de clanes (#29).
+  //
+  // Quien no esta en ningun clan no aparece, que es justo lo que hace falta:
+  // `territorio` ignora los viajes sin clan.
+  const usuarios = [];
+  for (const clan of clanesSnap.docs) {
+    for (const uid of clan.data().miembros || []) usuarios.push({ uid, clanId: clan.id });
+  }
+
+  return { viajes, usuarios };
+}
+
+/** Las dos estaciones de una ruta, para acumularlas. */
+function estacionesDe(ruta) {
+  const partes = String(ruta || '').split('-');
+  return partes.length === 2 ? partes : [];
+}
+
+/**
+ * Recalculo completo tras aprobar o eliminar un viaje.
+ *
+ * Se conserva para quien necesite el efecto entero de una sola llamada, pero el
+ * worker NO la usa en el bucle: ahi separa los puntos de la ruta — que si hay
+ * que rehacer viaje a viaje, porque cambian la clasificacion — del dominio de
+ * las estaciones, que se acumula y se hace una vez al final.
+ */
+async function recalcularTrasCambio(ruta, base = null) {
+  await recalcularRuta(ruta);
+  await recalcularEstaciones(estacionesDe(ruta), base);
+}
+
+/**
+ * Lee de una vez las dos colecciones grandes.
+ *
+ * Queda un solo sitio que las necesita enteras: el resumen de metricas, que
+ * calcula la retencion por cohortes y no sale de otro lado. Va cada seis horas,
+ * y cuando toca se la pasa a la reconstruccion de agregados para que esa pasada
+ * salga completa sin pagarla dos veces (#34).
+ *
+ * Tambien es el respaldo del recalculo de dominio mientras no exista el indice
+ * de rutas.
+ */
+async function cargarBase() {
   const [viajesSnap, usuariosSnap] = await Promise.all([
     db().collection('tiempos_viaje').where('verificado', '==', true).get(),
     db().collection('usuarios').get(),
   ]);
-  const viajes = viajesSnap.docs.map((d) => d.data());
-  const usuarios = usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() }));
 
-  await recalcularEstacion(origen, viajes, usuarios);
-  await recalcularEstacion(destino, viajes, usuarios);
+  return {
+    viajes: viajesSnap.docs.map((d) => d.data()),
+    usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
+  };
+}
+
+/**
+ * Los viajes verificados de unas rutas concretas.
+ *
+ * Una consulta por ruta, cada una acotada por el indice `ruta + verificado`. Con
+ * 15.000 viajes repartidos en 600 rutas son unas decenas de lecturas por ruta,
+ * frente a los 15.000 de leerlas todas.
+ */
+async function viajesDeRutas(rutas) {
+  const unicas = [...new Set([...rutas].filter(Boolean).map(String))];
+  if (!unicas.length) return [];
+
+  const tandas = await Promise.all(unicas.map((ruta) => db().collection('tiempos_viaje')
+    .where('ruta', '==', ruta)
+    .where('verificado', '==', true)
+    .get()));
+
+  return tandas.flatMap((snap) => snap.docs.map((d) => d.data()));
+}
+
+/**
+ * Cuantos viajes verificados hay, sin leerlos.
+ *
+ * La consulta de agregacion cobra una lectura por cada 1.000 documentos
+ * contados: 15 en vez de 15.000. Solo se usa para el numero de la portada, asi
+ * que si fallara — es una consulta que necesita indice — no vale la pena tumbar
+ * la reconstruccion entera por ella.
+ */
+async function contarViajesVerificados() {
+  try {
+    const conteo = await db().collection('tiempos_viaje')
+      .where('verificado', '==', true)
+      .count()
+      .get();
+    return conteo.data().count;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * El estado del mapa, sin leer `estaciones_stats` entera.
+ *
+ * El agregado del mapa YA guarda, de cada estacion, lo unico que la
+ * reconstruccion necesita: quien la controla, quien va primero, si esta en
+ * disputa y el reparto. Asi que sirve de punto de partida — una lectura — y solo
+ * hay que pedir las stats frescas de las estaciones que se han movido.
+ *
+ * Las que nadie ha tocado no han cambiado: `estaciones_stats` solo lo escribe
+ * `recalcularEstacion`, y el decaimiento se aplica ahi mismo, por diferencia de
+ * fechas, cuando le toca a esa estacion.
+ *
+ * Si el agregado del mapa todavia no existe se leen todas, que es lo que se
+ * hacia siempre. Sin ese respaldo, el primer arranque dejaria el mapa vacio.
+ */
+async function estacionesParaElMapa(tocadas) {
+  const mapa = await db().doc('agregados/mapa').get();
+  if (!mapa.exists) {
+    const snap = await db().collection('estaciones_stats').get();
+    return new Map(snap.docs.map((d) => [d.id, d.data()]));
+  }
+
+  const estaciones = new Map();
+  for (const [id, entrada] of Object.entries(mapa.data().estaciones || {})) {
+    estaciones.set(id, agregados.deEntradaDeMapa(entrada));
+  }
+
+  const pedidas = [...new Set([...(tocadas || [])].filter(Boolean).map(String))];
+  if (!pedidas.length) return estaciones;
+
+  const frescas = await db().getAll(...pedidas.map((id) => db().doc(`estaciones_stats/${id}`)));
+  for (const doc of frescas) {
+    // Una estacion sin documento no ha llegado a tener influencia de nadie: se
+    // saca del mapa en vez de dejar ahi la entrada vieja.
+    if (doc.exists) estaciones.set(doc.id, doc.data());
+    else estaciones.delete(doc.id);
+  }
+
+  return estaciones;
+}
+
+/**
+ * Reconstruye los agregados que lee el navegador.
+ *
+ * Tres caminos, de mas barato a mas caro:
+ *
+ * 1. `base` viene dada — el resumen de metricas, que va cada seis horas, ya ha
+ *    leido usuarios y viajes en esta pasada. Se aprovecha y sale gratis, y
+ *    ademas es COMPLETA: se rehacen todas las rutas, que es lo que limpia el
+ *    agregado de una ruta que se haya quedado sin viajes.
+ * 2. `rutas` trae las que se han movido y no hay base. Modo parcial: se leen
+ *    usuarios, los viajes de ESAS rutas y poco mas.
+ * 3. Ni una cosa ni otra: se lee todo, como antes.
+ *
+ * `rutas` no se usa cuando hay `base` a proposito: teniendo los viajes enteros
+ * en la mano, hacer la reconstruccion parcial no ahorra nada y pierde la
+ * limpieza de las rutas vacias.
+ */
+async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas = null) {
+  // Basta con que quien llama diga QUE rutas se han movido, aunque sean cero:
+  // una pasada que solo ha rechazado viajes, o en la que solo ha cambiado un
+  // clan, no mueve ninguna ruta y aun asi hay que rehacer las clasificaciones de
+  // pilotos y clanes — que salen de `usuarios` y `clanes`, no de los viajes.
+  const parcial = !base && rutas !== null && rutas !== undefined;
+
+  const clanesSnap = await db().collection('clanes').get();
+  const clanes = clanesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  if (!parcial) {
+    const [{ viajes, usuarios }, estacionesSnap] = await Promise.all([
+      base ? Promise.resolve(base) : cargarBase(),
+      db().collection('estaciones_stats').get(),
+    ]);
+
+    return agregados.reconstruir({
+      clanes,
+      estaciones: new Map(estacionesSnap.docs.map((d) => [d.id, d.data()])),
+      viajes,
+      usuarios,
+    });
+  }
+
+  const movidas = [...new Set([...rutas].filter(Boolean).map(String))];
+
+  const [indice, portada] = await Promise.all([
+    db().doc('agregados/rutas').get(),
+    db().doc('agregados/portada').get(),
+  ]);
+
+  const catalogo = indice.exists ? (indice.data().rutas || []) : [];
+
+  // Unas pocas rutas de mas, por turno rotatorio. No es un capricho: el agregado
+  // de una ruta lleva dentro el nombre y el avatar de cada piloto, y eso cambia
+  // sin que se mueva ninguna ruta.
+  const turno = agregados.turnoDeRutas(catalogo, indice.exists ? indice.data().refrescadaHasta : null);
+  const pedidas = [...new Set([...movidas, ...turno])];
+
+  const [usuariosSnap, viajes, contados, estaciones] = await Promise.all([
+    db().collection('usuarios').get(),
+    viajesDeRutas(pedidas),
+    contarViajesVerificados(),
+    estacionesParaElMapa(estacionesTocadas),
+  ]);
+
+  // Si el conteo falla se conserva el numero anterior. Lo que NO se puede hacer
+  // es dejar que caiga en `viajes.length`, que aqui son solo los de las rutas
+  // tocadas: la portada pasaria de "1.022 viajes" a "40".
+  const totalViajes = contados !== null
+    ? contados
+    : (portada.exists ? (portada.data().viajes || 0) : 0);
+
+  return agregados.reconstruir({
+    clanes,
+    estaciones,
+    viajes,
+    usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
+    parcial: true,
+    rutasPrevias: catalogo,
+    conteosPrevios: indice.exists ? (indice.data().viajesPorRuta || {}) : {},
+    rutasRehechas: pedidas,
+    totalViajes,
+    refrescadaHasta: turno.length ? turno[turno.length - 1] : null,
+  });
 }
 
 module.exports = {
+  calcularPuntosViaje,
   recalcularRuta,
   recalcularClan,
   recalcularEstacion,
   recalcularTrasCambio,
+  recalcularEstaciones,
+  estacionesDe,
+  reconstruirAgregados,
+  cargarBase,
+  cargarEstaciones,
+  rutasConViajes,
+  viajesDeRutas,
+  contarViajesVerificados,
+  estacionesParaElMapa,
   puntosPorPosicion,
+  multiplicadorRuta,
   escribirEnLotes,
 };

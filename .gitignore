@@ -94,5 +94,9 @@ firebase-debug.log*
 functions/.env
 functions/.env.*
 
+# Datos de idioma de tesseract: se bajan solos y pesan megas.
+backend/.tesseract/
+*.traineddata
+
 # Modulos extraidos del HTML para el analisis estatico
 .modulos/

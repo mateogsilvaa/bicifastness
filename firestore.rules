@@ -47,18 +47,21 @@ service cloud.firestore {
 
     // --- Perfiles ----------------------------------------------------------
     match /usuarios/{uid} {
-      // CERRADO. Antes ponia `allow read: if true`, con el razonamiento de que
-      // los rankings se ven sin sesion y necesitan nombre, avatar y puntuacion.
-      // El razonamiento era correcto; el modelo de datos no: el MISMO documento
-      // llevaba el correo, asi que "publico para el ranking" significaba
-      // publicar la direccion de todo el mundo. Y el id del documento tampoco
-      // ayudaba en la v1, donde era el propio correo.
+      // CERRADO hasta que las clasificaciones salgan de los agregados (#35).
       //
-      // Lo publico vuelve cuando salga de aqui: `agregados/` (#35) llevara solo
-      // nombre, avatar y puntos, que es lo unico que el ranking necesita.
-      // Mientras tanto las clasificaciones publicas no funcionan, y con el
-      // sitio en obras eso no molesta a nadie.
-      allow read: if esAdmin() || esYo(uid);
+      // Esto era `allow read: if true`, y con razon aparente: los rankings
+      // necesitan nombre, avatar y puntuacion, y se ven sin sesion. El problema
+      // es que el MISMO documento lleva el correo, asi que "publico para el
+      // ranking" significaba publicar 175 direcciones.
+      //
+      // Y no era solo dato viejo: la regla de alta de abajo admitia un campo
+      // `email`, o sea que el correo se habria seguido filtrando despues de
+      // migrar. Ya no lo admite. El correo vive en Firebase Auth, que es su
+      // sitio; duplicarlo en una coleccion publica era el fallo.
+      //
+      // Cuando #35 sirva los rankings desde `agregados/` (solo nombre, avatar y
+      // puntos), esta coleccion puede quedarse cerrada para siempre.
+      allow read: if esYo(uid) || esAdmin();
 
       // El alta la hace el propio usuario, pero con TODOS los contadores a cero
       // y sin poder inventarse el rol. Si se pudiera crear con biciRating alto o
@@ -83,8 +86,39 @@ service cloud.firestore {
       // Solo se puede tocar lo cosmetico y las rutas ancladas. La puntuacion,
       // las insignias y el estado de la cuenta los escribe unicamente el worker.
       allow update: if esYo(uid)
-        && cambia().hasOnly(['favoritas', 'avatarUrl', 'consentimiento'])
+        // `avisosCorreo` es la preferencia de correo. Es un booleano suyo y
+        // solo suyo: darse de baja no puede depender de que un administrador lo
+        // haga por ti (RGPD).
+        && cambia().hasOnly(['favoritas', 'avatarUrl', 'consentimiento', 'avisosCorreo'])
         && (!('favoritas' in datos()) || datos().favoritas.size() <= 3);
+
+      // Avisos push (#33).
+      //
+      // Es suyo y solo suyo: donde recibe las notificaciones y cuales quiere.
+      // Va aparte de la lista cosmetica porque `push` es un mapa y conviene que
+      // se vea que aqui NO entra nada mas — ni la puntuacion ni el estado de la
+      // cuenta comparten regla con esto.
+      //
+      // Darse de baja no puede depender de nadie, igual que con el correo.
+      allow update: if esYo(uid) && cambia().hasOnly(['push']);
+
+      // El clan al que pertenece (#29).
+      //
+      // Estaba fuera de las dos listas, asi que NADIE podia escribirlo: crear un
+      // clan, aceptar a alguien o expulsarlo fallaban contra las reglas y la
+      // gestion de clanes no funcionaba desde el navegador.
+      //
+      // Irse siempre se puede. Entrar, solo si el clan YA te lista como
+      // miembro: sin esa comprobacion, cualquiera se declara miembro de
+      // cualquier clan escribiendo un campo suyo, y como la puntuacion del clan
+      // se sumaba consultando por este campo, se le podia inflar a un clan
+      // ajeno con cuentas nuevas.
+      allow update: if esYo(uid)
+        && cambia().hasOnly(['clanId'])
+        && (
+          datos().clanId == null
+          || get(/databases/$(database)/documents/clanes/$(datos().clanId)).data.miembros.hasAny([uid])
+        );
 
       // La administracion concede insignias y suspende cuentas. No puede tocar
       // la puntuacion: esa la calcula el worker a partir de los tiempos, y
@@ -98,6 +132,18 @@ service cloud.firestore {
     // Peticiones de borrado de cuenta (RGPD art. 17).
     // Borrar el usuario de Firebase Auth exige el Admin SDK, que en el navegador
     // no existe: el piloto deja la peticion aqui y el worker la ejecuta.
+    // Historial de temporadas cerradas. Las subcolecciones NO heredan las
+    // reglas del documento padre, asi que sin este bloque caeria en el cierre
+    // por defecto y ni su dueño podria leerlo.
+    //
+    // Vive colgando del usuario a proposito: asi se borra con su cuenta, sin
+    // tener que acordarse de ir a limpiarlo a otro sitio.
+    match /usuarios/{uid}/temporadas/{temporada} {
+      allow read: if esYo(uid) || esAdmin();
+      // Lo escribe el worker al cerrar la temporada.
+      allow write: if false;
+    }
+
     match /solicitudes_borrado/{uid} {
       allow read: if esYo(uid) || esAdmin();
       allow create: if esYo(uid)
@@ -117,37 +163,42 @@ service cloud.firestore {
 
     // --- Viajes ------------------------------------------------------------
     match /tiempos_viaje/{viajeId} {
-      // CIERRE DE EMERGENCIA (#59). En el modelo v2 un viaje verificado no
-      // contiene datos personales (la captura vive en `capturas`, que solo lee
-      // la administracion) y por eso podia ser publico. Pero los datos de
-      // PRODUCCION siguen siendo de la v1, con otra forma:
+      // CIERRE DE EMERGENCIA — hasta que termine la migracion (issue #54).
       //
-      //   email_real, ruta, nombre_usuario, fecha, foto_url, uploaded_at,
-      //   tiempo_formateado, tiempo_segundos, verificado
+      // La linea comentada de abajo es correcta para el modelo v2, donde el
+      // viaje NO contiene datos personales: la captura vive en `capturas`, que
+      // solo lee la administracion.
       //
-      // Regla nueva + datos viejos = se publican el correo y la captura entera
-      // de cada persona. Que el sitio este en mantenimiento no protege nada:
-      // Firestore responde aunque la web no se sirva.
+      // Pero los viajes que hay en produccion son de la v1 y llevan dentro
+      // `email_real` y `foto_url` con la captura entera en base64. "Verificado
+      // es publico" aplicado a esos documentos publica el correo y la captura
+      // de cada persona a cualquiera, sin sesion.
       //
-      // Para restaurar la linea de la v2, hay que cumplir ANTES las dos
-      // condiciones, no una:
-      //   1. la migracion (#54) ha corrido con --aplicar
-      //   2. ningun documento de `tiempos_viaje` conserva `email_real` ni
-      //      `foto_url` (lo comprueba `scripts/migrar-datos.js --auditar`)
-      //
-      // Entonces, y solo entonces, se sustituye por:
-      //   allow read: if previo().verificado == true
-      //               || esAdmin()
-      //               || esYo(previo().uid);
+      // Se restaura la linea comentada SOLO cuando ningun documento de
+      // tiempos_viaje tenga ya esos dos campos.
       allow read: if esAdmin() || esYo(previo().uid);
+      // allow read: if previo().verificado == true || esAdmin() || esYo(previo().uid);
 
       // El piloto PROPONE un viaje. Nace siempre pendiente y sin verificar: el
       // veredicto lo pone el worker, que se salta estas reglas.
+      // `correcciones` es telemetria del lector del navegador (#8): que campos
+      // ha tenido que corregir la persona sobre lo que se leyo en su captura.
+      // NO decide nada y no puede: quien engañe no manda la marca. Lo que
+      // compara de verdad es el worker, releyendo la captura por su cuenta.
+      // Se admite, se acota y se ignora para cualquier decision.
       allow create: if esYo(datos().uid)
         && datos().keys().hasOnly([
           'uid', 'username', 'ruta', 'tiempoSegundos', 'tiempoFormateado',
-          'fechaViaje', 'estado', 'verificado', 'creado'
+          'fechaViaje', 'estado', 'verificado', 'creado', 'correcciones', 'capturaId'
         ])
+        // Varios viajes pueden apuntar a la MISMA captura: una imagen del
+        // historial de la app lleva dos o tres trayectos (#11). Por eso el
+        // documento de la captura ya no se llama forzosamente como el viaje.
+        && (!datos().keys().hasAny(['capturaId'])
+          || (datos().capturaId is string && datos().capturaId.size() <= 40))
+        && (!datos().keys().hasAny(['correcciones']) || datos().correcciones.keys().hasOnly([
+          'confianza', 'origen', 'destino', 'tiempoSegundos', 'desfaseSegundos'
+        ]))
         && datos().estado == 'pendiente'
         && datos().verificado == false
         && datos().ruta is string
@@ -216,9 +267,30 @@ service cloud.firestore {
     match /clanes/{clanId} {
       allow read: if true;
 
+      // Con mas gente deja de sentirse como un equipo y empieza a ser una lista.
+      // El tope tambien impide que acabe todo el mundo en el mismo clan y el
+      // mapa se quede sin partida.
+      function cabeAlguienMas() {
+        return datos().miembros.size() <= 50;
+      }
+
+      function esLider() {
+        return autenticado() && previo().lider == request.auth.uid;
+      }
+
+      // Un oficial gestiona la plantilla del dia a dia — aceptar solicitudes,
+      // expulsar — pero NO puede tocar el liderazgo ni disolver el clan. Si
+      // pudiera, ser oficial y ser lider serian lo mismo.
+      function esOficial() {
+        return autenticado()
+          && previo().oficiales is list
+          && previo().oficiales.hasAny([request.auth.uid]);
+      }
+
       allow create: if autenticado()
         && datos().lider == request.auth.uid
         && datos().miembros == [request.auth.uid]
+        && datos().oficiales.size() == 0
         && datos().solicitudes.size() == 0
         && datos().biciRating == 0
         && datos().logros.size() == 0
@@ -226,21 +298,83 @@ service cloud.firestore {
         && datos().nombre.size() >= 3 && datos().nombre.size() <= 28
         && datos().color.matches('^#[0-9a-fA-F]{6}$');
 
-      // El lider gestiona la plantilla; cualquiera puede meter o sacar su propia
-      // solicitud. Las insignias y la puntuacion solo las toca el worker.
-      allow update: if autenticado() && (
-        (
-          previo().lider == request.auth.uid
-          && cambia().hasOnly(['miembros', 'solicitudes', 'numMiembros', 'descripcion', 'color', 'lider'])
-        )
-        || (
-          cambia().hasOnly(['solicitudes'])
-          && datos().solicitudes.hasOnly(previo().solicitudes.concat([request.auth.uid]))
-          && previo().solicitudes.hasOnly(datos().solicitudes.concat([request.auth.uid]))
-        )
-      );
+      // --- Lo que puede el lider -------------------------------------------
+      // Todo lo de un oficial, mas nombrarlos, ceder el liderazgo y cambiar la
+      // identidad del clan.
+      allow update: if esLider()
+        && cambia().hasOnly([
+          'miembros', 'solicitudes', 'numMiembros',
+          'oficiales', 'lider', 'descripcion', 'color',
+        ])
+        && cabeAlguienMas()
+        // El nuevo lider tiene que estar dentro. Ceder el mando a alguien de
+        // fuera deja el clan sin nadie que pueda gestionarlo.
+        && (!('lider' in cambia()) || datos().miembros.hasAny([datos().lider]))
+        // Y los oficiales, tambien.
+        && (!('oficiales' in cambia()) || datos().miembros.hasAll(datos().oficiales));
 
-      allow delete: if autenticado() && previo().lider == request.auth.uid;
+      // --- Lo que puede un oficial ------------------------------------------
+      allow update: if esOficial()
+        && cambia().hasOnly(['miembros', 'solicitudes', 'numMiembros'])
+        && cabeAlguienMas()
+        // No puede echar al lider, ni echarse a si mismo del cargo por esta via.
+        && datos().miembros.hasAny([previo().lider]);
+
+      // --- Lo que puede cualquiera ------------------------------------------
+      // Meter o sacar su PROPIA solicitud. Las dos comprobaciones juntas
+      // significan "la unica diferencia entre las dos listas soy yo".
+      allow update: if autenticado()
+        && cambia().hasOnly(['solicitudes'])
+        && datos().solicitudes.hasOnly(previo().solicitudes.concat([request.auth.uid]))
+        && previo().solicitudes.hasOnly(datos().solicitudes.concat([request.auth.uid]));
+
+      // Irse del clan. Cualquiera puede, menos el lider: dejaria el clan sin
+      // quien lo gestione. Antes tiene que ceder el mando o disolverlo.
+      allow update: if autenticado()
+        && cambia().hasOnly(['miembros', 'numMiembros', 'oficiales'])
+        && previo().lider != request.auth.uid
+        && previo().miembros.hasAny([request.auth.uid])
+        && !datos().miembros.hasAny([request.auth.uid])
+        // Y solo se saca a si mismo: el resto de la lista queda igual.
+        && previo().miembros.hasOnly(datos().miembros.concat([request.auth.uid]));
+
+      allow delete: if esLider();
+    }
+
+    // --- Invitaciones a un clan (#29) ---------------------------------------
+    //
+    // El id del documento ES el codigo del enlace, y es lo unico que hace falta
+    // saber para entrar. Por eso NO se puede listar la coleccion: solo se puede
+    // pedir un codigo concreto, que es como funciona un enlace de invitacion.
+    //
+    // Las escribe el navegador porque son del lider, pero quien las CONSUME no
+    // las toca: aceptar una invitacion es que el lider te meta en `miembros`.
+    // Marcarla como usada lo hace el worker, que es quien puede escribir en dos
+    // documentos a la vez sin que el cliente decida el resultado.
+    match /invitaciones/{codigo} {
+      // `get` si, `list` no: sin esto, cualquiera se descarga todos los codigos
+      // vigentes y se cuela en cualquier clan.
+      allow get: if autenticado();
+      allow list: if false;
+
+      allow create: if autenticado()
+        && datos().keys().hasOnly(['clanId', 'creadaPor', 'creada', 'caduca', 'usos', 'maxUsos'])
+        && datos().creadaPor == request.auth.uid
+        && get(/databases/$(database)/documents/clanes/$(datos().clanId)).data.lider == request.auth.uid
+        && datos().usos == 0
+        && datos().maxUsos is int
+        && datos().maxUsos >= 1 && datos().maxUsos <= 50
+        && datos().caduca is timestamp
+        // Una invitacion eterna no es una invitacion, es una puerta abierta.
+        && datos().caduca > request.time
+        && datos().caduca < request.time + duration.value(30, 'd');
+
+      // Retirarla antes de tiempo es cosa del lider.
+      allow delete: if autenticado() && previo().creadaPor == request.auth.uid;
+
+      // El contador de usos lo lleva el worker: si lo llevara el cliente, un
+      // codigo de un solo uso valdria para todo el que lo tenga.
+      allow update: if false;
     }
 
     match /estaciones_stats/{estacionId} {
@@ -290,6 +424,127 @@ service cloud.firestore {
     }
 
     // --- Cierre por defecto -------------------------------------------------
+    // --- Agregados ---------------------------------------------------------
+    // Lo que lee el navegador para pintar clasificaciones, mapa y portada.
+    //
+    // Publicos a proposito, y por eso solo llevan lo que ya se ve en pantalla:
+    // nombre, avatar y puntos. Nunca correo ni nada que no salga ahi. Esa
+    // limitacion no depende de esta regla, la impone `backend/src/agregados.js`
+    // con una lista blanca de campos, y hay un test que la comprueba.
+    //
+    // Existen porque `usuarios` esta cerrada (#60) y porque leerla entera para
+    // pintar un ranking costaba 175 lecturas por visita.
+    match /agregados/{documento} {
+      allow read: if true;
+      // Los escribe el worker con el Admin SDK, que se salta estas reglas.
+      allow write: if false;
+    }
+
+    // Consumo de cuota por dia (#38). Lo escribe el worker; el panel lo lee para
+    // la grafica. No lleva nada de nadie, pero tampoco le sirve al navegador de
+    // alguien que no administre.
+    match /cuota/{dia} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
+
+    // Contadores diarios ya sumados. Solo administracion: el detalle de un dia
+    // concreto no le hace falta a nadie mas.
+    match /metricas/{dia} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
+
+    // Misiones del dia. Publicas y las MISMAS para todo el mundo: eso es lo que
+    // permite leerlas con una sola lectura cacheable en vez de una por usuario.
+    match /config/misiones/dias/{dia} {
+      allow read: if true;
+      // Las genera el worker. Que las escribiera el cliente permitiria
+      // ponerse objetivos de un metro.
+      allow write: if false;
+    }
+
+    // --- Analitica de producto ---------------------------------------------
+    // Un documento por sesion, escrito al cerrar la pestaña. Sin sesion, igual
+    // que los errores y por el mismo motivo: el embudo del registro hay que
+    // medirlo antes de que exista la cuenta.
+    //
+    // No lleva NADA que identifique a nadie: solo contadores de eventos de una
+    // lista cerrada. El id lo elige el navegador al azar y solo evita que dos
+    // sesiones simultaneas se pisen.
+    //
+    // La lista de campos es la que impide que esto se convierta en un almacen
+    // de lo que a cualquiera se le ocurra escribir.
+    match /sesiones_web/{sesion} {
+      allow read: if esAdmin();
+      allow delete: if esAdmin();
+
+      allow create, update: if
+        sesion.size() <= 40
+        && datos().keys().hasOnly([
+          'dia', 'version', 'creado',
+          'pagina_vista', 'subida_abierta', 'subida_con_foto', 'subida_enviada',
+          'subida_fallida', 'registro_abierto', 'registro_completado',
+          'login_completado'
+        ])
+        && datos().dia is string && datos().dia.size() == 10
+        && datos().version is string && datos().version.size() <= 20;
+    }
+
+    // --- Errores del cliente -----------------------------------------------
+    // La otra coleccion que escribe gente SIN sesion, y tambien a proposito: un
+    // fallo en el registro hay que verlo, y ahi todavia no hay cuenta.
+    //
+    // El id del documento es la HUELLA del error, no un id nuevo por incidencia.
+    // Eso es lo que convierte un bucle de 500 errores iguales en un documento
+    // con `veces: 500`, en vez de en 500 documentos.
+    //
+    // Riesgo que queda, dicho claro: cualquiera puede fabricar huellas y crear
+    // documentos. Las reglas acotan el formato del id, los campos y los tamaños,
+    // asi que cada documento es pequeño, pero no pueden limitar la frecuencia.
+    // La poda periodica del worker es lo que acota el crecimiento a largo plazo.
+    match /errores_cliente/{huella} {
+      // Solo la administracion los lee: llevan rutas y trazas de la app.
+      allow read: if esAdmin();
+      allow delete: if esAdmin();
+
+      allow create, update: if
+        // El id tiene el formato que genera assets/js/errores.js.
+        huella.matches('^e[a-z0-9]{1,12}$')
+        && datos().keys().hasOnly([
+          'mensaje', 'pila', 'pagina', 'navegador', 'version',
+          'ancho', 'conSesion', 'sesiones', 'visto'
+        ])
+        && datos().mensaje is string && datos().mensaje.size() <= 300
+        && datos().pila is string && datos().pila.size() <= 1000
+        && datos().pagina is string && datos().pagina.size() <= 100
+        && datos().navegador is string && datos().navegador.size() <= 40
+        && datos().version is string && datos().version.size() <= 20
+        && datos().ancho is int
+        && datos().conSesion is bool
+        && datos().sesiones is int;
+    }
+
+    // --- Bajas de correo ---------------------------------------------------
+    // La UNICA coleccion del proyecto que escribe gente SIN sesion, y es a
+    // proposito: el RGPD exige baja facil, y si hay que iniciar sesion para
+    // darse de baja, no es baja facil.
+    //
+    // El id del documento es un token opaco que solo conoce quien ha recibido
+    // el correo. El worker lo cambia por el usuario y apaga sus avisos. Nadie
+    // puede leer esta coleccion, asi que no se puede raspar para averiguar
+    // tokens ajenos, y no se puede sobrescribir ni borrar lo que otro ha
+    // pedido.
+    match /solicitudes_baja/{token} {
+      allow read, update, delete: if false;
+
+      allow create: if datos().keys().hasOnly(['creado'])
+        // Un token corto se podria adivinar a base de intentos; uno largo, no.
+        && token.size() >= 32
+        && token.size() <= 128
+        && token.matches('^[A-Za-z0-9_-]+$');
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

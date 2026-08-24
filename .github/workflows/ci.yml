@@ -43,11 +43,40 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      # El banco de capturas (#16) ejecuta el OCR de verdad, y tesseract se baja
+      # varios megas de modelo de idioma la primera vez.
+      - name: Cache del idioma del OCR
+        uses: actions/cache@v4
+        with:
+          path: backend/.tesseract
+          key: tesseract-spa-${{ runner.os }}
+
       - name: Tests
         working-directory: backend
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test | tee "$RUNNER_TEMP/tests.log"
 
-  desplegar:
+      # El porcentaje de extraccion del banco, a la vista en el resumen del PR:
+      # es el numero que dice si un cambio en el extractor mejora o empeora, y
+      # enterrado en el log no lo mira nadie.
+      - name: Banco de capturas en el resumen
+        if: always()
+        run: |
+          if grep -q "Extraccion del banco" "$RUNNER_TEMP/tests.log"; then
+            {
+              echo "### Banco de capturas"
+              grep -A 13 "Extraccion del banco" "$RUNNER_TEMP/tests.log" | sed 's/^/    /'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "El banco de capturas no ha llegado a medirse (OCR no disponible)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # El sitio lo publica Vercel, conectado a este repositorio. Aqui solo quedan las
+  # REGLAS y los INDICES de Firestore, que no son estaticos: son el control de
+  # acceso del proyecto (no hay servidor delante) y tienen que seguir
+  # desplegandose en cada push, porque Vercel no las toca.
+  reglas:
     needs: tests
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -57,16 +86,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Regenerar datos compartidos
-        run: node scripts/build-estaciones.js
-
-      # Despliega las reglas de seguridad y el sitio estatico. En el plan Spark
-      # esto es gratis: Hosting y Firestore entran en la cuota sin coste.
-      - name: Desplegar en Firebase Hosting
+      - name: Desplegar reglas e indices de Firestore
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/cuenta-servicio.json
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          MANTENIMIENTO: ${{ vars.MANTENIMIENTO }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
             echo "Sin FIREBASE_SERVICE_ACCOUNT: me salto el despliegue."
@@ -75,27 +98,8 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > cuenta-servicio.json
           npm install -g firebase-tools
 
-          # Las reglas van SIEMPRE, tambien en mantenimiento. Firestore es un
-          # servicio aparte: responde aunque la web no se sirva, asi que la
-          # pagina de obras no protege ni un documento. Cuando esto iba dentro
-          # de la rama del `else`, poner el sitio en obras dejaba de desplegar
-          # las reglas justo cuando mas falta hacian: fue por eso por lo que el
-          # cierre de emergencia de #59 no llegaba a produccion.
-          firebase deploy --only firestore:rules,firestore:indexes \
+          firebase deploy \
+            --only firestore:rules,firestore:indexes \
             --project bicifastness --non-interactive
-
-          # Con MANTENIMIENTO=true se publica SOLO la pagina de obras. El resto
-          # del sitio no se sube, asi que ninguna URL antigua sigue accesible:
-          # Firebase sirve primero el fichero estatico que exista, de modo que
-          # un rewrite por si solo no bastaria para ocultar /home/ o /admin/.
-          if [ "$MANTENIMIENTO" = "true" ]; then
-            echo "::notice::Modo mantenimiento: se publica solo la pagina de obras."
-            firebase deploy --only hosting \
-              --config firebase.mantenimiento.json \
-              --project bicifastness --non-interactive
-          else
-            firebase deploy --only hosting \
-              --project bicifastness --non-interactive
-          fi
 
           rm -f cuenta-servicio.json

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Darse de baja de los avisos por correo de BiciFastness.">
+<meta name="robots" content="noindex">
+<title>Baja de avisos | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+
+<main class="container estrecho" id="principal">
+  <div class="bloque">
+    <h1 id="titulo">Baja de avisos</h1>
+    <p class="mensaje" id="mensaje" aria-live="polite">Comprobando el enlace...</p>
+
+    <button id="confirmar" class="btn oculto" type="button">Darme de baja</button>
+    <p class="menor"><a href="/">Volver a BiciFastness</a></p>
+  </div>
+</main>
+
+<script type="module" src="/assets/js/paginas/baja.js"></script>
+</body>
+</html>

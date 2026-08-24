@@ -49,9 +49,36 @@ export function el(etiqueta, props = {}, hijos = []) {
   return nodo;
 }
 
-/** Icono de Flaticon. Se genera aparte porque no lleva contenido. */
-export function icono(clases, estilo = {}) {
-  return el('i', { clase: clases, estilo });
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const XLINK_NS = 'http://www.w3.org/1999/xlink';
+
+/**
+ * Icono del sprite propio (`assets/img/iconos.svg`).
+ *
+ * Va aparte de `el()` porque un <svg> NO se crea con `createElement`: hay que
+ * usar `createElementNS`, o el navegador construye un elemento HTML llamado
+ * "svg" que no pinta nada. El fallo es silencioso, que es lo peor que tiene.
+ *
+ * El <svg> siempre `aria-hidden`: si el icono es la unica etiqueta de un
+ * control, es el CONTROL el que necesita `aria-label`.
+ *
+ * @param {string} nombre  id del simbolo, sin la almohadilla
+ * @param {string} [clase]
+ */
+export function icono(nombre, clase = 'icono') {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', clase);
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+
+  const uso = document.createElementNS(SVG_NS, 'use');
+  const destino = `/assets/img/iconos.svg#${nombre}`;
+  uso.setAttribute('href', destino);
+  // Safari por debajo de la 16 ignora `href` a secas en <use>.
+  uso.setAttributeNS(XLINK_NS, 'xlink:href', destino);
+
+  svg.append(uso);
+  return svg;
 }
 
 /**
@@ -94,7 +121,7 @@ export function escapar(valor) {
 
 /** Mensaje de estado accesible (lo anuncian los lectores de pantalla). */
 export function estado(contenedor, texto, tipo = 'info') {
-  const colores = { info: 'var(--primary-claro)', error: 'var(--error)', exito: 'var(--exito)', aviso: 'var(--aviso)' };
+  const colores = { info: 'var(--azul)', error: 'var(--rojo)', exito: 'var(--verde)', aviso: 'var(--ambar)' };
   contenedor.textContent = texto;
   contenedor.style.color = colores[tipo] || colores.info;
   contenedor.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
@@ -106,20 +133,20 @@ export function confirmar(mensaje, { textoAceptar = 'Aceptar', peligroso = false
   return new Promise((resolver) => {
     const aceptar = el('button', {
       texto: textoAceptar,
-      clase: peligroso ? 'btn-peligro' : '',
+      clase: `btn ${peligroso ? 'peligro' : ''}`,
       estilo: { flex: '1', margin: '0', minWidth: '0' },
       on: { click: () => { cerrar(); resolver(true); } },
     });
     const cancelar = el('button', {
       texto: 'Cancelar',
-      clase: 'btn-fantasma',
+      clase: 'btn plano',
       estilo: { flex: '1', margin: '0', minWidth: '0' },
       on: { click: () => { cerrar(); resolver(false); } },
     });
 
     const caja = el('div', {
       attrs: { role: 'alertdialog', 'aria-modal': 'true' },
-      clase: 'card',
+      clase: 'bloque',
       estilo: { maxWidth: '440px', width: '100%' },
     }, [
       el('p', { texto: mensaje, estilo: { margin: '0 0 20px', lineHeight: '1.5' } }),
@@ -160,11 +187,12 @@ export function pedirTexto(mensaje, {
     });
 
     const pista = el('p', {
-      estilo: { fontSize: '.75rem', color: 'var(--text-tenue)', margin: '0 0 14px', minHeight: '18px' },
+      estilo: { fontSize: '.75rem', color: 'var(--tinta-3)', margin: '0 0 14px', minHeight: '18px' },
     });
 
     const aceptar = el('button', {
       texto: textoAceptar,
+      clase: 'btn',
       attrs: { disabled: '' },
       estilo: { flex: '1', margin: '0', minWidth: '0' },
       on: { click: () => { cerrar(); resolver(campo.value.trim()); } },
@@ -183,7 +211,7 @@ export function pedirTexto(mensaje, {
     campo.addEventListener('input', revisar);
 
     const cancelar = el('button', {
-      clase: 'btn-fantasma',
+      clase: 'btn plano',
       texto: 'Cancelar',
       estilo: { flex: '1', margin: '0', minWidth: '0' },
       on: { click: () => { cerrar(); resolver(null); } },
@@ -191,7 +219,7 @@ export function pedirTexto(mensaje, {
 
     const caja = el('div', {
       attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-label': mensaje },
-      clase: 'card',
+      clase: 'bloque',
       estilo: { maxWidth: '460px', width: '100%' },
     }, [
       el('p', { texto: mensaje, estilo: { margin: '0 0 16px', lineHeight: '1.5' } }),
@@ -224,18 +252,18 @@ export function pedirTexto(mensaje, {
  * movil es especialmente molesto.
  */
 export function avisar(mensaje, tipo = 'error') {
-  const colores = { error: 'var(--error)', exito: 'var(--exito)', info: 'var(--primary)' };
+  const colores = { error: 'var(--rojo)', exito: 'var(--verde)', info: 'var(--azul)' };
 
   const nodo = el('div', {
     attrs: { role: tipo === 'error' ? 'alert' : 'status' },
     texto: mensaje,
     estilo: {
-      position: 'fixed', left: '50%', bottom: 'calc(var(--hueco-inferior) + 16px)',
+      position: 'fixed', left: '50%', bottom: 'calc(var(--alto-barra) + 16px)',
       transform: 'translateX(-50%)', zIndex: '10002', maxWidth: 'min(440px, calc(100vw - 32px))',
-      background: 'var(--bg-elevado)', color: 'var(--text-main)',
-      border: '1px solid var(--border-fuerte)', borderLeft: `3px solid ${colores[tipo] || colores.info}`,
-      borderRadius: 'var(--radio-s)', padding: '13px 16px', fontSize: '.88rem',
-      boxShadow: 'var(--sombra-alta)', animation: 'surgir 260ms ease both',
+      background: 'var(--papel-2)', color: 'var(--tinta)',
+      border: '1px solid var(--linea)', borderLeft: `3px solid ${colores[tipo] || colores.info}`,
+      borderRadius: 'var(--radio)', padding: '13px 16px', fontSize: '.88rem',
+      animation: 'surgir 260ms ease both',
     },
   });
 

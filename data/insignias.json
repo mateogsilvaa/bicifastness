@@ -1,0 +1,157 @@
+{
+  "_comentario": [
+    "Catalogo de insignias del juego. Fuente unica.",
+    "",
+    "`node scripts/build-insignias.js` lo vuelca en DOS sitios:",
+    "  1. assets/data/insignias.js    modulo ES para el navegador",
+    "  2. backend/lib/insignias.json  para el worker, que es quien las concede",
+    "",
+    "Antes habia DOS diccionarios copiados a mano en la raiz (insignias.js y",
+    "cinsignias.js), identicos salvo por el color, y ninguna insignia de las que",
+    "listaban la concedia nadie.",
+    "",
+    "CAMPOS:",
+    "  modo      con que se gana: fondo | sprint | constancia | exploracion | temporada | clan",
+    "  icono     id del sprite de /assets/img/iconos.svg. Nada de fuentes de iconos:",
+    "            la CSP no admite dominios externos y las clases `fi fi-*` de la",
+    "            version anterior se pintaban como cajas vacias.",
+    "  regla     campo del usuario y minimo para ganarla. Sin regla, la concede",
+    "            otro proceso (el cierre de temporada) o la administracion a mano.",
+    "",
+    "Que una insignia este aqui NO basta para que se conceda: la regla la evalua",
+    "el worker (backend/src/logros.js). Sin regla no se concede sola, a proposito."
+  ],
+
+  "insignias": {
+    "primer-viaje": {
+      "titulo": "Primer trayecto",
+      "descripcion": "Has subido tu primer trayecto verificado.",
+      "modo": "exploracion",
+      "icono": "comprobado",
+      "regla": { "campo": "viajesVerificados", "minimo": 1 }
+    },
+    "veterano": {
+      "titulo": "Veterano",
+      "descripcion": "50 trayectos verificados.",
+      "modo": "exploracion",
+      "icono": "comprobado",
+      "regla": { "campo": "viajesVerificados", "minimo": 50 }
+    },
+    "centenario": {
+      "titulo": "Centenario",
+      "descripcion": "100 trayectos verificados.",
+      "modo": "exploracion",
+      "icono": "comprobado",
+      "regla": { "campo": "viajesVerificados", "minimo": 100 }
+    },
+
+    "fondo-50": {
+      "titulo": "50 kilometros",
+      "descripcion": "50 km acumulados en trayectos verificados.",
+      "modo": "fondo",
+      "icono": "ruta",
+      "regla": { "campo": "metrosTotales", "minimo": 50000 }
+    },
+    "fondo-250": {
+      "titulo": "250 kilometros",
+      "descripcion": "250 km acumulados. Ya es una distancia de verdad.",
+      "modo": "fondo",
+      "icono": "ruta",
+      "regla": { "campo": "metrosTotales", "minimo": 250000 }
+    },
+    "fondo-1000": {
+      "titulo": "1.000 kilometros",
+      "descripcion": "1.000 km acumulados sobre una BiciMAD.",
+      "modo": "fondo",
+      "icono": "ruta",
+      "regla": { "campo": "metrosTotales", "minimo": 1000000 }
+    },
+
+    "racha-7": {
+      "titulo": "Una semana seguida",
+      "descripcion": "Siete dias seguidos con al menos un trayecto.",
+      "modo": "constancia",
+      "icono": "reloj",
+      "regla": { "campo": "mejorRacha", "minimo": 7 }
+    },
+    "racha-30": {
+      "titulo": "Un mes seguido",
+      "descripcion": "Treinta dias seguidos. Esto ya es un habito.",
+      "modo": "constancia",
+      "icono": "reloj",
+      "regla": { "campo": "mejorRacha", "minimo": 30 }
+    },
+    "racha-100": {
+      "titulo": "Cien dias",
+      "descripcion": "Cien dias seguidos sin fallar uno.",
+      "modo": "constancia",
+      "icono": "reloj",
+      "regla": { "campo": "mejorRacha", "minimo": 100 }
+    },
+
+    "sprint-podio": {
+      "titulo": "Podio",
+      "descripcion": "Estas entre los tres mejores de algun tramo.",
+      "modo": "sprint",
+      "icono": "clasificacion"
+    },
+    "sprint-cinco-tramos": {
+      "titulo": "Cinco tramos",
+      "descripcion": "Puntuas en cinco tramos distintos.",
+      "modo": "sprint",
+      "icono": "clasificacion",
+      "regla": { "campo": "tramosConPuntos", "minimo": 5 }
+    },
+    "sprint-veinte-tramos": {
+      "titulo": "Veinte tramos",
+      "descripcion": "Puntuas en veinte tramos distintos. Te conoces la ciudad.",
+      "modo": "sprint",
+      "icono": "clasificacion",
+      "regla": { "campo": "tramosConPuntos", "minimo": 20 }
+    },
+
+    "explorador-10": {
+      "titulo": "Diez estaciones",
+      "descripcion": "Has salido o llegado desde diez estaciones distintas.",
+      "modo": "exploracion",
+      "icono": "mapa",
+      "regla": { "campo": "estacionesVisitadas", "minimo": 10 }
+    },
+    "explorador-50": {
+      "titulo": "Cincuenta estaciones",
+      "descripcion": "Cincuenta estaciones distintas. Media ciudad.",
+      "modo": "exploracion",
+      "icono": "mapa",
+      "regla": { "campo": "estacionesVisitadas", "minimo": 50 }
+    },
+
+    "clan-fundador": {
+      "titulo": "Fundador",
+      "descripcion": "Has creado un clan.",
+      "modo": "clan",
+      "icono": "clan"
+    },
+    "clan-conquistador": {
+      "titulo": "Conquistador",
+      "descripcion": "Tu clan controla una estacion gracias a tus trayectos.",
+      "modo": "clan",
+      "icono": "clan"
+    }
+  },
+
+  "temporada": {
+    "_comentario": [
+      "Las de temporada NO se listan una a una: son `temporada-2026-07-oro` y",
+      "cambian cada mes. Se describen por sufijo y el titulo se compone.",
+      "",
+      "Sin esto, el cierre de temporada concedia insignias con un id que no",
+      "estaba en ningun diccionario, asi que el perfil no pintaba nada: se",
+      "concedian y no se veian."
+    ],
+    "oro": { "titulo": "Oro", "descripcion": "Primero de la temporada", "icono": "clasificacion" },
+    "plata": { "titulo": "Plata", "descripcion": "Segundo de la temporada", "icono": "clasificacion" },
+    "bronce": { "titulo": "Bronce", "descripcion": "Tercero de la temporada", "icono": "clasificacion" },
+    "fondo": { "titulo": "Rey del fondo", "descripcion": "Mas kilometros de la temporada", "icono": "ruta" },
+    "constancia": { "titulo": "El mas constante", "descripcion": "Mejor racha de la temporada", "icono": "reloj" }
+  }
+}

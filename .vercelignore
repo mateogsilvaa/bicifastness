@@ -2,10 +2,22 @@
 # La version anterior desplegaba el repositorio entero, asi que el codigo del
 # backend y los scripts de administracion quedaban accesibles por URL.
 backend/
-scripts/
+
+# `scripts/` no se publica: ahi viven las herramientas de administracion. La
+# excepcion es el generador de la version, porque el `buildCommand` de
+# vercel.json lo ejecuta EN el despliegue, y lo que no se sube no existe: sin
+# esta linea el build muere con "Cannot find module scripts/build-version.js" y
+# no se publica nada. Lo unico que queda accesible es ese generador, que no
+# tiene nada dentro.
+# OJO con la barra: `scripts/` excluiria el DIRECTORIO, y entonces la excepcion
+# de abajo no sirve de nada — igual que en .gitignore, no se puede reincluir un
+# fichero si su carpeta padre esta excluida. Con `scripts/*` se excluye el
+# CONTENIDO, que si admite excepciones. Se comprobo con un despliegue fallido.
+scripts/*
+!scripts/build-version.js
+
 shared/
 node_modules/
-.modulos/
 .github/
 *.md
 eslint.config.mjs
@@ -14,3 +26,7 @@ package-lock.json
 firebase*.json
 firestore.rules
 firestore.indexes.json
+
+# Documentacion del proyecto: no es parte del sitio.
+docs/
+.claude/

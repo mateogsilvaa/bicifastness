@@ -1,140 +1,59 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://api.dicebear.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="BiciFastness: compite con tus tiempos de BiciMAD por Madrid.">
+<meta name="description" content="Entra en tu cuenta de BiciFastness.">
+<meta name="robots" content="noindex">
 <title>Iniciar sesion | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
-<style>
-  body { justify-content: center; align-items: center; padding: 24px 16px; }
-  .card { width: 100%; max-width: 380px; text-align: center; }
-  .marca {
-    display: inline-flex; align-items: center; gap: 9px; margin-bottom: 4px;
-  }
-  .marca span {
-    width: 7px; height: 26px; border-radius: 4px;
-    background: linear-gradient(180deg, var(--primary-claro), var(--primary));
-    box-shadow: 0 0 16px rgba(30,144,255,.7);
-  }
-  h1 {
-    font-size: 1.55rem; color: var(--text-main); margin: 0;
-    letter-spacing: .01em; font-stretch: 88%;
-  }
-  .sub {
-    color: var(--text-tenue); font-family: var(--fuente-mono); font-size: .68rem;
-    text-transform: uppercase; letter-spacing: .2em; margin: 0 0 26px;
-  }
-  input { margin: 9px 0; text-align: left; }
-  .enlace {
-    display: block; margin-top: 14px; font-size: .85rem;
-    color: var(--text-muted); text-decoration: none; font-weight: 600;
-    transition: color var(--transicion);
-  }
-  .enlace:hover { color: var(--primary-claro); }
-  .invitado {
-    display: block; margin-top: 18px; font-size: .88rem; font-weight: 700;
-    color: var(--primary-claro); text-decoration: none; padding: 13px;
-    border: 1px solid var(--border-fuerte); border-radius: var(--radio-s);
-    transition: all var(--transicion);
-  }
-  .invitado:hover { background: var(--primary-tenue); border-color: var(--primary); }
-  #pie-legal { border: none; margin-top: 26px; padding: 0; }
-</style>
 </head>
 <body>
-<main class="card">
-  <div class="marca"><span></span><h1>BiciFastness</h1></div>
-  <p class="sub">Iniciar sesion</p>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+
+<main class="container estrecho" id="principal">
+  <a class="fila" href="/" style="text-decoration: none; margin-bottom: var(--e6);">
+    <img src="/images/logo.png" alt="" width="32" height="32">
+    <span class="h2" style="margin: 0;">BiciFastness</span>
+  </a>
+
+  <h1 class="h1">Iniciar sesion</h1>
 
   <form id="form-login" novalidate>
-    <label class="solo-lectores" for="email">Correo electronico</label>
-    <input type="email" id="email" name="email" placeholder="Correo electronico"
-           autocomplete="email" required>
+    <div class="campo">
+      <label for="email">Correo electronico</label>
+      <input id="email" name="email" type="email" autocomplete="email" required>
+    </div>
 
-    <label class="solo-lectores" for="password">Contrasena</label>
-    <input type="password" id="password" name="password" placeholder="Contrasena"
-           autocomplete="current-password" required>
+    <div class="campo">
+      <label for="password">Contrasena</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </div>
 
-    <button type="submit" id="btn-entrar">Entrar</button>
+    <button type="submit" class="btn" id="btn-entrar">Entrar</button>
+    <p class="mensaje" id="mensaje" aria-live="polite"></p>
   </form>
 
-  <p class="mensaje" id="mensaje"></p>
-
-  <a href="#" class="enlace" id="btn-recuperar">He olvidado mi contrasena</a>
-  <a href="/register/" class="enlace">No tengo cuenta. Quiero registrarme</a>
-  <a href="/home/" class="invitado">Explorar sin cuenta</a>
-
-  <footer id="pie-legal"></footer>
+  <div class="pila" style="margin-top: var(--e5);">
+    <button type="button" class="btn plano" id="btn-recuperar">He olvidado mi contrasena</button>
+    <p class="menor">
+      <a href="/register/">No tengo cuenta, quiero registrarme</a>
+    </p>
+    <p class="menor apagado">
+      Tambien puedes <a href="/clasificacion/">ver la clasificacion</a> sin cuenta.
+    </p>
+  </div>
 </main>
 
-<script type="module">
-  import {
-    auth, onAuthStateChanged, signInWithEmailAndPassword,
-    sendPasswordResetEmail, traducirErrorAuth,
-  } from '/assets/js/firebase.js';
-  import { aplicarTema, montarPieLegal, montarAvisoCookies } from '/assets/js/ui.js';
-  import { id, estado } from '/assets/js/dom.js';
+<footer id="pie-legal"></footer>
 
-  aplicarTema();
-  montarPieLegal();
-  montarAvisoCookies();
-
-  const form = id('form-login');
-  const boton = id('btn-entrar');
-  const mensaje = id('mensaje');
-
-  onAuthStateChanged(auth, (usuario) => {
-    if (usuario) window.location.replace('/home/');
-  });
-
-  form.addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-    const email = id('email').value.trim().toLowerCase();
-    const clave = id('password').value;
-
-    if (!email || !clave) {
-      estado(mensaje, 'Rellena los dos campos.', 'error');
-      return;
-    }
-
-    boton.disabled = true;
-    boton.textContent = 'Entrando...';
-    estado(mensaje, '');
-
-    try {
-      // Un unico sistema de identidad. La version anterior tambien creaba una
-      // cuenta en PocketBase con la contrasena escrita aqui: si el usuario no
-      // existia alli, la CREABA con la clave introducida, lo que permitia
-      // apropiarse de la cuenta de otro con solo conocer su correo.
-      await signInWithEmailAndPassword(auth, email, clave);
-      window.location.replace('/home/');
-    } catch (error) {
-      boton.disabled = false;
-      boton.textContent = 'Entrar';
-      estado(mensaje, traducirErrorAuth(error), 'error');
-    }
-  });
-
-  id('btn-recuperar').addEventListener('click', async (evento) => {
-    evento.preventDefault();
-    const email = id('email').value.trim().toLowerCase();
-    if (!email) {
-      estado(mensaje, 'Escribe tu correo arriba y vuelve a pulsar aqui.', 'aviso');
-      return;
-    }
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (error) {
-      // Da igual si el correo existe o no: responder distinto permitiria
-      // averiguar que direcciones estan registradas.
-      console.debug('recuperacion', error.code);
-    }
-    estado(mensaje, 'Si ese correo tiene cuenta, recibiras un enlace para cambiar la contrasena.', 'exito');
-  });
-</script>
+<script type="module" src="/assets/js/paginas/entrar.js"></script>
 </body>
 </html>

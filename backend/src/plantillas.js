@@ -181,6 +181,59 @@ function revisionLenta({ tokenBaja = null, nombre, ruta }) {
 }
 
 /**
+ * Aviso a quien ya tenia cuenta en la v1, despues de migrar sus datos (#54).
+ *
+ * Existe por una razon concreta: la primera vez que entren van a ver una
+ * clasificacion en la que no aparecen, y sin este correo la lectura obvia es
+ * "me han borrado los viajes". No es cortesia, es evitar que la gente se vaya
+ * por un malentendido.
+ *
+ * Lo que NO hace este correo: sustituir la notificacion de brecha del art. 34,
+ * si es que hubo que mandarla (#59). Son dos comunicaciones distintas, con
+ * obligaciones distintas, y mezclarlas seria enterrar la segunda.
+ */
+function historialMigrado({ tokenBaja = null, nombre, viajes = 0, puntos = 0, kilometros = 0, estimados = 0 }) {
+  const piloto = escapar(nombre);
+  const km = kilometros.toLocaleString('es-ES', { maximumFractionDigits: 0 });
+
+  // Si parte del kilometraje es deducido y no medido, se dice. Quien mira sus
+  // numeros tiene derecho a saber cuales son de ruta real.
+  const aviso = estimados > 0
+    ? `De esos, ${estimados.toLocaleString('es-ES')} ${estimados === 1 ? 'viaje tiene' : 'viajes tienen'} `
+      + 'la distancia estimada, porque todavia no esta calculada la ruta ciclable de ese par de estaciones. '
+      + 'Aparecen marcados en tu perfil.'
+    : null;
+
+  return {
+    asunto: 'Tus viajes de BiciFastness siguen ahi',
+    html: envolver({
+      tokenBaja,
+      titulo: `Hola, ${piloto}`,
+      contenido:
+        parrafo('BiciFastness ha cambiado por dentro. Te escribo para que no te lleves una sorpresa: '
+          + '<strong>tus viajes no se han perdido</strong>.')
+        + parrafo(`Tus ${viajes.toLocaleString('es-ES')} viajes y tus ${puntos.toLocaleString('es-ES')} puntos `
+          + 'estan archivados en tu perfil como una temporada mas, la temporada <strong>v1</strong>. '
+          + `Ademas ahora llevan los kilometros calculados: ${km} km en total, que antes no se guardaban.`)
+        + (aviso ? parrafo(escapar(aviso)) : '')
+        + parrafo('Lo que si empieza a cero, <strong>para todo el mundo</strong>, es la temporada en curso. '
+          + 'El juego nuevo puntua por distancia, por velocidad y por constancia, no solo por ir rapido, '
+          + 'asi que arrastrar los puntos antiguos habria sido darte una ventaja medida con otras reglas.')
+        + boton('Ver mi perfil', `${SITIO}/yo/`),
+    }),
+    texto: `Hola, ${nombre}\n\n`
+      + 'BiciFastness ha cambiado por dentro. Te escribo para que no te lleves una sorpresa: '
+      + 'tus viajes no se han perdido.\n\n'
+      + `Tus ${viajes} viajes y tus ${puntos} puntos estan archivados en tu perfil como una `
+      + `temporada mas, la temporada v1. Ademas ahora llevan los kilometros calculados: ${km} km en total.\n\n`
+      + (aviso ? `${aviso}\n\n` : '')
+      + 'Lo que si empieza a cero, para todo el mundo, es la temporada en curso. El juego nuevo '
+      + 'puntua por distancia, por velocidad y por constancia, no solo por ir rapido.\n\n'
+      + `${SITIO}/yo/\n` + pieTexto(tokenBaja),
+  };
+}
+
+/**
  * Aviso a la administracion de que la cuota se esta agotando (#38).
  *
  * NO lleva enlace de baja: no es un correo de producto, es el unico aviso de
@@ -241,6 +294,7 @@ function cuotaEnPeligro({ nivel, porcentaje, consumido, proyeccion, limites }) {
 module.exports = {
   bienvenida,
   cuotaEnPeligro,
+  historialMigrado,
   viajeRechazado,
   viajeAnulado,
   viajesVerificados,

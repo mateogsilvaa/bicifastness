@@ -120,7 +120,25 @@ Lo que tiene que decir el correo:
 - Si hubo brecha de datos y se les notifico (#59), esto **no** la sustituye: son
   dos comunicaciones distintas y con obligaciones distintas.
 
-El envio va por el worker, con `backend/src/correo.js` y una plantilla en
-`backend/src/plantillas.js`, para que respete las preferencias de correo y la
-baja (#47). **No lo mandes desde un cliente de correo a mano**: eso se salta la
-baja de quien ya la haya pedido.
+Lo manda `scripts/avisar-migracion.js`, con la plantilla `historialMigrado`:
+
+```bash
+export FIREBASE_SERVICE_ACCOUNT="$(cat serviceAccountKey.json)"
+export RESEND_API_KEY=...
+
+node scripts/avisar-migracion.js --simular   # lista a quien le tocaria, sin enviar
+node scripts/avisar-migracion.js --enviar
+```
+
+Es idempotente: marca `avisadoMigracionV1` en el perfil **despues** de que el
+envio salga bien, asi que se puede relanzar si se corta a la mitad sin que nadie
+reciba el correo dos veces ni se quede sin el.
+
+Solo escribe a quien tenga historial de la v1 archivado. A quien se registro
+despues, este correo no le dice nada.
+
+**No lo mandes desde un cliente de correo a mano.** El script respeta lo mismo
+que respeta el worker: quien tiene `avisosCorreo` en false, el enlace de baja en
+el propio correo y el cupo diario de Resend. Un envio masivo desde Gmail se salta
+las tres cosas, y la primera es la que convierte un aviso util en una infraccion
+(#47).

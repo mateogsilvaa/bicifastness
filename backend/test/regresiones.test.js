@@ -698,6 +698,26 @@ test('la migracion ofrece copia de seguridad y no la sobrescribe', () => {
   assert.match(guion, /--copia/);
 });
 
+test('el aviso a los usuarios de la v1 respeta la baja y no se repite', () => {
+  // Un envio masivo desde un cliente de correo se saltaria las tres cosas que
+  // comprueba este test, y la primera convierte un aviso util en una infraccion.
+  const guion = leerCodigo('scripts/avisar-migracion.js');
+
+  assert.match(guion, /avisosCorreo === false/, 'escribiria a quien se dio de baja');
+  assert.match(guion, /tokenBaja/, 'el correo saldria sin enlace de baja');
+  assert.match(guion, /avisadoMigracionV1/, 'no hay marca: relanzarlo escribiria dos veces a la misma gente');
+
+  // Y el correo se pide a Auth, no al documento: alli es donde vive (#60).
+  assert.match(guion, /admin\.auth\(\)\.getUser\(/);
+
+  // La marca va DESPUES del envio. Al reves, un fallo a mitad dejaria gente
+  // marcada como avisada sin haber recibido nada.
+  const envio = guion.indexOf('correo.enviar');
+  const marca = guion.indexOf('avisadoMigracionV1: true');
+  assert.ok(envio !== -1 && marca > envio,
+    'la marca de avisado se escribe antes del envio: un fallo dejaria gente sin correo y marcada');
+});
+
 test('la migracion no depende de Cloud Storage', () => {
   // Storage exige el plan Blaze (tarjeta). Las capturas van a la coleccion
   // `capturas`, que es como funciona la v2 entera.

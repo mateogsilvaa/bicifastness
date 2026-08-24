@@ -423,9 +423,9 @@ async function main() {
     console.log('Ademas:');
     console.log('  1. Volver a conceder el rol de admin con scripts/set-admin.js');
     console.log('  2. Lanzar el worker para que recalcule puntuaciones desde cero');
-    console.log('  3. Avisar por correo a los usuarios de la v1: su historial sigue');
-    console.log('     ahi, archivado como temporada \'v1\'. La plantilla y el guion');
-    console.log('     estan en docs/MIGRACION.md');
+    console.log('  3. Avisar a los usuarios de la v1 de que su historial sigue ahi:');
+    console.log('     node scripts/avisar-migracion.js --simular');
+    console.log('     node scripts/avisar-migracion.js --enviar');
     console.log('  4. Borrar la copia de seguridad cuando esto se de por bueno:');
     console.log('     lleva dentro los correos y las capturas');
   }

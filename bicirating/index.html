@@ -60,7 +60,7 @@
 
 <script type="module">
   import { db, collection, getDocs } from '/assets/js/firebase.js';
-  import { iniciarPagina } from '/assets/js/ui.js';
+  import { iniciarPagina, explicarFallo } from '/assets/js/ui.js';
   import { id, el, estado, reemplazar, imagen, esqueleto } from '/assets/js/dom.js';
 
   iniciarPagina('bicirating');
@@ -93,7 +93,7 @@
       estado(id('mensaje'), '');
       pintar();
     } catch (error) {
-      estado(id('mensaje'), `No se ha podido cargar la clasificacion: ${error.message}`, 'error');
+      estado(id('mensaje'), explicarFallo(error, 'La clasificacion'), 'error');
     }
   }
 

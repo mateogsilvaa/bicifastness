@@ -55,6 +55,26 @@ export function formatearTiempo(segundos) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+/**
+ * Convierte un fallo de Firestore en algo que se pueda leer.
+ *
+ * `permission-denied` sale hoy en las clasificaciones a proposito: la lectura
+ * publica de `usuarios` y `tiempos_viaje` esta cerrada mientras esas
+ * colecciones sigan llevando datos personales de la v1 (#59, #60). Ensenar
+ * "Missing or insufficient permissions" no le dice nada a nadie.
+ */
+export function explicarFallo(error, queSeCargaba) {
+  if (error?.code === 'permission-denied') {
+    return `${queSeCargaba} no esta disponible todavia. Las clasificaciones publicas `
+      + 'volveran cuando los datos esten migrados; mientras tanto no se sirven, '
+      + 'porque las colecciones antiguas aun llevan datos personales dentro.';
+  }
+  if (error?.code === 'unavailable') {
+    return `${queSeCargaba} no se ha podido cargar: parece que no hay conexion.`;
+  }
+  return `${queSeCargaba} no se ha podido cargar: ${error?.message || 'error desconocido'}`;
+}
+
 export function formatearFecha(valor) {
   const d = valor instanceof Date ? valor : new Date(valor);
   if (Number.isNaN(d.getTime())) return '';

@@ -251,7 +251,7 @@
 
     boton.disabled = true;
     try {
-      await crearPerfil({ username: id('rec-username').value, email: auth.currentUser.email });
+      await crearPerfil({ username: id('rec-username').value });
       window.location.reload();
     } catch (error) {
       estado(mensaje, error.message, 'error');

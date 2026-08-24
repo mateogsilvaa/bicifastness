@@ -59,8 +59,10 @@ async function migrarUsuarios(emailAUid) {
     }
 
     const nuevo = {
+      // El correo NO se copia (#60). Vive en Firebase Auth y basta con
+      // `admin.auth().getUser(uid)`: duplicarlo aqui fue lo que convirtio la
+      // lectura publica del ranking en una fuga de 175 direcciones.
       uid,
-      email,
       username: datos.username || email.split('@')[0],
       usernameLower: (datos.username || email.split('@')[0]).toLowerCase(),
       avatarUrl: typeof datos.avatar === 'string' && datos.avatar.startsWith('http') ? datos.avatar : null,

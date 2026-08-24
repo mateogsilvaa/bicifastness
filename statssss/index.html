@@ -55,7 +55,7 @@
 
 <script type="module">
   import { db, collection, getDocs, query, where } from '/assets/js/firebase.js';
-  import { iniciarPagina } from '/assets/js/ui.js';
+  import { iniciarPagina, explicarFallo } from '/assets/js/ui.js';
   import { id, estado } from '/assets/js/dom.js';
 
   iniciarPagina('');
@@ -80,7 +80,7 @@
       estado(id('mensaje'), '');
       id('rejilla').hidden = false;
     } catch (error) {
-      estado(id('mensaje'), `No se han podido cargar las estadisticas: ${error.message}`, 'error');
+      estado(id('mensaje'), explicarFallo(error, 'Las estadisticas'), 'error');
     }
   })();
 </script>

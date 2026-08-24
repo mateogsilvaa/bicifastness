@@ -47,8 +47,18 @@ service cloud.firestore {
 
     // --- Perfiles ----------------------------------------------------------
     match /usuarios/{uid} {
-      // Publico: los rankings y los perfiles de piloto se ven sin sesion.
-      allow read: if true;
+      // CERRADO. Antes ponia `allow read: if true`, con el razonamiento de que
+      // los rankings se ven sin sesion y necesitan nombre, avatar y puntuacion.
+      // El razonamiento era correcto; el modelo de datos no: el MISMO documento
+      // llevaba el correo, asi que "publico para el ranking" significaba
+      // publicar la direccion de todo el mundo. Y el id del documento tampoco
+      // ayudaba en la v1, donde era el propio correo.
+      //
+      // Lo publico vuelve cuando salga de aqui: `agregados/` (#35) llevara solo
+      // nombre, avatar y puntos, que es lo unico que el ranking necesita.
+      // Mientras tanto las clasificaciones publicas no funcionan, y con el
+      // sitio en obras eso no molesta a nadie.
+      allow read: if esAdmin() || esYo(uid);
 
       // El alta la hace el propio usuario, pero con TODOS los contadores a cero
       // y sin poder inventarse el rol. Si se pudiera crear con biciRating alto o
@@ -56,7 +66,7 @@ service cloud.firestore {
       allow create: if esYo(uid)
         && datos().uid == uid
         && datos().keys().hasOnly([
-          'uid', 'email', 'username', 'usernameLower', 'avatarUrl',
+          'uid', 'username', 'usernameLower', 'avatarUrl',
           'biciRating', 'viajesVerificados', 'puntosPorRuta', 'logros',
           'clanId', 'favoritas', 'suspendido', 'creado', 'consentimiento'
         ])
@@ -107,11 +117,29 @@ service cloud.firestore {
 
     // --- Viajes ------------------------------------------------------------
     match /tiempos_viaje/{viajeId} {
-      // Los verificados son publicos (alimentan el ranking). Los pendientes y
-      // los rechazados solo los ve su dueno y la administracion.
-      allow read: if previo().verificado == true
-                  || esAdmin()
-                  || esYo(previo().uid);
+      // CIERRE DE EMERGENCIA (#59). En el modelo v2 un viaje verificado no
+      // contiene datos personales (la captura vive en `capturas`, que solo lee
+      // la administracion) y por eso podia ser publico. Pero los datos de
+      // PRODUCCION siguen siendo de la v1, con otra forma:
+      //
+      //   email_real, ruta, nombre_usuario, fecha, foto_url, uploaded_at,
+      //   tiempo_formateado, tiempo_segundos, verificado
+      //
+      // Regla nueva + datos viejos = se publican el correo y la captura entera
+      // de cada persona. Que el sitio este en mantenimiento no protege nada:
+      // Firestore responde aunque la web no se sirva.
+      //
+      // Para restaurar la linea de la v2, hay que cumplir ANTES las dos
+      // condiciones, no una:
+      //   1. la migracion (#54) ha corrido con --aplicar
+      //   2. ningun documento de `tiempos_viaje` conserva `email_real` ni
+      //      `foto_url` (lo comprueba `scripts/migrar-datos.js --auditar`)
+      //
+      // Entonces, y solo entonces, se sustituye por:
+      //   allow read: if previo().verificado == true
+      //               || esAdmin()
+      //               || esYo(previo().uid);
+      allow read: if esAdmin() || esYo(previo().uid);
 
       // El piloto PROPONE un viaje. Nace siempre pendiente y sin verificar: el
       // veredicto lo pone el worker, que se salta estas reglas.

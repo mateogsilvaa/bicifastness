@@ -71,6 +71,49 @@ test('el usuario no puede tocar su propia puntuacion ni sus insignias', () => {
   }
 });
 
+// --- La fuga de correos (#59 y #60) -------------------------------------------
+//
+// Dos incidentes con la misma raiz: un dato personal guardado dentro de un
+// documento de lectura publica. Las reglas eran correctas para el modelo v2 y
+// se aplicaban sobre datos v1. Estas pruebas fijan las dos mitades: que el
+// correo no vuelva al documento, y que la lectura no vuelva a abrirse antes de
+// que la migracion haya corrido.
+
+test('el perfil no puede volver a guardar el correo', () => {
+  const usuarios = bloque('usuarios');
+  const alta = usuarios.match(/allow create[\s\S]*?hasOnly\(\[([^\]]+)\]\)/)[1];
+  assert.ok(!/'email'/.test(alta),
+    'la lista de campos del alta vuelve a admitir el correo: vive en Firebase Auth');
+
+  const acciones = leerCodigo('assets/js/acciones.js');
+  const perfil = acciones.slice(
+    acciones.indexOf('export async function crearPerfil'),
+    acciones.indexOf('export async function aceptarLegal')
+  );
+  assert.ok(!/\bemail\b/.test(perfil), 'crearPerfil vuelve a escribir el correo en Firestore');
+
+  assert.ok(!/^\s*email,?$/m.test(leerCodigo('scripts/migrar-datos.js')),
+    'la migracion vuelve a copiar el correo al documento de usuario');
+});
+
+test('ni los perfiles ni los viajes se leen sin sesion', () => {
+  // Mientras `usuarios` lleve el correo en produccion y `tiempos_viaje` lleve
+  // `email_real` y `foto_url`, publico significa publicar datos personales.
+  // Lo publico vuelve desde `agregados/` (#35), no desde estas colecciones.
+  for (const coleccion of ['usuarios', 'tiempos_viaje']) {
+    const lectura = bloque(coleccion).match(/allow read:[^;]*;/)[0];
+    assert.ok(!/\bif true\b/.test(lectura), `${coleccion} vuelve a ser legible sin sesion`);
+    assert.match(lectura, /esAdmin\(\)/, `${coleccion} deberia dejar leer a la administracion`);
+    assert.match(lectura, /esYo\(/, `${coleccion} deberia dejar leer a su dueno`);
+  }
+});
+
+test('un viaje verificado no vuelve a ser publico por el campo verificado', () => {
+  const lectura = bloque('tiempos_viaje').match(/allow read:[^;]*;/)[0];
+  assert.ok(!/verificado == true/.test(lectura),
+    'la lectura publica de los verificados solo se restaura tras migrar los datos (#54)');
+});
+
 test('un viaje solo puede nacer pendiente y sin verificar', () => {
   const viajes = bloque('tiempos_viaje');
   assert.match(viajes, /datos\(\)\.estado == 'pendiente'/);

@@ -93,7 +93,7 @@
     auth, db, onAuthStateChanged,
     collection, getDocs, query, where, doc, getDoc,
   } from '/assets/js/firebase.js';
-  import { iniciarPagina, nombreRuta, nombreEstacion, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
+  import { iniciarPagina, nombreRuta, nombreEstacion, formatearFecha, formatearTiempo, explicarFallo } from '/assets/js/ui.js';
   import { id, el, estado, reemplazar, imagen, confirmar, avisar, esqueleto } from '/assets/js/dom.js';
   import { generarNodosInsignias } from '/insignias.js';
   import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
@@ -141,7 +141,7 @@
       estado(id('mensaje'), '');
       pintarRutas();
     } catch (error) {
-      estado(id('mensaje'), `No se han podido cargar los rankings: ${error.message}`, 'error');
+      estado(id('mensaje'), explicarFallo(error, 'El ranking'), 'error');
     }
   }
 

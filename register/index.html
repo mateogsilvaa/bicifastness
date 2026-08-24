@@ -173,7 +173,7 @@
       // El perfil lo crea el servidor. Antes lo escribia el navegador con
       // `isAdmin: false` en el objeto, lo que dejaba claro que ese campo era
       // manipulable desde el cliente: bastaba con enviarlo a true.
-      await crearPerfil({ username, email });
+      await crearPerfil({ username });
 
       await sendEmailVerification(auth.currentUser).catch(() => {});
       window.location.replace('/home/');

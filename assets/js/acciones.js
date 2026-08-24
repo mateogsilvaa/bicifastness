@@ -30,8 +30,15 @@ const uidActual = () => auth.currentUser?.uid;
  * Las reglas obligan a que todos los contadores nazcan a cero y no admiten un
  * campo de rol: en la version anterior el navegador enviaba `isAdmin: false`,
  * lo que dejaba claro que ese campo era manipulable desde el cliente.
+ *
+ * El correo NO se guarda aqui (#60). Ya vive en Firebase Auth, que es su sitio:
+ * duplicarlo en un documento de Firestore fue lo que convirtio la lectura
+ * publica del ranking en una fuga de 175 direcciones. Ademas, una copia se
+ * queda obsoleta en cuanto alguien cambia su correo. Quien lo necesite:
+ *   - el navegador -> `auth.currentUser.email`
+ *   - el worker    -> `admin.auth().getUser(uid)`
  */
-export async function crearPerfil({ username, email }) {
+export async function crearPerfil({ username }) {
   const uid = uidActual();
   const nombre = String(username || '').trim();
   const clave = nombre.toLowerCase();
@@ -49,7 +56,6 @@ export async function crearPerfil({ username, email }) {
 
   lote.set(doc(db, 'usuarios', uid), {
     uid,
-    email: String(email || '').toLowerCase(),
     username: nombre,
     usernameLower: clave,
     avatarUrl: avatarPorDefecto(nombre),
@@ -139,6 +145,16 @@ export async function exportarMisDatos() {
 
   return {
     exportadoEn: new Date().toISOString(),
+    // El correo ya no se copia en el perfil (#60): vive en Firebase Auth. Pero
+    // el derecho de acceso cubre TODOS los datos, tambien los de la cuenta, asi
+    // que la exportacion los saca de donde esten de verdad.
+    cuenta: {
+      uid,
+      email: auth.currentUser?.email || null,
+      emailVerificado: auth.currentUser?.emailVerified ?? null,
+      creada: auth.currentUser?.metadata?.creationTime || null,
+      ultimoAcceso: auth.currentUser?.metadata?.lastSignInTime || null,
+    },
     perfil: perfil.exists() ? perfil.data() : null,
     viajes: viajes.docs.map((d) => ({ id: d.id, ...d.data() })),
     reportesEnviados: reportes.docs.map((d) => ({ id: d.id, ...d.data() })),

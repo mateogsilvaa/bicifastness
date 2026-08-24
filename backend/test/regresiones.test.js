@@ -326,6 +326,20 @@ test('la pagina de obras no depende de nada del sitio', () => {
     'no debe indexarse en lugar del sitio real');
 });
 
+test('las reglas se despliegan tambien en modo mantenimiento', () => {
+  // Firestore responde aunque la web no se sirva: la pagina de obras no protege
+  // ni un documento. Si el despliegue de reglas vive dentro de la rama del
+  // `else`, poner el sitio en obras deja de desplegarlas justo cuando mas falta
+  // hacen. Fue por eso por lo que el cierre de emergencia de #59 no llegaba a
+  // produccion.
+  const flujo = leer('.github/workflows/ci.yml');
+  const despliegue = flujo.slice(flujo.indexOf('- name: Desplegar'));
+  const reglas = despliegue.indexOf('firebase deploy --only firestore:rules');
+  assert.ok(reglas !== -1, 'el CI ya no despliega las reglas de Firestore');
+  assert.ok(reglas < despliegue.indexOf('if [ "$MANTENIMIENTO" = "true" ]'),
+    'el despliegue de reglas esta dentro del condicional de mantenimiento');
+});
+
 test('el interruptor de mantenimiento esta cableado en el CI', () => {
   const flujo = leer('.github/workflows/ci.yml');
   assert.match(flujo, /MANTENIMIENTO: \$\{\{ vars\.MANTENIMIENTO \}\}/);

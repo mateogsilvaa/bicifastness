@@ -651,6 +651,53 @@ test('la migracion borra los datos personales del viaje, no los conserva', () =>
   assert.match(migracion, /--comprobar|SOLO_COMPROBAR/);
 });
 
+test('los puntos de la v1 se archivan, ni se suman ni se tiran', () => {
+  // Sumarlos daria ventaja de salida a quien ya estaba, y medida con otras
+  // reglas: la v1 solo puntuaba ir rapido. Tirarlos es decirle a alguien con dos
+  // años de viajes que no cuentan. Se archivan como una temporada mas.
+  const migracion = leerCodigo('scripts/migrar-datos.js');
+
+  assert.match(migracion, /temporadas\/\$\{TEMPORADA_V1\}/,
+    'el historial de la v1 no se archiva en la subcoleccion del usuario');
+
+  // La temporada en curso arranca a cero para todo el mundo.
+  assert.match(migracion, /puntosTemporada: 0/);
+  assert.ok(!/puntosTemporada: Number\(datos\.biciRating/.test(migracion),
+    'los puntos de la v1 se estan sumando a la temporada en curso');
+
+  // Y los viajes migrados no pueden volver a repartir puntos.
+  assert.match(migracion, /premiado: true/,
+    'sin esta marca el worker podria volver a premiar los viajes de la v1');
+});
+
+test('los viajes migrados llevan distancia, y marcada si es estimada', () => {
+  // Sin esto el modo Fondo arranca como si nadie hubiera pedaleado nunca:
+  // alguien con doscientos viajes a la espalda tendria cero kilometros.
+  const migracion = leerCodigo('scripts/migrar-datos.js');
+
+  assert.match(migracion, /require\('\.\.\/backend\/src\/distancias'\)/,
+    'debe medir con el mismo modulo que el worker, o los viajes viejos y los nuevos no cuentan igual');
+  assert.match(migracion, /distanciaMetros:/);
+  assert.match(migracion, /velocidadKmh:/);
+  // La diferencia entre un kilometraje medido y uno deducido tiene que quedar
+  // visible: quien mire su perfil tiene derecho a saber cual esta viendo.
+  assert.match(migracion, /distanciaEstimada:/);
+});
+
+test('la migracion ofrece copia de seguridad y no la sobrescribe', () => {
+  // `set` sin merge no tiene vuelta atras: sin copia, un error es definitivo.
+  const migracion = leerCodigo('scripts/migrar-datos.js');
+
+  assert.match(migracion, /--copia/, 'no hay forma de hacer copia antes de aplicar');
+  assert.match(migracion, /flag: 'wx'/,
+    'sobrescribiria una copia existente al lanzar el comando dos veces');
+
+  // Y el camino de vuelta tiene que estar escrito, no en la cabeza de nadie.
+  const guion = leer('docs/MIGRACION.md');
+  assert.match(guion, /Camino de vuelta/);
+  assert.match(guion, /--copia/);
+});
+
 test('la migracion no depende de Cloud Storage', () => {
   // Storage exige el plan Blaze (tarjeta). Las capturas van a la coleccion
   // `capturas`, que es como funciona la v2 entera.

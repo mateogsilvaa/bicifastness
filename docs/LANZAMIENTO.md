@@ -29,11 +29,17 @@ de antes.
 
 - [ ] Reglas desplegadas: Firebase Console → Firestore → Reglas, pegando
       `firestore.rules`. **Esto no espera al CI.**
-- [ ] `node scripts/migrar-datos.js --verificar` dice que ningun documento lleva
-      ya `email_real`, `foto_url` ni `email`
-- [ ] Migracion aplicada (`--simular` primero, siempre)
+- [ ] Copia de seguridad hecha: `node scripts/migrar-datos.js --copia copia.json`
+- [ ] Migracion ensayada con `--simular` y revisada la salida
+- [ ] Migracion aplicada con `--aplicar`
+- [ ] `node scripts/migrar-datos.js --comprobar` dice que ningun documento lleva
+      ya `email_real` ni `foto_url`
 - [ ] Restaurada la lectura publica de los verificados en `firestore.rules` — la
       linea esta escrita y comentada en el propio fichero — y desplegada
+- [ ] Copia de seguridad borrada: lleva dentro los correos y las capturas
+
+El detalle de cada paso, y el camino de vuelta si sale mal, en
+[`docs/MIGRACION.md`](MIGRACION.md).
 
 **Firestore responde aunque la web este en obras.** Es un servicio aparte: el
 modo mantenimiento no protege ni un dato. Lo unico que protege son las reglas.

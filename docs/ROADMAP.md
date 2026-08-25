@@ -312,6 +312,27 @@ es **la propiedad**. `lunesDe` tiene que devolver un lunes SIEMPRE, asi que la
 prueba barre un año entero hora a hora — cambios de horario incluidos — y no
 depende de cuando se ejecute.
 
+### Pruebas con su propio "hoy" escrito a mano
+
+Salio a la vez que lo anterior y es su reverso, asi que va aqui. `resumen.test.js`
+sembraba sus datos alrededor de `const HOY = new Date('2026-08-23T12:00:00Z')`,
+pero `metricas` no recibe la fecha: la pide con `Date.now()`. Los dos lados
+hablaban de dias distintos, y **dos dias despues de escribirlo el fichero se
+puso en rojo solo**, sin que nadie tocara nada.
+
+Encima su `dia()` cortaba el ISO — o sea, contaba en UTC — mientras que el del
+modulo cuenta en Madrid. Eso lo ponia en rojo dos horas cada noche y en verde el
+resto del dia, que es la peor clase de prueba que hay: la que solo falla cuando
+no estas mirando, y que la siguiente persona archiva como "cosas del CI".
+
+Dos reglas que salen de ahi:
+
+- si el codigo pide la fecha con `Date.now()`, **la siembra tambien se ancla al
+  reloj de verdad**, no a una fecha escrita a mano
+- la prueba cuenta los dias **con el mismo modulo que el codigo** (`diaMadrid`),
+  no con una copia a mano; asi lo compartido es la pieza, y si el modulo cambia
+  de zona la prueba se entera
+
 ### Funciones escritas, probadas y sin llamar
 
 Un patron que aparecio seis veces al revisar la rama, y que cuesta ver porque

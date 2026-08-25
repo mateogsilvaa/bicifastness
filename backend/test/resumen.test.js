@@ -22,6 +22,7 @@ const assert = require('node:assert');
 const Module = require('node:module');
 
 const { FirestoreFalso, FieldValue, FieldPath } = require('./ayuda/firestore-falso');
+const { diaMadrid } = require('../src/util');
 
 let bd = new FirestoreFalso();
 
@@ -38,9 +39,40 @@ require.cache[rutaAdmin].exports = {
 
 const metricas = require('../src/metricas');
 
-const HOY = new Date('2026-08-23T12:00:00Z');
+/**
+ * El "hoy" del ensayo, y por que no es una fecha escrita a mano.
+ *
+ * Lo era: `new Date('2026-08-23T12:00:00Z')`. Pero `metricas` no recibe la
+ * fecha, la pide con `Date.now()`, asi que la siembra hablaba de agosto
+ * mientras el codigo contaba desde hoy. Dos dias despues de escribirlo el
+ * fichero se puso en rojo solo.
+ *
+ * Y el `dia` de aqui cortaba el ISO, es decir contaba en UTC, mientras que el
+ * de `metricas` cuenta en Madrid. Entre las 00:00 y las 02:00 la siembra ponia
+ * los trayectos en la casilla de ayer y las ventanas no cuadraban. Rojo dos
+ * horas cada noche, verde el resto del dia: la peor clase de prueba que hay.
+ *
+ * Ahora los dos lados usan el mismo dia — el de Madrid, el del juego — y el
+ * ancla se mueve con el reloj.
+ */
+const dia = (f) => diaMadrid(f);
+
+// El dia de hoy en Madrid, tomado a mediodia UTC: son las 13:00 o las 14:00 en
+// Madrid, lejos de los dos bordes del dia, asi que ni los cambios de horario ni
+// la hora a la que se ejecute el ensayo mueven la siembra de dia.
+const HOY = new Date(`${diaMadrid(new Date())}T12:00:00Z`);
 const haceDias = (n) => new Date(HOY.getTime() - n * 86400000);
-const dia = (f) => f.toISOString().slice(0, 10);
+
+/**
+ * El corte, calculado igual que lo calcula el modulo.
+ *
+ * A proposito no se deriva de HOY: si el ensayo lo sacara de su propia ancla y
+ * el modulo de `Date.now()`, el dia del cambio de horario podrian discrepar y
+ * el fichero volveria a ponerse rojo solo, que es justo lo que se acaba de
+ * quitar.
+ */
+const corteVivo = () =>
+  metricas.lunesDe(new Date(Date.now() - metricas.DIAS_COHORTE_VIVA * 86400000));
 
 const USUARIOS = 120;
 const POR_USUARIO = 6;
@@ -130,7 +162,7 @@ test('la semana del corte sale entera, no a medias', async () => {
   // arranca esto la primera vez — la semana se perderia entera.
   const { usuarios, viajes } = sembrar();
 
-  const corte = metricas.lunesDe(haceDias(metricas.DIAS_COHORTE_VIVA));
+  const corte = corteVivo();
   const completa = cohortesALoBestia(usuarios, viajes).find((c) => c.semana === corte);
   assert.ok(completa, 'el ensayo necesita altas en la semana del corte');
 
@@ -157,7 +189,7 @@ test('sin resumen anterior no se inventa nada: solo salen las cohortes vivas', a
   sembrar();
 
   const soloVivas = await metricas.cohortesVivas([]);
-  const corte = metricas.lunesDe(haceDias(metricas.DIAS_COHORTE_VIVA));
+  const corte = corteVivo();
 
   assert.ok(soloVivas.length > 0);
   for (const c of soloVivas) {
@@ -232,7 +264,7 @@ test('el resumen conserva las cohortes congeladas aunque desaparezcan sus datos'
 
   await metricas.resumir();
   const primera = bd.leer('agregados/metricas').cohortes;
-  const corte = metricas.lunesDe(haceDias(metricas.DIAS_COHORTE_VIVA));
+  const corte = corteVivo();
   const congeladas = primera.filter((c) => c.semana < corte);
 
   assert.ok(congeladas.length > 0, 'el ensayo necesita cohortes ya congeladas');

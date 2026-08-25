@@ -2246,3 +2246,47 @@ test('el desglose de puntos no ensena multiplicadores que no multiplican', () =>
   const celebrar = leerCodigo('assets/js/celebrar.js');
   assert.match(celebrar, /valor === 1\) continue/);
 });
+
+test('una prueba con su propio "hoy" se lo pasa al codigo, no se lo guarda', () => {
+  // COMO SE LLEGO AQUI. `resumen.test.js` sembraba sus datos alrededor de un
+  // "hoy" escrito a mano, pero `metricas` no recibe la fecha: la pide con
+  // `Date.now()`. Los dos lados hablaban de dias distintos, y dos dias despues
+  // de escribirlo el fichero se puso en rojo solo, sin que nadie tocara nada.
+  //
+  // LA REGLA. Una fecha fija en una prueba vale — es lo que la hace repetible —
+  // SIEMPRE que se le PASE al codigo que se esta probando, para que los dos
+  // lados cuenten desde el mismo sitio. Lo que no vale es guardarsela para
+  // sembrar mientras el codigo mira el reloj de verdad.
+  //
+  // Se busca el nombre del ancla usado como ARGUMENTO, que es justo lo que
+  // separa un caso del otro: `clanes.test.js` hace `elegirSucesor(clan,
+  // miembros, AHORA)` y no puede pudrirse; la version rota de `resumen.test.js`
+  // solo la usaba para sembrar.
+  //
+  // No se pasa por `recorrerProyecto`, que se salta `test/` a proposito. Y se
+  // quitan antes los comentarios: si no, esta misma prueba se delataria por
+  // hablar del asunto.
+  const sinComentarios = (codigo) => codigo
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+
+  const sinInyectar = [];
+
+  for (const nombreFichero of fs.readdirSync(__dirname)) {
+    if (!nombreFichero.endsWith('.test.js')) continue;
+
+    const codigo = sinComentarios(
+      fs.readFileSync(path.join(__dirname, nombreFichero), 'utf8'));
+
+    for (const [, ancla] of codigo.matchAll(
+      /const (HOY|AHORA|ANCLA|NOW) = (?:new Date\()?['"`]\d{4}-\d{2}-\d{2}/g)) {
+      if (!new RegExp(`[(,]\\s*${ancla}\\s*[,)]`).test(codigo)) {
+        sinInyectar.push(`${nombreFichero} (${ancla})`);
+      }
+    }
+  }
+
+  assert.deepStrictEqual(sinInyectar, [],
+    'estas pruebas se guardan su "hoy" en vez de pasarselo al codigo, asi que se '
+    + `pondran en rojo solas cuando pase el tiempo: ${sinInyectar.join(', ')}`);
+});

@@ -892,6 +892,41 @@ test('la cola se procesa por orden de llegada', () => {
     'la cola dejaria de ser FIFO');
 });
 
+test('las periodicas se reparten por el cron que dispara, no por la fecha', () => {
+  // Decidirlo por la fecha se rompe el dia 1 que cae en lunes: los dos cron
+  // disparan, los dos ven dia 01 y los dos ejecutan el cierre de temporada. Esa
+  // semana las divisiones no se actualizan y el cierre corre dos veces.
+  const flujo = leer('.github/workflows/periodicas.yml');
+
+  assert.match(flujo, /github\.event\.schedule/,
+    'la operacion se elige por la fecha: el dia 1 en lunes se come las divisiones');
+  assert.ok(!/date -u \+%d/.test(flujo), 'ha vuelto el reparto por fecha');
+
+  // Un cron que no reconozcamos no puede disparar lo irreversible.
+  const porDefecto = flujo.slice(flujo.indexOf('case "${{ github.event.schedule }}"'));
+  assert.match(porDefecto.slice(0, 600), /\*\)\s*\n\s*OPERACION=divisiones/,
+    'un cron desconocido acabaria cerrando la temporada, que no tiene vuelta atras');
+});
+
+test('las periodicas programadas escriben de verdad', () => {
+  // En una ejecucion `schedule` no hay `inputs`, asi que `inputs.aplicar` sale
+  // vacio. Resolver el modo solo con esa expresion daba `--simular` SIEMPRE: una
+  // vez activados los cron, la temporada no se habria cerrado nunca y nadie se
+  // habria enterado, porque el workflow sale en verde igual.
+  const flujo = leer('.github/workflows/periodicas.yml');
+
+  assert.match(flujo, /github\.event_name \}\}" = "schedule"/,
+    'las ejecuciones programadas no distinguen su modo: simularian siempre');
+
+  const decision = flujo.slice(flujo.indexOf('github.event_name'));
+  assert.match(decision.slice(0, 300), /MODO=--aplicar/,
+    'una ejecucion programada tiene que escribir, no simular');
+
+  // Y a mano sigue mandando la casilla, que viene desmarcada.
+  assert.match(flujo, /inputs\.aplicar && '--aplicar' \|\| '--simular'/,
+    'lanzarlo a mano deberia simular salvo que se pida escribir a proposito');
+});
+
 test('el cierre de temporada es idempotente', () => {
   // Es la operacion mas destructiva del proyecto: toca a todos los usuarios y
   // pone contadores a cero. Ejecutarla dos veces archivaria ceros encima de lo

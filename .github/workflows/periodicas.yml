@@ -69,12 +69,44 @@ jobs:
             exit 0
           fi
 
-          # En las ejecuciones programadas se decide por el dia: el 1 toca
-          # cierre de temporada, cualquier otro lunes toca divisiones.
+          # Que operacion toca.
+          #
+          # En una ejecucion programada se decide por el cron QUE HA DISPARADO
+          # la ejecucion, no por la fecha. Decidirlo por la fecha se rompe el
+          # dia 1 que cae en lunes: los dos cron disparan, los dos ven dia 01 y
+          # los dos ejecutan el cierre de temporada, asi que esa semana las
+          # divisiones no se actualizan y el cierre corre dos veces.
+          #
+          # Un cron que no reconozcamos cae en `divisiones` a proposito: es
+          # reversible. El cierre de temporada no tiene vuelta atras, y no puede
+          # dispararlo un horario que nadie ha mirado.
           OPERACION="${{ inputs.operacion }}"
           if [ -z "$OPERACION" ]; then
-            if [ "$(date -u +%d)" = "01" ]; then OPERACION=temporada; else OPERACION=divisiones; fi
+            case "${{ github.event.schedule }}" in
+              '30 1 1 * *') OPERACION=temporada ;;
+              '45 1 * * 1') OPERACION=divisiones ;;
+              *)
+                OPERACION=divisiones
+                echo "::warning::Cron no reconocido (${{ github.event.schedule }}): ejecuto divisiones."
+                ;;
+            esac
             echo "::notice::Ejecucion programada: $OPERACION"
           fi
 
-          node periodicas.js "$OPERACION" ${{ inputs.aplicar && '--aplicar' || '--simular' }}
+          # Escribir o solo simular.
+          #
+          # En `workflow_dispatch` manda la casilla, que viene desmarcada: quien
+          # lanza el cierre a mano tiene que pedir escribir a proposito.
+          #
+          # En una ejecucion programada NO hay `inputs`, asi que `inputs.aplicar`
+          # sale vacio. Con la expresion de antes eso daba `--simular` SIEMPRE:
+          # una vez activados los cron, la temporada no se habria cerrado nunca
+          # y nadie se habria enterado, porque el workflow salia en verde.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            MODO=--aplicar
+          else
+            MODO="${{ inputs.aplicar && '--aplicar' || '--simular' }}"
+          fi
+          echo "::notice::Modo: $MODO"
+
+          node periodicas.js "$OPERACION" "$MODO"

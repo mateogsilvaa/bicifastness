@@ -848,11 +848,10 @@ async function conteoPorRuta() {
  * clasificacion diaria que la gente ya esta compitiendo.
  */
 async function prepararDia() {
-  // El dia en Madrid, NO en UTC. `territorio.dia()` da el dia UTC, que en
-  // horario de verano va dos horas por detras: las misiones se publicaban con
-  // esa clave y el navegador las pedia con la suya, asi que entre las 22:00 y
-  // las 00:00 el documento que buscaba no existia todavia y la seccion de
-  // misiones desaparecia de la portada cada noche.
+  // El dia en Madrid, que es como cuenta los dias todo el juego. Aqui se
+  // publicaba con el dia UTC, que en horario de verano va dos horas por detras:
+  // el navegador pedia las misiones con su dia y entre las 22:00 y las 00:00 el
+  // documento no existia todavia, asi que la seccion desaparecia cada noche.
   const hoy = diaMadrid();
   const refMisiones = db.doc(`config/misiones/dias/${hoy}`);
 

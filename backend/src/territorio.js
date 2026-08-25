@@ -24,6 +24,8 @@
  * territorio exige pedalear ESTA semana.
  */
 
+const { diaMadrid } = require('./util');
+
 /** Pesos de cada componente. Suman 1. */
 const PESOS = { presencia: 0.40, velocidad: 0.35, volumen: 0.25 };
 
@@ -42,9 +44,20 @@ const CONSERVA_DIARIA = 0.97;
 /** Cuota a partir de la cual un clan CONTROLA la estacion. */
 const UMBRAL_CONTROL = 50;
 
-/** YYYY-MM-DD. */
+/**
+ * YYYY-MM-DD, en hora de Madrid.
+ *
+ * Solo marca CUANDO pasa de un dia al siguiente el decaimiento: se aplica por
+ * diferencia entre la fecha guardada y la de hoy, asi que mientras las dos usen
+ * el mismo calendario el resultado es el mismo. Aun asi va en Madrid, porque
+ * ahora todo el juego cuenta los dias asi y dejar aqui la unica excepcion es
+ * dejar una trampa para quien venga despues.
+ *
+ * El unico dia que NO es de Madrid en todo el proyecto es el de la cuota
+ * (`src/cuota.js`), y es porque ese no lo decidimos nosotros.
+ */
 function dia(fecha = new Date()) {
-  return fecha.toISOString().slice(0, 10);
+  return diaMadrid(fecha);
 }
 
 /** Normaliza un mapa de valores a 0-1 sobre su maximo. */

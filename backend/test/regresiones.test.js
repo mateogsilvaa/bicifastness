@@ -1014,6 +1014,29 @@ test('worker y navegador estan de acuerdo en que dia es', () => {
   }
 });
 
+test('el unico dia que no es de Madrid es el de la cuota', () => {
+  // Regla del proyecto, y merece la pena que sea una sola: el juego cuenta los
+  // dias en Madrid. La excepcion es la cuota diaria de Firestore, que se
+  // reinicia a medianoche del Pacifico porque eso no lo decidimos nosotros.
+  //
+  // Un modulo que calcule el dia por su cuenta vuelve a abrir la puerta a que
+  // las dos puntas no coincidan, que es de donde salieron las misiones que
+  // desaparecian de noche y el contador de cuota que se reiniciaba antes de
+  // tiempo.
+  const fuera = [];
+
+  for (const fichero of recorrerProyecto(/\.js$/)) {
+    const rel = path.relative(RAIZ, fichero);
+    if (!rel.startsWith('backend/src/')) continue;
+    if (['backend/src/util.js', 'backend/src/cuota.js'].includes(rel)) continue;
+
+    if (/toISOString\(\)\.slice\(0, 10\)/.test(leerCodigo(rel))) fuera.push(rel);
+  }
+
+  assert.deepStrictEqual(fuera, [],
+    `estos calculan el dia en UTC: ${fuera.join(', ')}. El del juego es el de Madrid.`);
+});
+
 test('nadie vuelve a calcular el dia a mano en el navegador', () => {
   // Tres copias de "hoy en YYYY-MM-DD" con la hora del dispositivo es como se
   // llego a que las misiones desaparecieran de noche, a que `subir/` no dejara

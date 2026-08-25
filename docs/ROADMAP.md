@@ -335,7 +335,7 @@ Dos reglas que salen de ahi:
 
 ### Funciones escritas, probadas y sin llamar
 
-Un patron que aparecio seis veces al revisar la rama, y que cuesta ver porque
+Un patron que ya va por diez apariciones, y que cuesta ver porque
 **todo esta en verde**: la funcion existe, tiene sus pruebas, y no la ejecuta
 nadie. Una funcion probada que no llama nadie da la misma sensacion de seguridad
 que una que funciona.
@@ -350,6 +350,7 @@ que una que funciona.
 | Las doce acciones de clan y `guardarFavoritas` | Escritas, con reglas, y sin una sola pantalla desde la que ejecutarlas |
 | `reportarViaje` y `suspenderUsuario` | La moderacion tenia cola, reglas y panel, y ninguna forma de crear una denuncia (#61) |
 | `limites.js` entero | No hay limitacion de frecuencia en ningun sitio (#62) |
+| `clanes.js` entero, y con el `badwords` | Los nombres de piloto y de clan no los filtra nadie (#64) |
 
 `reportarViaje` y `suspenderUsuario` eran el septimo y el octavo, y ya tienen
 pantalla (#61). Costo mas que los demas porque denunciar necesitaba saber a
@@ -357,7 +358,7 @@ quien se señala, y publicar los uid en las clasificaciones es justo lo que no s
 hace desde #60: se resolvio denunciando el VIAJE y dejando que el worker
 averigüe el dueño.
 
-Queda uno, y es de otra clase:
+Quedan dos abiertos. El primero es de otra clase que todos los demas:
 
 - **#62** `limites.js`. No es que no se ejecute, es que **no se puede ejecutar
   donde hace falta**. Usa el Admin SDK, o sea que corre en el worker, y para
@@ -366,8 +367,27 @@ Queda uno, y es de otra clase:
   la hay. El worker ya despeja la cola cuando una cuenta la inunda, pero eso es
   un parachoques: la escritura sigue ocurriendo.
 
-Merece la pena, al acabar algo, comprobar **quien lo llama**. `grep -rn` sobre
-el nombre de la funcion, fuera de su propio fichero y de los tests.
+El decimo, **#64**, es el mas grande y el que dejo una comprobacion util detras.
+`backend/src/clanes.js` eran 220 lineas y siete funciones que no requeria nadie:
+ni el worker, ni el navegador, ni sus propias pruebas — `test/clanes.test.js`
+prueba `clan-mantenimiento.js`, que es el que si esta enchufado. Era de la v1,
+de cuando habia Cloud Functions, y seguia diciendo en su cabecera que las
+operaciones de clan pasaban por transacciones del servidor. Ya no.
+
+Lo grave no era el peso muerto sino lo que arrastraba: era el **unico llamante
+del filtro de palabras**, asi que los nombres de piloto y de clan no los mira
+nadie, y los dos salen en clasificaciones publicas.
+
+De los diez casos, este es el unico que se puede comprobar **de forma
+generica**, y por eso ahora hay una prueba que lo hace: una funcion suelta sin
+llamar no se distingue de una funcion interna, pero **un modulo que no requiere
+nadie no tiene ninguna lectura inocente**. La prueba lleva un mapa de
+excepciones con el motivo escrito, como la del CI: hoy son `badwords.js` (se
+conserva entero porque el arreglo de #64 lo necesita) y `limites.js` (#62).
+
+Para lo demas — funciones sueltas — sigue sin haber atajo: al acabar algo,
+comprobar **quien lo llama**, con `grep -rn` sobre el nombre, fuera de su propio
+fichero y de los tests.
 
 ### Lo que encontro el banco de capturas
 

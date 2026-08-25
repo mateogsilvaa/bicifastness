@@ -2290,3 +2290,72 @@ test('una prueba con su propio "hoy" se lo pasa al codigo, no se lo guarda', () 
     'estas pruebas se guardan su "hoy" en vez de pasarselo al codigo, asi que se '
     + `pondran en rojo solas cuando pase el tiempo: ${sinInyectar.join(', ')}`);
 });
+
+test('ningun modulo de backend/src se queda sin que lo requiera nadie', () => {
+  // COMO SE LLEGO AQUI (#64). `backend/src/clanes.js` eran 220 lineas y siete
+  // funciones exportadas que no requeria NADIE: ni el worker, ni el navegador,
+  // ni sus propias pruebas — `test/clanes.test.js` prueba
+  // `clan-mantenimiento.js`, que es el que si esta enchufado.
+  //
+  // Era de la v1, de cuando habia Cloud Functions, y su cabecera seguia
+  // diciendo que las operaciones de clan pasaban por transacciones del
+  // servidor. Ya no: escribe el navegador y autorizan las reglas. Un fichero
+  // asi no es solo peso muerto, es una respuesta equivocada a quien vaya a
+  // buscar como funciona el sistema.
+  //
+  // Y arrastraba consigo el unico llamante del filtro de palabras, que es como
+  // se descubrio que los nombres de piloto y de clan no los filtra nadie.
+  //
+  // Es el decimo caso del patron "escrito, probado y sin llamar" del roadmap, y
+  // el unico que se puede comprobar de forma generica: una funcion suelta sin
+  // llamar no se distingue de una funcion interna, pero un MODULO que no
+  // requiere nadie no tiene ninguna lectura inocente.
+  //
+  // Las pruebas no cuentan a proposito: un modulo que solo usan sus pruebas es
+  // exactamente el caso que se quiere pillar.
+  const FUERA = {
+    // Se conserva entero porque el arreglo de #64 lo necesita tal cual: la
+    // lista de 169 palabras y, sobre todo, las excepciones ("Cassandra",
+    // "competitivo") que costo afinar. Su unico llamante era el modulo muerto.
+    'badwords.js': 'sin llamante desde #64; la lista se conserva porque el arreglo la necesita',
+    // No es que se haya olvidado enchufarlo: NO PUEDE correr donde hace falta.
+    // Cuenta escrituras para frenar a una cuenta suelta, y eso hay que hacerlo
+    // ANTES de escribir, cosa que el worker no puede porque llega despues y con
+    // el Admin SDK, que se salta las reglas. Se queda hasta que #62 decida
+    // entre App Check y un contador en reglas.
+    'limites.js': 'no puede correr donde hace falta; a la espera de la decision de #62',
+  };
+
+  const SRC = path.join(__dirname, '..', 'src');
+
+  // Todo lo que puede requerir algo, menos las pruebas.
+  const requeridores = [];
+  (function anda(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (['node_modules', '.git', 'lib', 'data', 'test'].includes(e.name)) continue;
+      const completo = path.join(dir, e.name);
+      if (e.isDirectory()) anda(completo);
+      else if (/\.(js|mjs)$/.test(e.name)) requeridores.push(completo);
+    }
+  })(RAIZ);
+
+  const codigos = requeridores.map((f) => [f, fs.readFileSync(f, 'utf8')]);
+  const sueltos = [];
+
+  for (const nombre of fs.readdirSync(SRC)) {
+    if (!nombre.endsWith('.js') || nombre in FUERA) continue;
+
+    const ruta = path.join(SRC, nombre);
+    const sinExtension = nombre.replace(/\.js$/, '');
+    // `require('./clanes')` y `require('./src/clanes.js')` valen los dos.
+    const requerido = new RegExp(`require\\(['"][^'"]*/${sinExtension}(\\.js)?['"]\\)`);
+
+    if (!codigos.some(([f, codigo]) => f !== ruta && requerido.test(codigo))) {
+      sueltos.push(`backend/src/${nombre}`);
+    }
+  }
+
+  assert.deepStrictEqual(sueltos, [],
+    'estos modulos no los requiere nadie fuera de las pruebas, asi que no se '
+    + `ejecutan nunca: ${sueltos.join(', ')}`);
+});

@@ -213,19 +213,81 @@ async function recalcularClan(clanId) {
   const clan = await db().doc(`clanes/${clanId}`).get();
   if (!clan.exists) return;
 
-  const miembros = clan.data().miembros || [];
+  const datosClan = clan.data();
+  const miembros = datosClan.miembros || [];
   if (!miembros.length) {
     await db().doc(`clanes/${clanId}`).set({ biciRating: 0, numMiembros: 0 }, { merge: true });
+    await db().doc(`agregados/clan-${clanId}`).set(plantillaClanVacio(clanId, datosClan));
     return;
   }
 
-  const documentos = await db().getAll(...miembros.map((uid) => db().doc(`usuarios/${uid}`)));
-  const total = documentos.reduce((suma, d) => suma + (d.exists ? (d.data().biciRating || 0) : 0), 0);
+  // Los candidatos entran en la MISMA lectura que los miembros. Son pocos y ya
+  // estamos pagando un `getAll`: pedirlos aparte seria una segunda tanda de
+  // lecturas para pintar la misma pantalla.
+  const candidatos = (datosClan.solicitudes || []).slice(0, 50);
+  const todos = [...miembros, ...candidatos];
+
+  const documentos = await db().getAll(...todos.map((uid) => db().doc(`usuarios/${uid}`)));
+  const porUid = new Map(todos.map((uid, i) => [uid, documentos[i]]));
+
+  const total = miembros.reduce((suma, uid) => {
+    const d = porUid.get(uid);
+    return suma + (d && d.exists ? (d.data().biciRating || 0) : 0);
+  }, 0);
 
   await db().doc(`clanes/${clanId}`).set(
     { biciRating: total, numMiembros: miembros.length },
     { merge: true }
   );
+
+  // La plantilla, publicada como agregado.
+  //
+  // Hace falta porque `usuarios` dejo de ser publica (#60): sin esto, un lider
+  // ve en su clan una lista de identificadores y no puede saber a quien esta
+  // expulsando. Se publica AQUI y no en otra pasada porque los documentos ya
+  // estan leidos: cuesta cero lecturas mas.
+  //
+  // Solo lo que ya es publico en las clasificaciones —nombre, avatar, puntos y
+  // viajes— mas el uid, que hace falta para poder actuar sobre alguien y que
+  // ademas ya esta publico dentro de `clanes/{id}.miembros`. NADA de correo, ni
+  // de ultima actividad: cuando alguien sale a la calle no es asunto del resto.
+  const ficha = (uid) => {
+    const d = porUid.get(uid);
+    const datos = d && d.exists ? d.data() : {};
+    return {
+      uid,
+      nombre: datos.username || 'Piloto',
+      avatar: datos.avatarUrl || null,
+      puntos: datos.biciRating || 0,
+      viajes: datos.viajesVerificados || 0,
+      metros: datos.metrosTotales || 0,
+    };
+  };
+
+  await db().doc(`agregados/clan-${clanId}`).set({
+    ...plantillaClanVacio(clanId, datosClan),
+    biciRating: total,
+    numMiembros: miembros.length,
+    miembros: miembros.map(ficha).sort((a, b) => b.puntos - a.puntos),
+    candidatos: candidatos.map(ficha),
+  });
+}
+
+/** Los datos del clan que no dependen de la plantilla. */
+function plantillaClanVacio(clanId, datosClan = {}) {
+  return {
+    clanId,
+    nombre: datosClan.nombre || clanId,
+    descripcion: datosClan.descripcion || '',
+    color: datosClan.color || null,
+    lider: datosClan.lider || null,
+    oficiales: datosClan.oficiales || [],
+    biciRating: 0,
+    numMiembros: 0,
+    miembros: [],
+    candidatos: [],
+    actualizado: admin.firestore.FieldValue.serverTimestamp(),
+  };
 }
 
 /**

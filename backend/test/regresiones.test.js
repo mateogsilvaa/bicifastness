@@ -733,6 +733,50 @@ test('el trabajo diario no recorre colecciones enteras en cada pasada', () => {
     'la marca se escribe antes de terminar: un corte dejaria el dia a medias');
 });
 
+test('la gestion de clanes tiene interfaz, no solo acciones', () => {
+  // Las doce acciones de clan llevaban escritas en `acciones.js` —con sus reglas
+  // y sus pruebas— y no las llamaba NINGUNA pagina. El backend estaba entero y
+  // no habia pantalla: un lider no podia aceptar a nadie, ni expulsar, ni ceder
+  // el mando, ni invitar.
+  const pantalla = leerCodigo('assets/js/mi-clan.js');
+
+  const ACCIONES = [
+    'crearClan', 'solicitarEntrada', 'retirarSolicitud', 'responderSolicitud',
+    'expulsarMiembro', 'cambiarOficial', 'cederLiderazgo', 'abandonarClan',
+    'disolverClan', 'crearInvitacion', 'usarInvitacion', 'confirmarEntrada',
+  ];
+
+  for (const accion of ACCIONES) {
+    assert.match(pantalla, new RegExp(`\\b${accion}\\b`),
+      `${accion} sigue sin tener quien la llame`);
+  }
+
+  // Y la pantalla tiene que estar enchufada a la pagina.
+  const territorio = leerCodigo('assets/js/paginas/territorio.js');
+  assert.match(territorio, /mi-clan\.js/, 'el modulo existe pero no lo carga nadie');
+  assert.match(leer('territorio/index.html'), /id="panel-miclan"/,
+    'falta el panel donde se pinta');
+});
+
+test('la plantilla del clan sale de un agregado, no de usuarios', () => {
+  // `usuarios` dejo de ser publica al cerrar la fuga de correos (#60), asi que
+  // el navegador no puede leer el perfil de otro. Sin agregado, un lider veria
+  // una lista de identificadores y no sabria a quien esta expulsando.
+  const pantalla = leerCodigo('assets/js/mi-clan.js');
+  assert.match(pantalla, /agregados'?,?\s*`?clan-/,
+    'la pantalla no lee el agregado del clan');
+  assert.ok(!/collection\(db, 'usuarios'\)/.test(pantalla),
+    'esta recorriendo usuarios, que no puede leer');
+
+  // Y el agregado no puede publicar mas de lo que ya es publico.
+  const publica = leerCodigo('backend/src/puntuacion.js');
+  const ficha = publica.slice(publica.indexOf('const ficha = (uid)'), publica.indexOf('await db().doc(`agregados/clan-'));
+  for (const prohibido of ['email', 'ultimoDiaActivo', 'tokenBaja', 'push']) {
+    assert.ok(!new RegExp(`\\b${prohibido}\\b`).test(ficha),
+      `el agregado del clan publica ${prohibido}`);
+  }
+});
+
 test('las plantillas de correo escritas se envian de verdad', () => {
   // Tres estaban escritas y probadas y no las enviaba nadie. La peor, la de
   // viaje anulado: anular un viaje le quita a alguien puntos que ya tenia, y sin

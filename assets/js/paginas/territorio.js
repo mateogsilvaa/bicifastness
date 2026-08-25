@@ -9,6 +9,8 @@
 import { iniciarPagina, aplicarTema } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { traerAgregado } from '/assets/js/agregados.js';
+import { auth, onAuthStateChanged } from '/assets/js/firebase.js';
+import { iniciar as iniciarMiClan, pedirEntrada } from '/assets/js/mi-clan.js';
 
 iniciarPagina('territorio');
 
@@ -150,7 +152,7 @@ function pintarClanes() {
   if (!orden.length) {
     reemplazar(id('lista-clanes'), el('div', { clase: 'vacio' }, [
       el('h3', { texto: 'Todavia no hay clanes' }),
-      el('p', { texto: 'Crea el primero desde tu perfil y empieza a repartirte la ciudad.' }),
+      el('p', { texto: 'Crea el primero desde la pestaña Mi clan y empieza a repartirte la ciudad.' }),
     ]));
     return;
   }
@@ -181,6 +183,14 @@ function pintarClanes() {
         ]),
         el('td', { clase: 'col-marca' }, [
           el('span', { clase: 'marca', texto: String(dominadas.get(c.clanId) || 0) }),
+          // Pedir entrada desde aqui. Antes esta tabla solo se miraba: el boton
+          // llevaba a "crealo desde tu perfil", y en el perfil no habia nada.
+          el('button', {
+            clase: 'btn plano',
+            texto: 'Pedir entrar',
+            attrs: { type: 'button', 'aria-label': `Pedir entrar en ${c.nombre || c.clanId}` },
+            on: { click: () => pedirEntrada(c.clanId) },
+          }),
         ]),
       ]);
     })),
@@ -189,10 +199,12 @@ function pintarClanes() {
 
 // --- Pestañas ----------------------------------------------------------------
 
-function mostrar(pestana, { recordar = true } = {}) {
-  const activa = pestana === 'clanes' ? 'clanes' : 'estaciones';
+const PESTANAS = ['estaciones', 'clanes', 'miclan'];
 
-  for (const p of ['estaciones', 'clanes']) {
+function mostrar(pestana, { recordar = true } = {}) {
+  const activa = PESTANAS.includes(pestana) ? pestana : 'estaciones';
+
+  for (const p of PESTANAS) {
     id(`tab-${p}`).setAttribute('aria-selected', String(p === activa));
     id(`panel-${p}`).classList.toggle('oculto', p !== activa);
   }
@@ -204,9 +216,14 @@ function mostrar(pestana, { recordar = true } = {}) {
   }
 }
 
-for (const p of ['estaciones', 'clanes']) {
+for (const p of PESTANAS) {
   id(`tab-${p}`).addEventListener('click', () => mostrar(p));
 }
+
+// La gestion del clan propio vive en su modulo (#29). Aqui solo se le dice
+// cuando hay sesion: `onAuthStateChanged` salta tambien al cargar, asi que
+// tambien cubre el caso de entrar ya con la sesion puesta.
+onAuthStateChanged(auth, (u) => { iniciarMiClan(u); });
 
 // --- Carga -------------------------------------------------------------------
 

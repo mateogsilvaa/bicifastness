@@ -3,7 +3,8 @@
   "private": true,
   "description": "Utillaje del repositorio: generacion de datos compartidos y analisis estatico.",
   "scripts": {
-    "datos": "node scripts/build-estaciones.js && node scripts/build-insignias.js && node scripts/build-push.js && node scripts/build-version.js",
+    "datos:fuente": "node scripts/build-estaciones.js && node scripts/build-insignias.js && node scripts/build-push.js",
+    "datos": "npm run datos:fuente && node scripts/build-version.js",
     "lint": "eslint .",
     "test": "npm run datos && npm run lint && npm run validar && cd backend && npm test",
     "validar": "node scripts/validar-paginas.js",

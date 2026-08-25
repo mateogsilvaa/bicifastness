@@ -17,15 +17,6 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Regenerar datos compartidos
-        run: node scripts/build-estaciones.js
-
-      # Si los ficheros generados no coinciden con sus fuentes, alguien ha
-      # editado a mano un fichero generado y el frontend y el backend van a
-      # divergir.
-      - name: Comprobar que los datos generados estan al dia
-        run: git diff --exit-code assets/data backend/lib
-
       - name: Instalar utillaje
         run: npm install --no-audit --no-fund
 
@@ -42,6 +33,27 @@ jobs:
       - name: Instalar dependencias del worker
         working-directory: backend
         run: npm ci
+
+      # TODOS los generadores deterministas, no solo el de estaciones. Con uno
+      # solo, la comprobacion de abajo cazaba a quien editaba a mano un fichero
+      # generado, pero NO a quien editaba la FUENTE y se olvidaba de regenerar:
+      # ahi el generado sigue coincidiendo con lo que hay en git, el diff sale
+      # limpio, y el catalogo de insignias que ven el navegador y el worker se
+      # queda con los textos viejos.
+      #
+      # Va DESPUES de instalar las dependencias del worker: `build-push.js` lee
+      # los tipos de aviso de `backend/src/push.js`, que carga `web-push`.
+      #
+      # `build-version.js` se queda fuera a proposito: escribe el SHA del commit,
+      # asi que siempre difiere y haria fallar la comprobacion. Lo lanza el
+      # `buildCommand` de Vercel en cada despliegue, que es cuando importa.
+      - name: Regenerar datos compartidos
+        run: npm run datos:fuente
+
+      # Si los generados no coinciden con sus fuentes, o alguien ha editado a
+      # mano un fichero generado, el frontend y el backend van a divergir.
+      - name: Comprobar que los datos generados estan al dia
+        run: git diff --exit-code assets/data backend/lib
 
       # El banco de capturas (#16) ejecuta el OCR de verdad, y tesseract se baja
       # varios megas de modelo de idioma la primera vez.

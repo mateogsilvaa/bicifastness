@@ -511,6 +511,56 @@ test('la pagina de obras no depende de nada del sitio', () => {
     'no debe indexarse en lugar del sitio real');
 });
 
+test('el CI regenera todo lo que despues comprueba', () => {
+  // La comprobacion es `git diff --exit-code assets/data backend/lib`, y solo
+  // vale lo que se haya regenerado antes. Con un generador de los tres, cazaba
+  // a quien editaba a mano un fichero generado pero NO a quien editaba la FUENTE
+  // y se olvidaba de regenerar: ahi el generado sigue coincidiendo con git, el
+  // diff sale limpio, y el catalogo de insignias que ven el navegador y el
+  // worker se queda con los textos viejos.
+  const flujo = leer('.github/workflows/ci.yml');
+  const scripts = JSON.parse(leer('package.json')).scripts;
+
+  assert.match(flujo, /npm run datos:fuente/,
+    'el CI regenera solo una parte de lo que luego compara');
+
+  // Y `datos:fuente` tiene que llevar todos los deterministas. Si aparece un
+  // generador nuevo y no entra ahi, su salida deja de comprobarse.
+  //
+  // Los que NO entran, y por que. Cada uno esta aqui a proposito: si aparece un
+  // generador nuevo, esta prueba obliga a decidir en cual de los dos grupos cae
+  // en vez de dejarlo fuera sin querer.
+  const FUERA = {
+    // Escribe el SHA del commit: siempre difiere, asi que no puede entrar en una
+    // comprobacion de "esto no ha cambiado". Lo lanza Vercel al desplegar.
+    'build-version.js': 'su salida cambia en cada commit',
+    // El banco de capturas de prueba vive en `backend/test/banco`, que no es una
+    // de las dos carpetas que compara el CI.
+    'build-capturas.js': 'no escribe en assets/data ni en backend/lib',
+    // Los binarios del OCR van a `assets/ocr`, tampoco comparada, y son megas.
+    'build-ocr.js': 'no escribe en assets/data ni en backend/lib',
+    // Su fuente NO esta en el repositorio: consulta un router de rutas por la
+    // red. El CI no puede reproducirlo, y aunque pudiera, no deberia depender de
+    // que un servicio de fuera este en pie.
+    'build-distancias.js': 'su fuente es un servicio externo, no un fichero de aqui',
+  };
+
+  const generadores = fs.readdirSync(path.join(RAIZ, 'scripts'))
+    .filter((f) => f.startsWith('build-') && f.endsWith('.js'))
+    .filter((f) => !FUERA[f]);
+
+  for (const generador of generadores) {
+    assert.ok(scripts['datos:fuente'].includes(generador),
+      `${generador} no esta en datos:fuente: lo que genere no se comprueba en el CI`);
+  }
+
+  // El orden importa: `build-push.js` lee de `backend/src/push.js`, que carga
+  // `web-push`. Regenerar antes de instalar las dependencias del worker revienta.
+  const pasos = flujo.slice(0, flujo.indexOf('desplegar:'));
+  assert.ok(pasos.indexOf('npm ci') < pasos.indexOf('npm run datos:fuente'),
+    'se regenera antes de instalar las dependencias del worker, y build-push necesita web-push');
+});
+
 test('solo hay un sitio publicado', () => {
   // Dos destinos de despliegue es como la gente acaba viendo una version vieja,
   // y como el modo mantenimiento protege un sitio pero no el otro.

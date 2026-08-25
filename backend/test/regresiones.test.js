@@ -865,6 +865,23 @@ test('las plantillas de correo escritas se envian de verdad', () => {
   }
 });
 
+test('el envio de correo esta en un solo sitio', () => {
+  // "Mira la preferencia, saca el correo de Auth, crea el token de baja si no
+  // lo tiene" son las tres cosas que hay que hacer bien SIEMPRE. Repetidas por
+  // plantilla, basta con que una copia se quede atras para escribirle a alguien
+  // que pidio no recibir nada.
+  const worker = leerCodigo('backend/worker.js');
+
+  const envios = (worker.match(/correo\.enviar\(/g) || []).length;
+  assert.ok(envios <= 2,
+    `hay ${envios} sitios que llaman a correo.enviar: el envio a pilotos va por avisarPorCorreo`);
+
+  // Y quien comprueba la preferencia tambien tiene que ser uno solo.
+  const preferencia = (worker.match(/avisosCorreo === false/g) || []).length;
+  assert.strictEqual(preferencia, 1,
+    'la comprobacion de la preferencia esta duplicada: una copia se quedara atras');
+});
+
 test('los avisos repetibles llevan marca para no salir en cada pasada', () => {
   // El worker corre cada cinco minutos: un aviso sin marca sale 288 veces al
   // dia a la misma persona.

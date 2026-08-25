@@ -494,16 +494,6 @@ async function borrarCapturaSiSobra(doc, viaje) {
 }
 
 /**
- * Avisa por correo de un rechazo automatico.
- *
- * Es el unico correo que se manda en el momento, y por un motivo: sin el, la
- * persona sube un viaje, no pasa nada y no sabe por que. Los avisos de viaje
- * aprobado NO van aqui, van agrupados, o se come el cupo diario de Resend en
- * cuanto haya unos pocos pilotos activos.
- *
- * Que falle el correo no puede afectar al veredicto: el viaje ya esta resuelto.
- */
-/**
  * Manda un correo a un piloto, respetando su preferencia y su baja.
  *
  * Sale de `avisarRechazo`, que era el unico sitio que sabia hacer esto. Habia
@@ -574,63 +564,23 @@ async function avisarPorCorreo(uid, plantilla, extra = {}, yaLeido = null) {
   }
 }
 
+/**
+ * Avisa por correo de un rechazo automatico.
+ *
+ * Es el unico correo que se manda en el momento, y por un motivo: sin el, la
+ * persona sube un viaje, no pasa nada y no sabe por que. Los avisos de viaje
+ * aprobado NO van aqui, van agrupados, o se come el cupo diario de Resend en
+ * cuanto haya unos pocos pilotos activos.
+ *
+ * Que falle el correo no puede afectar al veredicto: el viaje ya esta resuelto.
+ */
 async function avisarRechazo(viaje, veredicto) {
-  try {
-    const usuario = await db.doc(`usuarios/${viaje.uid}`).get();
-    if (!usuario.exists) return;
-
-    const datos = usuario.data();
-
-    // El correo se pide a Firebase Auth, no al documento. Ahi es donde vive de
-    // verdad, y ademas nunca esta obsoleto: si alguien lo cambia en su cuenta,
-    // una copia en Firestore se quedaria apuntando a la direccion vieja.
-    // OJO con el nombre: `correo` es el modulo de envio importado arriba. Una
-    // variable local con ese nombre lo tapa dentro de esta funcion y
-    // `correo.enviar(...)` reventaria.
-    let destinatario = null;
-    try {
-      destinatario = (await admin.auth().getUser(viaje.uid)).email || null;
-    } catch {
-      // Cuenta borrada: no hay a quien avisar.
-      return;
-    }
-    if (!destinatario) return;
-
-    // Respeta la preferencia, si la hay. Un rechazo es transaccional y se puede
-    // enviar sin consentimiento, pero si alguien lo ha desactivado a proposito
-    // no se le insiste.
-    if (datos.avisosCorreo === false) return;
-
-    // El token de baja se crea la primera vez que se le escribe y se queda.
-    // Si cambiara en cada correo, un enlace de hace dos dias dejaria de
-    // funcionar, que es justo lo que hace que la gente marque spam.
-    let tokenBaja = datos.tokenBaja;
-    if (!tokenBaja) {
-      tokenBaja = correo.generarTokenBaja();
-      if (!SIMULAR) await usuario.ref.update({ tokenBaja });
-    }
-
-    const mensaje = plantillas.viajeRechazado({
-      nombre: datos.username || 'piloto',
-      ruta: viaje.ruta,
-      // `resumen` es el texto para la persona. Las señales con sus pesos se
-      // quedan en la auditoria: no salen en el correo.
-      motivo: veredicto.resumen,
-      tokenBaja,
-    });
-
-    const resultado = await correo.enviar({
-      ...mensaje,
-      para: destinatario,
-      remitente: REMITENTE,
-      apiKey: process.env.RESEND_API_KEY,
-      simular: SIMULAR,
-    });
-
-    if (resultado.error) console.warn(`  aviso no enviado: ${resultado.error}`);
-  } catch (err) {
-    console.warn('  no se ha podido avisar del rechazo:', err.message);
-  }
+  await avisarPorCorreo(viaje.uid, plantillas.viajeRechazado, {
+    ruta: viaje.ruta,
+    // `resumen` es el texto para la persona. Las señales con sus pesos se
+    // quedan en la auditoria: no salen en el correo.
+    motivo: veredicto.resumen,
+  });
 }
 
 /**

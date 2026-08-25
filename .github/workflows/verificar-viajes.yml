@@ -71,8 +71,10 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      # El modelo de idioma del OCR son varios megas que tesseract se baja la
-      # primera vez. Sin esto, cada ejecucion los vuelve a bajar.
+      # Red de seguridad, no el camino normal: el modelo de idioma viaja en el
+      # repositorio (`assets/ocr/spa.traineddata.gz`) y `ocr.js` apunta ahi con
+      # `langPath`, asi que en condiciones normales no se baja nada. Esto solo
+      # cubre el caso de que ese fichero falte y tesseract vuelva a la descarga.
       - name: Cache del idioma del OCR
         uses: actions/cache@v4
         with:

@@ -111,6 +111,52 @@ test('la racha crece un dia por dia seguido', () => {
   assert.strictEqual(estado.mejorRacha, 3);
 });
 
+test('subir un viaje atrasado no te cuesta la racha', () => {
+  // Se admiten viajes de hasta 30 dias atras. Sin esta proteccion, subir uno
+  // legitimo de hace cinco dias hacia esto: la racha a 1 —el dia no es
+  // consecutivo con el ultimo activo— y `ultimoDiaActivo` RETROCEDIA, asi que
+  // la pasada diaria contaba cuatro dias perdidos, se comia los escudos y
+  // remataba la racha en 0. Doce dias y dos escudos por usar el sistema como
+  // esta permitido usarlo.
+  let estado = rachas.estadoInicial();
+  for (let d = 1; d <= 12; d++) {
+    estado = rachas.registrarDiaActivo(estado, dia(`2026-09-${String(d).padStart(2, '0')}`));
+  }
+  assert.strictEqual(estado.racha, 12);
+  const escudos = estado.escudos;
+
+  const atrasado = rachas.registrarDiaActivo(estado, dia('2026-09-07'));
+  assert.strictEqual(atrasado.racha, 12, 'el viaje atrasado ha roto la racha');
+  assert.strictEqual(atrasado.escudos, escudos, 'el viaje atrasado ha tocado los escudos');
+  assert.strictEqual(atrasado.ultimoDiaActivo, estado.ultimoDiaActivo,
+    'el ultimo dia activo ha retrocedido: la pasada diaria juzgaria desde el pasado');
+  assert.strictEqual(atrasado.gano, false);
+
+  // Y la pasada diaria no encuentra nada que cerrar.
+  const cierre = rachas.cerrarDiasPerdidos(atrasado, dia('2026-09-13'));
+  assert.strictEqual(cierre.rota, false);
+  assert.strictEqual(cierre.racha, 12);
+});
+
+test('un dia atrasado tampoco regala escudos', () => {
+  // Si contase como dia activo, se podrian fabricar escudos subiendo viajes de
+  // dias sueltos del mes pasado. No hay forma de saber si ese dia ya se conto:
+  // aqui solo se guarda el ultimo dia activo, no la lista.
+  let estado = rachas.estadoInicial();
+  for (let d = 1; d <= 5; d++) {
+    estado = rachas.registrarDiaActivo(estado, dia(`2026-09-0${d}`));
+  }
+  const antes = { escudos: estado.escudos, diasHastaEscudo: estado.diasHastaEscudo };
+
+  for (const d of ['01', '02', '03', '04']) {
+    estado = rachas.registrarDiaActivo(estado, dia(`2026-09-${d}`));
+  }
+
+  assert.strictEqual(estado.escudos, antes.escudos);
+  assert.strictEqual(estado.diasHastaEscudo, antes.diasHastaEscudo,
+    'los dias atrasados acercan el escudo: se pueden fabricar');
+});
+
 test('varios viajes el mismo dia cuentan como uno', () => {
   // Importa: el worker procesa la cola por lotes y puede resolver varios viajes
   // del mismo piloto en la misma pasada.

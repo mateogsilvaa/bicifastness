@@ -75,6 +75,24 @@ function registrarDiaActivo(estado, fecha = new Date()) {
     return { ...previo, gano: false, escudoGanado: false };
   }
 
+  // Un viaje ATRASADO no toca la racha.
+  //
+  // Se pueden subir viajes de hasta `LIMITES.DIAS_MAX_ANTIGUEDAD` dias atras, y
+  // sin esto pasaba lo siguiente: quien llevaba doce dias de racha y subia un
+  // trayecto legitimo de hace cinco veia su racha puesta a 1 —el dia no era
+  // consecutivo con el ultimo activo— y ademas `ultimoDiaActivo` RETROCEDIA,
+  // asi que la pasada diaria contaba cuatro dias perdidos, se comia los dos
+  // escudos y remataba la racha en 0. Doce dias y dos escudos por subir un
+  // viaje que el propio sistema admite.
+  //
+  // Que no sume tampoco es a proposito. Para saber si ese dia rellena un hueco
+  // haria falta la lista de dias activos, y aqui solo se guarda el ultimo. Y
+  // contarlo para el escudo abriria la puerta a fabricarlos subiendo viajes de
+  // dias sueltos del mes pasado. Se queda como estaba: ni gana ni pierde.
+  if (previo.ultimoDiaActivo !== null && hoy < previo.ultimoDiaActivo) {
+    return { ...previo, gano: false, escudoGanado: false };
+  }
+
   // Primer viaje, o vuelta tras haber perdido la racha.
   const seguido = previo.ultimoDiaActivo !== null && diasEntre(previo.ultimoDiaActivo, hoy) === 1;
   const racha = seguido ? previo.racha + 1 : 1;

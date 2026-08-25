@@ -18,6 +18,8 @@
  *     padre: quedarian huerfanas e invisibles, y siguen siendo datos de esa
  *     persona.
  *   - Las capturas de sus viajes. Son fotos suyas.
+ *   - La auditoria de cada viaje suyo (`auditorias/{viajeId}`), que lleva
+ *     dentro lo que se leyo en esa captura: estaciones, horas y duracion.
  *   - La reserva de su nombre de piloto, para que quede libre.
  *   - Su pertenencia al clan.
  *   - Sus suscripciones a los avisos push, que van dentro del perfil y se
@@ -73,6 +75,9 @@ function anonimizarViaje() {
     capturaId: admin.firestore.FieldValue.delete(),
     alegacion: admin.firestore.FieldValue.delete(),
     correcciones: admin.firestore.FieldValue.delete(),
+    // El analisis que vivia dentro del viaje, en los que son de antes de que se
+    // mudara a `auditorias`. Lleva lo que se leyo en su captura.
+    auditoria: admin.firestore.FieldValue.delete(),
   };
 }
 
@@ -104,7 +109,7 @@ async function borrarSubcoleccion(ruta) {
  */
 async function ejecutar(uid, { simular = false } = {}) {
   const resumen = {
-    uid, viajes: 0, capturas: 0, subcolecciones: 0, huellas: 0,
+    uid, viajes: 0, capturas: 0, auditorias: 0, subcolecciones: 0, huellas: 0,
     reportes: 0, invitaciones: 0,
   };
 
@@ -124,6 +129,11 @@ async function ejecutar(uid, { simular = false } = {}) {
         // La captura si se borra: es una foto suya.
         lote.delete(db().doc(`capturas/${doc.id}`));
         resumen.capturas++;
+        // Y la auditoria, que lleva dentro lo que se leyo en esa captura: las
+        // estaciones, las horas y la duracion de un trayecto suyo. El viaje se
+        // anonimiza y se queda; el analisis de su captura no tiene por que.
+        lote.delete(db().doc(`auditorias/${doc.id}`));
+        resumen.auditorias++;
       }
       await lote.commit();
     }

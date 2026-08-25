@@ -142,3 +142,62 @@ que respeta el worker: quien tiene `avisosCorreo` en false, el enlace de baja en
 el propio correo y el cupo diario de Resend. Un envio masivo desde Gmail se salta
 las tres cosas, y la primera es la que convierte un aviso util en una infraccion
 (#47).
+
+## La otra migracion: sacar la auditoria del viaje
+
+Es independiente de todo lo anterior y se puede lanzar cuando se quiera, pero
+**hasta que no se lance, la fuga sigue abierta**.
+
+### Que pasa
+
+El worker guardaba el veredicto entero dentro del documento del viaje, y las
+reglas dejan que su dueño lea su viaje entero. El veredicto esta escrito para
+quien revisa: riesgo acumulado, gravedad de cada señal y mensajes con los numeros
+exactos ("distancia perceptual 4", "2,7 desviaciones por debajo de la media de la
+ruta"). Cualquiera con la consola del navegador abierta tenia el manual del
+antifraude: cuanto puede acercarse a cada umbral sin saltarlo.
+
+La interfaz nunca lo ha enseñado — los motivos salen de `assets/js/motivos.js`,
+sin un solo numero — pero eso tapaba la puerta, no la ventana.
+
+### Que cambia
+
+| Antes | Ahora | Por que |
+|---|---|---|
+| `auditoria` dentro del viaje | `auditorias/{viajeId}`, solo administracion | Es el material antifraude, y el viaje lo lee su dueño |
+| — | `motivos` en el viaje: los codigos, de mas grave a menos | Es lo unico que `motivos.js` necesita, y no lleva numeros |
+| `mensaje: error.message` en el viaje al fallar | va a la auditoria | Texto interno, a veces con rutas de fichero dentro |
+| el correo de viaje anulado repetia `auditoria.resumen` | motivo escrito a mano, o generico | La misma fuga, por correo |
+
+El orden de `motivos` lo pone el servidor a proposito: es lo unico que se lleva
+de la gravedad, para que el navegador pueda coger el primero que conozca sin
+recibir los pesos.
+
+### Como se lanza
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/ruta/serviceAccountKey.json
+
+node scripts/migrar-auditorias.js --simular   # dice cuantos hay, no escribe
+node scripts/migrar-auditorias.js --aplicar
+```
+
+Copia, escribe `motivos` y borra `auditoria` **en el mismo lote**: o pasa entero
+o no pasa nada. Un viaje al que se le borrara la auditoria sin haberla copiado
+perderia el analisis para siempre, y es lo unico que tiene quien revisa para
+decidir.
+
+Es idempotente y se puede parar a medias: los viajes que ya no llevan `auditoria`
+se saltan. Al terminar comprueba que no quede ninguno.
+
+### Mientras tanto
+
+No se rompe nada. `motivos.js` y el panel de administracion saben leer las dos
+formas, y los viajes nuevos ya nacen con la forma nueva. Lo unico que no ocurre
+hasta el final es cerrar la fuga.
+
+### El camino de vuelta
+
+No hace falta copia de seguridad aparte: el analisis se copia antes de borrarse,
+asi que deshacerlo es volver a meter en cada viaje lo que hay en su documento de
+`auditorias`. Lo que si conviene es no borrar `auditorias` pensando que sobra.

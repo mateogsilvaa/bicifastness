@@ -6,7 +6,7 @@
 
 import {
   auth, db, onAuthStateChanged,
-  collection, getDocs, query, where, orderBy, limit,
+  collection, doc, getDoc, getDocs, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
 import { iniciarPagina, nombreRuta, formatearFecha, formatearTiempo, normalizarEstacion } from '/assets/js/ui.js';
 import { id, el, icono, estado, reemplazar, imagen, confirmar, avisar, esqueleto, pedirTexto } from '/assets/js/dom.js';
@@ -108,8 +108,8 @@ function filaCotejo(campo, declarado, leido) {
  * Es la tabla que resuelve la mayoria de los casos: si las dos columnas
  * cuadran, el viaje casi siempre es bueno y lo que lo trajo aqui fue otra cosa.
  */
-function cotejo(viaje) {
-  const lectura = viaje.auditoria?.lectura;
+function cotejo(viaje, auditoria) {
+  const lectura = auditoria?.lectura;
   if (!lectura) {
     return el('p', { clase: 'meta', texto: 'De esta captura no se pudo leer nada: decide mirando la imagen.' });
   }
@@ -134,8 +134,7 @@ function cotejo(viaje) {
 }
 
 /** Por que ha llegado aqui: las señales tal cual, con su peso. */
-function porQue(viaje) {
-  const auditoria = viaje.auditoria || {};
+function porQue(auditoria = {}) {
   const señales = auditoria.señales || [];
 
   return el('div', { clase: 'veredicto' }, [
@@ -147,6 +146,39 @@ function porQue(viaje) {
       ? el('ul', {}, señales.map((s) => el('li', { texto: `[${s.gravedad}] ${s.mensaje}` })))
       : el('p', { clase: 'meta', texto: 'Sin señales: ha llegado aqui por otra via.' }),
   ]);
+}
+
+/**
+ * El cotejo y las señales, que viven fuera del viaje.
+ *
+ * El analisis completo esta en `auditorias/{viajeId}`, que solo lee la
+ * administracion: dentro del viaje lo veia su dueño, y son los umbrales del
+ * antifraude. Cuesta una lectura por caso revisado, y solo la hace esta
+ * pantalla.
+ */
+async function pintarAnalisis(viajeId, viaje, destino) {
+  let auditoria = null;
+
+  try {
+    const snap = await getDoc(doc(db, 'auditorias', viajeId));
+    auditoria = snap.exists() ? snap.data() : null;
+  } catch (error) {
+    reemplazar(destino, el('p', { clase: 'meta', texto: `Sin analisis: ${error.message}` }));
+    return;
+  }
+
+  // Un viaje de antes de la mudanza todavia lo lleva dentro.
+  const datos = auditoria || viaje.auditoria || null;
+
+  if (!datos) {
+    reemplazar(destino, el('p', {
+      clase: 'meta',
+      texto: 'Este viaje no tiene analisis guardado: decide mirando la captura.',
+    }));
+    return;
+  }
+
+  reemplazar(destino, el('div', {}, [cotejo(viaje, datos), porQue(datos)]));
 }
 
 /**
@@ -167,7 +199,10 @@ async function pintarHistorial(uid, destino) {
 
     const viajes = snapshot.docs.map((d) => d.data());
     const cuantos = (estado) => viajes.filter((v) => v.estado === estado).length;
-    const sospechosos = viajes.filter((v) => (v.auditoria?.riesgo || 0) >= 25).length;
+    // Con alguna señal, no "con riesgo mayor que 25": el riesgo vive ahora en
+    // `auditorias`, y traerlo serian veinte lecturas mas para una linea de
+    // resumen. Los codigos estan en el viaje y dicen lo mismo aqui.
+    const sospechosos = viajes.filter((v) => (v.motivos || []).length > 0).length;
 
     reemplazar(destino, el('p', { clase: 'meta' }, [
       el('strong', { texto: `Ultimos ${viajes.length} viajes: ` }),
@@ -190,15 +225,15 @@ async function pintarHistorial(uid, destino) {
  * acuerdo. Cambiarlo es un clic.
  */
 function selectorMotivo(viaje) {
-  const señales = viaje.auditoria?.señales || [];
-  const peor = señales
-    .filter((s) => MOTIVOS_MANUALES.includes(s.codigo))
-    .sort((a, b) => (b.gravedad || 0) - (a.gravedad || 0))[0];
+  // `motivos` ya viene ordenado de mas grave a menos desde el worker, asi que
+  // el sugerido es el primero que se pueda elegir a mano. No hace falta leer la
+  // auditoria para esto.
+  const peor = (viaje.motivos || []).find((c) => MOTIVOS_MANUALES.includes(c));
 
   return el('select', { attrs: { id: 'motivo-rechazo', 'aria-label': 'Motivo del rechazo' } }, [
     ...MOTIVOS_MANUALES.map((codigo) => el('option', {
       texto: textoDeMotivo(codigo).texto,
-      attrs: { value: codigo, selected: peor?.codigo === codigo ? '' : null },
+      attrs: { value: codigo, selected: peor === codigo ? '' : null },
     })),
     el('option', { texto: 'Otro (lo escribo yo)', attrs: { value: 'otro' } }),
   ]);
@@ -220,6 +255,7 @@ function pintarCaso() {
   const { id: viajeId, viaje } = cola[indice];
 
   const historial = el('div', {}, [el('p', { clase: 'meta', texto: 'Cargando historial del piloto...' })]);
+  const analisis = el('div', {}, [el('p', { clase: 'meta', texto: 'Cargando el analisis...' })]);
   const captura = el('div', { clase: 'caso-captura' }, [
     el('div', { clase: 'esqueleto', estilo: { height: '420px' } }),
   ]);
@@ -246,8 +282,7 @@ function pintarCaso() {
         ` · ${formatearFecha(viaje.fechaViaje)}`,
       ]),
 
-      cotejo(viaje),
-      porQue(viaje),
+      analisis,
       historial,
 
       el('div', { clase: 'acciones' }, [rechazar, aprobar]),
@@ -265,6 +300,7 @@ function pintarCaso() {
     ]),
   ]));
 
+  pintarAnalisis(viajeId, viaje, analisis);
   pintarHistorial(viaje.uid, historial);
 
   verCaptura(viajeId)

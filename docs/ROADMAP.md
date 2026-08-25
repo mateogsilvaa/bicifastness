@@ -343,18 +343,18 @@ escribir algo que las midiera:
 
 ### Lo que queda pendiente y no cuelga de ningun issue
 
-El objeto `auditoria` vive dentro del documento del viaje, y las reglas dejan
-que su dueño lo lea entero. La interfaz ya no enseña nada de ahi — los motivos
-salen de `assets/js/motivos.js`, sin numeros — pero quien abra la consola del
-navegador sigue viendo los mensajes con sus umbrales dentro. Cerrarlo pide mover
-la auditoria a una coleccion que solo lea la administracion y dejar en el viaje
-un codigo de motivo, que es una migracion de los viajes que ya existen.
+Queda una migracion por ejecutar contra produccion, no por escribir:
+`scripts/migrar-auditorias.js`. Saca el objeto `auditoria` del documento del
+viaje — donde su dueño lo leia entero, con los umbrales del antifraude dentro — y
+lo lleva a `auditorias/{viajeId}`, que solo lee la administracion. Los viajes
+nuevos ya nacen asi; los que hay en produccion siguen llevandolo dentro hasta que
+se lance. Mientras tanto no se rompe nada: el panel y `motivos.js` saben leer las
+dos formas. Lo que no se cierra hasta el final es la fuga.
 
-Ademas, dos cosas que docs/COSTE.md deja medidas y sin arreglar:
-`recalcularTrasCambio` sigue leyendo las dos colecciones enteras por cada viaje
-aprobado, y `/territorio/` es la unica pantalla que se quedo sin usar los
-agregados y lee hasta 631 documentos (#27). Las dos hay que resolverlas antes de
-abrir a mucha gente.
+Lo de coste que este documento daba por pendiente ya no lo esta:
+`recalcularTrasCambio` no lee ninguna coleccion entera y `/territorio/` lee un
+solo agregado. Ninguna operacion del worker lee ya `tiempos_viaje` completa. Los
+numeros y lo que queda estan en docs/COSTE.md.
 
 Lo que no puedo hacer yo: rotar credenciales (#1), purgar el historial, tocar la
 consola de Firebase (#4), rellenar los datos del responsable en los documentos

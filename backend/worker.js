@@ -429,6 +429,35 @@ async function procesar(doc) {
   return veredicto.decision;
 }
 
+/**
+ * Los codigos de un veredicto, de mas grave a menos.
+ *
+ * El orden lo pone el servidor y es lo unico que se lleva de la gravedad: asi
+ * `motivos.js` puede coger el primero que conozca sin recibir los pesos, que son
+ * parte del manual del antifraude.
+ */
+function codigosDeVeredicto(veredicto) {
+  return [...(veredicto?.señales || [])]
+    .sort((a, b) => (b.gravedad || 0) - (a.gravedad || 0))
+    .map((s) => s.codigo)
+    .filter(Boolean);
+}
+
+/**
+ * Guarda el analisis completo donde solo lo lee la administracion.
+ *
+ * Va en `auditorias/{viajeId}`, con el mismo id que el viaje: asi se encuentra
+ * sin indice y se borra con el viaje cuando alguien ejerce el derecho de
+ * supresion (src/borrado.js).
+ */
+async function escribirAuditoria(viajeId, veredicto) {
+  await db.doc(`auditorias/${viajeId}`).set({
+    ...veredicto,
+    viajeId,
+    creado: AHORA(),
+  });
+}
+
 /** Escribe el veredicto y, si procede, recalcula la clasificacion. */
 async function resolver(doc, veredicto) {
   const viaje = doc.data();
@@ -436,10 +465,26 @@ async function resolver(doc, veredicto) {
 
   await avisarPorPush(doc.id, viaje, veredicto.decision);
 
+  // El analisis completo NO va dentro del viaje.
+  //
+  // Las reglas dejan que el dueño lea su viaje entero, asi que todo lo que se
+  // guarde ahi lo puede ver quien abra la consola del navegador. Y el veredicto
+  // esta escrito para QUIEN REVISA: lleva el riesgo acumulado, la gravedad de
+  // cada señal y mensajes con los numeros exactos ("2,7 desviaciones por debajo
+  // de la media de la ruta"). Eso es el manual del antifraude: quien conoce los
+  // umbrales sabe cuanto puede acercarse sin saltarlos.
+  //
+  // En el viaje se queda solo `motivos`: los codigos, ordenados de mas grave a
+  // menos. Son etiquetas estables, sin un solo numero, y son justo lo que
+  // `assets/js/motivos.js` necesita para explicarle el rechazo a la persona.
+  await escribirAuditoria(doc.id, veredicto);
+
   await doc.ref.update({
     estado: veredicto.decision,
     verificado: aprobado,
-    auditoria: veredicto,
+    motivos: codigosDeVeredicto(veredicto),
+    // Los viajes de antes de la mudanza lo llevan dentro; se quita al pasar.
+    auditoria: admin.firestore.FieldValue.delete(),
     // De donde venia la captura. No decide nada, pero sin esto "el OCR falla a
     // veces" no se convierte nunca en "falla en recortes de iPhone".
     varianteCaptura: veredicto.varianteCaptura || null,
@@ -806,9 +851,12 @@ async function revertirPremio(doc, viaje) {
   // se avisa, lo que ve es que su puntuacion ha bajado sola de un dia para otro
   // y no hay forma de que sepa por que. La plantilla existia desde el principio
   // y no la enviaba nadie.
+  // El motivo sale de lo que escribio quien reviso, o de un texto generico.
+  // NUNCA del resumen de la auditoria: esta escrito para quien revisa y lleva
+  // los numeros del antifraude dentro, y esto se manda por correo.
   await avisarPorCorreo(viaje.uid, plantillas.viajeAnulado, {
     ruta: viaje.ruta,
-    motivo: viaje.motivoRevision || viaje.auditoria?.resumen
+    motivo: viaje.motivoRevision
       || 'Una revision posterior no ha podido dar el trayecto por bueno.',
   });
 }
@@ -1508,14 +1556,19 @@ async function procesarCola(cuenta) {
       // Un fallo no debe dejar el viaje atascado en la cola para siempre: pasa
       // a revision manual, que es el estado seguro.
       if (!SIMULAR) {
+        // El mensaje del error va a la auditoria, no al viaje: es texto interno
+        // — a veces con rutas de fichero dentro — y el viaje lo lee su dueño.
+        await escribirAuditoria(doc.id, {
+          resumen: 'El analisis automatico ha fallado. Requiere revision humana.',
+          riesgo: 50,
+          señales: [{ codigo: 'error_worker', gravedad: 50, mensaje: error.message }],
+        }).catch(() => {});
+
         await doc.ref.update({
           estado: 'revision',
           avisoRevision: false,
-          auditoria: {
-            resumen: 'El analisis automatico ha fallado. Requiere revision humana.',
-            riesgo: 50,
-            señales: [{ codigo: 'error_worker', gravedad: 50, mensaje: error.message }],
-          },
+          motivos: ['error_worker'],
+          auditoria: admin.firestore.FieldValue.delete(),
         }).catch(() => {});
       }
     }

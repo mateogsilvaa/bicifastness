@@ -446,6 +446,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // El analisis del antifraude de cada viaje, con su riesgo, la gravedad de
+    // cada señal y los mensajes con los numeros dentro.
+    //
+    // Vivia dentro del propio viaje, y las reglas dejan que su dueño lo lea
+    // entero: quien abriera la consola del navegador tenia el manual del
+    // antifraude, o sea cuanto puede acercarse a cada umbral sin saltarlo. En el
+    // viaje se queda `motivos`, que son los codigos y nada mas.
+    match /auditorias/{viajeId} {
+      allow read: if esAdmin();
+      // Lo escribe el worker con el Admin SDK, que se salta estas reglas.
+      allow write: if false;
+    }
+
     match /auditoria_admin/{registroId} {
       allow read: if esAdmin();
       allow create: if esAdmin();

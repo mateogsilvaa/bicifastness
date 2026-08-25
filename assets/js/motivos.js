@@ -19,15 +19,12 @@
  * necesita una cifra para entenderse, es que esta contando un umbral. Hay un
  * test que lo comprueba.
  *
- * Lo que este modulo NO arregla, dicho claro: `auditoria` sigue dentro del
- * documento del viaje y las reglas dejan que su dueño lo lea entero, asi que
- * quien abra la consola del navegador vera los mensajes con sus numeros. Esto
- * tapa la puerta, no la ventana.
- *
- * Cerrar la ventana pide mover la auditoria a una coleccion que solo lea la
- * administracion y dejar en el viaje un codigo de motivo, y eso es una
- * migracion de datos con su propio riesgo (hay que reescribir los viajes que ya
- * existen). Va aparte, no colgando de esta pantalla.
+ * La ventana tambien esta cerrada ya: el analisis completo vive en
+ * `auditorias/{viajeId}`, que solo lee la administracion, y en el viaje se queda
+ * `motivos` — los codigos, ordenados de mas grave a menos por el servidor. Ni
+ * riesgo, ni gravedades, ni mensajes con numeros. Lo unico que sigue leyendo la
+ * forma antigua es el respaldo de `motivoDeViaje`, para los viajes que todavia
+ * no ha tocado `scripts/migrar-auditorias.js`.
  *
  * Este fichero no importa nada a proposito: asi los tests pueden cargarlo tal
  * cual, sin navegador.
@@ -253,16 +250,21 @@ export function motivoDeViaje(viaje) {
   const escritoAMano = String(viaje?.motivoRevision || '').trim();
   if (escritoAMano) return { texto: escritoAMano, queHacer: '', dePersona: true };
 
-  const señales = Array.isArray(viaje?.auditoria?.señales) ? viaje.auditoria.señales : [];
+  // `motivos` son los codigos, ordenados de mas grave a menos por el worker. El
+  // orden viene ya hecho a proposito: las gravedades son parte del manual del
+  // antifraude y no bajan al navegador.
+  //
+  // El respaldo es para los viajes de antes de que la auditoria se mudara a su
+  // propia coleccion, que todavia la llevan dentro.
+  const codigos = Array.isArray(viaje?.motivos)
+    ? viaje.motivos
+    : [...(viaje?.auditoria?.señales || [])]
+      .sort((a, b) => (b?.gravedad || 0) - (a?.gravedad || 0))
+      .map((s) => s?.codigo);
 
-  let peor = null;
-  for (const señal of señales) {
-    if (!Object.prototype.hasOwnProperty.call(MOTIVOS, señal?.codigo)) continue;
-    if (!peor || (señal.gravedad || 0) > (peor.gravedad || 0)) peor = señal;
-  }
+  const peor = codigos.find((c) => Object.prototype.hasOwnProperty.call(MOTIVOS, c));
 
-  const motivo = peor ? MOTIVOS[peor.codigo] : GENERICO;
-  return { ...motivo, dePersona: false };
+  return { ...(peor ? MOTIVOS[peor] : GENERICO), dePersona: false };
 }
 
 /** El texto de un codigo suelto, o el generico si no se conoce. */

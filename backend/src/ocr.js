@@ -441,4 +441,11 @@ module.exports = {
   extraerEstaciones,
   extraerDuracion,
   MARCADORES,
+  // El navegador lee la captura con estos mismos dos ajustes (`AJUSTES_WORKER`
+  // en `assets/js/extraccion.js`). Se exportan para que una prueba compare los
+  // dos lados: si se movieran solo aqui, el navegador propondria una lectura
+  // distinta de la que va a hacer el worker y el viaje acabaria en revision
+  // manual sin que nada fallara ni avisara.
+  SEGMENTACION,
+  RESOLUCION,
 };

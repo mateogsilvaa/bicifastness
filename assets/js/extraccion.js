@@ -27,18 +27,49 @@
 
 const RUTA_OCR = '/assets/ocr';
 
+/**
+ * Los cuatro ajustes que TIENEN que ser los mismos que los del worker.
+ *
+ * Estan aqui juntos y exportados por un motivo concreto: cada uno estaba suelto
+ * con un comentario que decia "el mismo que el worker", y nada lo comprobaba.
+ * Si alguno se moviera de un lado y no del otro, el navegador leeria la captura
+ * distinto de como la va a leer el worker — y toda la gracia de leerla aqui es
+ * proponer LO QUE EL WORKER VA A VER. Cuando no coinciden, la persona confirma
+ * una cosa, el worker lee otra, salta `ruta_no_coincide` o `tiempo_no_coincide`
+ * y el viaje acaba en revision manual: justo lo que esta pantalla existe para
+ * evitar.
+ *
+ * Y es una divergencia que no da la cara. Nada falla, nada avisa: simplemente
+ * empiezan a caer mas viajes en la cola, y eso no se parece a un fallo de
+ * programacion sino a que "el OCR es malo".
+ *
+ * Ahora las cuatro se comparan contra el worker en `test/cliente.test.js`, y
+ * las constantes de abajo salen de aqui para que lo que se prueba sea lo mismo
+ * que se usa.
+ */
+export const AJUSTES_WORKER = {
+  /** `backend/src/normalizar.js` -> ANCHO */
+  ANCHO: 1400,
+  /** `backend/src/normalizar.js` -> UMBRAL_OSCURO */
+  UMBRAL_OSCURO: 110,
+  /** `backend/src/ocr.js` -> SEGMENTACION */
+  SEGMENTACION: '3',
+  /** `backend/src/ocr.js` -> RESOLUCION */
+  RESOLUCION: '600',
+};
+
 /** Ancho al que se lee, el mismo que usa el worker (`backend/src/normalizar.js`). */
-const ANCHO_OCR = 1400;
+const ANCHO_OCR = AJUSTES_WORKER.ANCHO;
 
 /** Por debajo de esta luminancia media la captura es de modo oscuro. */
-const UMBRAL_OSCURO = 110;
+const UMBRAL_OSCURO = AJUSTES_WORKER.UMBRAL_OSCURO;
 
 /**
  * Modo de segmentacion de pagina. El mismo que el worker, y por el mismo
  * motivo: sin fijarlo, tesseract se come la linea de la duracion cuando va
  * grande y aislada.
  */
-const SEGMENTACION = '3';
+const SEGMENTACION = AJUSTES_WORKER.SEGMENTACION;
 
 /**
  * Resolucion que se le declara a tesseract.
@@ -54,7 +85,7 @@ const SEGMENTACION = '3';
  * banco de capturas da los mismos aciertos que sin declararlo (55/55, medido
  * con 300, con 600 y sin nada), asi que esto solo calla el aviso.
  */
-const RESOLUCION = '600';
+const RESOLUCION = AJUSTES_WORKER.RESOLUCION;
 
 /**
  * Tope para una lectura. Si se pasa de aqui, se le da el formulario manual.

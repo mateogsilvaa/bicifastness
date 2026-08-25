@@ -523,3 +523,37 @@ test('el historial y la portada consultan con techo', async () => {
   assert.ok(!/where\('ruta', '==', ultimo\.ruta\)/.test(portada),
     'sigue la consulta sin techo sobre los viajes de la ruta');
 });
+
+test('el navegador lee la captura con los mismos ajustes que el worker', async () => {
+  // POR QUE IMPORTA. Toda la gracia de leer la captura en el navegador es
+  // proponer LO QUE EL WORKER VA A VER, para que la persona lo confirme en el
+  // momento en vez de esperar minutos. Si los dos lados no leen igual, propone
+  // una cosa, el worker lee otra, salta `ruta_no_coincide` o
+  // `tiempo_no_coincide` y el viaje acaba en la cola de revision — justo lo que
+  // esa pantalla existe para evitar.
+  //
+  // Y es la peor clase de divergencia: no falla nada, no avisa nadie.
+  // Simplemente empiezan a caer mas viajes en la cola, y desde fuera eso no
+  // parece un fallo de programacion sino que "el OCR es malo".
+  //
+  // Los cuatro ajustes estaban duplicados, cada uno con un comentario que decia
+  // "el mismo que el worker", y nada lo comprobaba.
+  const { AJUSTES_WORKER } = await cargarModuloCliente('assets/js/extraccion.js');
+  const normalizar = require('../src/normalizar');
+  const ocr = require('../src/ocr');
+
+  // A que ancho se lleva la captura antes de leerla. Distinto ancho es distinto
+  // tamaño de letra para tesseract, y por tanto distinta lectura.
+  assert.strictEqual(AJUSTES_WORKER.ANCHO, normalizar.ANCHO);
+
+  // Cuando se considera que la captura es de modo oscuro y hay que invertirla.
+  // Una captura en la frontera se invertiria en un lado y no en el otro.
+  assert.strictEqual(AJUSTES_WORKER.UMBRAL_OSCURO, normalizar.UMBRAL_OSCURO);
+
+  // Como segmenta tesseract la pagina. Sin fijarlo se come la linea de la
+  // duracion cuando va grande y aislada, que es el dato que mas importa.
+  assert.strictEqual(AJUSTES_WORKER.SEGMENTACION, ocr.SEGMENTACION);
+
+  // La resolucion que se le declara. Cambia como escala la imagen internamente.
+  assert.strictEqual(AJUSTES_WORKER.RESOLUCION, ocr.RESOLUCION);
+});

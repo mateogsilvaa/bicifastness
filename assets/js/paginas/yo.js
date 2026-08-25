@@ -11,7 +11,9 @@ import {
 import { iniciarPagina, alternarTema, nombreRuta, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar, confirmar, pedirTexto, esqueleto } from '/assets/js/dom.js';
 import { generarNodosInsignias } from '/assets/js/insignias.js';
-import { impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo } from '/assets/js/acciones.js';
+import {
+  impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo, guardarFavoritas,
+} from '/assets/js/acciones.js';
 import { motivoDeViaje } from '/assets/js/motivos.js';
 import { vaciarCache } from '/assets/js/cache.js';
 import { sonidoActivo, activarSonido, sonar } from '/assets/js/celebrar.js';
@@ -59,7 +61,74 @@ async function cargarPerfil() {
 
   pintarModos(perfil);
   await montarAvisosPush(perfil);
+  pintarFavoritas(perfil);
   await cargarTemporadas();
+}
+
+/**
+ * Rutas ancladas (maximo tres, como impone la regla).
+ *
+ * `guardarFavoritas` llevaba escrita desde la reescritura y no la llamaba
+ * ninguna pantalla: se podian anclar rutas por consola y de ninguna otra forma.
+ *
+ * Las opciones salen de `puntosPorRuta`, que ya esta en el documento leido: los
+ * tramos donde el piloto ha puntuado. Ofrecer las 600 rutas de Madrid en un
+ * desplegable no es ofrecer nada.
+ */
+function pintarFavoritas(perfil) {
+  const destino = id('favoritas');
+  if (!destino) return;
+
+  const suyas = Object.keys(perfil.puntosPorRuta || {}).sort();
+  const ancladas = new Set(perfil.favoritas || []);
+
+  if (!suyas.length) {
+    reemplazar(destino, el('div', { clase: 'vacio' }, [
+      el('h3', { texto: 'Todavia no has puntuado en ningun tramo' }),
+      el('p', { texto: 'Cuando subas tu primer viaje verificado podras anclar tus rutas.' }),
+    ]));
+    return;
+  }
+
+  const alPulsar = async (ruta, boton) => {
+    const siguiente = new Set(ancladas);
+
+    if (siguiente.has(ruta)) siguiente.delete(ruta);
+    else if (siguiente.size >= 3) {
+      // La regla de Firestore rechazaria la escritura, pero decirlo antes es
+      // mejor que dejar que falle y ensenar un error.
+      estado(id('msg-favoritas'), 'Solo puedes anclar tres rutas. Quita una antes.', 'aviso');
+      return;
+    } else siguiente.add(ruta);
+
+    boton.disabled = true;
+    try {
+      await guardarFavoritas([...siguiente]);
+      estado(id('msg-favoritas'), '');
+      pintarFavoritas({ ...perfil, favoritas: [...siguiente] });
+    } catch (error) {
+      estado(id('msg-favoritas'), error.message || 'No se ha podido guardar.', 'error');
+      boton.disabled = false;
+    }
+  };
+
+  reemplazar(destino,
+    el('div', { clase: 'fila', estilo: { flexWrap: 'wrap' } }, suyas.map((ruta) => {
+      const anclada = ancladas.has(ruta);
+      const boton = el('button', {
+        clase: anclada ? 'btn' : 'btn secundario',
+        texto: nombreRuta(ruta),
+        attrs: {
+          type: 'button',
+          // El estado no puede ir solo en el color del boton.
+          'aria-pressed': String(anclada),
+          'aria-label': `${anclada ? 'Desanclar' : 'Anclar'} ${nombreRuta(ruta)}`,
+        },
+      });
+      boton.addEventListener('click', () => alPulsar(ruta, boton));
+      return boton;
+    })),
+    el('p', { clase: 'mensaje', attrs: { id: 'msg-favoritas', 'aria-live': 'polite' } }));
 }
 
 /**

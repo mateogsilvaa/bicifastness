@@ -733,6 +733,20 @@ test('el trabajo diario no recorre colecciones enteras en cada pasada', () => {
     'la marca se escribe antes de terminar: un corte dejaria el dia a medias');
 });
 
+test('las rutas ancladas se pueden anclar desde la web', () => {
+  // `guardarFavoritas` llevaba escrita desde la reescritura y no la llamaba
+  // ninguna pantalla: se podian anclar rutas por consola y de ninguna otra
+  // forma.
+  const perfil = leerCodigo('assets/js/paginas/yo.js');
+  assert.match(perfil, /guardarFavoritas\(/, 'nadie llama a guardarFavoritas');
+  assert.match(leer('yo/index.html'), /id="favoritas"/, 'falta el sitio donde pintarlas');
+
+  // El tope de tres lo impone la regla; la pantalla tiene que decirlo antes de
+  // que la escritura falle.
+  assert.match(perfil, /siguiente\.size >= 3/,
+    'la pantalla deja pasar la cuarta y deja que la rechace la regla');
+});
+
 test('la gestion de clanes tiene interfaz, no solo acciones', () => {
   // Las doce acciones de clan llevaban escritas en `acciones.js` —con sus reglas
   // y sus pruebas— y no las llamaba NINGUNA pagina. El backend estaba entero y
@@ -768,13 +782,30 @@ test('la plantilla del clan sale de un agregado, no de usuarios', () => {
   assert.ok(!/collection\(db, 'usuarios'\)/.test(pantalla),
     'esta recorriendo usuarios, que no puede leer');
 
-  // Y el agregado no puede publicar mas de lo que ya es publico.
+  // El agregado del clan NO pasa por `limpiar()`, asi que la lista blanca de
+  // `CAMPOS_PUBLICABLES` no le aplica. Es una excepcion a proposito y acotada:
+  //
+  //   - lleva `uid` porque sin el no se puede expulsar ni ascender a nadie, y
+  //     porque los uid de un clan YA son publicos: estan en `clanes/{id}.miembros`,
+  //     que cualquiera puede leer
+  //   - no lleva nada que no este ya en las clasificaciones publicas
+  //
+  // Lo que esta prueba vigila es que la excepcion no crezca. Publicar
+  // `ultimoDiaActivo`, por ejemplo, seria contarle al clan entero cuando sale a
+  // la calle cada uno.
   const publica = leerCodigo('backend/src/puntuacion.js');
   const ficha = publica.slice(publica.indexOf('const ficha = (uid)'), publica.indexOf('await db().doc(`agregados/clan-'));
-  for (const prohibido of ['email', 'ultimoDiaActivo', 'tokenBaja', 'push']) {
+
+  for (const prohibido of ['email', 'ultimoDiaActivo', 'tokenBaja', 'push',
+    'consentimiento', 'suspendido', 'favoritas']) {
     assert.ok(!new RegExp(`\\b${prohibido}\\b`).test(ficha),
       `el agregado del clan publica ${prohibido}`);
   }
+
+  // Y la lista blanca general sigue sin `uid`: la excepcion es de este agregado,
+  // no de todos. En una clasificacion publica el uid no hace falta para nada.
+  assert.ok(!leerCodigo('backend/src/agregados.js').includes("'uid', 'viajeId'"),
+    'el uid ha entrado en la lista blanca general de agregados');
 });
 
 test('las plantillas de correo escritas se envian de verdad', () => {

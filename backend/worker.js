@@ -51,6 +51,7 @@ const agregados = require('./src/agregados');
 const push = require('./src/push');
 const almacen = require('./src/db');
 const misiones = require('./src/misiones');
+const denuncias = require('./src/denuncias');
 
 const SIMULAR = process.argv.includes('--simular');
 const SOLO_UNO = process.argv.includes('--once');
@@ -1165,6 +1166,85 @@ async function avisarRachasEnPeligro() {
  * idempotente no quiere decir gratis.
  */
 /**
+ * Resuelve a quien señala cada denuncia (#61).
+ *
+ * El navegador solo puede mandar el id del viaje. Averiguar de quien es exige
+ * leer `tiempos_viaje`, que no lee nadie mas que su dueño y la administracion,
+ * asi que ese paso es de aqui.
+ *
+ * TRES cosas se descartan sin llegar a la cola de nadie:
+ *
+ *   - el viaje no existe, o ya no
+ *   - te estas denunciando a ti mismo. Esto lo comprobaba la regla, y dejo de
+ *     poder hacerlo cuando el uid del denunciado salio del documento. Se
+ *     comprueba mas tarde, pero no se pierde
+ *   - ya habias denunciado ese mismo viaje. Sin esto, una persona sola llena la
+ *     cola de la administracion con el mismo caso
+ *
+ * Lo descartado se marca y se queda, no se borra. La coleccion solo la lee la
+ * administracion, asi que el motivo del descarte no es para quien denuncio: es
+ * para no volver a mirar el mismo caso, y para que se vea si alguien esta
+ * intentando llenar la cola.
+ */
+async function resolverDenuncias() {
+  try {
+    const sinResolver = await db.collection('reportes')
+      .where('estado', '==', denuncias.ESTADOS.SIN_RESOLVER)
+      .limit(50)
+      .get();
+
+    if (sinResolver.empty) return 0;
+
+    let encoladas = 0;
+    let descartadas = 0;
+
+    for (const doc of sinResolver.docs) {
+      const denuncia = doc.data();
+
+      const [viaje, mismas] = await Promise.all([
+        db.doc(`tiempos_viaje/${denuncia.viajeId}`).get(),
+        db.collection('reportes')
+          .where('viajeId', '==', denuncia.viajeId)
+          .where('reportanteUid', '==', denuncia.reportanteUid)
+          .get(),
+      ]);
+
+      const previas = mismas.docs.filter((d) => d.id !== doc.id).map((d) => d.data());
+      const veredicto = denuncias.decidir(denuncia, viaje.exists ? viaje.data() : null, previas);
+
+      if (!veredicto.encolar) {
+        descartadas++;
+        console.log(`  denuncia ${doc.id} descartada: ${veredicto.motivo}`);
+        if (!SIMULAR) {
+          await doc.ref.update({
+            estado: denuncias.ESTADOS.DESCARTADA,
+            motivoDescarte: veredicto.motivo,
+          });
+        }
+        continue;
+      }
+
+      if (!SIMULAR) {
+        await doc.ref.update({
+          estado: denuncias.ESTADOS.PENDIENTE,
+          reportadoUid: veredicto.reportadoUid,
+          ruta: veredicto.ruta,
+        });
+      }
+      encoladas++;
+    }
+
+    if (encoladas || descartadas) {
+      console.log(`Denuncias: ${encoladas} a la cola, ${descartadas} descartada(s).`);
+    }
+    return encoladas;
+  } catch (error) {
+    console.warn('No se han podido resolver las denuncias:', error.message);
+    return 0;
+  }
+}
+
+/**
  * Da la bienvenida a quien acaba de registrarse.
  *
  * La plantilla estaba escrita y probada desde #46 y no la enviaba nadie: nadie
@@ -1614,6 +1694,7 @@ async function main() {
   await procesarBorrados();
   await mantenerClanes();
   await procesarInvitaciones();
+  await resolverDenuncias();
   await darBienvenidas();
   await trabajoDiario();
 

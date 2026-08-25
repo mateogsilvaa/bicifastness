@@ -14,7 +14,7 @@ import { MOTIVOS_MANUALES, textoDeMotivo } from '/assets/js/motivos.js';
 import { INSIGNIAS } from '/assets/data/insignias.js';
 import {
   resolverViaje, resolverReporte, verCaptura,
-  gestionarInsignia, destacarRuta,
+  gestionarInsignia, destacarRuta, suspenderUsuario,
 } from '/assets/js/acciones.js';
 
 iniciarPagina('admin');
@@ -445,12 +445,54 @@ async function cargarReportes() {
           clase: 'btn plano', texto: 'Ver captura reportada',
           on: { click: (e) => abrirCaptura(reporte.viajeId, e.currentTarget) },
         }),
-        el('div', { clase: 'acciones' }, [botonIgnorar, botonBorrar]),
+        el('div', { clase: 'acciones' }, [botonIgnorar, botonBorrar, botonSuspender(reporte)]),
       ]);
     }));
   } catch (error) {
     reemplazar(rejilla, el('div', { clase: 'vacio', texto: `Error: ${error.message}` }));
   }
+}
+
+/**
+ * Suspender a quien reincide.
+ *
+ * `suspenderUsuario` llevaba escrita, con su regla, y no la llamaba ninguna
+ * pantalla: el panel resolvia un reporte y no podia hacer nada con quien vuelve
+ * a las andadas. Un circuito de moderacion que solo sabe borrar viajes de uno en
+ * uno no es un circuito de moderacion.
+ *
+ * Va aqui y no en una pantalla de usuarios porque es donde se toma la decision:
+ * con el caso delante. Y pide motivo, que se guarda: suspender sin dejar escrito
+ * por que es como se acumulan las cuentas que nadie se atreve a reactivar.
+ */
+function botonSuspender(reporte) {
+  if (!reporte.reportadoUid) return null;
+
+  const boton = el('button', {
+    clase: 'btn peligro',
+    texto: 'Suspender al autor',
+    on: {
+      click: async () => {
+        const motivo = await pedirTexto('¿Por que se suspende esta cuenta?', {
+          textoAceptar: 'Suspender',
+          etiqueta: 'Queda guardado en el perfil. Se lee al reactivarla.',
+          minimo: 10,
+        });
+        if (!motivo) return;
+
+        boton.disabled = true;
+        try {
+          await suspenderUsuario(reporte.reportadoUid, true, motivo);
+          boton.textContent = 'Suspendida';
+        } catch (error) {
+          avisar(error.message || 'No se ha podido suspender la cuenta.');
+          boton.disabled = false;
+        }
+      },
+    },
+  });
+
+  return boton;
 }
 
 async function resolver(reporteId, accion, boton, viajeId) {

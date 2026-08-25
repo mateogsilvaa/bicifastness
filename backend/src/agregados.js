@@ -34,7 +34,23 @@ const { distribucion } = require('./verificacion');
  * publicable. Sin lista blanca, el dia que alguien meta el objeto de usuario
  * entero "para no repetir codigo", el correo vuelve a estar publicado.
  */
-const CAMPOS_PUBLICABLES = ['pos', 'nombre', 'avatar', 'clan', 'puntos', 'marca', 'viajes'];
+/**
+ * Lo unico que sale de un agregado.
+ *
+ * `viajeId` lo rellena SOLO el ranking de un tramo, y esta aqui por un motivo
+ * concreto: sin el no se puede denunciar un tiempo (#61). Es el id opaco de un
+ * VIAJE, no de una persona: con el no se llega a nadie, porque `tiempos_viaje`
+ * no se lee sin ser su dueño o la administracion.
+ *
+ * El `uid` NO entra, y esa es la linea. Denunciar necesitaba saber a quien se
+ * señala, y en vez de publicar los uid de todo el que aparece en una
+ * clasificacion, eso lo resuelve el worker leyendo el viaje.
+ *
+ * `limpiar` descarta lo que no venga, asi que los demas agregados siguen sin
+ * publicarlo: quien no lo necesite, no lo enseña.
+ */
+const CAMPOS_PUBLICABLES = ['pos', 'nombre', 'avatar', 'clan', 'puntos', 'marca', 'viajes',
+  'viajeId'];
 
 /**
  * Un documento de Firestore tiene un tope duro de 1 MiB. Un ranking largo no
@@ -435,6 +451,9 @@ async function reconstruir({
           avatar: piloto?.avatarUrl || null,
           clan: piloto?.clanId || null,
           marca: v.tiempoSegundos,
+          // Para poder denunciar este tiempo. Solo el id del viaje: quien es su
+          // dueño lo resuelve el worker (#61).
+          viajeId: v.viajeId || null,
         };
       });
 

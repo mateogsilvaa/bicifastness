@@ -136,17 +136,35 @@ export async function impugnarViaje(viajeId, alegacion) {
 }
 
 /** Denuncia un tiempo sospechoso. */
-export async function reportarViaje(viaje, motivo = 'Reportado desde el ranking') {
-  const uid = uidActual();
-  if (viaje.uid === uid) throw new Error('No puedes reportar tu propio viaje.');
+/**
+ * Denuncia un tiempo (#61).
+ *
+ * Se denuncia UN VIAJE, no a una persona: lo unico que sale de aqui es el id
+ * del viaje. Antes habia que mandar tambien `reportadoUid`, y eso obligaba a
+ * que el uid del denunciado estuviera publicado en algun sitio desde el que
+ * leerlo — o sea, a publicar los uid en las clasificaciones, que es justo lo
+ * que la lista blanca de `agregados` prohibe desde la fuga de correos (#60).
+ *
+ * Quien es el dueño lo resuelve el worker, que si puede leer el viaje. Tambien
+ * es el que descarta las autodenuncias: aqui no hay forma de saber de quien es
+ * el viaje, y fiarse de lo que diga el navegador seria fiarse de la parte
+ * interesada.
+ *
+ * `estado: 'sin_resolver'` y no `'pendiente'`: pendiente es "esperando a que lo
+ * mire una persona", y esto todavia no ha llegado ahi. La cola del panel solo
+ * enseña las que el worker ha dado por buenas.
+ */
+export async function reportarViaje(viajeId, motivo) {
+  const texto = String(motivo || '').trim();
+  if (texto.length < 10) {
+    throw new Error('Explica un poco mas que le ves de raro: al menos diez caracteres.');
+  }
 
   await addDoc(collection(db, 'reportes'), {
-    viajeId: viaje.viajeId,
-    reportanteUid: uid,
-    reportadoUid: viaje.uid,
-    ruta: viaje.ruta,
-    motivo: String(motivo).slice(0, 300),
-    estado: 'pendiente',
+    viajeId: String(viajeId),
+    reportanteUid: uidActual(),
+    motivo: texto.slice(0, 300),
+    estado: 'sin_resolver',
     creado: serverTimestamp(),
   });
 }

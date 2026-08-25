@@ -19,6 +19,9 @@ import { db, doc, getDoc } from '/assets/js/firebase.js';
 import { iniciarPagina, nombreRuta, formatearTiempo } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
+import { auth, onAuthStateChanged } from '/assets/js/firebase.js';
+import { pedirTexto, avisar } from '/assets/js/dom.js';
+import { reportarViaje } from '/assets/js/acciones.js';
 
 iniciarPagina('clasificacion');
 
@@ -52,6 +55,24 @@ const cache = new Map();
 
 /** Motivo del ultimo fallo de lectura, si lo hubo. */
 let fallo = null;
+
+/**
+ * Si hay sesion, para saber si se puede ofrecer denunciar.
+ *
+ * La clasificacion se ve sin cuenta —es lo que engancha a quien llega de
+ * fuera— pero denunciar exige firmar: la regla comprueba que quien denuncia sea
+ * quien dice ser. Ofrecer un boton que va a fallar es peor que no ofrecerlo.
+ *
+ * Se repinta al saberlo: `onAuthStateChanged` llega despues de la primera
+ * pintada, y sin esto quien entra con sesion no veria el boton hasta recargar.
+ */
+let haySesion = false;
+
+onAuthStateChanged(auth, (u) => {
+  const antes = haySesion;
+  haySesion = Boolean(u);
+  if (antes !== haySesion) pintarActiva();
+});
 
 // --- Lectura -----------------------------------------------------------------
 
@@ -120,7 +141,7 @@ function cabecera(columnas) {
  * `esRecord` solo lo lleva el primero, y es el unico sitio de todo el sitio
  * donde aparece el lima.
  */
-function fila({ pos, nombre, debajo, marca, extra, esRecord }) {
+function fila({ pos, nombre, debajo, marca, extra, esRecord, denunciable }) {
   return el('tr', { clase: esRecord ? 'record' : '' }, [
     el('td', { clase: 'col-puesto' }, [el('span', { clase: 'puesto', texto: String(pos) })]),
     el('td', {}, [
@@ -128,8 +149,58 @@ function fila({ pos, nombre, debajo, marca, extra, esRecord }) {
       debajo ? el('div', { clase: 'clan', texto: debajo }) : null,
     ]),
     el('td', { clase: 'col-marca' }, [el('span', { clase: 'marca', texto: marca })]),
-    el('td', { clase: 'col-fecha menor apagado', texto: extra || '' }),
+    el('td', { clase: 'col-fecha menor apagado' }, [
+      extra ? el('span', { texto: extra }) : null,
+      denunciable ? botonDenunciar(denunciable, nombre) : null,
+    ]),
   ]);
+}
+
+/**
+ * Denunciar un tiempo (#61).
+ *
+ * Solo con sesion: la regla exige que quien denuncia sea quien firma, y ofrecer
+ * un boton que va a fallar es peor que no ofrecerlo.
+ *
+ * Se manda el id del VIAJE y nada mas. De quien es lo resuelve el worker, que
+ * es quien puede leerlo, y es tambien quien descarta las autodenuncias: aqui no
+ * hay forma de saber de quien es el tiempo, y por eso el boton sale tambien en
+ * la propia fila. Decirlo antes exigiria publicar los uid de todo el que
+ * aparece en una clasificacion, que es justo lo que no se hace desde #60.
+ */
+function botonDenunciar(viajeId, deQuien) {
+  return el('button', {
+    clase: 'btn plano menor',
+    texto: 'Denunciar',
+    attrs: { type: 'button', 'aria-label': `Denunciar el tiempo de ${deQuien}` },
+    on: {
+      click: async (ev) => {
+        const boton = ev.currentTarget;
+
+        const motivo = await pedirTexto(
+          `¿Que le ves de raro al tiempo de ${deQuien}?`,
+          {
+            textoAceptar: 'Denunciar',
+            etiqueta: 'Lo lee una persona. Cuenta que te ha hecho sospechar.',
+            // El mismo minimo que exige la regla. Que lo diga el dialogo evita
+            // escribir tres palabras y llevarse un error despues de enviar.
+            minimo: 10,
+          },
+        );
+        if (!motivo) return;
+
+        boton.disabled = true;
+        try {
+          await reportarViaje(viajeId, motivo);
+          avisar('Gracias. Lo mirara una persona.', 'exito');
+          boton.textContent = 'Denunciado';
+        } catch (error) {
+          avisar(error.message || 'No se ha podido enviar la denuncia.');
+          boton.disabled = false;
+        }
+      },
+    },
+  });
 }
 
 function vacio(titulo, explicacion) {
@@ -194,6 +265,7 @@ async function pintarRuta(ruta) {
           debajo: f.clan,
           marca: formatearTiempo(f.marca),
           esRecord: f.pos === 1,
+          denunciable: haySesion ? f.viajeId : null,
         }))),
       ]),
     ]),
@@ -318,6 +390,18 @@ id('selector-ruta').addEventListener('change', (evento) => {
   window.history.replaceState({}, '', url);
   pintarRuta(ruta);
 });
+
+/**
+ * Repinta lo que este a la vista.
+ *
+ * Solo hace falta para el ranking de un tramo, que es donde vive el boton de
+ * denunciar: la sesion llega despues de la primera pintada y sin esto quien
+ * entra con cuenta no veria el boton hasta recargar.
+ */
+function pintarActiva() {
+  const ruta = id('selector-ruta')?.value;
+  if (ruta) pintarRuta(ruta);
+}
 
 // --- Carga -------------------------------------------------------------------
 

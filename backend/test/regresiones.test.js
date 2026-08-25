@@ -792,6 +792,72 @@ test('las rutas ancladas se pueden anclar desde la web', () => {
     'la pantalla deja pasar la cuarta y deja que la rechace la regla');
 });
 
+// --- Denuncias (#61) ----------------------------------------------------------
+
+test('denunciar un tiempo tiene por donde, y suspender tambien', () => {
+  // El circuito de moderacion estaba entero MENOS el principio: `reportes` con
+  // sus reglas, la cola del panel y `resolverReporte` funcionando, y ningun
+  // sitio desde el que crear una denuncia. La cola no podia llenarse nunca.
+  assert.match(leerCodigo('assets/js/paginas/clasificacion.js'), /reportarViaje\(/,
+    'nadie llama a reportarViaje: la cola de moderacion no puede llenarse');
+
+  // Y el otro extremo: el panel resolvia un caso y no podia hacer nada con
+  // quien reincide.
+  assert.match(leerCodigo('assets/js/paginas/admin.js'), /suspenderUsuario\(/,
+    'el panel no puede suspender a nadie');
+});
+
+test('denunciar no obliga a publicar el uid de nadie', () => {
+  // Es la razon de que esto no estuviera hecho. Denunciar necesitaba mandar
+  // `reportadoUid`, y para eso el uid del denunciado tendria que estar
+  // publicado en la clasificacion — justo lo que la lista blanca de agregados
+  // prohibe desde la fuga de correos (#60).
+  //
+  // Se manda el id del VIAJE, que es opaco y no lleva a nadie: `tiempos_viaje`
+  // no lo lee quien no sea su dueño o la administracion.
+  const reportes = bloque('reportes');
+  const alta = reportes.match(/allow create[\s\S]*?hasOnly\(\[([^\]]+)\]\)/)[1];
+
+  assert.ok(!alta.includes('reportadoUid'),
+    'el cliente manda a quien señala, y para eso habria que publicar los uid');
+  assert.ok(alta.includes('viajeId'));
+
+  assert.ok(!leerCodigo('backend/src/agregados.js').includes("'uid',"),
+    'el uid ha entrado en la lista blanca de agregados');
+});
+
+test('el worker es quien decide a quien señala una denuncia', () => {
+  // La comprobacion de "no te denuncies a ti mismo" la hacia la regla, y dejo
+  // de poder hacerla cuando el uid del denunciado salio del documento. Si no la
+  // recoge nadie, se pierde.
+  // La decision vive en `src/denuncias.js`, que es una funcion pura y tiene sus
+  // propias pruebas de comportamiento (`test/denuncias.test.js`). Aqui solo se
+  // comprueba el cableado: que el worker la use y que se ejecute.
+  const worker = leerCodigo('backend/worker.js');
+
+  assert.match(worker, /denuncias\.decidir\(/,
+    'el worker decide por su cuenta en vez de usar la funcion probada');
+  assert.match(worker.slice(worker.indexOf('async function main')), /await resolverDenuncias\(\)/,
+    'la funcion existe y no la llama nadie');
+
+  // Y la regla de seguridad que bajo de las reglas de Firestore a codigo
+  // normal tiene que seguir estando en el sitio que se prueba.
+  assert.match(leerCodigo('backend/src/denuncias.js'), /dueño === denuncia\.reportanteUid/,
+    'se ha perdido la comprobacion de autodenuncia al mudarla de las reglas');
+});
+
+test('a la cola de la administracion solo llega lo ya comprobado', () => {
+  // Una denuncia nace `sin_resolver` y el worker la pasa a `pendiente` solo si
+  // el viaje existe, no es tuyo y no la habias mandado ya. El panel pide
+  // `pendiente`: lo descartado no le llega, que es de lo que se trata.
+  const reportes = bloque('reportes');
+  assert.match(reportes, /datos\(\)\.estado == 'sin_resolver'/,
+    'el cliente puede crear una denuncia ya encolada, sin pasar por el worker');
+
+  assert.match(leerCodigo('assets/js/paginas/admin.js'), /where\('estado', '==', 'pendiente'\)/,
+    'el panel se traeria tambien las descartadas');
+});
+
 test('la gestion de clanes tiene interfaz, no solo acciones', () => {
   // Las doce acciones de clan llevaban escritas en `acciones.js` —con sus reglas
   // y sus pruebas— y no las llamaba NINGUNA pagina. El backend estaba entero y
@@ -1268,6 +1334,11 @@ const CONSULTAS_COMPUESTAS = [
     donde: 'worker.avisarRevisionesLentas(): los que esperan y aun no se han avisado',
     coleccion: 'tiempos_viaje',
     campos: [['estado', 'ASCENDING'], ['avisoRevision', 'ASCENDING']],
+  },
+  {
+    donde: 'worker.resolverDenuncias(): si esta persona ya habia denunciado este viaje',
+    coleccion: 'reportes',
+    campos: [['viajeId', 'ASCENDING'], ['reportanteUid', 'ASCENDING']],
   },
 ];
 

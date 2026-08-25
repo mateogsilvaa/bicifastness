@@ -466,7 +466,10 @@ async function cargarBase() {
   ]);
 
   return {
-    viajes: viajesSnap.docs.map((d) => d.data()),
+    // Con el id dentro: el ranking de un tramo lo publica para que se pueda
+    // denunciar un tiempo (#61), y sin esto cada fila no sabria a que viaje se
+    // refiere.
+    viajes: viajesSnap.docs.map((d) => ({ viajeId: d.id, ...d.data() })),
     usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
   };
 }
@@ -487,7 +490,7 @@ async function viajesDeRutas(rutas) {
     .where('verificado', '==', true)
     .get()));
 
-  return tandas.flatMap((snap) => snap.docs.map((d) => d.data()));
+  return tandas.flatMap((snap) => snap.docs.map((d) => ({ viajeId: d.id, ...d.data() })));
 }
 
 /**

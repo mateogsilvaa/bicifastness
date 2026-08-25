@@ -430,18 +430,34 @@ service cloud.firestore {
     }
 
     // --- Moderacion ---------------------------------------------------------
+    // --- Denuncias (#61) ----------------------------------------------------
+    //
+    // El navegador denuncia UN VIAJE, no a una persona: manda `viajeId` y nada
+    // mas. Antes tenia que mandar tambien `reportadoUid`, y eso obligaba a que
+    // el uid del denunciado estuviera publicado en algun sitio desde el que
+    // pudiera leerlo — o sea, a publicar los uid en las clasificaciones. Eso es
+    // exactamente lo que la lista blanca de `agregados` prohibe desde #60.
+    //
+    // Quien es el dueño lo resuelve el worker, que si puede leer el viaje. Lo
+    // que se pierde por el camino es la comprobacion de "no te denuncies a ti
+    // mismo", que las reglas ya no pueden hacer: pasa al worker, que descarta la
+    // denuncia sin encolarla. Se detecta mas tarde, pero no se pierde.
     match /reportes/{reporteId} {
       allow read: if esAdmin();
 
       allow create: if autenticado()
         && esYo(datos().reportanteUid)
-        && datos().keys().hasOnly(['viajeId', 'reportanteUid', 'reportadoUid', 'ruta', 'motivo', 'estado', 'creado'])
-        && datos().estado == 'pendiente'
+        && datos().keys().hasOnly(['viajeId', 'reportanteUid', 'motivo', 'estado', 'creado'])
+        && datos().viajeId is string
+        && datos().viajeId.size() > 0 && datos().viajeId.size() <= 64
+        && datos().estado == 'sin_resolver'
         && datos().motivo is string
+        && datos().motivo.size() >= 10
         && datos().motivo.size() <= 300
-        // No vale denunciarse a uno mismo para inflar el contador.
-        && datos().reportadoUid != request.auth.uid;
+        && datos().creado == request.time;
 
+      // `sin_resolver` -> `pendiente` lo hace el worker al rellenar a quien
+      // señala; de ahi en adelante, la administracion.
       allow update: if esAdmin() && cambia().hasOnly(['estado', 'resueltoPor', 'resueltoEn']);
       allow delete: if false;
     }

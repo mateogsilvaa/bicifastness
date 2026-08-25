@@ -2434,3 +2434,38 @@ test('toda señal del antifraude recibe de verdad el dato que mira', () => {
     'el antifraude mira estos campos y el worker no los pone en el contexto, '
     + `asi que su señal no puede saltar nunca: ${sinRellenar.join(', ')}`);
 });
+
+test('nadie puede reescribir su avatar para que lo pida el navegador de los demas', () => {
+  // `avatarUrl` se publica TAL CUAL en los agregados de las clasificaciones
+  // (`agregados.js` lo copia a `avatar`), asi que lo que apunte ahi lo pide el
+  // navegador de cualquiera que abra un ranking. Estaba en la lista de campos
+  // que el propio usuario puede actualizar, y sin ninguna validacion de formato
+  // — el `color` de los clanes si la tiene.
+  //
+  // Con eso, cualquiera podia apuntarlo a un servidor suyo y quedarse con las
+  // IP de todo el que mirase la clasificacion. En un proyecto que viene de #59
+  // y #60 eso no puede quedarse abierto.
+  //
+  // Y no costaba nada cerrarlo: se escribe UNA vez, al crear el perfil, y
+  // desde que se retiro la subida de avatar no hay una sola linea que lo
+  // modifique.
+  const usuarios = bloque('usuarios');
+  const actualizaciones = usuarios.match(/allow update:[\s\S]*?;/g) || [];
+
+  assert.ok(actualizaciones.length > 0, 'no se han encontrado las reglas de actualizacion');
+
+  for (const regla of actualizaciones) {
+    assert.doesNotMatch(regla, /'avatarUrl'/,
+      'avatarUrl vuelve a ser escribible: eso lo publica el ranking a todo el mundo');
+  }
+
+  // Y sigue naciendo con el perfil, que es donde si tiene que estar.
+  assert.match(usuarios, /allow create:[\s\S]*?'avatarUrl'/,
+    'avatarUrl ya no se puede escribir al crear el perfil: nadie tendria avatar');
+
+  // Si algun dia vuelve la subida de avatar, que vuelva con un patron, como el
+  // color de los clanes. Esta comprobacion falla y obliga a pasar por aqui.
+  const perfil = leerCodigo('assets/js/paginas/yo.js');
+  assert.doesNotMatch(perfil, /updateDoc\([^)]*\{[^}]*avatarUrl/,
+    'el perfil escribe avatarUrl pero la regla ya no lo permite: la subida fallaria');
+});

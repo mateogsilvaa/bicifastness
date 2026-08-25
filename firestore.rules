@@ -91,11 +91,22 @@ service cloud.firestore {
 
       // Solo se puede tocar lo cosmetico y las rutas ancladas. La puntuacion,
       // las insignias y el estado de la cuenta los escribe unicamente el worker.
+      //
+      // `avatarUrl` NO esta, y es a proposito. Se escribe una sola vez, al
+      // crear el perfil, con la URL que genera `avatarPorDefecto` a partir del
+      // nombre; la subida de avatar se retiro (ver `paginas/yo.js`) y desde
+      // entonces no hay una sola linea que lo modifique. Dejarlo abierto
+      // significaba poder apuntarlo a cualquier sitio, sin ninguna validacion
+      // de formato — el `color` de los clanes si la tiene — y ese campo se
+      // publica tal cual en los agregados de las clasificaciones. O sea que
+      // cualquiera podia hacer que el navegador de todo el que abriera un
+      // ranking pidiera una imagen a un servidor suyo, y quedarse con las IP.
+      // Si algun dia vuelve la subida de avatar, vuelve aqui con su patron.
       allow update: if esYo(uid)
         // `avisosCorreo` es la preferencia de correo. Es un booleano suyo y
         // solo suyo: darse de baja no puede depender de que un administrador lo
         // haga por ti (RGPD).
-        && cambia().hasOnly(['favoritas', 'avatarUrl', 'consentimiento', 'avisosCorreo'])
+        && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo'])
         && (!('favoritas' in datos()) || datos().favoritas.size() <= 3);
 
       // Avisos push (#33).

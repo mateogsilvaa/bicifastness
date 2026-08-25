@@ -335,7 +335,7 @@ Dos reglas que salen de ahi:
 
 ### Funciones escritas, probadas y sin llamar
 
-Un patron que ya va por diez apariciones, y que cuesta ver porque
+Un patron que ya va por once apariciones, y que cuesta ver porque
 **todo esta en verde**: la funcion existe, tiene sus pruebas, y no la ejecuta
 nadie. Una funcion probada que no llama nadie da la misma sensacion de seguridad
 que una que funciona.
@@ -351,6 +351,7 @@ que una que funciona.
 | `reportarViaje` y `suspenderUsuario` | La moderacion tenia cola, reglas y panel, y ninguna forma de crear una denuncia (#61) |
 | `limites.js` entero | No hay limitacion de frecuencia en ningun sitio (#62) |
 | `clanes.js` entero, y con el `badwords` | Los nombres de piloto y de clan no los filtra nadie (#64) |
+| `correo.decidirReintento`, `debeDejarDeIntentar`, `repartirCupo` | Un correo que falla se pierde para siempre, y nadie cuenta el cupo diario (#65) |
 
 `reportarViaje` y `suspenderUsuario` eran el septimo y el octavo, y ya tienen
 pantalla (#61). Costo mas que los demas porque denunciar necesitaba saber a
@@ -385,9 +386,42 @@ nadie no tiene ninguna lectura inocente**. La prueba lleva un mapa de
 excepciones con el motivo escrito, como la del CI: hoy son `badwords.js` (se
 conserva entero porque el arreglo de #64 lo necesita) y `limites.js` (#62).
 
+El undecimo, **#65**, lo encontro esa misma prueba tirando del hilo: `enviar()`
+se molesta en clasificar cada fallo (`reintentable: status === 429 || status >= 500`)
+y quien lo llama tira ese dato a la basura. Un 429 o un timeout borra el correo
+para siempre — incluido el de "te hemos rechazado el viaje", que es el unico
+que se manda en el momento y precisamente para que la persona sepa por que.
+
 Para lo demas — funciones sueltas — sigue sin haber atajo: al acabar algo,
 comprobar **quien lo llama**, con `grep -rn` sobre el nombre, fuera de su propio
 fichero y de los tests.
+
+### El primo del anterior: se llama, y solo puede contestar una cosa
+
+**#66** es la variante que no pilla ninguna de las comprobaciones de arriba, y
+por eso va aparte. El antifraude da **45 puntos** —la señal mas pesada de su
+funcion despues del record pulverizado— a una captura con rastros de Photoshop
+en el EXIF. Se llama de verdad: `worker.js` le pasa el dato y
+`verificacion.test.js` prueba el caso. Todo verde.
+
+Pero el navegador comprime cada captura dibujandola en un `<canvas>`, y un
+lienzo solo guarda pixeles: al recodificar, el EXIF entero desaparece. El worker
+recibe siempre `sospechaEdicion: false`. **La señal no puede saltar nunca.**
+
+Lo que lo hace invisible es que no hay nada que buscar con `grep`: la funcion se
+llama, la prueba pasa —porque le mete el `true` a mano— y el valor es constante
+solo en produccion. La unica forma de verlo fue seguir el dato desde donde nace
+hasta donde se usa.
+
+De paso salio la otra cara, que es buena: ese mismo recodificado es lo unico que
+borra la geolocalizacion del EXIF antes de que la captura salga del movil, y las
+capturas se guardan en Firestore —fueron parte de la fuga de #59—. O sea que la
+proteccion de datos personales estaba funcionando **por accidente**, mientras la
+funcion que la documenta (`imagen.normalizarParaGuardar`, con su nota de RGPD)
+no la llamaba nadie. Ahora lo pone escrito en `precheck.js`, donde se puede
+romper, con una prueba detras: el cambio que lo reabriria —*si la imagen ya
+cabe, nos ahorramos comprimirla*— parece una mejora evidente y hoy nada
+avisaria.
 
 ### Lo que encontro el banco de capturas
 

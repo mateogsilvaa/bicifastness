@@ -237,7 +237,31 @@ export async function comprimir(fichero) {
   return comprimirImagen(await cargarImagen(fichero));
 }
 
-/** El trabajo de `comprimir`, sobre una imagen ya decodificada. */
+/**
+ * El trabajo de `comprimir`, sobre una imagen ya decodificada.
+ *
+ * ESTO NO ES SOLO COMPRIMIR, Y POR ESO NO PUEDE SER CONDICIONAL.
+ *
+ * Pasar por el lienzo es lo unico que quita el EXIF de la captura, y el EXIF de
+ * una foto lleva DONDE se hizo. Las capturas se guardan en Firestore y fueron
+ * parte de la fuga de #59: si llevaran EXIF, habrian llevado la casa de la
+ * gente. Un lienzo solo guarda pixeles, asi que al volver a codificar no queda
+ * ni un metadato.
+ *
+ * Es la unica capa que lo hace. `imagen.normalizarParaGuardar()` del backend
+ * documenta esa misma garantia (RGPD, minimizacion de datos) pero no la llama
+ * nadie: el servidor nunca vuelve a guardar la imagen, solo la lee.
+ *
+ * De ahi que el primer ancho sea `min(naturalWidth, ANCHO_SUBIDA)` y no un
+ * `if (ya cabe) return fichero`: una captura pequeña TAMBIEN tiene que pasar
+ * por aqui. Ese atajo parece gratis —ahorra el trabajo mas caro de la
+ * pantalla— y lo que se lleva por delante es la unica limpieza de metadatos que
+ * hay en todo el recorrido.
+ *
+ * Contrapartida conocida, en #66: el mismo recodificado borra las firmas de
+ * Photoshop que el antifraude buscaba en el EXIF, asi que esa señal no puede
+ * saltar nunca. Se decide alli. La privacidad va primero.
+ */
 function comprimirImagen(img) {
   const anchos = [
     Math.min(img.naturalWidth, LIMITES_CLIENTE.ANCHO_SUBIDA),

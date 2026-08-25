@@ -2359,3 +2359,43 @@ test('ningun modulo de backend/src se queda sin que lo requiera nadie', () => {
     'estos modulos no los requiere nadie fuera de las pruebas, asi que no se '
     + `ejecutan nunca: ${sueltos.join(', ')}`);
 });
+
+test('la captura que se sube siempre pasa por el lienzo, que es lo que borra el EXIF', () => {
+  // POR QUE ESTO MERECE UNA PRUEBA. El EXIF de una foto lleva DONDE se hizo, y
+  // las capturas se guardan en Firestore: fueron parte de la fuga de #59. Si
+  // llevaran EXIF, habrian llevado la casa de la gente.
+  //
+  // Quien lo quita es el navegador, y no porque nadie lo decidiera asi: es un
+  // efecto secundario de comprimir. Un `<canvas>` solo guarda pixeles, asi que
+  // al recodificar no sobrevive ni un metadato. La funcion que DOCUMENTA esa
+  // garantia — `imagen.normalizarParaGuardar`, con su nota de RGPD — no la
+  // llama nadie, porque el servidor nunca vuelve a guardar la imagen.
+  //
+  // O sea que la unica limpieza de metadatos del proyecto es implicita, y la
+  // rompe un cambio que parece una mejora evidente: "si la imagen ya cabe, nos
+  // ahorramos comprimirla". Eso es lo que vigila esta prueba.
+  const precheck = leerCodigo('assets/js/precheck.js');
+  const subir = leerCodigo('assets/js/paginas/subir.js');
+
+  // 1. Se recodifica, y a JPEG: es el paso que tira el EXIF.
+  assert.match(precheck, /toDataURL\('image\/jpeg'/,
+    'ya no se recodifica en el lienzo: el EXIF de la captura llegaria entero a Firestore');
+
+  // 2. Y se recodifica SIEMPRE. El primer ancho que se prueba esta acotado por
+  //    arriba, nunca condicionado a que la imagen sobre: una captura pequeña
+  //    tiene que pasar por el lienzo igual que una grande.
+  assert.match(precheck, /Math\.min\(img\.naturalWidth, LIMITES_CLIENTE\.ANCHO_SUBIDA\)/,
+    'el primer ancho ha dejado de ser incondicional: puede haber un camino que no recodifique');
+
+  // 3. Lo que se sube es SIEMPRE el resultado del lienzo, nunca el fichero.
+  assert.match(subir, /datos: preparada\.dataUrl/,
+    'lo que se sube ya no sale del lienzo');
+
+  // 4. Y no hay forma de leer los bytes originales para mandarlos. `readAsDataURL`
+  //    sobre el fichero devolveria la imagen TAL CUAL, EXIF incluido, y es la
+  //    manera mas natural de escribir esto mal.
+  for (const pagina of ['assets/js/precheck.js', 'assets/js/paginas/subir.js']) {
+    assert.doesNotMatch(leerCodigo(pagina), /readAsDataURL/,
+      `${pagina} lee el fichero original: eso manda el EXIF sin tocar`);
+  }
+});

@@ -280,3 +280,83 @@ test('un clan que ya no juega nadie se queda como esta', () => {
 
   assert.strictEqual(clanes.elegirSucesor(clan, miembros, AHORA), null);
 });
+
+// --- Doble membresia -------------------------------------------------------------
+
+test('quien se cambia de clan deja de contar en el que dejo', async () => {
+  // Como se llega aqui: estas en `rayos`, pides entrar en `truenos`, su lider te
+  // acepta y confirmas. Tu perfil dice `truenos`, `truenos` te lista... y
+  // `rayos` tambien. Las reglas no pueden impedirlo: aceptar lo hace el lider,
+  // que solo escribe en SU documento, y el `clanId` lo escribes tu, que solo
+  // escribes en el tuyo. Nadie puede tocar el clan que dejas atras.
+  sembrar();
+  bd.sembrar('clanes', [{
+    id: 'truenos', lider: 'u4', oficiales: [], miembros: ['u4', 'u3'],
+    solicitudes: [], numMiembros: 2,
+  }]);
+  // u3 se ha pasado a truenos, pero rayos sigue listandolo.
+  await bd.doc('usuarios/u3').update({ clanId: 'truenos' });
+
+  const sacados = await clanes.limpiarDoblesMembresias();
+  assert.strictEqual(sacados, 1);
+
+  const rayos = (await bd.doc('clanes/rayos').get()).data();
+  assert.ok(!rayos.miembros.includes('u3'), 'rayos sigue sumando a alguien que ya no juega con ellos');
+  assert.strictEqual(rayos.numMiembros, 2);
+
+  const truenos = (await bd.doc('clanes/truenos').get()).data();
+  assert.ok(truenos.miembros.includes('u3'), 'lo ha sacado del clan que SI es el suyo');
+});
+
+test('la limpieza tambien le quita el cargo', async () => {
+  // Un oficial que se va y se queda en `oficiales` es alguien con permisos en un
+  // clan al que ya no pertenece.
+  sembrar();
+  bd.sembrar('clanes', [{
+    id: 'truenos', lider: 'u4', oficiales: [], miembros: ['u4', 'u2'],
+    solicitudes: [], numMiembros: 2,
+  }]);
+  await bd.doc('usuarios/u2').update({ clanId: 'truenos' });
+
+  await clanes.limpiarDoblesMembresias();
+
+  const rayos = (await bd.doc('clanes/rayos').get()).data();
+  assert.ok(!rayos.oficiales.includes('u2'), 'sigue siendo oficial de un clan del que ya no es');
+});
+
+test('a quien esta donde debe no se le toca', async () => {
+  sembrar();
+  const antes = (await bd.doc('clanes/rayos').get()).data();
+
+  const sacados = await clanes.limpiarDoblesMembresias();
+
+  assert.strictEqual(sacados, 0);
+  assert.deepStrictEqual((await bd.doc('clanes/rayos').get()).data().miembros, antes.miembros);
+});
+
+test('un enlace de invitacion no te mete en dos clanes a la vez', async () => {
+  // El mismo agujero por la otra puerta. Aqui SI se puede rechazar antes de
+  // escribir nada, porque lo resuelve el worker: se rechaza en vez de sacarle
+  // de su clan, que es una decision suya y no la toma por abrir un enlace.
+  sembrar();
+  bd.sembrar('clanes', [{
+    id: 'truenos', lider: 'u4', oficiales: [], miembros: ['u4'],
+    solicitudes: [], numMiembros: 1,
+  }]);
+  bd.sembrar('invitaciones', [{
+    id: 'abc123', clanId: 'truenos', creadaPor: 'u4',
+    caduca: new Date(Date.now() + 86400000), usos: 0, maxUsos: 1,
+  }]);
+
+  // u3 ya esta en rayos.
+  const resultado = await clanes.aplicarInvitacion('abc123', 'u3');
+
+  assert.strictEqual(resultado.entrado, false);
+  assert.match(resultado.motivo, /otro clan/);
+
+  const truenos = (await bd.doc('clanes/truenos').get()).data();
+  assert.ok(!truenos.miembros.includes('u3'));
+
+  // Y la invitacion no se ha gastado.
+  assert.strictEqual((await bd.doc('invitaciones/abc123').get()).data().usos, 0);
+});

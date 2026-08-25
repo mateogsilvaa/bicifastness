@@ -78,6 +78,59 @@ async function limpiarHuerfanos({ simular = false, tope = 200 } = {}) {
 }
 
 /**
+ * Saca a la gente de los clanes que la listan y no son el suyo.
+ *
+ * Es el reverso de `limpiarHuerfanos`, y hace falta porque las reglas no pueden
+ * comprobarlo: aceptar a alguien lo hace el lider, que solo puede escribir en SU
+ * documento, y el `clanId` lo escribe la persona, que solo puede escribir en el
+ * suyo. Nadie puede tocar el clan que deja atras.
+ *
+ * Como se llega ahi: estas en el clan A, pides entrar en B, el lider de B te
+ * acepta y confirmas. Ahora tu perfil dice B, B te lista... y A tambien. Y esto
+ * NO lo arregla `limpiarHuerfanos`, que solo comprueba que el clan que dice tu
+ * perfil te liste — y B te lista.
+ *
+ * El resultado, si no se limpia: A suma para siempre los puntos de alguien que
+ * ya no juega con ellos, y su lider ve un miembro fantasma que no puede
+ * expulsar desde ninguna pantalla, porque para esa persona A ya no existe.
+ *
+ * Manda el `clanId` del perfil, que es el unico sitio donde la decision es de
+ * quien la tomo.
+ */
+async function limpiarDoblesMembresias({ simular = false, tope = 500 } = {}) {
+  const [clanesSnap, conClan] = await Promise.all([
+    db().collection('clanes').get(),
+    db().collection('usuarios').where('clanId', '!=', null).limit(tope).get(),
+  ]);
+
+  if (clanesSnap.empty || conClan.empty) return 0;
+
+  const suyo = new Map(conClan.docs.map((d) => [d.id, d.data().clanId]));
+  let sacados = 0;
+
+  for (const doc of clanesSnap.docs) {
+    const miembros = doc.data().miembros || [];
+
+    // Solo a quien tiene clan y NO es este. A quien no aparece en `suyo` no se
+    // le toca: puede que su perfil no se haya leido (el tope) o que no tenga
+    // `clanId` todavia, y eso ya lo mira `limpiarHuerfanos` por el otro lado.
+    const sobran = miembros.filter((uid) => suyo.has(uid) && suyo.get(uid) !== doc.id);
+    if (!sobran.length) continue;
+
+    sacados += sobran.length;
+    if (simular) continue;
+
+    await doc.ref.update({
+      miembros: admin.firestore.FieldValue.arrayRemove(...sobran),
+      oficiales: admin.firestore.FieldValue.arrayRemove(...sobran),
+      numMiembros: Math.max(0, miembros.length - sobran.length),
+    });
+  }
+
+  return sacados;
+}
+
+/**
  * ¿Vale esta invitacion?
  *
  * Pura, para poder probar la caducidad y los usos sin montar nada. Devuelve el
@@ -119,6 +172,24 @@ async function aplicarInvitacion(codigo, uid, { simular = false, ahora = new Dat
   const miembros = clan.data().miembros || [];
   if (miembros.includes(uid)) return { entrado: false, motivo: 'ya estaba dentro' };
   if (miembros.length >= MAX_MIEMBROS) return { entrado: false, motivo: 'el clan esta lleno' };
+
+  // Y no puede estar ya en otro.
+  //
+  // Sin esto, quien esta en el clan A y abre un enlace del clan B acaba en los
+  // `miembros` de LOS DOS: aqui se le mete en B y se le pone `clanId: B`, pero a
+  // A no le toca nadie. `limpiarHuerfanos` tampoco lo arregla, porque solo mira
+  // que el clan que dice tu perfil te liste — y B te lista. Resultado: A suma
+  // para siempre los puntos de alguien que ya no juega con ellos, y su lider ve
+  // un miembro fantasma que no puede expulsar desde ninguna pantalla.
+  //
+  // Se rechaza en vez de sacarle de A: irse de un clan es una decision suya, y
+  // no la toma por abrir un enlace.
+  const perfil = await db().doc(`usuarios/${uid}`).get();
+  const clanActual = perfil.exists ? perfil.data().clanId : null;
+
+  if (clanActual && clanActual !== clanId) {
+    return { entrado: false, motivo: 'ya estas en otro clan: sal de el antes de entrar en este' };
+  }
 
   if (simular) return { entrado: true, clanId, simulado: true };
 
@@ -231,6 +302,7 @@ async function rescatarSinLider({ simular = false, ahora = new Date(), tope = 50
 
 module.exports = {
   limpiarHuerfanos,
+  limpiarDoblesMembresias,
   rescatarSinLider,
   invitacionValida,
   aplicarInvitacion,

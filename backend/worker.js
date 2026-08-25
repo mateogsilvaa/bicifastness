@@ -1242,6 +1242,13 @@ async function trabajoDiario() {
     await cerrarRachas();
     await avisarRevisionesLentas();
 
+    // Las dos de clanes van aqui y no en cada pasada: leen `clanes` entera, y
+    // ni un lider desaparece en cinco minutos ni una doble membresia se cura
+    // sola. La limpieza va ANTES del rescate: si no, se podria elegir sucesor
+    // entre gente que ya no esta en el clan.
+    const dobles = await clanes.limpiarDoblesMembresias({ simular: SIMULAR });
+    if (dobles) console.log(`Clanes: ${dobles} membresia(s) fantasma limpiada(s).`);
+
     const rescatados = await clanes.rescatarSinLider({ simular: SIMULAR });
     if (rescatados) console.log(`Clanes: ${rescatados} rescatado(s) de un lider inactivo.`);
 

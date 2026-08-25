@@ -11,7 +11,7 @@
  * directo a la red.
  */
 
-const CACHE = 'bicifastness-v5';
+const CACHE = 'bicifastness-v6';
 
 // Pagina que se sirve cuando no hay red y la ruta pedida no esta cacheada.
 const OFFLINE = '/offline/';
@@ -88,21 +88,59 @@ self.addEventListener('fetch', (evento) => {
   const esEstatico = /\.(css|js|png|jpg|jpeg|svg|webp|woff2?|json|geojson|mp3|webmanifest)$/i.test(url.pathname);
   if (!esEstatico) return;
 
-  // Stale-while-revalidate: responde rapido y actualiza por detras.
-  evento.respondWith(
-    caches.match(peticion).then((cacheada) => {
-      const red = fetch(peticion).then((respuesta) => {
-        if (respuesta.ok && respuesta.type === 'basic') {
-          const copia = respuesta.clone();
-          caches.open(CACHE).then((cache) => cache.put(peticion, copia));
-        }
-        return respuesta;
-      }).catch(() => cacheada);
+  // Dos estrategias, y la frontera es la misma que traza `vercel.json`.
+  //
+  // El CODIGO (js, css) no lleva hash en el nombre, y por eso Vercel lo sirve
+  // con `max-age=0, must-revalidate`: la idea es que el navegador compruebe
+  // SIEMPRE si hay una version nueva. Servirlo stale-while-revalidate se
+  // saltaba esa decision — respondia con la copia guardada y bajaba la nueva
+  // por detras — asi que la primera carga despues de un despliegue mezclaba
+  // HTML nuevo, que llega por red, con modulos viejos. Un armazon que importa
+  // algo que ya no esta, o al reves, y que se arregla solo al recargar: el peor
+  // tipo de fallo, porque no se reproduce cuando vas a mirarlo.
+  //
+  // Lo DEMAS (imagenes, fuentes, sonidos, datos generados) va con `immutable` a
+  // un año: si cambia, cambia de nombre. Ahi la copia guardada nunca esta
+  // equivocada y responder al instante es justo lo que se quiere.
+  const esCodigo = /\.(css|js)$/i.test(url.pathname);
 
-      return cacheada || red;
-    })
-  );
+  evento.respondWith(esCodigo ? redPrimero(peticion) : cacheRapido(peticion));
 });
+
+/** Guarda una respuesta si vale la pena. */
+function guardar(peticion, respuesta) {
+  if (!respuesta.ok || respuesta.type !== 'basic') return respuesta;
+  const copia = respuesta.clone();
+  caches.open(CACHE).then((cache) => cache.put(peticion, copia));
+  return respuesta;
+}
+
+/**
+ * Red primero, cache como red de seguridad.
+ *
+ * Sin conexion sigue habiendo app: se responde con lo ultimo que se guardo, que
+ * es lo que hace que `/offline/` pueda pintar algo en vez de un error.
+ */
+async function redPrimero(peticion) {
+  try {
+    return guardar(peticion, await fetch(peticion));
+  } catch (error) {
+    const cacheada = await caches.match(peticion);
+    if (cacheada) return cacheada;
+    throw error;
+  }
+}
+
+/** Stale-while-revalidate: responde ya y actualiza por detras. */
+function cacheRapido(peticion) {
+  return caches.match(peticion).then((cacheada) => {
+    const red = fetch(peticion)
+      .then((respuesta) => guardar(peticion, respuesta))
+      .catch(() => cacheada);
+
+    return cacheada || red;
+  });
+}
 
 /**
  * Responde a una navegacion.

@@ -111,6 +111,26 @@ test('el service worker sirve algo util sin red, y sigue sin cachear lo autentic
   assert.match(sw, /assets\/ocr\//, 'el OCR volveria a bajarse por detras en cada subida');
 });
 
+test('el codigo no se sirve de la cache antes de preguntar', () => {
+  // `vercel.json` sirve js y css con `max-age=0, must-revalidate` a proposito:
+  // no llevan hash en el nombre, asi que el navegador tiene que comprobar
+  // siempre si hay version nueva. Un service worker que responda
+  // stale-while-revalidate se salta esa decision, y la primera carga despues de
+  // un despliegue mezcla HTML nuevo —que llega por red— con modulos viejos.
+  //
+  // Se arregla solo al recargar, que es lo que lo hace dificil: no se reproduce
+  // cuando vas a mirarlo.
+  const sw = leerCodigo('sw.js');
+
+  assert.match(sw, /esCodigo/, 'el service worker trata el codigo igual que las imagenes');
+  assert.match(sw, /redPrimero\(peticion\)/, 'js y css tienen que ir a la red primero');
+
+  // Y sin red se sigue respondiendo con lo guardado, o no habria app offline.
+  const desdeRed = sw.slice(sw.indexOf('async function redPrimero'));
+  assert.match(desdeRed.slice(0, 400), /caches\.match\(peticion\)/,
+    'sin conexion no quedaria nada que servir');
+});
+
 test('lo que precachea el service worker existe', () => {
   const sw = leer('sw.js');
   const bloque = sw.slice(sw.indexOf('const ESTATICOS'), sw.indexOf('];', sw.indexOf('const ESTATICOS')));

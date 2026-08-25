@@ -191,22 +191,35 @@ Tres reglas de orden que conviene no saltarse:
 
 ## Estado
 
-Lo hecho hasta ahora vive en la rama `roadmap-y-migracion-a-pages` y en la que
-cuelga de ella. Sigue sin fusionarse con `main`: el sitio esta en mantenimiento
-y la salida es el issue #7.
+Lo hecho hasta ahora vive en una cadena de ramas que **no esta fusionada con
+`main`**. La punta, hoy:
 
-**Ojo con esto**, que ya costo trabajo duplicado una vez: `main` esta muy por
-detras. Antes de empezar nada, comprobar de que rama se parte.
+```
+main
+ └── roadmap-y-migracion-a-pages
+      └── claude/resolve-issues-z7pyxi
+           └── claude/repo-issues-milestones-z9sb8s   <- aqui
+```
+
+**Ojo con esto**, que ya ha costado trabajo duplicado dos veces: `main` esta a
+mas de cincuenta commits por detras, y ademas con la estructura de ficheros
+vieja (`ranking/`, `bicirating/`, `mapa/`, `clanes/`, `profile/`, que ahora son
+`clasificacion/`, `territorio/` y `yo/`). Partir de `main` no es empezar de
+cero: es empezar en otro sitio.
+
+Antes de tocar nada: `git fetch origin --no-tags 'refs/heads/*:refs/remotes/origin/*'`
+y mirar `git branch -a`. Un clon superficial puede no traer las ramas, y
+entonces `main` parece la unica que hay.
 
 | Issue | Estado |
 |---|---|
-| #2 Vercel | Configuracion lista. Falta comprobar el panel de Vercel |
+| #2 Vercel | Configuracion lista y despliegues en READY. Falta que produccion apunte a esto |
 | #3 Cabeceras | **Hecho.** Fuente unica y tests que impiden que divergan |
 | #5 Un solo destino | **Hecho.** Falta desconectar lo que sobre |
 | #6 Distancias | Modulo y generador listos. Falta ejecutarlo contra OSRM |
 | #17 Medir el viaje | **Hecho.** El worker guarda distancia, velocidad y puntos |
 | #18 Puntuacion | **Hecho**, con el test de equilibrio entre perfiles |
-| #19 Rachas | **Hecho**, con tests de cambio de mes y de hora |
+| #19 Rachas | **Hecho.** Ojo: durante un tiempo no se rompian nunca y los escudos no se gastaban jamas, porque `cerrarDiasPerdidos` no la llamaba nadie. Hay pasada diaria desde entonces |
 | #9 Normalizar capturas | **Hecho.** Android, iOS, recortes y modo oscuro a una sola forma |
 | #12 Avisos antes de subir | **Hecho.** Avisan, no bloquean; y la captura se sube al ancho que lee el worker |
 | #13 Estado en vivo | **Hecho.** Un `onSnapshot` a un solo documento, que se corta solo |
@@ -224,6 +237,31 @@ detras. Antes de empezar nada, comprobar de que rama se parte.
 | #55 Repaso legal | **Hecho** lo que depende del codigo. Faltan los datos del responsable, que no puedo rellenar yo |
 | #56 Ensayo general | **Hecho.** Las periodicas corren sobre 200 usuarios y 5.000 viajes en el CI, contando lecturas |
 | #57 y #7 Documentacion | **Hecho.** `LANZAMIENTO.md`, `MANTENIMIENTO.md`, `ENSAYO.md` y `COSTE.md` |
+| #54 Migrar la v1 | **Hecho.** Distancia y velocidad de los viajes historicos, puntos de la v1 archivados como temporada `v1`, copia de seguridad con `--copia` y aviso por correo. Falta ejecutarla: `docs/MIGRACION.md` |
+| #29 Clanes | **Hecho**, incluida la pantalla, que era lo que faltaba: las doce acciones existian sin nada que las llamara |
+| #59 y #60 Fuga de correos | Codigo hecho. **Falta desplegar las reglas**, que es lo unico que corta la fuga |
+
+### Funciones escritas, probadas y sin llamar
+
+Un patron que aparecio seis veces al revisar la rama, y que cuesta ver porque
+**todo esta en verde**: la funcion existe, tiene sus pruebas, y no la ejecuta
+nadie. Una funcion probada que no llama nadie da la misma sensacion de seguridad
+que una que funciona.
+
+| Que | Consecuencia |
+|---|---|
+| `rachas.cerrarDiasPerdidos` | Ninguna racha se rompia nunca, ningun escudo se gastaba jamas |
+| `misiones.progreso` | Las tres misiones del dia ponian "Pendiente" para siempre |
+| `clanes.aplicarInvitacion` | Un enlace de invitacion acababa siendo una solicitud a mano |
+| `clanes.elegirSucesor` | Un clan sin lider quedaba bloqueado para siempre, con gente dentro |
+| `plantillas.bienvenida`, `viajeAnulado`, `revisionLenta` | Nadie recibia el correo de registro, ni sabia por que le habian bajado los puntos |
+| Las doce acciones de clan y `guardarFavoritas` | Escritas, con reglas, y sin una sola pantalla desde la que ejecutarlas |
+
+Sigue asi `reportarViaje` y `suspenderUsuario`: la moderacion tiene cola y no
+tiene entrada. Esta en #61, con las tres opciones y por que no lo he cerrado yo.
+
+Merece la pena, al acabar algo, comprobar **quien lo llama**. `grep -rn` sobre
+el nombre de la funcion, fuera de su propio fichero y de los tests.
 
 ### Lo que encontro el banco de capturas
 

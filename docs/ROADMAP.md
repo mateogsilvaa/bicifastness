@@ -241,6 +241,32 @@ entonces `main` parece la unica que hay.
 | #29 Clanes | **Hecho**, incluida la pantalla, que era lo que faltaba: las doce acciones existian sin nada que las llamara |
 | #59 y #60 Fuga de correos | Codigo hecho. **Falta desplegar las reglas**, que es lo unico que corta la fuga |
 
+### Documentacion que manda hacer lo imposible
+
+La tercera familia, y la mas incomoda de las tres: **la guia dice una cosa y el
+codigo hace otra**. No se descubre revisando, se descubre el dia que hace falta,
+con prisa.
+
+| Donde | Que decia |
+|---|---|
+| `LANZAMIENTO.md` | `migrar-datos.js --verificar`, que no existe. Es `--comprobar` |
+| `MANTENIMIENTO.md` | Vigilar `distancias_pendientes`, una coleccion que no ha existido nunca, y lanzar `--pendientes`, que el script no reconocia |
+| `COSTE.md` | "la web deja de funcionar hasta medianoche", sin decir cual. Es la del Pacifico: entre las 09:00 y las 10:00 de aqui |
+| `DISTANCIAS.md` | Una cache en `distancias/{ruta}` que costaba una lectura por viaje y **que no llenaba nadie** |
+| `ci.yml` | "Comprobar que los datos generados estan al dia", regenerando uno de los tres |
+| `build-push.js` | Explicaba con detalle que el CI corre `npm run datos` antes de comparar. El CI no lo hacia |
+
+Los dos ultimos son los que mas dicen: no era documentacion desactualizada, era
+**documentacion que describia la intencion correcta y codigo que no la
+cumplia**. Cuando eso pasa, casi siempre tiene razon la documentacion.
+
+Hay dos pruebas que lo sujetan:
+
+- una recorre las ocho guias, saca cada `node scripts/…` con sus banderas y
+  comprueba que el script existe y las conoce
+- otra exige que el CI regenere **todo** lo que despues compara, con una lista de
+  excepciones **con motivo escrito** para lo que no puede entrar
+
 ### Los dias, y por que hay una regla
 
 **El juego cuenta los dias en Madrid.** La unica excepcion es la cuota diaria de

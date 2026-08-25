@@ -511,22 +511,37 @@ test('la pagina de obras no depende de nada del sitio', () => {
     'no debe indexarse en lugar del sitio real');
 });
 
-test('lo que manda hacer MANTENIMIENTO.md se puede hacer', () => {
-  // Una guia de mantenimiento que manda ejecutar algo que no existe es peor que
-  // no tenerla: se descubre el dia que hace falta, con prisa. Decia mirar una
-  // coleccion `distancias_pendientes` que no ha existido nunca y lanzar una
+test('lo que mandan hacer los documentos se puede hacer', () => {
+  // Una guia que manda ejecutar algo que no existe es peor que no tenerla: se
+  // descubre el dia que hace falta, con prisa. `MANTENIMIENTO.md` decia mirar
+  // una coleccion `distancias_pendientes` que no ha existido nunca y lanzar una
   // bandera que el script no reconocia.
-  const guia = leer('docs/MANTENIMIENTO.md');
+  //
+  // La bandera se busca en el fichero entero, comentarios incluidos: cada script
+  // documenta las suyas en su cabecera, y algunas no aparecen como literal en el
+  // codigo — `--simular` suele ser el valor por defecto (`!includes('--aplicar')`)
+  // y `--proyecto` se lee con un parser generico. Lo que se quiere cazar es una
+  // bandera que el script no conoce DE NINGUNA forma.
+  const guias = ['docs/MANTENIMIENTO.md', 'docs/LANZAMIENTO.md', 'docs/MIGRACION.md',
+    'docs/ENSAYO.md', 'docs/DISTANCIAS.md', 'docs/COSTE.md', 'docs/ROADMAP.md', 'README.md'];
 
-  for (const [, comando, banderas] of guia.matchAll(/node (scripts\/[a-z-]+\.js)((?: --[a-z]+)*)/g)) {
-    assert.ok(fs.existsSync(path.join(RAIZ, comando)), `MANTENIMIENTO.md manda ejecutar ${comando}, que no existe`);
+  const rotos = [];
 
-    const fuente = leer(comando);
-    for (const bandera of banderas.trim().split(/\s+/).filter(Boolean)) {
-      assert.ok(fuente.includes(`'${bandera}'`),
-        `${comando} no reconoce ${bandera}, y MANTENIMIENTO.md lo manda ejecutar`);
+  for (const guia of guias) {
+    for (const [, comando, banderas] of leer(guia).matchAll(/node (scripts\/[a-z-]+\.js)((?: --[a-z]+)*)/g)) {
+      if (!fs.existsSync(path.join(RAIZ, comando))) {
+        rotos.push(`${guia}: ${comando} no existe`);
+        continue;
+      }
+
+      const fuente = leer(comando);
+      for (const bandera of banderas.trim().split(/\s+/).filter(Boolean)) {
+        if (!fuente.includes(bandera)) rotos.push(`${guia}: ${comando} no conoce ${bandera}`);
+      }
     }
   }
+
+  assert.deepStrictEqual(rotos, [], `documentacion que manda hacer lo imposible:\n  ${rotos.join('\n  ')}`);
 });
 
 test('el CI regenera todo lo que despues comprueba', () => {

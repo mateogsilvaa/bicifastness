@@ -28,6 +28,7 @@ const admin = require('firebase-admin');
 // Firestore se coge de `db.js`, igual que el resto. Asi las escrituras del
 // propio registro de cuota tambien se cuentan: son parte del gasto.
 const { db } = require('./db');
+const { diaEnZona, minutosDelDiaEnZona } = require('./util');
 
 /** Limites del plan Spark. */
 const LIMITES = {
@@ -43,7 +44,23 @@ const LIMITES = {
  */
 const UMBRALES = { ATENCION: 70, ALERTA: 90, DEGRADADO: 95 };
 
-const dia = (fecha = new Date()) => fecha.toISOString().slice(0, 10);
+/**
+ * La zona del contador, y no es un capricho.
+ *
+ * Las cuotas diarias de Firestore se reinician **alrededor de medianoche del
+ * Pacifico**, no a medianoche UTC. Contando por dias UTC, el contador se ponia a
+ * cero a las 00:00 UTC — las 16:00 o 17:00 en el Pacifico — cuando al consumo
+ * real le quedaban siete u ocho horas de dia.
+ *
+ * O sea que justo en el tramo en que mas cerca se esta del limite, esto decia
+ * que se llevaba gastado casi nada: ni aviso, ni modo degradado. La proteccion
+ * se apagaba sola en el peor momento posible.
+ *
+ * https://firebase.google.com/docs/firestore/quotas
+ */
+const ZONA_CUOTA = 'America/Los_Angeles';
+
+const dia = (fecha = new Date()) => diaEnZona(fecha, ZONA_CUOTA);
 
 // --- El contador ----------------------------------------------------------------
 
@@ -199,7 +216,9 @@ async function registrar(coste, fecha = new Date()) {
  * de algo enterarse.
  */
 function estimar(consumido, fecha = new Date()) {
-  const minutos = fecha.getUTCHours() * 60 + fecha.getUTCMinutes();
+  // Minutos del dia DE LA CUOTA, no del dia UTC: se esta proyectando el consumo
+  // de una ventana que empieza a medianoche del Pacifico.
+  const minutos = minutosDelDiaEnZona(fecha, ZONA_CUOTA);
   // Antes de la primera media hora no se proyecta: dividir por casi cero da
   // cifras absurdas que solo generarian avisos falsos.
   if (minutos < 30) return null;

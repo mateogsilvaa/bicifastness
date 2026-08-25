@@ -170,8 +170,38 @@ function horaASegundos(texto) {
  * veria las misiones de otro dia. El juego ocurre en Madrid.
  */
 function diaMadrid(fecha = new Date()) {
+  return diaEnZona(fecha, TZ);
+}
+
+/**
+ * El dia natural en la zona que se le diga, como 'YYYY-MM-DD'.
+ *
+ * Existe porque no todo lo del proyecto ocurre en Madrid: la cuota diaria de
+ * Firestore se reinicia a medianoche del PACIFICO, y contarla por dias de
+ * Madrid o de UTC la parte por la mitad.
+ */
+function diaEnZona(fecha, zona) {
   // 'sv-SE' da exactamente YYYY-MM-DD, que es lo unico que se le pide.
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: TZ }).format(fecha);
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: zona }).format(fecha);
+}
+
+/**
+ * Minutos transcurridos del dia en la zona dada.
+ *
+ * Lo usa la proyeccion de consumo para saber que parte del dia lleva gastada.
+ * Con `getUTCHours()` la respuesta era la del dia UTC, que no es el dia del que
+ * se esta proyectando.
+ */
+function minutosDelDiaEnZona(fecha, zona) {
+  const partes = new Intl.DateTimeFormat('en-GB', {
+    timeZone: zona, hour12: false, hour: '2-digit', minute: '2-digit',
+  }).formatToParts(fecha);
+
+  const p = {};
+  for (const { type, value } of partes) p[type] = value;
+  const hora = p.hour === '24' ? 0 : Number(p.hour);
+
+  return hora * 60 + Number(p.minute);
 }
 
 module.exports = {
@@ -186,5 +216,7 @@ module.exports = {
   exigirAdmin,
   inicioDelDiaMadrid,
   diaMadrid,
+  diaEnZona,
+  minutosDelDiaEnZona,
   horaASegundos,
 };

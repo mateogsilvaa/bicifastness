@@ -128,20 +128,38 @@ test('las subcolecciones tambien cuentan', async () => {
 
 // --- La proyeccion -----------------------------------------------------------------
 
+// El dia de la cuota es el del PACIFICO, no el UTC: las cuotas diarias de
+// Firestore se reinician alrededor de medianoche de esa zona. En agosto el
+// Pacifico va a UTC-7, asi que las horas de aqui llevan las dos escritas.
+
 test('a media mañana proyecta el dia entero', () => {
-  // 06:00 UTC es una cuarta parte del dia: lo consumido se multiplica por 4.
+  // 06:00 del Pacifico (13:00 UTC) es una cuarta parte del dia: por 4.
   const proyeccion = cuota.estimar({ lecturas: 5000, escrituras: 1000 },
-    new Date('2026-08-23T06:00:00Z'));
+    new Date('2026-08-23T13:00:00Z'));
 
   assert.strictEqual(proyeccion.lecturas, 20000);
   assert.strictEqual(proyeccion.escrituras, 4000);
 });
 
+test('la proyeccion va por el dia de la cuota, no por el UTC', () => {
+  // Este es el caso que estaba mal. A las 02:00 UTC lleva DOS horas de dia UTC,
+  // pero en el Pacifico son las 19:00 del dia anterior: casi ochenta por ciento
+  // del dia de cuota gastado.
+  //
+  // Con la cuenta vieja, 5.000 lecturas a esa hora se proyectaban a 60.000 y
+  // disparaban un aviso que no tocaba; y peor al reves, porque el contador
+  // acababa de ponerse a cero mientras el consumo real seguia subiendo.
+  const proyeccion = cuota.estimar({ lecturas: 5000 }, new Date('2026-08-25T02:00:00Z'));
+
+  assert.ok(proyeccion.lecturas < 7000,
+    `proyecta ${proyeccion.lecturas}: esta contando las horas del dia equivocado`);
+});
+
 test('no proyecta nada en la primera media hora', () => {
   // Dividir por casi cero da cifras absurdas, y un aviso falso a las 00:10
-  // ensena a ignorar los avisos.
-  assert.strictEqual(cuota.estimar({ lecturas: 100 }, new Date('2026-08-23T00:05:00Z')), null);
-  assert.ok(cuota.estimar({ lecturas: 100 }, new Date('2026-08-23T00:31:00Z')));
+  // ensena a ignorar los avisos. 00:05 y 00:31 del Pacifico.
+  assert.strictEqual(cuota.estimar({ lecturas: 100 }, new Date('2026-08-23T07:05:00Z')), null);
+  assert.ok(cuota.estimar({ lecturas: 100 }, new Date('2026-08-23T07:31:00Z')));
 });
 
 // --- Los umbrales -------------------------------------------------------------------
@@ -183,11 +201,28 @@ test('lo consumido se suma al contador del dia, no lo pisa', async () => {
   assert.strictEqual(dia.pasadas, 2);
 });
 
-test('cada dia lleva su cuenta', async () => {
+test('cada dia lleva su cuenta, y el dia es el de la cuota', async () => {
   bd = new FirestoreFalso();
-  await cuota.registrar({ lecturas: 100, escrituras: 0 }, new Date('2026-08-22T23:00:00Z'));
-  await cuota.registrar({ lecturas: 7, escrituras: 0 }, new Date('2026-08-23T01:00:00Z'));
+  // 23:00 del 22 y 01:00 del 23, en el Pacifico.
+  await cuota.registrar({ lecturas: 100, escrituras: 0 }, new Date('2026-08-23T06:00:00Z'));
+  await cuota.registrar({ lecturas: 7, escrituras: 0 }, new Date('2026-08-23T08:00:00Z'));
 
   assert.strictEqual(bd.leer('cuota/2026-08-22').lecturas, 100);
   assert.strictEqual(bd.leer('cuota/2026-08-23').lecturas, 7);
+});
+
+test('el contador no se pone a cero a medianoche UTC', async () => {
+  // Es el fallo que esto arregla. Las 00:30 UTC son las 17:30 del Pacifico del
+  // dia ANTERIOR: al consumo real le quedan seis horas y media. Contando por
+  // dias UTC, las dos pasadas caian en documentos distintos y la segunda
+  // arrancaba de cero.
+  bd = new FirestoreFalso();
+  await cuota.registrar({ lecturas: 40000, escrituras: 0 }, new Date('2026-08-24T23:30:00Z'));
+  await cuota.registrar({ lecturas: 500, escrituras: 0 }, new Date('2026-08-25T00:30:00Z'));
+
+  const mismoDia = bd.leer('cuota/2026-08-24');
+  assert.strictEqual(mismoDia.lecturas, 40500,
+    'las dos pasadas tienen que sumar en el mismo dia de cuota');
+  assert.strictEqual(bd.leer('cuota/2026-08-25'), undefined,
+    'ha abierto un dia nuevo a medianoche UTC, que no es cuando se reinicia la cuota');
 });

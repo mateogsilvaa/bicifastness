@@ -1,8 +1,14 @@
 # Cuanto cuesta cada pantalla
 
 El plan Spark da **50.000 lecturas y 20.000 escrituras al dia**. No es una
-factura mas alta al pasarse: al agotarlo, **la web deja de funcionar hasta
-medianoche**.
+factura mas alta al pasarse: al agotarlo, **la web deja de funcionar hasta que
+se reinicie la cuota**.
+
+Y ese reinicio es a **medianoche del Pacifico**, no de aqui: entre las 09:00 y
+las 10:00 de la mañana en Madrid, segun el horario de verano de cada sitio. O
+sea que agotarla a las siete de la tarde deja la web caida toda la noche y hasta
+media mañana del dia siguiente. El contador de `backend/src/cuota.js` cuenta por
+esa misma ventana, que es lo unico que hace que sus avisos signifiquen algo.
 
 Los numeros de aqui no son una intuicion. Salen de `scripts/auditar-lecturas.js`,
 que modela el coste a partir de las llamadas que hay en el codigo — cada

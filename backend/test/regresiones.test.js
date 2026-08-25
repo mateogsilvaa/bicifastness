@@ -2659,3 +2659,46 @@ test('ninguna lista o mapa que escriba el navegador se queda sin acotar', () => 
     'estos campos los escribe el navegador y nada limita lo que cabe dentro: '
     + `${sueltos.join(', ')}. Un tope de tamaño, o una lista cerrada de claves.`);
 });
+
+test('todo lo que hace el trabajo diario esta en el modelo de coste', () => {
+  // COMO SE LLEGO AQUI. `cerrarRachas` lee `usuarios` ENTERA una vez al dia, y
+  // no estaba en `scripts/auditar-lecturas.js`. Su gemelo
+  // `avisarRachasEnPeligro` —misma forma, misma frecuencia— si lo estaba, asi
+  // que no fue que nadie conociera el patron: fue que la tabla se quedo atras.
+  // Con ella se habian quedado fuera tambien el mantenimiento de clanes y el
+  // cierre de temporada. 537 lecturas al dia que `--comprobar` no miraba.
+  //
+  // Duele justo aqui porque estas son las lecturas que crecen con las ALTAS DE
+  // SIEMPRE, no con la gente que entra hoy: el coste sube solo por llevar
+  // tiempo abierto, que es de lo que iba #34.
+  //
+  // Se vigila el trabajo diario y no cada funcion del backend a proposito. El
+  // modelo habla de OPERACIONES, no de ayudantes: `cargarBase` lee dos
+  // colecciones enteras y no tiene por que salir, porque quien la llama
+  // (`metricas.resumir`, `reconstruirAgregados`) si esta. Lo que no puede
+  // faltar es una tarea que se lanza sola todos los dias.
+  const worker = leerCodigo('backend/worker.js');
+  const auditoria = leerCodigo('scripts/auditar-lecturas.js');
+
+  const cuerpo = worker.slice(worker.indexOf('async function trabajoDiario'));
+  const diario = cuerpo.slice(0, cuerpo.indexOf('\n}\n'));
+
+  // Lo que no es una tarea: la marca que evita repetir el dia.
+  const MARCA = new Set(['ref.get', 'ref.set']);
+
+  const tareas = [...new Set(
+    [...diario.matchAll(/await ([\w.]+)\(/g)].map((m) => m[1]).filter((n) => !MARCA.has(n)),
+  )];
+
+  assert.ok(tareas.length >= 3, `solo se han encontrado ${tareas.length} tareas diarias`);
+
+  // El modelo las nombra por la funcion, con o sin su modulo delante.
+  const sinModelar = tareas.filter((t) => {
+    const corta = t.split('.').pop();
+    return !new RegExp(`\\b${corta}\\b`, 'i').test(auditoria);
+  });
+
+  assert.deepStrictEqual(sinModelar, [],
+    'el trabajo diario lanza esto y el modelo de coste no lo conoce, asi que '
+    + `\`--comprobar\` no lo mira: ${sinModelar.join(', ')}`);
+});

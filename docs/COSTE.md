@@ -307,20 +307,38 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | Operacion del worker | Lecturas por vez | De donde salen |
 |---|---:|---|
 | metricas.resumir (una vez cada 6 h) | 677 | los 200 dias + el resumen anterior + las altas recientes y su ultimo viaje + los conteos de totales y ventanas |
+| clanes.limpiarDoblesMembresias y clanes.rescatarSinLider (UNA vez al dia) | 530 | los clanes enteros + los usuarios con clan (tope 500), dos veces |
 | reconstruirAgregados (parcial, como mucho cada 15 min) | 437 | usuarios + clanes + los viajes de las rutas movidas y de las tres del turno + el agregado del mapa y las estaciones movidas + el conteo agregado + el indice, la portada y lo que quedara pendiente |
 | recalcularRuta (por viaje APROBADO) | 248 | los 200 mas rapidos de esa ruta + quien ya puntuaba en ella |
 | avisarRachasEnPeligro (UNA vez al dia, a las 20:00) | 240 | TODOS los usuarios, para ver a quien se le cae la racha |
+| cerrarRachas (UNA vez al dia, en el trabajo diario) | 240 | TODOS los usuarios, para cerrar las rachas que se han roto |
+| temporadas.cerrar (UNA vez al mes) | 240 | TODOS los usuarios, para repartir las insignias de la temporada |
 | recalcularEstaciones (una vez por pasada CON viajes) | 179 | el indice de rutas + los clanes (de ahi sale de quien es cada piloto) + los viajes de las rutas que tocan cada estacion |
 | la ventana de huellas (una vez por ejecucion CON viajes) | 150 | las 150 huellas mas recientes, cacheadas para toda la ejecucion |
 | validarBasico y captura (por viaje procesado) | 62 | sus 60 viajes recientes + la captura + la distancia de la ruta |
+| avisarRevisionesLentas (UNA vez al dia, en el trabajo diario) | 50 | los 50 viajes mas antiguos en revision sin avisar |
 | reunirContexto (por viaje procesado) | 42 | el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id |
 | cola y bajas (por pasada) | 3 | las consultas de cola, recalculo pendiente y bajas |
-| la transaccion de puntos e insignias (por viaje APROBADO) | 1 | el perfil del piloto, una vez, dentro de la transaccion |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
 | metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |
 | metricas.tocaResumir (por pasada) | 1 | la marca del agregado, para saber si toca el resumen caro |
+| la transaccion de puntos e insignias (por viaje APROBADO) | 1 | el perfil del piloto, una vez, dentro de la transaccion |
 | agregados.tocaReconstruir (por pasada con movimiento) | 1 | la marca del agregado de portada, para saber si toca |
 | prepararDia, la parte cara (UNA vez al dia) | 1 | el indice de rutas, que ya trae cuantos viajes tiene cada tramo |
+
+| Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
+|---|---:|---:|---:|---:|
+| hoy | 6 | 1022 | 10.431 | 21% |
+| u50 | 50 | 3000 | 39.646 | 79% |
+| u200 | 200 | 15.000 | 174.919 | 350% **se agota** |
+| u1000 | 1000 | 90.000 | 1.634.255 | 3269% **se agota** |
+
+| Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
+|---|---:|---:|---:|---:|
+| hoy | 6 | 1022 | 10.381 | 21% |
+| u50 | 50 | 3000 | 39.596 | 79% |
+| u200 | 200 | 15.000 | 174.869 | 350% **se agota** |
+| u1000 | 1000 | 90.000 | 1.634.205 | 3268% **se agota** |
 
 ## Lo que queda, por impacto
 

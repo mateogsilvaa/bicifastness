@@ -173,6 +173,41 @@ const WORKER = [
     detalle: 'TODOS los usuarios, para ver a quien se le cae la racha',
   },
   {
+    nombre: 'cerrarRachas (UNA vez al dia, en el trabajo diario)',
+    veces: () => 1,
+    // El gemelo de `avisarRachasEnPeligro`: tambien lee `usuarios` entera y
+    // tambien una vez al dia. Estaba fuera de esta tabla, asi que `--comprobar`
+    // no lo miraba. Escribe poco —solo a quien ha perdido racha o gastado
+    // escudo— pero LEE a todo el mundo, y eso crece con las altas de siempre,
+    // no con la gente que entra hoy.
+    coste: ({ U }) => U,
+    detalle: 'TODOS los usuarios, para cerrar las rachas que se han roto',
+  },
+  {
+    nombre: 'clanes.limpiarDoblesMembresias y clanes.rescatarSinLider (UNA vez al dia)',
+    veces: () => 1,
+    // `limpiarDoblesMembresias` y `rescatarSinLider`, que hacen la misma pareja
+    // de consultas cada una: los clanes enteros —son pocas decenas— y los
+    // usuarios que dicen tener clan, esta si acotada a 500.
+    coste: ({ U, C }) => 2 * (C + min1(Math.min(U, 500))),
+    detalle: 'los clanes enteros + los usuarios con clan (tope 500), dos veces',
+  },
+  {
+    nombre: 'temporadas.cerrar (UNA vez al mes)',
+    veces: () => 1 / 30,
+    coste: ({ U }) => U,
+    detalle: 'TODOS los usuarios, para repartir las insignias de la temporada',
+  },
+  {
+    nombre: 'avisarRevisionesLentas (UNA vez al dia, en el trabajo diario)',
+    veces: () => 1,
+    // Acotada a 50 y filtrada por `avisoRevision`, asi que los ya avisados no
+    // ocupan hueco. Cuesta poco, pero estar en la tabla es lo que hace que
+    // `--comprobar` la mire: lo que no esta aqui no lo mira nadie.
+    coste: () => min1(50),
+    detalle: 'los 50 viajes mas antiguos en revision sin avisar',
+  },
+  {
     nombre: 'metricas.tocaResumir (por pasada)',
     veces: () => 288,
     coste: () => min1(1),

@@ -423,6 +423,50 @@ romper, con una prueba detras: el cambio que lo reabriria —*si la imagen ya
 cabe, nos ahorramos comprimirla*— parece una mejora evidente y hoy nada
 avisaria.
 
+### Un campo que crece sin que nada lo corte
+
+Aparecio tres veces seguidas al mirar las reglas con esta pregunta: *¿que pasa
+si esto crece?*
+
+| Donde | Que pasaba |
+|---|---|
+| `clanes.solicitudes` | Cualquiera podia anadirse y nada cortaba. El documento del clan lo lee **todo el mundo sin sesion**, asi que cada solicitud pendiente se la descarga quien abra ese clan |
+| `usuarios.push` | `allow update: if esYo(uid) && cambia().hasOnly(['push'])` y ahi acababa. Sin claves y sin tamaño — y el worker manda **una peticion al servicio de avisos por cada entrada** de su lista |
+| `usuarios.consentimiento` | `is map` a secas, en el campo que sirve de prueba del RGPD |
+
+El final del camino es siempre el mismo: **un documento de Firestore se planta
+en 1 MiB y deja de poder escribirse**. Un clan asi se queda congelado — sin
+poder aceptar a nadie ni echar a nadie — y no hay forma de arreglarlo desde el
+navegador.
+
+Pero lo de por el camino suele ser peor, y depende de dos cosas que hay que
+preguntarse por separado:
+
+- **quien LEE ese documento.** Si es publico, lo que crece lo paga en ancho de
+  banda cada visita
+- **que hace el worker con lo que encuentre dentro.** Una lista sobre la que se
+  itera haciendo peticiones convierte a una sola cuenta en un amplificador: se
+  come el tiempo de GitHub Actions y pone al proyecto a aporrear servidores de
+  terceros
+
+De ahi la regla, que ahora comprueba una prueba: **un campo declarado `is list`
+o `is map` va acompañado de un tope de tamaño o de una lista cerrada de
+claves**, en su misma coleccion.
+
+Dos cosas que costaron y conviene no repetir:
+
+- **La primera version de esa prueba no servia.** Buscaba el tope "cerca" —
+  doscientos caracteres a la redonda— y al probarla metiendo un campo nuevo sin
+  acotar la daba por buena, porque el campo de al lado si tenia su `.size()`.
+  Una guarda que no falla cuando debe es peor que ninguna: da por revisado lo
+  que no lo esta. Toda guarda nueva hay que probarla **al reves**, rompiendo a
+  proposito lo que dice vigilar.
+- **Endurecer una regla puede dejar a gente fuera de su cuenta.** El
+  consentimiento se exige entero al crear el perfil, pero al actualizarlo solo
+  **si se escribe**: `datos()` es el documento resultante, asi que exigirlo
+  siempre habria dejado sin poder tocar sus preferencias a cualquier perfil
+  cuyo registro no tenga hoy exactamente esa forma.
+
 ### Lo que encontro el banco de capturas
 
 Los tres son fallos de capturas normales, de gente normal, y ninguno se veia

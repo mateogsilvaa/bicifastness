@@ -52,11 +52,6 @@ function distanciaMetros(a, b) {
 }
 
 /**
- * Saneado de texto libre que va a acabar mostrandose a otros usuarios.
- * Quita caracteres de control e invisibles (incluido el bidi override, que se
- * usa para disfrazar texto) y recorta a una longitud maxima.
- */
-/**
  * Rangos de codepoints que nunca deben sobrevivir en texto de usuario:
  * controles C0/C1, espacios de ancho cero, marcas bidi (sirven para colar
  * nombres que se renderizan al reves) y el BOM.
@@ -66,6 +61,19 @@ const INVISIBLES = [
   [0x2060, 0x2064], [0x2066, 0x2069], [0x202a, 0x202e], [0xfeff, 0xfeff],
 ];
 
+/**
+ * Saneado de texto libre que va a acabar mostrandose a otros usuarios.
+ * Quita caracteres de control e invisibles (incluido el bidi override, que se
+ * usa para disfrazar texto) y recorta a una longitud maxima.
+ *
+ * OJO: ahora mismo NO LA LLAMA NADIE. Su unico llamante era `src/clanes.js`,
+ * que se borro por muerto, y con el se fue tambien la unica llamada al filtro
+ * de palabras. O sea que hoy un nombre de piloto o de clan puede llevar dentro
+ * marcas bidi y renderizarse al reves en las clasificaciones. Va en #64, con el
+ * resto del saneado de nombres, porque el arreglo es el mismo sitio y el mismo
+ * momento: el navegador no sirve —no es seguridad— y las reglas no pueden
+ * recorrer rangos de codepoints.
+ */
 function limpiarTexto(raw, maxLongitud = 200) {
   let salida = '';
   for (const ch of String(raw ?? '')) {

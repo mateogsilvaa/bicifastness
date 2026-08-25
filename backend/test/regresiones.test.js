@@ -733,6 +733,51 @@ test('el trabajo diario no recorre colecciones enteras en cada pasada', () => {
     'la marca se escribe antes de terminar: un corte dejaria el dia a medias');
 });
 
+test('el borrado de cuenta no se deja ninguna coleccion con uid dentro', () => {
+  // No hay forma de preguntarle a Firestore "donde aparece esta persona": cada
+  // coleccion que guarde un uid hay que anadirla a mano a `borrado.js`. Esta
+  // prueba compara las colecciones que existen —las que declara
+  // `firestore.rules`— con las que ese fichero toca, y falla cuando aparece una
+  // que nadie ha decidido que hacer con ella.
+  const reglas = leerCodigo('firestore.rules');
+  const declaradas = new Set(
+    [...reglas.matchAll(/match \/([a-z_]+)\/\{/g)].map((m) => m[1])
+      .filter((c) => c !== 'databases'),
+  );
+
+  // Colecciones sin ningun uid dentro, o donde quedarse es la decision.
+  const SIN_UID = new Set([
+    // Datos agregados o de configuracion: no llevan a nadie.
+    'agregados', 'config', 'estaciones_stats', 'metricas', 'cuota', 'secrets',
+    // La analitica es anonima a proposito: `conSesion` es un booleano, no un
+    // uid. Si algun dia guardara uno, hay que sacarlo de esta lista.
+    'sesiones_web', 'errores_cliente',
+    // El rastro de administracion NO se reescribe: es lo que permite auditar
+    // quien suspendio a quien. Las reglas lo dejan escrito
+    // (`allow update, delete: if false`) y es una decision, no un olvido.
+    'auditoria_admin',
+  ]);
+
+  const borrado = leerCodigo('backend/src/borrado.js');
+  const olvidadas = [...declaradas]
+    .filter((c) => !SIN_UID.has(c))
+    .filter((c) => !borrado.includes(c));
+
+  assert.deepStrictEqual(olvidadas, [],
+    `el borrado de cuenta no toca estas colecciones: ${olvidadas.join(', ')}. `
+    + 'Si no llevan uid, anadelas a SIN_UID a proposito.');
+});
+
+test('el borrado rehace el agregado publico del clan', () => {
+  // `agregados/clan-{id}` lleva la plantilla CON NOMBRES y lo lee cualquiera.
+  // Sacar a alguien de `clanes.miembros` no lo actualiza: sin esto, el nombre de
+  // quien acaba de borrar su cuenta seguiria publicado hasta la siguiente
+  // reconstruccion, y "en algun momento" no es un plazo.
+  const borrado = leerCodigo('backend/src/borrado.js');
+  assert.match(borrado, /recalcularClan\(/,
+    'el agregado del clan se queda con el nombre de quien se ha borrado');
+});
+
 test('las rutas ancladas se pueden anclar desde la web', () => {
   // `guardarFavoritas` llevaba escrita desde la reescritura y no la llamaba
   // ninguna pantalla: se podian anclar rutas por consola y de ninguna otra

@@ -241,6 +241,37 @@ entonces `main` parece la unica que hay.
 | #29 Clanes | **Hecho**, incluida la pantalla, que era lo que faltaba: las doce acciones existian sin nada que las llamara |
 | #59 y #60 Fuga de correos | Codigo hecho. **Falta desplegar las reglas**, que es lo unico que corta la fuga |
 
+### Los dias, y por que hay una regla
+
+**El juego cuenta los dias en Madrid.** La unica excepcion es la cuota diaria de
+Firestore, que se reinicia a medianoche del Pacifico porque eso no lo decidimos
+nosotros (`backend/src/cuota.js`).
+
+Parece intendencia y es la segunda familia de fallos mas numerosa que salio al
+revisar la rama. Todos comparten la misma forma: **dos puntas del sistema
+calculando "hoy" de maneras distintas**, y por eso ninguno se reproduce cuando
+vas a mirarlo. Fallan una o dos horas al dia, o una vez al mes.
+
+| Donde | Que pasaba |
+|---|---|
+| Misiones | El worker publicaba con el dia UTC y la portada pedia con el local: entre las 22:00 y las 00:00 la seccion desaparecia |
+| `subir/` | El tope del selector de fecha era el dia UTC: entre medianoche y las 02:00 no dejaba elegir HOY |
+| Cupo diario | La pantalla contaba en UTC y el servidor en Madrid: decia que quedaba sitio y el servidor rechazaba |
+| Sesiones | El navegador escribia el dia del dispositivo y el panel agrupaba por dia UTC |
+| Cuota (#38) | Contaba por dias UTC y se ponia a cero siete horas antes que la cuota real: ni aviso ni modo degradado en el tramo mas peligroso del dia |
+| Temporadas (#22) | El mes en UTC: lanzar el cierre a mano a las 00:30 del dia 1 archivaba un mes ya cerrado y contestaba "ya cerrada" |
+| `ultimoDiaActivo` | Guardado en milisegundos y comparado como `'YYYY-MM-DD'` en dos sitios: el push de racha se lo llevaba todo el mundo y ningun clan sin lider se rescataba |
+
+Hay dos piezas y dos pruebas que lo sostienen:
+
+- `backend/src/util.js` — `diaMadrid`, `diaEnZona`, `minutosDelDiaEnZona`
+- `assets/js/dia.js` — su pareja en el navegador
+- una prueba por lado, que falla si alguien vuelve a calcular un dia o un mes en
+  UTC, o a mano con la hora del dispositivo
+
+Si hace falta un dia en otra zona, se pide con `diaEnZona` y se explica por que,
+como hace `cuota.js`.
+
 ### Funciones escritas, probadas y sin llamar
 
 Un patron que aparecio seis veces al revisar la rama, y que cuesta ver porque

@@ -1000,9 +1000,47 @@ test('worker y navegador estan de acuerdo en que dia es', () => {
   assert.match(preparar.slice(0, 400), /diaMadrid\(\)/,
     'el worker publica las misiones con el dia UTC');
 
-  const portada = leerCodigo('assets/js/paginas/portada.js');
-  assert.match(portada, /timeZone: 'Europe\/Madrid'/,
-    'la portada usa la fecha del dispositivo: desde otro pais pediria otro dia');
+  // El navegador tiene su propio `dia.js`, que es la pareja de `util.diaMadrid`.
+  // Se comprueba el modulo, no cada pantalla: si alguien vuelve a calcular el
+  // dia a mano en una pagina, lo que falla es la prueba de abajo.
+  const dia = leerCodigo('assets/js/dia.js');
+  assert.match(dia, /timeZone: ZONA/);
+  assert.match(dia, /Europe\/Madrid/,
+    'el dia del navegador no es el de Madrid: desde otro pais se pediria otro dia');
+
+  for (const pagina of ['portada', 'subir']) {
+    assert.match(leerCodigo(`assets/js/paginas/${pagina}.js`), /from '\/assets\/js\/dia\.js'/,
+      `${pagina} calcula el dia por su cuenta en vez de usar dia.js`);
+  }
+});
+
+test('nadie vuelve a calcular el dia a mano en el navegador', () => {
+  // Tres copias de "hoy en YYYY-MM-DD" con la hora del dispositivo es como se
+  // llego a que las misiones desaparecieran de noche, a que `subir/` no dejara
+  // elegir hoy entre medianoche y las 02:00, y a que las sesiones se guardaran
+  // en un dia y se agruparan en otro.
+  const fuera = [];
+
+  for (const fichero of recorrerProyecto(/\.js$/)) {
+    const rel = path.relative(RAIZ, fichero);
+    if (!rel.startsWith('assets/js/')) continue;
+    if (rel === 'assets/js/dia.js') continue;
+
+    // Un nombre de fichero con la fecha dentro no cuenta: no decide nada, solo
+    // sirve para que la descarga no se llame igual dos veces.
+    const codigo = leerCodigo(rel)
+      .split('\n')
+      .filter((linea) => !/\bdownload\b/.test(linea))
+      .join('\n');
+
+    const sospechoso = /getFullYear\(\)[\s\S]{0,120}getMonth\(\)/.test(codigo)
+      || /toISOString\(\)\.slice\(0, 10\)/.test(codigo);
+
+    if (sospechoso) fuera.push(rel);
+  }
+
+  assert.deepStrictEqual(fuera, [],
+    `estos calculan el dia a mano en vez de usar dia.js: ${fuera.join(', ')}`);
 });
 
 test('el historial de la v1 no se cuela arriba de las temporadas', () => {

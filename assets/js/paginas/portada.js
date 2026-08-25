@@ -19,25 +19,16 @@ import { ofrecerInstalacion, guardarResumenOffline } from '/assets/js/instalar.j
 import { traerAgregado, puestoPorMarca } from '/assets/js/agregados.js';
 import { destacar } from '/assets/js/celebrar.js';
 import { ofrecerAvisos } from '/assets/js/push.js';
+import { diaMadrid } from '/assets/js/dia.js';
 
 iniciarPagina('ahora');
 
 const landing = id('landing');
 const panel = id('panel');
 
-/**
- * Hoy en Madrid, como YYYY-MM-DD.
- *
- * En Madrid y no en la hora del dispositivo, que es lo que habia: quien abra la
- * web desde otro pais veria las misiones de otro dia, y a quien lo tenga mal
- * puesto le pasaria lo mismo. El juego ocurre en Madrid, asi que el dia lo
- * decide Madrid — y asi coincide con la clave que usa el worker al publicarlas
- * (`util.diaMadrid`).
- */
-function hoy() {
-  // 'sv-SE' da exactamente YYYY-MM-DD.
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(new Date());
-}
+// Hoy en Madrid. Coincide con la clave que usa el worker al publicar las
+// misiones (`util.diaMadrid`), que es lo unico que hace que se encuentren.
+const hoy = diaMadrid;
 
 /**
  * La racha, lo primero.

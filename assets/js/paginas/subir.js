@@ -28,6 +28,7 @@ import {
   iniciarPagina, normalizarEstacion, nombreEstacion, nombreRuta, formatearTiempo,
 } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
+import { diaMadrid, diaMadridHace } from '/assets/js/dia.js';
 import { revisar, LIMITES_CLIENTE } from '/assets/js/precheck.js';
 import { extraer, cerrar as cerrarLector } from '/assets/js/extraccion.js';
 import { seguirViaje, recordarViaje, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
@@ -59,10 +60,12 @@ onAuthStateChanged(auth, async (usuario) => {
 
 // La fecha no puede ser futura ni de hace mas de 30 dias: el mismo limite que
 // aplica el servidor, aqui solo para que el selector no ofrezca imposibles.
-const hoy = new Date();
+// En dias de MADRID, no del reloj UTC. Con el dia UTC, entre medianoche y las
+// 02:00 el tope del selector era AYER: quien volvia de un trayecto nocturno no
+// podia elegir hoy, que es justo la fecha que queria poner.
 const campoFecha = id('fecha');
-campoFecha.max = hoy.toISOString().slice(0, 10);
-campoFecha.min = new Date(hoy.getTime() - 30 * 864e5).toISOString().slice(0, 10);
+campoFecha.max = diaMadrid();
+campoFecha.min = diaMadridHace(30);
 campoFecha.value = campoFecha.max;
 
 // --- Estaciones ---
@@ -224,13 +227,17 @@ async function misViajesRecientes() {
       limit(60)
     ));
 
-    const dia = new Date().toISOString().slice(0, 10);
+    // El cupo diario lo cuenta el servidor por dias de Madrid
+    // (`inicioDelDiaMadrid`). Contarlo aqui por dias UTC hacia que las dos
+    // cuentas no coincidieran durante las dos primeras horas del dia: la
+    // pantalla decia que quedaba sitio y el servidor rechazaba, o al reves.
+    const dia = diaMadrid();
     for (const d of snapshot.docs) {
       const v = d.data();
       yaSubidos.add(huellaLogica(v.ruta, v.tiempoSegundos, v.fechaViaje));
       // `creado` puede no estar resuelto todavia en el documento local.
       const creado = v.creado?.toDate?.();
-      if (creado && creado.toISOString().slice(0, 10) === dia) subidosHoy++;
+      if (creado && diaMadrid(creado) === dia) subidosHoy++;
     }
   } catch (error) {
     // Sin esta consulta se puede seguir: se ofrecen todos y ya dira el servidor.

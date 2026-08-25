@@ -23,6 +23,7 @@ const admin = require('firebase-admin');
 // Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
 // que el contador de cuota (#38) vea TODO lo que hace el backend.
 const { db } = require('./db');
+const { diaMadrid } = require('./util');
 
 /**
  * Cuantas sesiones se suman por pasada.
@@ -58,9 +59,20 @@ const DIAS_ERRORES = 90;
 /** Ventanas que ensena el panel. */
 const VENTANAS = { hoy: 1, semana: 7, mes: 30, semestre: 180 };
 
-/** YYYY-MM-DD de una fecha. */
+/**
+ * YYYY-MM-DD de una fecha, en hora de Madrid.
+ *
+ * En Madrid y no en UTC por dos motivos que se juntan:
+ *
+ *   1. el navegador guarda `sesiones_web` con el dia de Madrid, y si aqui se
+ *      agrupara por dia UTC las sesiones de las dos primeras horas de cada dia
+ *      irian a la casilla de ayer
+ *   2. `fechaViaje` tambien es un dia de Madrid — lo elige quien sube el viaje
+ *      en su calendario — asi que compararlo con un dia UTC descuadra las
+ *      ventanas y las cohortes
+ */
 function dia(fecha) {
-  return fecha.toISOString().slice(0, 10);
+  return diaMadrid(fecha);
 }
 
 /** Dias enteros entre dos YYYY-MM-DD. */

@@ -27,6 +27,7 @@
 
 import { db, doc, setDoc, increment, serverTimestamp } from './firebase.js';
 import { VERSION_APP } from '../data/version.js';
+import { diaMadrid } from './dia.js';
 
 /**
  * Eventos admitidos. La lista es cerrada a proposito: sin ella, cualquiera
@@ -59,11 +60,11 @@ export function anotar(evento) {
   cuenta[evento] = (cuenta[evento] || 0) + 1;
 }
 
-/** Dia en curso en formato YYYY-MM-DD, hora local de quien navega. */
-function hoy() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+// El dia va en hora de Madrid, no la del dispositivo: el panel agrupa las
+// sesiones por ese mismo dia, y si cada punta usa el suyo las cifras de "hoy"
+// se reparten entre dos casillas. Ademas, quien abra la web desde otro pais
+// escribiria el dia de otro sitio.
+const hoy = diaMadrid;
 
 /**
  * Escribe la sesion. Se llama al ocultarse la pestaña.

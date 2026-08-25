@@ -47,6 +47,39 @@ service cloud.firestore {
 
     // --- Perfiles ----------------------------------------------------------
     match /usuarios/{uid} {
+      /**
+       * El registro de consentimiento, que el RGPD exige poder demostrar: QUE
+       * se acepto, CUANDO y sobre QUE version del texto.
+       *
+       * Estaba como `consentimiento is map` y nada mas, o sea que cabia dentro
+       * cualquier cosa de cualquier tamaño. En un campo cualquiera eso ya
+       * sobra; en el que sirve de PRUEBA de un consentimiento, mas: un registro
+       * en el que el interesado puede escribir lo que quiera vale poco como
+       * prueba.
+       *
+       * La forma es exactamente la que escriben `crearPerfil` y `aceptarLegal`,
+       * los dos unicos sitios que lo tocan, y los dos escriben el mapa entero.
+       *
+       * OJO, PENDIENTE (#55): `aceptadoEn` lo pone el navegador, asi que la
+       * FECHA la elige el interesado. Para lo que es esto deberia venir del
+       * servidor (`request.time`), pero eso cambia el tipo del campo y hay que
+       * mirar que no rompa a los perfiles que ya existen.
+       */
+      function consentimientoValido() {
+        return datos().consentimiento is map
+          && datos().consentimiento.keys().hasOnly(['terminos', 'privacidad'])
+          && datos().consentimiento.keys().hasAll(['terminos', 'privacidad'])
+          && bloqueDeConsentimiento(datos().consentimiento.terminos)
+          && bloqueDeConsentimiento(datos().consentimiento.privacidad);
+      }
+
+      function bloqueDeConsentimiento(bloque) {
+        return bloque is map
+          && bloque.keys().hasOnly(['version', 'aceptadoEn'])
+          && bloque.version is string && bloque.version.size() <= 20
+          && bloque.aceptadoEn is string && bloque.aceptadoEn.size() <= 40;
+      }
+
       // CERRADO hasta que las clasificaciones salgan de los agregados (#35).
       //
       // Esto era `allow read: if true`, y con razon aparente: los rankings
@@ -87,7 +120,7 @@ service cloud.firestore {
         && datos().logros.size() == 0
         && datos().clanId == null
         && datos().suspendido == false
-        && datos().consentimiento is map;
+        && consentimientoValido();
 
       // Solo se puede tocar lo cosmetico y las rutas ancladas. La puntuacion,
       // las insignias y el estado de la cuenta los escribe unicamente el worker.
@@ -107,7 +140,13 @@ service cloud.firestore {
         // solo suyo: darse de baja no puede depender de que un administrador lo
         // haga por ti (RGPD).
         && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo'])
-        && (!('favoritas' in datos()) || datos().favoritas.size() <= 3);
+        && (!('favoritas' in datos()) || datos().favoritas.size() <= 3)
+        // Solo cuando SE ESCRIBE. Es lo que hay que vigilar —que nadie meta
+        // ahi lo que quiera— y ademas no deja fuera a ningun perfil viejo:
+        // exigirlo siempre habria dejado sin poder tocar sus preferencias a
+        // cualquiera cuyo registro no tenga hoy exactamente esta forma, por
+        // ejemplo si viene de la v1.
+        && (!('consentimiento' in cambia()) || consentimientoValido());
 
       // Avisos push (#33).
       //

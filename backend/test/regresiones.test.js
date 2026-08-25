@@ -2582,3 +2582,32 @@ test('la lista de suscripciones push tiene tope, y el mapa `push` no admite lo q
   assert.strictEqual(enCliente, tope,
     `el navegador corta en ${enCliente} y las reglas en ${tope}`);
 });
+
+test('el registro de consentimiento tiene forma, no es un cajon', () => {
+  // El RGPD exige poder demostrar QUE se acepto, CUANDO y sobre QUE version.
+  // La regla decia `consentimiento is map` y nada mas, o sea que el interesado
+  // podia escribir ahi dentro cualquier cosa de cualquier tamaño. En un campo
+  // cualquiera eso ya sobra; en el que sirve de PRUEBA de un consentimiento,
+  // un registro donde el interesado escribe lo que quiere vale poco.
+  const usuarios = bloque('usuarios');
+
+  assert.match(usuarios, /function consentimientoValido\(\)/,
+    'el consentimiento vuelve a ser un mapa sin forma');
+  assert.match(usuarios, /hasOnly\(\['terminos', 'privacidad'\]\)/);
+  assert.match(usuarios, /hasOnly\(\['version', 'aceptadoEn'\]\)/);
+
+  // Se exige al crear el perfil, que es cuando nace.
+  const create = usuarios.match(/allow create:[\s\S]*?;/)[0];
+  assert.match(create, /consentimientoValido\(\)/,
+    'un perfil puede nacer con el consentimiento en cualquier forma');
+
+  // Y al escribirlo despues. Pero SOLO al escribirlo: exigirlo en cada
+  // actualizacion dejaria sin poder tocar sus preferencias a cualquier perfil
+  // cuyo registro no tenga hoy exactamente esta forma.
+  const cosmetico = (usuarios.match(/allow update:[\s\S]*?;/g) || [])
+    .find((r) => /'avisosCorreo'/.test(r));
+
+  assert.ok(cosmetico, 'no se encuentra la regla de preferencias');
+  assert.match(cosmetico, /!\('consentimiento' in cambia\(\)\) \|\| consentimientoValido\(\)/,
+    'o no se comprueba al escribirlo, o se exige siempre y deja fuera a los perfiles viejos');
+});

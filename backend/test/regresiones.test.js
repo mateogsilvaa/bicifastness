@@ -2399,3 +2399,38 @@ test('la captura que se sube siempre pasa por el lienzo, que es lo que borra el 
       `${pagina} lee el fichero original: eso manda el EXIF sin tocar`);
   }
 });
+
+test('toda señal del antifraude recibe de verdad el dato que mira', () => {
+  // LA FAMILIA DE #66. Una comprobacion puede estar llamada, probada y en verde
+  // y aun asi no saltar NUNCA, porque el dato que mira le llega siempre igual.
+  // Paso con `metadatos_edicion`, que vale 45 puntos: el navegador recodifica
+  // la captura en un lienzo y el EXIF —donde se buscaban las firmas de
+  // Photoshop— no llega jamas al worker.
+  //
+  // Esa variante no la pilla ningun `grep`: la funcion se llama, y la prueba
+  // pasa porque le mete el valor a mano. Lo que si se puede comprobar es el
+  // caso mas tonto y mas probable de todos — que el worker no le pase el
+  // campo. Un `contexto.loQueSea` que nadie rellena llega como `undefined`, la
+  // señal no salta nunca y no falla nada.
+  const verificacion = leerCodigo('backend/src/verificacion.js');
+  const worker = leerCodigo('backend/worker.js');
+
+  // Lo que desestructura cada comprobacion es exactamente lo que mira.
+  const mirados = new Set();
+  for (const [, campos] of verificacion.matchAll(/function comprobar\w*\(\{([^}]*)\}/g)) {
+    for (const campo of campos.split(',')) {
+      const nombre = campo.split(/[:=]/)[0].trim();
+      if (nombre) mirados.add(nombre);
+    }
+  }
+
+  assert.ok(mirados.size >= 10, 'no se han encontrado las comprobaciones: ¿han cambiado de forma?');
+
+  // El worker monta el contexto como un objeto, asi que cada campo tiene que
+  // aparecer ahi como propiedad.
+  const sinRellenar = [...mirados].filter((n) => !new RegExp(`\\b${n}\\s*[:,]`).test(worker));
+
+  assert.deepStrictEqual(sinRellenar, [],
+    'el antifraude mira estos campos y el worker no los pone en el contexto, '
+    + `asi que su señal no puede saltar nunca: ${sinRellenar.join(', ')}`);
+});

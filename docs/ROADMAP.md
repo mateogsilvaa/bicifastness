@@ -256,9 +256,17 @@ que una que funciona.
 | `clanes.elegirSucesor` | Un clan sin lider quedaba bloqueado para siempre, con gente dentro |
 | `plantillas.bienvenida`, `viajeAnulado`, `revisionLenta` | Nadie recibia el correo de registro, ni sabia por que le habian bajado los puntos |
 | Las doce acciones de clan y `guardarFavoritas` | Escritas, con reglas, y sin una sola pantalla desde la que ejecutarlas |
+| `limites.js` entero | No hay limitacion de frecuencia en ningun sitio (#62) |
 
-Sigue asi `reportarViaje` y `suspenderUsuario`: la moderacion tiene cola y no
-tiene entrada. Esta en #61, con las tres opciones y por que no lo he cerrado yo.
+Siguen asi dos, las dos abiertas:
+
+- **#61** `reportarViaje` y `suspenderUsuario`: la moderacion tiene cola y no
+  tiene entrada. Con las tres opciones y por que no lo he cerrado yo.
+- **#62** `limites.js`. Este es distinto de los demas: no es que no se ejecute,
+  es que **no se puede ejecutar donde hace falta**. Usa el Admin SDK, o sea que
+  corre en el worker, y para entonces la escritura ya ha ocurrido. Mientras siga
+  ahi sin llamar es peor que no tenerlo: quien lo lea dara por hecho que hay
+  limitacion de frecuencia, y no la hay.
 
 Merece la pena, al acabar algo, comprobar **quien lo llama**. `grep -rn` sobre
 el nombre de la funcion, fuera de su propio fichero y de los tests.

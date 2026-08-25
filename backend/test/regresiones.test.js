@@ -2611,3 +2611,51 @@ test('el registro de consentimiento tiene forma, no es un cajon', () => {
   assert.match(cosmetico, /!\('consentimiento' in cambia\(\)\) \|\| consentimientoValido\(\)/,
     'o no se comprueba al escribirlo, o se exige siempre y deja fuera a los perfiles viejos');
 });
+
+test('ninguna lista o mapa que escriba el navegador se queda sin acotar', () => {
+  // TRES VECES EL MISMO FALLO. `solicitudes` de un clan crecia sin freno en un
+  // documento que lee cualquiera; `push` no tenia ni claves ni tamaño, y el
+  // worker manda una peticion por cada entrada de su lista; `consentimiento`
+  // era `is map` a secas, en el campo que sirve de prueba del RGPD.
+  //
+  // Los tres son la misma forma: un campo estructurado que escribe el
+  // navegador y que nada corta. El final del camino siempre es el mismo — un
+  // documento de Firestore se planta en 1 MiB y deja de poder escribirse — y
+  // por el camino hay cosas peores, segun quien lea ese documento y que haga el
+  // worker con lo que hay dentro.
+  //
+  // Asi que la regla del proyecto: un campo declarado `is list` o `is map` va
+  // acompañado de un tope de tamaño o de una lista cerrada de claves.
+  const reglas = leerCodigo('firestore.rules');
+
+  // Se mira por bloques: el tope puede estar unas lineas mas abajo, pero
+  // siempre dentro de la misma coleccion.
+  const bloques = reglas.split(/(?=\n    match \/)/);
+  const sueltos = [];
+
+  for (const trozo of bloques) {
+    const coleccion = (trozo.match(/match \/(\w+)\//) || [])[1];
+    if (!coleccion) continue;
+
+    // Sin escritura de usuario no hay nada que acotar.
+    if (!/allow (create|update|write)/.test(trozo)) continue;
+
+    const sinComentarios = trozo.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    for (const [, campo] of sinComentarios.matchAll(/(\w+(?:\.\w+)*)\s+is\s+(?:list|map)/g)) {
+      const hoja = campo.split('.').pop();
+
+      // El tope tiene que ser DEL MISMO CAMPO. Buscarlo "cerca" no vale: la
+      // primera version de esta prueba miraba 200 caracteres a la redonda y
+      // daba por acotado un campo nuevo porque el de al lado si lo estaba.
+      const acotado = new RegExp(`\\b${hoja}\\s*\\.\\s*(size|keys)\\s*\\(`)
+        .test(sinComentarios);
+
+      if (!acotado) sueltos.push(`${coleccion}.${campo}`);
+    }
+  }
+
+  assert.deepStrictEqual(sueltos, [],
+    'estos campos los escribe el navegador y nada limita lo que cabe dentro: '
+    + `${sueltos.join(', ')}. Un tope de tamaño, o una lista cerrada de claves.`);
+});

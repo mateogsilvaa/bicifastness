@@ -16,7 +16,7 @@
 // worker con lo que ya es publico en las clasificaciones: nombre, avatar,
 // puntos y viajes. Ni correo, ni ultima actividad.
 
-import { db, doc, getDoc } from '/assets/js/firebase.js';
+import { db, doc, getDoc, collection, getDocs, query, where, limit } from '/assets/js/firebase.js';
 import { id, el, estado, reemplazar, confirmar, pedirTexto, avisar, esqueleto } from '/assets/js/dom.js';
 import {
   MAX_MIEMBROS,
@@ -308,25 +308,90 @@ function pintarSinClan(destino) {
 // --- Carga ---------------------------------------------------------------------
 
 /**
- * Si el clan ya me lista pero mi perfil no lo sabe, lo confirmo.
+ * ¿Hay algun clan que ya me liste y del que mi perfil no se haya enterado?
  *
- * Aceptar a alguien solo toca el documento del CLAN: el `clanId` de la persona
- * lo escribe ella, porque su documento solo lo puede escribir ella. Sin este
- * paso, quien es aceptado se queda en un limbo — la plantilla le cuenta, su
- * perfil dice que no tiene clan — y no hay nada en pantalla que lo explique.
+ * Pasa siempre que a alguien lo aceptan, y por diseño: aceptar toca solo el
+ * documento del CLAN, porque el `clanId` de una persona lo escribe ella — su
+ * documento solo lo puede escribir ella. Entre lo uno y lo otro queda un limbo:
+ * la plantilla te cuenta, tu perfil dice que no tienes clan, y nada en pantalla
+ * lo explica.
+ *
+ * Se busca por `miembros`, no por un parametro en la URL, porque las dos vias
+ * de entrar acaban igual y ninguna deja rastro en la direccion: te acepta el
+ * lider tras pedirlo, o te mete el worker tras usar una invitacion. Si en algun
+ * momento hubo un `?clan=` en la URL, ya no esta cuando la persona vuelve.
+ *
+ * Solo se consulta si el perfil dice que no tienes clan, o sea casi nunca.
  */
-async function confirmarSiHaceFalta(clanDelAgregado) {
-  if (!clanDelAgregado || perfil?.clanId === clanDelAgregado.clanId) return false;
-  if (!(clanDelAgregado.miembros || []).some((m) => m.uid === usuario.uid)) return false;
+async function clanQueYaMeLista() {
+  const encontrados = await getDocs(query(
+    collection(db, 'clanes'),
+    where('miembros', 'array-contains', usuario.uid),
+    limit(1),
+  ));
 
-  await confirmarEntrada(clanDelAgregado.clanId);
-  return true;
+  if (encontrados.empty) return null;
+
+  const cual = encontrados.docs[0].id;
+  await confirmarEntrada(cual);
+  return cual;
 }
 
+/**
+ * Lee un clan: la estructura del documento, los nombres del agregado.
+ *
+ * **El documento del clan manda.** Es la unica fuente de la plantilla, del
+ * lider y de los cargos, y se lee siempre. El agregado solo aporta los nombres,
+ * y por eso puede faltar sin que la pantalla deje de funcionar.
+ *
+ * Importa por dos motivos, y ninguno es evidente:
+ *
+ *   1. `agregados/clan-{id}` lo escribe `recalcularClan`, que solo corre cuando
+ *      cambian los puntos de alguien del clan. Un clan RECIEN CREADO no tiene
+ *      agregado: leyendo solo de ahi, quien acababa de fundar su clan veia
+ *      "todavia no estas en ningun clan" y la pantalla le ofrecia crear otro.
+ *   2. El agregado va por detras de la realidad. Al aceptar a alguien, la
+ *      plantilla del documento cambia en el momento y el agregado no. Leyendo
+ *      del agregado, el lider aceptaba a un candidato y no pasaba nada visible.
+ *
+ * Quien todavia no tenga nombre en el agregado sale como "Piloto": mejor una
+ * fila con un nombre generico que una fila que falta.
+ */
 async function leerClan(cual) {
   if (!cual) return null;
-  const snap = await getDoc(doc(db, 'agregados', `clan-${cual}`));
-  return snap.exists() ? snap.data() : null;
+
+  const [documento, agregado] = await Promise.all([
+    getDoc(doc(db, 'clanes', cual)),
+    getDoc(doc(db, 'agregados', `clan-${cual}`)).catch(() => null),
+  ]);
+
+  if (!documento.exists()) return null;
+
+  const datos = documento.data();
+
+  // Miembros Y candidatos: el agregado publica los dos, y quien pide entrar
+  // tiene tanto derecho a salir con su nombre como quien ya esta dentro. Un
+  // lider decidiendo sobre "Piloto, Piloto y Piloto" no esta decidiendo nada.
+  const publicado = agregado?.exists() ? agregado.data() : {};
+  const fichas = new Map(
+    [...(publicado.miembros || []), ...(publicado.candidatos || [])].map((m) => [m.uid, m]),
+  );
+
+  const ficha = (uid) => fichas.get(uid)
+    || { uid, nombre: 'Piloto', avatar: null, puntos: 0, viajes: 0, metros: 0 };
+
+  return {
+    clanId: cual,
+    nombre: datos.nombre || cual,
+    descripcion: datos.descripcion || '',
+    color: datos.color || null,
+    lider: datos.lider || null,
+    oficiales: datos.oficiales || [],
+    biciRating: datos.biciRating || 0,
+    numMiembros: (datos.miembros || []).length,
+    miembros: (datos.miembros || []).map(ficha).sort((a, b) => b.puntos - a.puntos),
+    candidatos: (datos.solicitudes || []).map(ficha),
+  };
 }
 
 export async function recargar() {
@@ -350,13 +415,12 @@ export async function recargar() {
 
     clan = await leerClan(clanId);
 
-    // Si el clan me lista y mi perfil aun no, se arregla solo y se relee.
+    // Si algun clan me lista y mi perfil aun no lo sabe, se arregla solo.
     if (!clan) {
-      const pendiente = new URLSearchParams(window.location.search).get('clan');
-      const candidato = await leerClan(pendiente);
-      if (await confirmarSiHaceFalta(candidato)) {
-        clanId = candidato.clanId;
-        clan = candidato;
+      const encontrado = await clanQueYaMeLista();
+      if (encontrado) {
+        clanId = encontrado;
+        clan = await leerClan(encontrado);
       }
     }
 
@@ -408,7 +472,10 @@ export async function pedirEntrada(cual) {
     return;
   }
 
-  const yaPedida = clan === null && (await leerClan(cual))?.candidatos?.some((c) => c.uid === usuario.uid);
+  // `leerClan` lee las solicitudes del documento, que es donde estan en vivo:
+  // no hay que esperar a que se rehaga ningun agregado para saber si ya pediste.
+  const objetivo = await leerClan(cual);
+  const yaPedida = (objetivo?.candidatos || []).some((c) => c.uid === usuario.uid);
 
   if (yaPedida) {
     await retirarSolicitud(cual);

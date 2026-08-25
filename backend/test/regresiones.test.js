@@ -817,6 +817,35 @@ test('la gestion de clanes tiene interfaz, no solo acciones', () => {
     'falta el panel donde se pinta');
 });
 
+test('la pantalla del clan no depende de que exista el agregado', () => {
+  // `agregados/clan-{id}` lo escribe `recalcularClan`, que solo corre cuando
+  // cambian los puntos de alguien del clan. Un clan RECIEN CREADO no lo tiene:
+  // leyendo solo de ahi, quien acababa de fundar su clan veia "todavia no estas
+  // en ningun clan" y la pantalla le ofrecia crear otro.
+  //
+  // Y ademas el agregado va por detras: al aceptar a un candidato, la plantilla
+  // del documento cambia en el momento y el agregado no.
+  const pantalla = leerCodigo('assets/js/mi-clan.js');
+
+  assert.match(pantalla, /getDoc\(doc\(db, 'clanes', cual\)\)/,
+    'el documento del clan tiene que ser la fuente de la plantilla');
+  assert.match(pantalla, /agregado\?\.exists\(\)/,
+    'el agregado tiene que poder faltar sin romper la pantalla');
+});
+
+test('a quien aceptan no se le queda la pantalla en blanco', () => {
+  // Aceptar a alguien toca solo el documento del clan; el `clanId` lo escribe
+  // esa persona. Entre lo uno y lo otro hay un limbo: la plantilla te cuenta, tu
+  // perfil dice que no tienes clan, y nada lo explica. Se detecta buscando el
+  // clan que ya te lista, no con un parametro en la URL: ni la via de la
+  // invitacion ni la del lider dejan rastro en la direccion.
+  const pantalla = leerCodigo('assets/js/mi-clan.js');
+
+  assert.match(pantalla, /array-contains/,
+    'no se busca el clan que ya te lista: quien es aceptado se queda en el limbo');
+  assert.match(pantalla, /confirmarEntrada\(/);
+});
+
 test('la plantilla del clan sale de un agregado, no de usuarios', () => {
   // `usuarios` dejo de ser publica al cerrar la fuga de correos (#60), asi que
   // el navegador no puede leer el perfil de otro. Sin agregado, un lider veria

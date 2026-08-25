@@ -287,17 +287,23 @@ que una que funciona.
 | `clanes.elegirSucesor` | Un clan sin lider quedaba bloqueado para siempre, con gente dentro |
 | `plantillas.bienvenida`, `viajeAnulado`, `revisionLenta` | Nadie recibia el correo de registro, ni sabia por que le habian bajado los puntos |
 | Las doce acciones de clan y `guardarFavoritas` | Escritas, con reglas, y sin una sola pantalla desde la que ejecutarlas |
+| `reportarViaje` y `suspenderUsuario` | La moderacion tenia cola, reglas y panel, y ninguna forma de crear una denuncia (#61) |
 | `limites.js` entero | No hay limitacion de frecuencia en ningun sitio (#62) |
 
-Siguen asi dos, las dos abiertas:
+`reportarViaje` y `suspenderUsuario` eran el septimo y el octavo, y ya tienen
+pantalla (#61). Costo mas que los demas porque denunciar necesitaba saber a
+quien se señala, y publicar los uid en las clasificaciones es justo lo que no se
+hace desde #60: se resolvio denunciando el VIAJE y dejando que el worker
+averigüe el dueño.
 
-- **#61** `reportarViaje` y `suspenderUsuario`: la moderacion tiene cola y no
-  tiene entrada. Con las tres opciones y por que no lo he cerrado yo.
-- **#62** `limites.js`. Este es distinto de los demas: no es que no se ejecute,
-  es que **no se puede ejecutar donde hace falta**. Usa el Admin SDK, o sea que
-  corre en el worker, y para entonces la escritura ya ha ocurrido. Mientras siga
-  ahi sin llamar es peor que no tenerlo: quien lo lea dara por hecho que hay
-  limitacion de frecuencia, y no la hay.
+Queda uno, y es de otra clase:
+
+- **#62** `limites.js`. No es que no se ejecute, es que **no se puede ejecutar
+  donde hace falta**. Usa el Admin SDK, o sea que corre en el worker, y para
+  entonces la escritura ya ha ocurrido. Mientras siga ahi sin llamar es peor que
+  no tenerlo: quien lo lea dara por hecho que hay limitacion de frecuencia, y no
+  la hay. El worker ya despeja la cola cuando una cuenta la inunda, pero eso es
+  un parachoques: la escritura sigue ocurriendo.
 
 Merece la pena, al acabar algo, comprobar **quien lo llama**. `grep -rn` sobre
 el nombre de la funcion, fuera de su propio fichero y de los tests.

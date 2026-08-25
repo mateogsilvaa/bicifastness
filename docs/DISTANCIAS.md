@@ -28,8 +28,17 @@ Retiro, del Manzanares o de la M-30 estan cerca en linea recta y lejos en bici.
 | Origen | De donde sale | `estimada` |
 |---|---|---|
 | tabla | `backend/lib/distancias.json`, precalculada con OSRM | `false` |
-| cache | `distancias/{ruta}` en Firestore | `false` |
 | estimacion | linea recta x 1,35 | `true` |
+
+Hubo una tercera en medio, una cache en `distancias/{ruta}` de Firestore, y se
+ha quitado: **no la escribia nadie**. `build-distancias.js` genera la tabla en
+`backend/lib`, no en Firestore, y el `escribir` que le pasaba el worker era una
+funcion vacia. O sea que esa coleccion no ha existido nunca y la unica
+consecuencia real era una lectura por viaje aprobado que siempre daba vacio.
+
+Tendria sentido si el worker calculara distancias reales, pero no lo hace: o el
+par esta en la tabla, o estima. Lo unico que podia guardar la cache eran
+estimaciones, y para eso ya esta la formula.
 
 **La marca importa tanto como el numero.** Un consumidor que no mire `estimada`
 estaria puntuando kilometros con un error grande como si fueran de ruta real. La
@@ -92,9 +101,23 @@ proposito.
 
 ## Coste
 
-La cache de Firestore cuesta **una lectura por viaje procesado**
-(`distancias/{ruta}`, un documento). No se lee la coleccion entera: puede acabar
-teniendo cientos de pares y traerlos todos en cada pasada se comeria la cuota
-para nada.
+**Cero lecturas.** La tabla viaja con el codigo y la estimacion es una formula.
 
-La tabla viaja con el codigo y no cuesta lecturas.
+Antes costaba una lectura por viaje aprobado, la de la cache que nadie llenaba.
+
+## Que tramos van estimados
+
+Los marca el propio viaje, con `distanciaEstimada`, asi que no hay que llevar
+ninguna lista aparte:
+
+```bash
+FIREBASE_SERVICE_ACCOUNT="$(cat serviceAccountKey.json)" \
+  node scripts/build-distancias.js --pendientes
+```
+
+Dice cuantos viajes estan afectados y en cuantos tramos distintos, calcula solo
+esos y los añade a la tabla. Es la revision mensual de
+[MANTENIMIENTO.md](MANTENIMIENTO.md).
+
+`--firestore` trae **todos** los pares recorridos alguna vez, esten o no en la
+tabla. Sirve para una primera carga; para la revision mensual sobra.

@@ -511,6 +511,24 @@ test('la pagina de obras no depende de nada del sitio', () => {
     'no debe indexarse en lugar del sitio real');
 });
 
+test('lo que manda hacer MANTENIMIENTO.md se puede hacer', () => {
+  // Una guia de mantenimiento que manda ejecutar algo que no existe es peor que
+  // no tenerla: se descubre el dia que hace falta, con prisa. Decia mirar una
+  // coleccion `distancias_pendientes` que no ha existido nunca y lanzar una
+  // bandera que el script no reconocia.
+  const guia = leer('docs/MANTENIMIENTO.md');
+
+  for (const [, comando, banderas] of guia.matchAll(/node (scripts\/[a-z-]+\.js)((?: --[a-z]+)*)/g)) {
+    assert.ok(fs.existsSync(path.join(RAIZ, comando)), `MANTENIMIENTO.md manda ejecutar ${comando}, que no existe`);
+
+    const fuente = leer(comando);
+    for (const bandera of banderas.trim().split(/\s+/).filter(Boolean)) {
+      assert.ok(fuente.includes(`'${bandera}'`),
+        `${comando} no reconoce ${bandera}, y MANTENIMIENTO.md lo manda ejecutar`);
+    }
+  }
+});
+
 test('el CI regenera todo lo que despues comprueba', () => {
   // La comprobacion es `git diff --exit-code assets/data backend/lib`, y solo
   // vale lo que se haya regenerado antes. Con un generador de los tres, cazaba

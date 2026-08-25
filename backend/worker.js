@@ -673,15 +673,18 @@ async function tocaTerritorioPropio(uid, estaciones) {
 async function premiar(doc, viaje) {
   const [origen, destino] = String(viaje.ruta).split('-');
 
-  const cache = {
-    leer: async () => {
-      const guardada = await db.doc(`distancias/${viaje.ruta}`).get();
-      return guardada.exists ? guardada.data().metros : null;
-    },
-    escribir: async () => {},
-  };
-
-  const medida = await distancias.resolverConCache(origen, destino, cache);
+  // `resolver` y no `resolverConCache`.
+  //
+  // Aqui habia una cache en `distancias/{ruta}`: una lectura por viaje aprobado
+  // para un documento QUE NO ESCRIBE NADIE. `escribir` era `async () => {}`, y
+  // `build-distancias.js` genera la tabla en `backend/lib/distancias.json`, no
+  // en Firestore. O sea que la coleccion no ha existido nunca y esa lectura
+  // siempre daba vacio antes de caer a la tabla, que es donde estan los datos.
+  //
+  // La cache tendria sentido si el worker calculara distancias reales, pero no
+  // lo hace: o el par esta en la tabla, o estima. Lo unico que le queda a la
+  // cache es guardar estimaciones, y para eso ya esta la formula.
+  const medida = distancias.resolver(origen, destino);
   const metros = medida ? medida.metros : null;
   const kmh = distancias.velocidadKmh(metros, viaje.tiempoSegundos);
 

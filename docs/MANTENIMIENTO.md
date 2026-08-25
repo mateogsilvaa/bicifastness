@@ -26,13 +26,21 @@ Si vuelves al proyecto dentro de seis meses, con esto y con
 
 ## Cada mes
 
-1. **Distancias pendientes.** Si `distancias_pendientes` tiene documentos, hay
-   rutas puntuando con distancia estimada:
+1. **Distancias pendientes.** Los tramos que estan puntuando con distancia
+   estimada en vez de medida:
    ```bash
-   node scripts/build-distancias.js --pendientes
+   FIREBASE_SERVICE_ACCOUNT="$(cat serviceAccountKey.json)" \
+     node scripts/build-distancias.js --pendientes
    ```
+   Sale de los viajes con `distanciaEstimada`, que el worker ya marca: no hay
+   ninguna coleccion que vigilar. Dice cuantos viajes estan afectados y en
+   cuantos tramos distintos, que es lo que decide si merece la pena.
+
    Commitea `backend/lib/distancias.json` despues. Ver
    [DISTANCIAS.md](DISTANCIAS.md).
+
+   `--firestore` trae **todos** los pares recorridos alguna vez, no solo los que
+   faltan. Sirve para una primera carga; para la revision mensual sobra.
 2. **La precision del OCR.** El workflow `medir-ocr.yml` mide sobre capturas
    reales. Si baja, hay que mirar si la app de BiciMAD ha cambiado de aspecto.
 3. **Equilibrio del juego.** Mira si una ruta concentra a todo el mundo o si hay

@@ -9,10 +9,12 @@
  * reales, y el resto se resuelve por estimacion hasta que alguien los use.
  *
  * De donde salen los pares:
+ *   --pendientes          los pares que ESTAN puntuando con distancia estimada
  *   --rutas fichero.txt   una ruta por linea, formato "002-110"
  *   --firestore           los pares que ya existen en `tiempos_viaje`
  *
  * Uso:
+ *   node scripts/build-distancias.js --pendientes
  *   node scripts/build-distancias.js --rutas rutas.txt
  *   node scripts/build-distancias.js --firestore
  *   node scripts/build-distancias.js --rutas rutas.txt --simular
@@ -66,8 +68,8 @@ function rutasDeFichero(fichero) {
   return [...rutas];
 }
 
-/** Los pares que ya se han recorrido de verdad. Requiere credenciales. */
-async function rutasDeFirestore() {
+/** Arranca el Admin SDK. Comun a los dos modos que hablan con Firestore. */
+function firestore() {
   const admin = require('firebase-admin');
   const credenciales = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!credenciales) {
@@ -76,13 +78,46 @@ async function rutasDeFirestore() {
   }
 
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(credenciales)) });
-  const snapshot = await admin.firestore().collection('tiempos_viaje').select('ruta').get();
+  return admin.firestore();
+}
+
+/** Los pares que ya se han recorrido de verdad. Requiere credenciales. */
+async function rutasDeFirestore() {
+  const snapshot = await firestore().collection('tiempos_viaje').select('ruta').get();
 
   const rutas = new Set();
   for (const doc of snapshot.docs) {
     const ruta = doc.data().ruta;
     if (typeof ruta === 'string' && ruta.includes('-')) rutas.add(ruta);
   }
+  return [...rutas];
+}
+
+/**
+ * Los pares que ESTAN PUNTUANDO con distancia estimada. Requiere credenciales.
+ *
+ * Es el modo de la revision mensual (`docs/MANTENIMIENTO.md`) y el que hay que
+ * usar casi siempre: `--firestore` trae TODOS los pares recorridos, y la mayoria
+ * ya estan en la tabla. Esto trae solo los que le faltan al juego.
+ *
+ * Sale de `distanciaEstimada`, que el worker ya escribe en cada viaje que
+ * resuelve por estimacion. No hace falta ninguna coleccion aparte ni ninguna
+ * escritura extra: el dato ya esta, solo habia que preguntarlo.
+ */
+async function rutasEstimadas() {
+  const snapshot = await firestore().collection('tiempos_viaje')
+    .where('distanciaEstimada', '==', true)
+    .select('ruta')
+    .get();
+
+  const rutas = new Set();
+  for (const doc of snapshot.docs) {
+    const ruta = doc.data().ruta;
+    if (typeof ruta === 'string' && ruta.includes('-')) rutas.add(ruta);
+  }
+
+  console.log(`${snapshot.size} viajes puntuando con distancia estimada, `
+    + `en ${rutas.size} tramo(s) distinto(s).`);
   return [...rutas];
 }
 
@@ -124,10 +159,15 @@ async function principal() {
 
   if (indiceFichero !== -1) {
     rutas = rutasDeFichero(args[indiceFichero + 1]);
+  } else if (args.includes('--pendientes')) {
+    rutas = await rutasEstimadas();
   } else if (args.includes('--firestore')) {
     rutas = await rutasDeFirestore();
   } else {
-    console.error('Indica de donde salen los pares: --rutas <fichero> o --firestore');
+    console.error('Indica de donde salen los pares:');
+    console.error('  --pendientes          los que estan puntuando con distancia estimada');
+    console.error('  --firestore           todos los pares recorridos alguna vez');
+    console.error('  --rutas <fichero>     una ruta por linea');
     process.exit(1);
   }
 

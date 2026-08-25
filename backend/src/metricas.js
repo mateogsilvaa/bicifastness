@@ -23,7 +23,11 @@ const admin = require('firebase-admin');
 // Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
 // que el contador de cuota (#38) vea TODO lo que hace el backend.
 const { db } = require('./db');
-const { diaMadrid } = require('./util');
+// `lunesDe` vivia aqui y mezclaba el calendario UTC con el de Madrid: las altas
+// de madrugada caian en una semana fantasma y el corte de cohortes retrocedia
+// una semana entera. Se mudo a `util`, con el resto de la aritmetica de dias,
+// que es donde el proyecto decide que dia es. La explicacion entera esta alli.
+const { diaMadrid, lunesDe } = require('./util');
 
 /**
  * Cuantas sesiones se suman por pasada.
@@ -78,13 +82,6 @@ function dia(fecha) {
 /** Dias enteros entre dos YYYY-MM-DD. */
 function diasEntre(desde, hasta) {
   return Math.round((Date.parse(hasta) - Date.parse(desde)) / 86400000);
-}
-
-/** El lunes de la semana de una fecha, en YYYY-MM-DD. */
-function lunesDe(fecha) {
-  const lunes = new Date(fecha);
-  lunes.setUTCDate(lunes.getUTCDate() - ((lunes.getUTCDay() + 6) % 7));
-  return dia(lunes);
 }
 
 /**

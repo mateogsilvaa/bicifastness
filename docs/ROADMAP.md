@@ -287,16 +287,30 @@ vas a mirarlo. Fallan una o dos horas al dia, o una vez al mes.
 | Cuota (#38) | Contaba por dias UTC y se ponia a cero siete horas antes que la cuota real: ni aviso ni modo degradado en el tramo mas peligroso del dia |
 | Temporadas (#22) | El mes en UTC: lanzar el cierre a mano a las 00:30 del dia 1 archivaba un mes ya cerrado y contestaba "ya cerrada" |
 | `ultimoDiaActivo` | Guardado en milisegundos y comparado como `'YYYY-MM-DD'` en dos sitios: el push de racha se lo llevaba todo el mundo y ningun clan sin lider se rescataba |
+| Cohortes (#34) | `lunesDe` preguntaba el dia de la semana al calendario UTC y contestaba en el de Madrid: las altas de madrugada abrian una semana fantasma, y el corte entre cohortes vivas y congeladas retrocedia una semana entera |
 
 Hay dos piezas y dos pruebas que lo sostienen:
 
-- `backend/src/util.js` — `diaMadrid`, `diaEnZona`, `minutosDelDiaEnZona`
+- `backend/src/util.js` — `diaMadrid`, `diaEnZona`, `minutosDelDiaEnZona`, `lunesDe`
 - `assets/js/dia.js` — su pareja en el navegador
 - una prueba por lado, que falla si alguien vuelve a calcular un dia o un mes en
   UTC, o a mano con la hora del dispositivo
 
 Si hace falta un dia en otra zona, se pide con `diaEnZona` y se explica por que,
 como hace `cuota.js`.
+
+**Toda la aritmetica de dias vive en esos dos ficheros, no solo el "que dia es
+hoy".** El de las cohortes es el caso que lo dejo claro: `lunesDe` estaba en
+`metricas.js` porque era quien lo usaba, y ahi nadie lo miro con la regla en la
+mano. Restaba dias sobre el calendario UTC y devolvia el resultado en el de
+Madrid; entre las 00:00 y las 02:00 esos dos calendarios no van por el mismo
+dia, asi que restaba una semana de mas y devolvia martes donde ponia "lunes".
+Fallaba en 576 de las 8.784 horas del año.
+
+Como probar esto sin esperar a las 00:30: la comprobacion buena no es un caso,
+es **la propiedad**. `lunesDe` tiene que devolver un lunes SIEMPRE, asi que la
+prueba barre un año entero hora a hora — cambios de horario incluidos — y no
+depende de cuando se ejecute.
 
 ### Funciones escritas, probadas y sin llamar
 

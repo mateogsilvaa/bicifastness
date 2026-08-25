@@ -186,6 +186,48 @@ function diaEnZona(fecha, zona) {
 }
 
 /**
+ * El lunes de la semana de una fecha, como 'YYYY-MM-DD' de Madrid.
+ *
+ * Vive AQUI, con el resto de la aritmetica de dias, y no donde se usa. Estaba
+ * en `metricas.js` y hacia esto:
+ *
+ *     const lunes = new Date(fecha);
+ *     lunes.setUTCDate(lunes.getUTCDate() - ((lunes.getUTCDay() + 6) % 7));
+ *     return diaMadrid(lunes);
+ *
+ * Que es la mezcla de siempre: el dia de la semana lo preguntaba al calendario
+ * UTC y la respuesta la daba en el de Madrid. Entre las 00:00 y las 02:00 de
+ * Madrid el dia UTC va uno por detras, asi que preguntaba por AYER y restaba
+ * una semana de mas. Un alta de las 00:30 del lunes 2026-07-06 salia en la
+ * semana '2026-06-30' — que ademas es un martes.
+ *
+ * En las cohortes de retencion eso abria una semana fantasma con una persona
+ * dentro, y como solo se guardan doce, cada fantasma echaba fuera una semana
+ * real. Peor: el corte entre cohortes vivas y congeladas sale de esta misma
+ * funcion, asi que durante esas dos horas retrocedia una semana y las cohortes
+ * ya cerradas se recalculaban desde datos parciales.
+ *
+ * El arreglo es no mezclar. Primero se reduce a un DIA de Madrid; a partir de
+ * ahi ya no hay zonas, solo calendario, y la medianoche UTC se usa de percha
+ * para contar dias porque en UTC todos los dias duran lo mismo.
+ */
+function lunesDe(fecha) {
+  const [año, mes, dia] = diaMadrid(fecha).split('-').map(Number);
+
+  // Date.UTC + getUTCDay: el calendario UTC no tiene cambios de horario, asi
+  // que restar dias aqui es restar dias de verdad.
+  const percha = new Date(Date.UTC(año, mes - 1, dia));
+  percha.setUTCDate(percha.getUTCDate() - ((percha.getUTCDay() + 6) % 7));
+
+  const dosDigitos = (n) => String(n).padStart(2, '0');
+  return [
+    percha.getUTCFullYear(),
+    dosDigitos(percha.getUTCMonth() + 1),
+    dosDigitos(percha.getUTCDate()),
+  ].join('-');
+}
+
+/**
  * Minutos transcurridos del dia en la zona dada.
  *
  * Lo usa la proyeccion de consumo para saber que parte del dia lleva gastada.
@@ -217,6 +259,7 @@ module.exports = {
   inicioDelDiaMadrid,
   diaMadrid,
   diaEnZona,
+  lunesDe,
   minutosDelDiaEnZona,
   horaASegundos,
 };

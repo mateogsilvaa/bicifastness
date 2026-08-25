@@ -114,6 +114,70 @@ test('un alta sin fecha valida no rompe el calculo', () => {
   assert.strictEqual(cohortes.length, 1, 'solo la que tiene fecha valida');
 });
 
+test('la semana de un alta de madrugada es la semana de esa madrugada', () => {
+  // El fallo que esto sujeta. `lunesDe` sacaba el dia de la semana en UTC y
+  // formateaba el resultado en Madrid, que son dos calendarios distintos.
+  // Entre las 00:00 y las 02:00 de Madrid el dia UTC va uno por detras, asi
+  // que preguntaba por el dia de AYER y restaba una semana de mas.
+  //
+  // 2026-07-06 fue lunes. Quien se dio de alta a las 00:30 de ese lunes salia
+  // en la cohorte '2026-06-30' — un martes, y de la semana anterior.
+  const madrugada = metricas.calcularCohortes(
+    [alta('a', '2026-07-05T22:30:00Z')], []); // 00:30 del lunes 6, en Madrid
+
+  assert.strictEqual(madrugada[0].semana, '2026-07-06');
+});
+
+test('quien entra de madrugada cae en la misma cohorte que quien entra de dia', () => {
+  // Es lo que de verdad se rompia: no una etiqueta fea, sino DOS cohortes donde
+  // hay una. La de madrugada quedaba con una persona sola, y como solo se
+  // guardan doce semanas, cada fantasma echaba fuera una semana de verdad.
+  const cohortes = metricas.calcularCohortes([
+    alta('madrugador', '2026-07-05T22:30:00Z'), // lunes 6, 00:30 en Madrid
+    alta('normal', '2026-07-08T10:00:00Z'),     // miercoles 8
+  ], []);
+
+  assert.strictEqual(cohortes.length, 1, 'se han abierto dos cohortes para una misma semana');
+  assert.strictEqual(cohortes[0].total, 2);
+});
+
+test('lunesDe siempre devuelve un lunes, a cualquier hora del año', () => {
+  // La comprobacion que hace falta aqui no es un caso, es la propiedad: si el
+  // resultado no es lunes, la funcion ha mezclado zonas otra vez. Se barre un
+  // año entero hora a hora, cambios de horario incluidos — que es donde se
+  // esconden estas cosas.
+  //
+  // La version anterior fallaba en 576 de estos 8.784 instantes: las dos horas
+  // de cada noche en que Madrid y UTC no estan en el mismo dia.
+  const fallos = [];
+
+  for (let d = 0; d < 366; d++) {
+    for (let h = 0; h < 24; h++) {
+      const instante = new Date(Date.UTC(2026, 0, 1, h) + d * 86400000);
+      const lunes = metricas.lunesDe(instante);
+      // Mediodia para preguntar el dia de la semana sin rozar ningun borde.
+      if (new Date(`${lunes}T12:00:00Z`).getUTCDay() !== 1) {
+        fallos.push(`${instante.toISOString()} -> ${lunes}`);
+      }
+    }
+  }
+
+  assert.deepStrictEqual(fallos.slice(0, 5), [], `${fallos.length} instantes no caen en lunes`);
+});
+
+test('el lunes de una fecha no depende de la hora que traiga', () => {
+  // Un alta es un instante cualquiera del dia. Si la hora movia la semana, dos
+  // personas del mismo dia acababan en cohortes distintas.
+  const dia = '2026-07-08'; // miercoles
+  const semanas = new Set();
+
+  for (let h = 0; h < 24; h++) {
+    semanas.add(metricas.lunesDe(new Date(`${dia}T${String(h).padStart(2, '0')}:30:00+02:00`)));
+  }
+
+  assert.deepStrictEqual([...semanas], ['2026-07-06']);
+});
+
 // --- Privacidad --------------------------------------------------------------
 
 test('la analitica del navegador no identifica a nadie', () => {

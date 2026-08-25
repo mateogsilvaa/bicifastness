@@ -698,6 +698,24 @@ test('la migracion ofrece copia de seguridad y no la sobrescribe', () => {
   assert.match(guion, /--copia/);
 });
 
+test('el historial de la v1 no se cuela arriba de las temporadas', () => {
+  // Las temporadas son meses naturales (`2026-08`) y se ordenan por su
+  // identificador. `v1` empieza por letra, asi que en un orden descendente
+  // alfabetico se colaria por encima de todos los meses — justo al reves de lo
+  // que es: lo mas antiguo que tiene nadie.
+  const perfil = leerCodigo('assets/js/paginas/yo.js');
+
+  assert.match(perfil, /function ordenTemporada/,
+    'las temporadas se ordenan por el identificador crudo: v1 saldria arriba');
+  assert.ok(!/String\(b\.temporada\)\.localeCompare\(String\(a\.temporada\)\)/.test(perfil),
+    'ha vuelto la comparacion cruda de identificadores');
+
+  // Y `v1` es un nombre interno: fuera del repositorio nadie sabe que hubo una
+  // v1 ni por que su historial esta aparte.
+  assert.match(perfil, /function nombreTemporada/,
+    'la tabla pintaria el identificador interno "v1" tal cual');
+});
+
 test('el aviso a los usuarios de la v1 respeta la baja y no se repite', () => {
   // Un envio masivo desde un cliente de correo se saltaria las tres cosas que
   // comprueba este test, y la primera convierte un aviso util en una infraccion.

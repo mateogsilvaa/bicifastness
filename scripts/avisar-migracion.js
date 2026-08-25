@@ -61,20 +61,26 @@ const db = arrancar();
  * usuarios primero, viajes despues.
  */
 async function historial(uid) {
-  const viajes = await db.collection('tiempos_viaje')
-    .where('uid', '==', uid)
-    .where('temporada', '==', TEMPORADA_V1)
-    .get();
+  // Una sola condicion y el filtro de temporada en memoria, a proposito.
+  // Firestore sabe resolver dos igualdades cruzando indices de un campo, pero
+  // esto corre una vez y sobre unos cientos de viajes por persona: no merece la
+  // pena depender de ese detalle ni anadir un indice compuesto para un script
+  // de un solo uso.
+  const viajes = await db.collection('tiempos_viaje').where('uid', '==', uid).get();
 
+  let cuantos = 0;
   let metros = 0;
   let estimados = 0;
+
   for (const doc of viajes.docs) {
     const v = doc.data();
+    if (v.temporada !== TEMPORADA_V1) continue;
+    cuantos++;
     metros += Number(v.distanciaMetros) || 0;
     if (v.distanciaEstimada) estimados++;
   }
 
-  return { viajes: viajes.size, kilometros: metros / 1000, estimados };
+  return { viajes: cuantos, kilometros: metros / 1000, estimados };
 }
 
 async function main() {

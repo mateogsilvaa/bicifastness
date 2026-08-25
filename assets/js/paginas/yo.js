@@ -90,6 +90,34 @@ function pintarModos(perfil) {
  * Vive en una subcoleccion del propio usuario, asi que se borra con su cuenta
  * sin tener que ir a buscarlo a otro sitio.
  */
+/**
+ * Identificador de la temporada donde vive el historial migrado de la v1.
+ * Lo escribe `scripts/migrar-datos.js`.
+ */
+const TEMPORADA_V1 = 'v1';
+
+/**
+ * Clave de orden de una temporada.
+ *
+ * Las temporadas son meses naturales (`2026-08`), asi que ordenar por el
+ * identificador basta — salvo para `v1`, que empieza por letra y en un orden
+ * descendente se colaria ARRIBA del todo. Justo al reves de lo que es: el
+ * historial de la v1 es lo mas antiguo que tiene nadie.
+ */
+function ordenTemporada(temporada) {
+  return temporada === TEMPORADA_V1 ? '0000-00' : String(temporada);
+}
+
+/**
+ * Como se llama una temporada en pantalla.
+ *
+ * `v1` es un nombre interno: fuera de este repositorio nadie sabe que hubo una
+ * v1 ni por que su historial esta aparte.
+ */
+function nombreTemporada(temporada) {
+  return temporada === TEMPORADA_V1 ? 'Historial anterior' : String(temporada);
+}
+
 async function cargarTemporadas() {
   const destino = id('temporadas');
 
@@ -99,7 +127,7 @@ async function cargarTemporadas() {
 
     const filas = snap.docs
       .map((d) => d.data())
-      .sort((a, b) => String(b.temporada).localeCompare(String(a.temporada)));
+      .sort((a, b) => ordenTemporada(b.temporada).localeCompare(ordenTemporada(a.temporada)));
 
     reemplazar(destino,
       el('h2', { clase: 'h2', texto: 'Temporadas anteriores' }),
@@ -111,7 +139,7 @@ async function cargarTemporadas() {
             el('th', { texto: 'Puntos', clase: 'col-fecha', attrs: { scope: 'col' } }),
           ])]),
           el('tbody', {}, filas.map((t) => el('tr', {}, [
-            el('th', { texto: t.temporada, attrs: { scope: 'row' }, clase: 'nombre' }),
+            el('th', { texto: nombreTemporada(t.temporada), attrs: { scope: 'row' }, clase: 'nombre' }),
             el('td', { clase: 'col-marca' }, [
               el('span', { clase: 'marca', texto: t.posicion ? `${t.posicion}` : '—' }),
             ]),

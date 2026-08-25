@@ -2543,3 +2543,42 @@ test('la cola de solicitudes de un clan tiene tope, como el resto de listas', ()
   assert.strictEqual(enCliente, tope,
     `el navegador corta en ${enCliente} y las reglas en ${tope}`);
 });
+
+test('la lista de suscripciones push tiene tope, y el mapa `push` no admite lo que sea', () => {
+  // POR QUE ESTE TOPE IMPORTA MAS QUE LOS OTROS. `push.enviar` recorre la lista
+  // y hace UNA peticion al servicio de avisos por cada entrada. Sin limite, una
+  // sola cuenta con la lista inflada convierte cada aviso en miles de
+  // peticiones salientes: se come el tiempo de ejecucion del worker —que es de
+  // GitHub Actions y esta contado— y ademas lo pone a aporrear servidores de
+  // terceros en nombre del proyecto.
+  //
+  // Y era el unico `allow update` del fichero sin ninguna comprobacion de lo
+  // que se escribe (`cambia().hasOnly(['push'])` y nada mas). `push` es un
+  // mapa: cabia dentro cualquier cosa, hasta llenar el documento.
+  const usuarios = bloque('usuarios');
+  const regla = (usuarios.match(/allow update:[\s\S]*?;/g) || [])
+    .find((r) => /hasOnly\(\['push'\]\)/.test(r));
+
+  assert.ok(regla, 'no se encuentra la regla de avisos push');
+
+  assert.match(regla, /push\.suscripciones\.size\(\) <= (\d+)/,
+    'la lista de suscripciones no tiene tope: un aviso puede salir multiplicado');
+  assert.match(regla, /push\.keys\(\)\.hasOnly\(/,
+    'el mapa `push` admite cualquier clave, o sea cualquier cosa dentro del perfil');
+
+  // Las claves permitidas tienen que cubrir lo que escribe el worker, o su
+  // siguiente escritura dejaria el documento imposible de actualizar desde el
+  // navegador.
+  for (const clave of ['suscripciones', 'avisos', 'ultimoAvisoRacha']) {
+    assert.match(regla, new RegExp(`'${clave}'`),
+      `'${clave}' se escribe de verdad y la regla no lo admite`);
+  }
+
+  // Y el navegador avisa antes, con el mismo numero.
+  const tope = Number(regla.match(/push\.suscripciones\.size\(\) <= (\d+)/)[1]);
+  const enCliente = Number(
+    leerCodigo('assets/js/acciones.js').match(/MAX_SUSCRIPCIONES_PUSH = (\d+)/)[1]);
+
+  assert.strictEqual(enCliente, tope,
+    `el navegador corta en ${enCliente} y las reglas en ${tope}`);
+});

@@ -623,14 +623,37 @@ export async function confirmarEntrada(clanId) {
  * distintos y cada uno tiene la suya. Guardar solo la ultima dejaria sin aviso
  * al dispositivo que se este usando.
  */
+/**
+ * Tope de navegadores suscritos a la vez. El mismo que el de las reglas, y un
+ * test los ata.
+ *
+ * No es un capricho: el worker hace UNA peticion al servicio de avisos por cada
+ * entrada de esta lista. Diez son de sobra para los navegadores de una persona,
+ * y ademas el worker va limpiando las que el servicio ya no reconoce.
+ */
+export const MAX_SUSCRIPCIONES_PUSH = 10;
+
 export async function guardarSuscripcionPush(suscripcion) {
   // `toJSON()` porque el objeto del navegador tiene metodos y Firestore solo
   // admite datos.
   const plana = typeof suscripcion.toJSON === 'function' ? suscripcion.toJSON() : suscripcion;
 
-  await updateDoc(doc(db, 'usuarios', uidActual()), {
-    'push.suscripciones': arrayUnion(plana),
-  });
+  const ref = doc(db, 'usuarios', uidActual());
+
+  // La regla corta en seco y sin explicar. Aqui se mira antes para poder decir
+  // que pasa: `arrayUnion` sobre una que ya esta no anade nada, asi que solo
+  // molesta a quien llegue de un navegador NUEVO con la lista llena.
+  const perfil = await getDoc(ref);
+  const actuales = perfil.data()?.push?.suscripciones || [];
+  const yaEsta = actuales.some((s) => s.endpoint === plana.endpoint);
+
+  if (!yaEsta && actuales.length >= MAX_SUSCRIPCIONES_PUSH) {
+    throw new Error(
+      `Ya tienes avisos activos en ${MAX_SUSCRIPCIONES_PUSH} navegadores. `
+      + 'Desactivalos en alguno antes de anadir este.');
+  }
+
+  await updateDoc(ref, { 'push.suscripciones': arrayUnion(plana) });
 }
 
 /** Quita la suscripcion de este navegador. Darse de baja tiene que ser facil. */

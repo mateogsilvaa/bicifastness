@@ -117,7 +117,29 @@ service cloud.firestore {
       // cuenta comparten regla con esto.
       //
       // Darse de baja no puede depender de nadie, igual que con el correo.
-      allow update: if esYo(uid) && cambia().hasOnly(['push']);
+      //
+      // CON TOPE, y este importa mas que los otros. `push.enviar` recorre la
+      // lista y hace UNA peticion al servicio de avisos por cada entrada. Sin
+      // limite, una sola cuenta con la lista inflada convierte cada aviso en
+      // miles de peticiones salientes: se come el tiempo de ejecucion del
+      // worker —que es de GitHub Actions y esta contado— y ademas lo pone a
+      // aporrear servidores de terceros en nombre del proyecto.
+      //
+      // Diez son de sobra: son navegadores distintos de la misma persona, y el
+      // worker ademas va limpiando las que el servicio ya no reconoce.
+      //
+      // Las claves tambien se acotan. Era el unico `update` del fichero sin
+      // ninguna comprobacion de lo que se escribe, y `push` es un mapa: cabe
+      // dentro cualquier cosa, hasta llenar el documento.
+      // `ultimoAvisoRacha` lo escribe el worker; va en la lista porque
+      // `datos()` es el documento RESULTANTE y si ya existe tiene que poder
+      // seguir ahi.
+      allow update: if esYo(uid)
+        && cambia().hasOnly(['push'])
+        && datos().push.keys().hasOnly(['suscripciones', 'avisos', 'ultimoAvisoRacha'])
+        && (!('suscripciones' in datos().push)
+            || (datos().push.suscripciones is list
+                && datos().push.suscripciones.size() <= 10));
 
       // El clan al que pertenece (#29).
       //

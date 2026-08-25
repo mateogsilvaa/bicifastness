@@ -733,6 +733,54 @@ test('el trabajo diario no recorre colecciones enteras en cada pasada', () => {
     'la marca se escribe antes de terminar: un corte dejaria el dia a medias');
 });
 
+test('las plantillas de correo escritas se envian de verdad', () => {
+  // Tres estaban escritas y probadas y no las enviaba nadie. La peor, la de
+  // viaje anulado: anular un viaje le quita a alguien puntos que ya tenia, y sin
+  // aviso lo que ve es que su puntuacion ha bajado sola de un dia para otro.
+  const worker = leerCodigo('backend/worker.js');
+
+  for (const plantilla of ['viajeAnulado', 'bienvenida', 'revisionLenta']) {
+    assert.match(worker, new RegExp(`plantillas\\.${plantilla}\\b`),
+      `la plantilla ${plantilla} esta escrita y no la envia nadie`);
+  }
+});
+
+test('los avisos repetibles llevan marca para no salir en cada pasada', () => {
+  // El worker corre cada cinco minutos: un aviso sin marca sale 288 veces al
+  // dia a la misma persona.
+  const worker = leerCodigo('backend/worker.js');
+
+  const bienvenida = worker.slice(worker.indexOf('async function darBienvenidas'));
+  assert.match(bienvenida.slice(0, 1400), /bienvenidaEnviada: true/,
+    'la bienvenida se enviaria en cada pasada');
+
+  const revision = worker.slice(worker.indexOf('async function avisarRevisionesLentas'));
+  assert.match(revision.slice(0, 1800), /avisoRevision: true/,
+    'el aviso de revision lenta se enviaria en cada pasada');
+
+  // Y la marca se pone aunque el correo falle: reintentarlo cada cinco minutos
+  // no lo arregla, y sin marca el bucle no para.
+  assert.match(bienvenida.slice(0, 1400), /if \(!SIMULAR\) await doc\.ref\.update\(\{ bienvenidaEnviada: true \}\);\s*\n\s*if \(enviado\)/,
+    'la marca depende de que el correo salga: un fallo deja el aviso en bucle');
+});
+
+test('el correo de bienvenida se puede encontrar con una consulta', () => {
+  // `where('bienvenidaEnviada', '==', false)` NO encuentra los documentos donde
+  // el campo falta: en Firestore un campo ausente no lo devuelve ninguna
+  // consulta. Si el alta no lo escribe, la consulta sale siempre vacia y nadie
+  // recibe la bienvenida — que es exactamente el fallo que esto arregla, pero
+  // por otra via.
+  assert.match(leerCodigo('assets/js/acciones.js'), /bienvenidaEnviada: false/,
+    'el alta no escribe el campo: la consulta del worker no encontraria a nadie');
+
+  const usuarios = bloque('usuarios');
+  const alta = usuarios.match(/allow create[\s\S]*?hasOnly\(\[([^\]]+)\]\)/)[1];
+  assert.ok(alta.includes('bienvenidaEnviada'),
+    'las reglas rechazarian el alta: el campo no esta en la lista');
+  assert.match(usuarios, /datos\(\)\.bienvenidaEnviada == false/,
+    'el alta podria nacer con la bienvenida ya marcada como enviada');
+});
+
 test('las tres piezas de clanes y rachas que nadie llamaba estan enchufadas', () => {
   // Las tres estaban escritas, exportadas y probadas, y sin una sola llamada en
   // produccion. Una funcion probada que no llama nadie da la misma sensacion de

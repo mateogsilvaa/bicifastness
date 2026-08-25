@@ -71,8 +71,14 @@ service cloud.firestore {
         && datos().keys().hasOnly([
           'uid', 'username', 'usernameLower', 'avatarUrl',
           'biciRating', 'viajesVerificados', 'puntosPorRuta', 'logros',
-          'clanId', 'favoritas', 'suspendido', 'creado', 'consentimiento'
+          'clanId', 'favoritas', 'suspendido', 'creado', 'consentimiento',
+          'bienvenidaEnviada'
         ])
+        // Nace en `false`, no ausente: es lo que permite al worker encontrar a
+        // quien falta por saludar con una consulta indexada en vez de recorrer
+        // `usuarios` entera. Un campo que falta no lo encuentra ninguna
+        // consulta de Firestore.
+        && datos().bienvenidaEnviada == false
         && datos().username is string
         && datos().username.size() >= 3 && datos().username.size() <= 24
         && datos().biciRating == 0

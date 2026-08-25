@@ -42,7 +42,6 @@ const leer = (rel) => fs.readFileSync(path.join(RAIZ, rel), 'utf8');
 
 const AHORA = new Date('2026-08-23T12:00:00Z');
 const haceDias = (n) => new Date(AHORA.getTime() - n * 86400000);
-const dia = (f) => f.toISOString().slice(0, 10);
 
 /**
  * `ultimoDiaActivo` tal y como lo guarda produccion: la medianoche del dia en

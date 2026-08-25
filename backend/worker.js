@@ -61,6 +61,14 @@ const SOLO_UNO = process.argv.includes('--once');
 const MAX_POR_TANDA = SOLO_UNO ? 1 : 25;
 
 /**
+ * A partir de cuantas horas en revision manual se avisa al piloto.
+ *
+ * 24 y no 2: la revision la hace una persona, y una persona duerme. Avisar a
+ * las dos horas seria avisar de que el sistema funciona como esta previsto.
+ */
+const HORAS_REVISION_LENTA = 24;
+
+/**
  * Cuanto tiempo se queda vivo el worker dando pasadas a la cola, y cuanto
  * espera entre una y otra (#14).
  *
@@ -490,6 +498,73 @@ async function borrarCapturaSiSobra(doc, viaje) {
  *
  * Que falle el correo no puede afectar al veredicto: el viaje ya esta resuelto.
  */
+/**
+ * Manda un correo a un piloto, respetando su preferencia y su baja.
+ *
+ * Sale de `avisarRechazo`, que era el unico sitio que sabia hacer esto. Habia
+ * tres plantillas mas escritas y probadas —bienvenida, viaje anulado y revision
+ * lenta— que no enviaba nadie, y duplicar estas veinte lineas por cada una es
+ * como se acaba enviando correo a quien pidio no recibirlo.
+ *
+ * `plantilla` recibe `{ nombre, tokenBaja, ...extra }`.
+ *
+ * @returns {boolean} si el correo ha salido
+ */
+async function avisarPorCorreo(uid, plantilla, extra = {}) {
+  try {
+    const refUsuario = db.doc(`usuarios/${uid}`);
+    const usuario = await refUsuario.get();
+    if (!usuario.exists) return false;
+
+    const datos = usuario.data();
+
+    // Respeta la preferencia. Un aviso sobre el propio viaje es transaccional y
+    // se puede enviar sin consentimiento, pero a quien lo ha desactivado a
+    // proposito no se le insiste.
+    if (datos.avisosCorreo === false) return false;
+
+    // El correo se pide a Firebase Auth, no al documento: ahi es donde vive
+    // (#60), y ademas nunca esta obsoleto.
+    // OJO con el nombre: `correo` es el modulo de envio importado arriba. Una
+    // variable local con ese nombre lo taparia y `correo.enviar(...)` reventaria.
+    let destinatario = null;
+    try {
+      destinatario = (await admin.auth().getUser(uid)).email || null;
+    } catch {
+      return false;   // cuenta borrada: no hay a quien avisar
+    }
+    if (!destinatario) return false;
+
+    // El token de baja se crea la primera vez y se queda. Si cambiara en cada
+    // correo, un enlace de hace dos dias dejaria de funcionar, que es justo lo
+    // que hace que la gente marque spam.
+    let tokenBaja = datos.tokenBaja;
+    if (!tokenBaja) {
+      tokenBaja = correo.generarTokenBaja();
+      if (!SIMULAR) await refUsuario.update({ tokenBaja });
+    }
+
+    const mensaje = plantilla({ nombre: datos.username || 'piloto', tokenBaja, ...extra });
+
+    const resultado = await correo.enviar({
+      ...mensaje,
+      para: destinatario,
+      remitente: REMITENTE,
+      apiKey: process.env.RESEND_API_KEY,
+      simular: SIMULAR,
+    });
+
+    if (resultado.error) {
+      console.warn(`  aviso no enviado a ${uid}: ${resultado.error}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`  no se ha podido avisar a ${uid}:`, err.message);
+    return false;
+  }
+}
+
 async function avisarRechazo(viaje, veredicto) {
   try {
     const usuario = await db.doc(`usuarios/${viaje.uid}`).get();
@@ -767,6 +842,16 @@ async function revertirPremio(doc, viaje) {
   await doc.ref.update({ premiado: false });
   console.log(`  [${doc.id}] revertidos ${viaje.puntos || 0} puntos y `
     + `${((viaje.distanciaMetros || 0) / 1000).toFixed(2)} km`);
+
+  // Y se le dice. Anular un viaje le quita a alguien puntos que ya tenia: si no
+  // se avisa, lo que ve es que su puntuacion ha bajado sola de un dia para otro
+  // y no hay forma de que sepa por que. La plantilla existia desde el principio
+  // y no la enviaba nadie.
+  await avisarPorCorreo(viaje.uid, plantillas.viajeAnulado, {
+    ruta: viaje.ruta,
+    motivo: viaje.motivoRevision || viaje.auditoria?.resumen
+      || 'Una revision posterior no ha podido dar el trayecto por bueno.',
+  });
 }
 
 /**
@@ -1074,6 +1159,93 @@ async function avisarRachasEnPeligro() {
  * idempotente no quiere decir gratis.
  */
 /**
+ * Da la bienvenida a quien acaba de registrarse.
+ *
+ * La plantilla estaba escrita y probada desde #46 y no la enviaba nadie: nadie
+ * ha recibido nunca el correo de bienvenida.
+ *
+ * Va en cada pasada y no en el trabajo diario porque un saludo que llega al dia
+ * siguiente no es un saludo. La consulta es indexada y acotada: cuesta tanto
+ * como pilotos nuevos haya, que casi siempre son cero.
+ */
+async function darBienvenidas() {
+  try {
+    const nuevos = await db.collection('usuarios')
+      .where('bienvenidaEnviada', '==', false)
+      .limit(20)
+      .get();
+
+    if (nuevos.empty) return 0;
+
+    let saludados = 0;
+
+    for (const doc of nuevos.docs) {
+      const enviado = await avisarPorCorreo(doc.id, plantillas.bienvenida);
+
+      // La marca se pone salga o no el correo. Si ha fallado, reintentarlo en
+      // la siguiente pasada tampoco va a arreglarlo, y sin marca este perfil
+      // volveria a salir en la consulta 288 veces al dia.
+      if (!SIMULAR) await doc.ref.update({ bienvenidaEnviada: true });
+      if (enviado) saludados++;
+    }
+
+    if (saludados) console.log(`Bienvenidas: ${saludados} piloto(s) nuevo(s).`);
+    return saludados;
+  } catch (error) {
+    console.warn('No se han podido enviar las bienvenidas:', error.message);
+    return 0;
+  }
+}
+
+/**
+ * Avisa de los viajes que llevan demasiado tiempo esperando a una persona.
+ *
+ * Un viaje que cae en revision manual no tiene plazo: se queda ahi hasta que
+ * alguien abra el panel. Desde fuera es indistinguible de que se haya perdido, y
+ * la plantilla para decirlo llevaba escrita desde el principio sin que la
+ * enviara nadie.
+ *
+ * La marca `avisoRevision` va en el propio viaje: sin ella, el aviso saldria en
+ * cada pasada mientras siga en revision, o sea 288 veces al dia.
+ */
+async function avisarRevisionesLentas() {
+  try {
+    const limite = Date.now() - HORAS_REVISION_LENTA * 3600 * 1000;
+
+    const enRevision = await db.collection('tiempos_viaje')
+      .where('estado', '==', 'revision')
+      .limit(50)
+      .get();
+
+    if (enRevision.empty) return 0;
+
+    let avisados = 0;
+
+    for (const doc of enRevision.docs) {
+      const viaje = doc.data();
+      if (viaje.avisoRevision) continue;
+
+      const desde = viaje.revisadoEn?.toMillis?.() ?? viaje.creado?.toMillis?.() ?? null;
+      if (desde === null || desde > limite) continue;
+
+      const enviado = await avisarPorCorreo(viaje.uid, plantillas.revisionLenta, { ruta: viaje.ruta });
+
+      // La marca va DESPUES del envio, y se pone tambien si el correo no sale:
+      // reintentarlo cada pasada no lo va a arreglar, y sin marca este viaje
+      // volveria a intentarlo 288 veces al dia.
+      if (!SIMULAR) await doc.ref.update({ avisoRevision: true });
+      if (enviado) avisados++;
+    }
+
+    if (avisados) console.log(`Revisiones lentas: ${avisados} piloto(s) avisado(s).`);
+    return avisados;
+  } catch (error) {
+    console.warn('No se ha podido avisar de las revisiones lentas:', error.message);
+    return 0;
+  }
+}
+
+/**
  * Lo que se hace una vez al dia, y una sola.
  *
  * Las dos operaciones de aqui recorren colecciones enteras, y el worker se
@@ -1097,6 +1269,7 @@ async function trabajoDiario() {
     if (marca.exists && marca.data().ultimoDia === hoy) return false;
 
     await cerrarRachas();
+    await avisarRevisionesLentas();
 
     const rescatados = await clanes.rescatarSinLider({ simular: SIMULAR });
     if (rescatados) console.log(`Clanes: ${rescatados} rescatado(s) de un lider inactivo.`);
@@ -1410,6 +1583,7 @@ async function main() {
   await procesarBorrados();
   await mantenerClanes();
   await procesarInvitaciones();
+  await darBienvenidas();
   await trabajoDiario();
 
   // Los agregados se reconstruyen UNA VEZ al final, no por viaje: es la

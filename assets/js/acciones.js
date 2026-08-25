@@ -70,6 +70,10 @@ export async function crearPerfil({ username }) {
     clanId: null,
     favoritas: [],
     suspendido: false,
+    // En `false` y no ausente: asi el worker encuentra a quien falta por saludar
+    // con una consulta indexada, en vez de recorrer `usuarios` entera. Un campo
+    // que falta no lo encuentra ninguna consulta de Firestore.
+    bienvenidaEnviada: false,
     creado: serverTimestamp(),
     // Registro de consentimiento: el RGPD exige poder demostrar QUE se acepto,
     // CUANDO y sobre QUE version del texto.

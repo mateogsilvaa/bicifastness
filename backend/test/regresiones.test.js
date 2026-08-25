@@ -817,6 +817,35 @@ test('la gestion de clanes tiene interfaz, no solo acciones', () => {
     'falta el panel donde se pinta');
 });
 
+test('ceder el mando no deja a nadie en las dos listas', () => {
+  // El comentario decia que el nuevo lider deja de ser oficial y el codigo hacia
+  // solo la otra mitad: metia al anterior y no sacaba al nuevo. No se puede
+  // arreglar con `arrayUnion` y `arrayRemove` a la vez — Firestore no admite las
+  // dos sobre el mismo campo en una escritura — asi que la lista va entera.
+  const acciones = leerCodigo('assets/js/acciones.js');
+  const ceder = acciones.slice(
+    acciones.indexOf('export async function cederLiderazgo'),
+    acciones.indexOf('export async function abandonarClan'),
+  );
+
+  assert.ok(!/arrayUnion/.test(ceder),
+    'no se puede combinar arrayUnion y arrayRemove sobre oficiales en una escritura');
+  assert.match(ceder, /uid !== nuevoLiderUid/,
+    'el nuevo lider se queda tambien de oficial');
+});
+
+test('a un lider no se le ofrece salir del clan', () => {
+  // `abandonarClan` se niega si eres el lider. Ensenarle el boton es ofrecerle
+  // algo que siempre va a fallar; y si es el ultimo, lo unico que puede hacer es
+  // disolver.
+  const pantalla = leerCodigo('assets/js/mi-clan.js');
+  const salida = pantalla.slice(pantalla.indexOf('function bloqueSalida'));
+
+  assert.match(salida.slice(0, 2200), /if \(soyLider && !solo\)/);
+  assert.match(salida.slice(0, 2200), /if \(soyLider\) \{/,
+    'el lider que se queda solo tiene que poder disolver');
+});
+
 test('la pantalla del clan no depende de que exista el agregado', () => {
   // `agregados/clan-{id}` lo escribe `recalcularClan`, que solo corre cuando
   // cambian los puntos de alguien del clan. Un clan RECIEN CREADO no lo tiene:

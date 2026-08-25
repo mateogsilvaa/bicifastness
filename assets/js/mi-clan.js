@@ -201,39 +201,60 @@ function bloqueInvitacion() {
   ]);
 }
 
-/** Salir, y disolver si eres el ultimo que manda. */
+/**
+ * Dejar el clan. Tres situaciones distintas, y solo una salida en cada una.
+ *
+ * `abandonarClan` se niega si eres el lider — "cede el liderazgo o disuelve el
+ * clan antes de irte" — asi que ensenarle a un lider el boton de salir es
+ * ofrecerle algo que siempre va a fallar. Cada caso ve lo unico que puede hacer.
+ */
 function bloqueSalida() {
   const soyLider = papel() === 'lider';
   const solo = (clan.miembros || []).length <= 1;
 
+  const salir = () => boton('Salir del clan', async () => {
+    const seguro = await confirmar('Vas a salir del clan. Tus puntos son tuyos y no se pierden.',
+      { textoAceptar: 'Salir', peligroso: true });
+    if (!seguro) return;
+    await abandonarClan(clanId);
+    await recargar();
+  }, { peligroso: true });
+
+  const disolver = () => boton('Disolver el clan', async () => {
+    const seguro = await confirmar(
+      'Vas a disolver el clan. Desaparece del mapa y del ranking, y no hay vuelta atras.',
+      { textoAceptar: 'Disolver', peligroso: true },
+    );
+    if (!seguro) return;
+    await disolverClan(clanId);
+    await recargar();
+  }, { peligroso: true });
+
+  // Lider con gente dentro: primero cede. Irse dejaria el clan sin nadie que
+  // pueda aceptar, expulsar ni disolver.
+  if (soyLider && !solo) {
+    return el('div', { clase: 'bloque' }, [
+      el('p', { clase: 'etiqueta', texto: 'Dejar el clan' }),
+      el('p', {
+        clase: 'menor apagado',
+        texto: 'Eres el lider. Cede el mando a alguien de la plantilla antes de irte, '
+          + 'o el clan se queda sin nadie que pueda gestionarlo.',
+      }),
+    ]);
+  }
+
+  // Lider y ultimo: salir no se puede, asi que lo unico es disolver.
+  if (soyLider) {
+    return el('div', { clase: 'bloque' }, [
+      el('p', { clase: 'etiqueta', texto: 'Dejar el clan' }),
+      el('p', { clase: 'menor apagado', texto: 'Eres el unico que queda: irte es disolverlo.' }),
+      disolver(),
+    ]);
+  }
+
   return el('div', { clase: 'bloque' }, [
     el('p', { clase: 'etiqueta', texto: 'Dejar el clan' }),
-
-    soyLider && !solo
-      ? el('p', {
-        clase: 'menor apagado',
-        texto: 'Eres el lider: cede el mando a alguien de la plantilla antes de irte, '
-          + 'o el clan se queda sin nadie que pueda gestionarlo.',
-      })
-      : boton('Salir del clan', async () => {
-        const seguro = await confirmar('Vas a salir del clan. Tus puntos son tuyos y no se pierden.',
-          { textoAceptar: 'Salir', peligroso: true });
-        if (!seguro) return;
-        await abandonarClan(clanId);
-        await recargar();
-      }, { peligroso: true }),
-
-    soyLider && solo
-      ? boton('Disolver el clan', async () => {
-        const seguro = await confirmar(
-          'Vas a disolver el clan. Desaparece del mapa y del ranking, y no hay vuelta atras.',
-          { textoAceptar: 'Disolver', peligroso: true },
-        );
-        if (!seguro) return;
-        await disolverClan(clanId);
-        await recargar();
-      }, { peligroso: true })
-      : null,
+    salir(),
   ]);
 }
 

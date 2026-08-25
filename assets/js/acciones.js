@@ -444,11 +444,19 @@ export async function cederLiderazgo(clanId, nuevoLiderUid) {
     throw new Error('El nuevo lider tiene que ser del clan.');
   }
 
+  // La lista se calcula entera y se manda entera. No se puede hacer con
+  // `arrayUnion` y `arrayRemove` a la vez sobre el mismo campo — Firestore no
+  // admite las dos en una escritura— y el comentario decia una cosa mientras el
+  // codigo hacia solo la mitad: el nuevo lider se quedaba tambien de oficial,
+  // en las dos listas.
+  const oficiales = [...new Set([...(clan.oficiales || []), clan.lider])]
+    .filter((uid) => uid !== nuevoLiderUid);
+
   await updateDoc(snap.ref, {
     lider: nuevoLiderUid,
-    // El nuevo lider ya no necesita ser oficial, y el anterior pasa a serlo:
-    // asi quien monto el clan no se queda sin poder ayudar a gestionarlo.
-    oficiales: arrayUnion(clan.lider),
+    // El anterior pasa a oficial: asi quien monto el clan no se queda sin poder
+    // ayudar a gestionarlo.
+    oficiales,
   });
 }
 

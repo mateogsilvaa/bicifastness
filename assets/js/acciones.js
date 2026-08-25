@@ -537,8 +537,23 @@ export async function usarInvitacion(codigo) {
     throw new Error('Esa invitacion ya se ha usado.');
   }
 
-  await updateDoc(doc(db, 'clanes', invitacion.clanId), {
-    solicitudes: arrayUnion(uidActual()),
+  // La peticion, con el codigo dentro. Antes esto se limitaba a meter al
+  // candidato en `solicitudes`, o sea a convertir el enlace de invitacion en una
+  // solicitud normal que el lider tenia que aprobar a mano: exactamente lo que
+  // un enlace de invitacion existe para evitar. Y el codigo no se guardaba en
+  // ningun sitio, asi que el worker no tenia forma de saber que invitacion
+  // gastar.
+  //
+  // Si habia una peticion anterior se borra primero: `create` no puede
+  // sobrescribir, y una peticion resuelta bloquearia todos los intentos
+  // siguientes.
+  const ref = doc(db, 'usos_invitacion', uidActual());
+  await deleteDoc(ref).catch(() => {});
+  await setDoc(ref, {
+    uid: uidActual(),
+    codigo,
+    estado: 'pendiente',
+    creada: serverTimestamp(),
   });
 
   return invitacion.clanId;

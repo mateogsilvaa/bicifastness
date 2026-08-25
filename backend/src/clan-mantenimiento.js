@@ -175,8 +175,63 @@ function elegirSucesor(clan, miembros, ahora = new Date(), diasInactivo = DIAS_L
   return resto.length ? resto[0].uid : null;
 }
 
+/**
+ * Rescata los clanes cuyo lider lleva desaparecido (#29).
+ *
+ * `elegirSucesor` decidia a quien pasarle el mando, pero no la llamaba nadie: un
+ * clan cuyo lider desaparece se quedaba sin nadie que pudiera aceptar, expulsar
+ * ni disolver. Bloqueado para siempre, y con gente dentro.
+ *
+ * Se lee `clanes` entera —son pocas decenas— y los usuarios que dicen tener
+ * clan, que es la misma consulta acotada que usa `limpiarHuerfanos`. Corre una
+ * vez al dia, no en cada pasada: un lider no desaparece en cinco minutos.
+ */
+async function rescatarSinLider({ simular = false, ahora = new Date(), tope = 500 } = {}) {
+  const [clanesSnap, conClan] = await Promise.all([
+    db().collection('clanes').get(),
+    db().collection('usuarios').where('clanId', '!=', null).limit(tope).get(),
+  ]);
+
+  if (clanesSnap.empty) return 0;
+
+  const porClan = new Map();
+  for (const doc of conClan.docs) {
+    const { clanId, ultimoDiaActivo } = doc.data();
+    if (!clanId) continue;
+    if (!porClan.has(clanId)) porClan.set(clanId, []);
+    porClan.get(clanId).push({ uid: doc.id, ultimoDiaActivo });
+  }
+
+  let rescatados = 0;
+
+  for (const doc of clanesSnap.docs) {
+    const clan = doc.data();
+    const miembros = porClan.get(doc.id) || [];
+    if (!miembros.length) continue;
+
+    const sucesor = elegirSucesor(clan, miembros, ahora);
+    if (!sucesor || sucesor === clan.lider) continue;
+
+    if (!simular) {
+      await doc.ref.update({
+        lider: sucesor,
+        // Quien hereda el mando deja de ser oficial: ya no hay cargo por encima
+        // del que ocupar, y dejarlo en las dos listas confunde a las reglas.
+        oficiales: admin.firestore.FieldValue.arrayRemove(sucesor),
+        liderazgoHeredado: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    console.log(`  clan ${doc.id}: el mando pasa a ${sucesor} (lider inactivo)`);
+    rescatados++;
+  }
+
+  return rescatados;
+}
+
 module.exports = {
   limpiarHuerfanos,
+  rescatarSinLider,
   invitacionValida,
   aplicarInvitacion,
   elegirSucesor,

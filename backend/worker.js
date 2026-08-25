@@ -51,7 +51,6 @@ const agregados = require('./src/agregados');
 const push = require('./src/push');
 const almacen = require('./src/db');
 const misiones = require('./src/misiones');
-const territorio = require('./src/territorio');
 
 const SIMULAR = process.argv.includes('--simular');
 const SOLO_UNO = process.argv.includes('--once');
@@ -1074,18 +1073,45 @@ async function avisarRachasEnPeligro() {
  * romperse `racha` queda en 0 y la siguiente llamada no hace nada — pero
  * idempotente no quiere decir gratis.
  */
-async function cerrarRachas() {
+/**
+ * Lo que se hace una vez al dia, y una sola.
+ *
+ * Las dos operaciones de aqui recorren colecciones enteras, y el worker se
+ * despierta cada cinco minutos: sin una marca, cada una se repetiria 288 veces
+ * al dia. La marca cuesta UNA lectura de un solo documento y las agrupa a las
+ * dos, en vez de una marca por operacion.
+ *
+ * La marca se escribe al FINAL. Si la ejecucion se corta a medias, la siguiente
+ * pasada lo reintenta entero: las dos operaciones son idempotentes, asi que a
+ * quien ya se proceso no le vuelve a pasar nada.
+ */
+async function trabajoDiario() {
   const hoy = diaMadrid();
-  // Mismo sitio que el resto de marcas del worker: un documento suelto bajo
-  // `config`, como `config/agregados_pendientes`. Solo lo lee y lo escribe el
-  // Admin SDK, y el cierre por defecto de las reglas lo deja fuera del alcance
-  // del navegador sin tener que decir nada.
-  const ref = db.doc('config/rachas_ultimo_cierre');
+  // Un documento suelto bajo `config`, como `config/agregados_pendientes`. Solo
+  // lo toca el Admin SDK: el cierre por defecto de las reglas lo deja fuera del
+  // alcance del navegador sin tener que decir nada.
+  const ref = db.doc('config/trabajo_diario');
 
   try {
     const marca = await ref.get();
-    if (marca.exists && marca.data().ultimoCierre === hoy) return 0;
+    if (marca.exists && marca.data().ultimoDia === hoy) return false;
 
+    await cerrarRachas();
+
+    const rescatados = await clanes.rescatarSinLider({ simular: SIMULAR });
+    if (rescatados) console.log(`Clanes: ${rescatados} rescatado(s) de un lider inactivo.`);
+
+    if (!SIMULAR) await ref.set({ ultimoDia: hoy }, { merge: true });
+    return true;
+  } catch (error) {
+    // Que esto falle no puede parar la verificacion de viajes.
+    console.warn('El trabajo diario no ha podido terminar:', error.message);
+    return false;
+  }
+}
+
+async function cerrarRachas() {
+  try {
     const snap = await db.collection('usuarios').get();
 
     let lote = db.batch();
@@ -1130,11 +1156,6 @@ async function cerrarRachas() {
 
     if (enLote) await lote.commit();
 
-    // La marca va DESPUES. Si el recorrido se corta a medias, la siguiente
-    // pasada lo reintenta entero, y como la operacion es idempotente a quien ya
-    // se cerro no le vuelve a pasar nada.
-    if (!SIMULAR) await ref.set({ ultimoCierre: hoy }, { merge: true });
-
     if (tocados) {
       console.log(`Rachas: ${rotas} rotas, ${escudosGastados} escudo(s) gastado(s), `
         + `${tocados} piloto(s) afectado(s).`);
@@ -1158,10 +1179,65 @@ async function cerrarRachas() {
  * No afecta a la puntuacion — el clan suma desde su plantilla — pero su perfil
  * dice que sigue en un clan del que ya no es.
  */
+/**
+ * Resuelve las peticiones de entrar con un enlace de invitacion (#29).
+ *
+ * `clanes.aplicarInvitacion` estaba escrita, probada y sin llamar. Y la otra
+ * punta tampoco encajaba: el navegador se limitaba a meter al candidato en
+ * `solicitudes`, o sea a convertir el enlace en una solicitud normal que el
+ * lider tenia que aprobar a mano — justo lo que un enlace de invitacion existe
+ * para evitar — y el codigo no se guardaba en ningun sitio, asi que aqui no
+ * habia forma de saber que invitacion gastar.
+ *
+ * El resultado se escribe en la propia peticion en vez de borrarla: su dueño
+ * puede leerla, asi que es por donde se entera de que su invitacion habia
+ * caducado o que el clan estaba lleno. Borrarla dejaria a la persona mirando una
+ * pantalla que no cambia.
+ */
+async function procesarInvitaciones() {
+  try {
+    const pendientes = await db.collection('usos_invitacion')
+      .where('estado', '==', 'pendiente')
+      .limit(50)
+      .get();
+
+    if (pendientes.empty) return 0;
+
+    let entrados = 0;
+
+    for (const doc of pendientes.docs) {
+      const { codigo, uid } = doc.data();
+      if (!codigo || !uid) continue;
+
+      const resultado = await clanes.aplicarInvitacion(codigo, uid, { simular: SIMULAR });
+
+      if (!SIMULAR) {
+        await doc.ref.update({
+          estado: resultado.entrado ? 'entrado' : 'rechazado',
+          motivo: resultado.motivo || null,
+          clanId: resultado.clanId || null,
+          resuelta: AHORA(),
+        });
+      }
+
+      if (resultado.entrado) entrados++;
+      else console.log(`  invitacion ${codigo} para ${uid}: ${resultado.motivo}`);
+    }
+
+    if (entrados) console.log(`Invitaciones: ${entrados} piloto(s) han entrado en su clan.`);
+    return entrados;
+  } catch (error) {
+    // Que esto falle no puede parar la verificacion de viajes.
+    console.warn('No se han podido resolver las invitaciones:', error.message);
+    return 0;
+  }
+}
+
 async function mantenerClanes() {
   try {
     const limpiados = await clanes.limpiarHuerfanos({ simular: SIMULAR });
     if (limpiados) console.log(`Clanes: ${limpiados} usuario(s) sin clan actualizado(s).`);
+
     return limpiados;
   } catch (error) {
     // Que esto falle no puede parar la verificacion de viajes.
@@ -1333,7 +1409,8 @@ async function main() {
   await procesarBajas();
   await procesarBorrados();
   await mantenerClanes();
-  await cerrarRachas();
+  await procesarInvitaciones();
+  await trabajoDiario();
 
   // Los agregados se reconstruyen UNA VEZ al final, no por viaje: es la
   // operacion mas cara que hace el worker (#36).

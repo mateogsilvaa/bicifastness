@@ -377,6 +377,36 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // Peticion de usar un enlace de invitacion (#29).
+    //
+    // El navegador NO puede meterse solo en un clan: escribir en `clanes` es del
+    // lider, y `invitaciones` no admite `update` de nadie. Asi que deja aqui la
+    // peticion —"quiero entrar con este codigo"— y el worker la resuelve con el
+    // Admin SDK, que si puede tocar el clan, el contador de usos y el perfil a
+    // la vez sin que el cliente decida el resultado.
+    //
+    // El id del documento es el uid, a proposito: una peticion pendiente por
+    // persona. Con id libre, cualquiera podria dejar mil peticiones con el mismo
+    // codigo y vaciar los usos de una invitacion ajena.
+    match /usos_invitacion/{uid} {
+      allow read: if esYo(uid) || esAdmin();
+
+      allow create: if esYo(uid)
+        && datos().keys().hasOnly(['uid', 'codigo', 'estado', 'creada'])
+        && datos().uid == uid
+        && datos().codigo is string
+        && datos().codigo.matches('^[0-9a-f]{16,64}$')
+        // Nace pendiente y solo el worker la resuelve: si el cliente pudiera
+        // escribir el resultado, escribiria "entrado".
+        && datos().estado == 'pendiente'
+        && datos().creada == request.time;
+
+      // Reintentar es volver a crearla, y para eso hay que borrar la anterior:
+      // asi no se puede cambiar el codigo de una peticion ya encolada.
+      allow delete: if esYo(uid);
+      allow update: if false;
+    }
+
     match /estaciones_stats/{estacionId} {
       allow read: if true;
       allow write: if false;   // lo calcula el worker

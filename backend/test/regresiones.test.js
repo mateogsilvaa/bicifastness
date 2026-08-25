@@ -708,27 +708,52 @@ test('alguien cierra los dias perdidos de las rachas', () => {
   assert.match(worker, /rachas\.cerrarDiasPerdidos\(/,
     'nadie cierra los dias perdidos: las rachas no se rompen nunca');
 
-  // Y se llama desde la secuencia final, no solo definida.
+  // Y se ejecuta: `main` llama al trabajo diario, que es quien la llama.
   const principal = worker.slice(worker.indexOf('async function main'));
-  assert.match(principal, /await cerrarRachas\(\)/,
-    'la pasada de rachas esta escrita pero no se ejecuta');
+  assert.match(principal, /await trabajoDiario\(\)/,
+    'el trabajo diario esta escrito pero no se ejecuta');
+  assert.match(worker.slice(worker.indexOf('async function trabajoDiario')), /await cerrarRachas\(\)/,
+    'el trabajo diario no cierra las rachas');
 });
 
-test('el cierre de rachas no recorre usuarios en cada pasada', () => {
-  // El worker corre cada cinco minutos: sin marca, el recorrido de `usuarios`
-  // se repetiria en las doce pasadas que caen en la ventana de medianoche.
+test('el trabajo diario no recorre colecciones enteras en cada pasada', () => {
+  // El worker corre cada cinco minutos. Sin marca, las dos operaciones que
+  // recorren colecciones enteras se repetirian 288 veces al dia.
   const worker = leerCodigo('backend/worker.js');
-  const cierre = worker.slice(worker.indexOf('async function cerrarRachas'));
+  const diario = worker.slice(worker.indexOf('async function trabajoDiario'));
 
-  assert.match(cierre.slice(0, 900), /ultimoCierre/,
-    'sin marca del dia, el cierre recorre usuarios en cada pasada');
+  assert.match(diario.slice(0, 900), /ultimoDia/,
+    'sin marca del dia, el trabajo diario corre en cada pasada');
 
-  // Y la marca se escribe DESPUES del recorrido: si se corta a medias, la
-  // siguiente pasada lo reintenta entero.
-  const marca = cierre.indexOf('ultimoCierre: hoy');
-  const commit = cierre.indexOf('if (enLote) await lote.commit()');
-  assert.ok(commit !== -1 && marca > commit,
-    'la marca se escribe antes de terminar: un corte dejaria rachas sin cerrar');
+  // La marca se escribe DESPUES de las dos: si se corta a medias, la siguiente
+  // pasada lo reintenta entero, que es seguro porque son idempotentes.
+  const marca = diario.indexOf('ultimoDia: hoy');
+  const rescate = diario.indexOf('rescatarSinLider');
+  assert.ok(rescate !== -1 && marca > rescate,
+    'la marca se escribe antes de terminar: un corte dejaria el dia a medias');
+});
+
+test('las tres piezas de clanes y rachas que nadie llamaba estan enchufadas', () => {
+  // Las tres estaban escritas, exportadas y probadas, y sin una sola llamada en
+  // produccion. Una funcion probada que no llama nadie da la misma sensacion de
+  // seguridad que una que funciona, y no hace nada.
+  const worker = leerCodigo('backend/worker.js');
+  const mantenimiento = leerCodigo('backend/src/clan-mantenimiento.js');
+  const acciones = leerCodigo('assets/js/acciones.js');
+
+  assert.match(worker, /rachas\.cerrarDiasPerdidos\(/, 'las rachas no se rompen nunca');
+  assert.match(worker, /clanes\.aplicarInvitacion\(/, 'las invitaciones no se resuelven nunca');
+  assert.match(mantenimiento, /elegirSucesor\(clan, miembros, ahora\)/,
+    'los clanes sin lider no se rescatan nunca');
+  assert.match(worker, /clanes\.rescatarSinLider\(/);
+
+  // Y la otra punta del enlace de invitacion: el navegador tiene que dejar el
+  // CODIGO en algun sitio. Antes solo se metia en `solicitudes`, o sea que el
+  // enlace acababa siendo una solicitud normal que el lider aprobaba a mano.
+  assert.match(acciones, /usos_invitacion/,
+    'el navegador no guarda el codigo: el worker no sabe que invitacion gastar');
+  assert.match(bloque('usos_invitacion'), /allow update: if false/,
+    'el cliente podria escribirse el resultado de su propia invitacion');
 });
 
 test('alguien escribe el progreso de las misiones', () => {
@@ -945,8 +970,12 @@ test('la cola se procesa por orden de llegada', () => {
   // siempre cuando haya mas de MAX_POR_TANDA en cola. Y ademas invalida el
   // indice de arriba.
   const worker = leerCodigo('backend/worker.js');
-  const cola = worker.slice(worker.indexOf("where('estado', '==', 'pendiente')"));
+  // Anclado en la COLECCION y no en el filtro: `estado == 'pendiente'` lo usan
+  // tambien las peticiones de invitacion, y buscar solo el filtro encontraba la
+  // consulta equivocada.
+  const cola = worker.slice(worker.indexOf("collection('tiempos_viaje')\n    .where('estado', '==', 'pendiente')"));
 
+  assert.ok(cola, 'ya no se encuentra la consulta de la cola de viajes');
   assert.match(cola.slice(0, 200), /orderBy\('creado', 'asc'\)/,
     'la cola dejaria de ser FIFO');
 });

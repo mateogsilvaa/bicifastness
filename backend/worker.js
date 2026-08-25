@@ -445,6 +445,11 @@ async function resolver(doc, veredicto) {
     varianteCaptura: veredicto.varianteCaptura || null,
     revisadoPor: 'automatico',
     revisadoEn: AHORA(),
+    // Marca para el aviso de revision lenta. En `false` y no ausente: un campo
+    // que falta no lo devuelve ninguna consulta de Firestore, y sin poder
+    // filtrar habria que traer la cola entera y descartar en memoria — que es
+    // como los viajes ya avisados acaban ocupando el hueco de los nuevos.
+    ...(veredicto.decision === 'revision' ? { avisoRevision: false } : {}),
   });
 
   if (aprobado) {
@@ -508,12 +513,16 @@ async function borrarCapturaSiSobra(doc, viaje) {
  *
  * `plantilla` recibe `{ nombre, tokenBaja, ...extra }`.
  *
+ * `yaLeido` evita releer el perfil cuando quien llama ya lo tiene en la mano:
+ * las bienvenidas salen de una consulta sobre `usuarios`, y sin esto cada
+ * piloto nuevo costaba dos lecturas del mismo documento.
+ *
  * @returns {boolean} si el correo ha salido
  */
-async function avisarPorCorreo(uid, plantilla, extra = {}) {
+async function avisarPorCorreo(uid, plantilla, extra = {}, yaLeido = null) {
   try {
     const refUsuario = db.doc(`usuarios/${uid}`);
-    const usuario = await refUsuario.get();
+    const usuario = yaLeido || await refUsuario.get();
     if (!usuario.exists) return false;
 
     const datos = usuario.data();
@@ -1180,7 +1189,7 @@ async function darBienvenidas() {
     let saludados = 0;
 
     for (const doc of nuevos.docs) {
-      const enviado = await avisarPorCorreo(doc.id, plantillas.bienvenida);
+      const enviado = await avisarPorCorreo(doc.id, plantillas.bienvenida, {}, doc);
 
       // La marca se pone salga o no el correo. Si ha fallado, reintentarlo en
       // la siguiente pasada tampoco va a arreglarlo, y sin marca este perfil
@@ -1205,8 +1214,20 @@ async function darBienvenidas() {
  * la plantilla para decirlo llevaba escrita desde el principio sin que la
  * enviara nadie.
  *
- * La marca `avisoRevision` va en el propio viaje: sin ella, el aviso saldria en
- * cada pasada mientras siga en revision, o sea 288 veces al dia.
+ * La marca `avisoRevision` va en el propio viaje, y la escribe `resolver()` en
+ * `false` al mandarlo a revision. Dos razones, y la segunda no es evidente:
+ *
+ *   1. sin marca el aviso saldria en cada pasada, o sea 288 veces al dia
+ *   2. la consulta puede FILTRAR por ella. Filtrar en memoria sobre los
+ *      primeros 50 parecia equivalente y no lo es: un viaje sigue en revision
+ *      hasta que una persona lo resuelve, asi que los ya avisados se quedan
+ *      ocupando el hueco, y con la cola cargada los nuevos no llegan a mirarse
+ *      nunca
+ *
+ * Solo entran los que manda a revision el worker. Los que llegan por una
+ * impugnacion o porque la administracion los mueve a mano no llevan la marca y
+ * no se avisan, que es lo correcto: en los dos casos quien esta al otro lado ya
+ * sabe que el viaje esta ahi.
  */
 async function avisarRevisionesLentas() {
   try {
@@ -1214,6 +1235,7 @@ async function avisarRevisionesLentas() {
 
     const enRevision = await db.collection('tiempos_viaje')
       .where('estado', '==', 'revision')
+      .where('avisoRevision', '==', false)
       .limit(50)
       .get();
 
@@ -1223,7 +1245,6 @@ async function avisarRevisionesLentas() {
 
     for (const doc of enRevision.docs) {
       const viaje = doc.data();
-      if (viaje.avisoRevision) continue;
 
       const desde = viaje.revisadoEn?.toMillis?.() ?? viaje.creado?.toMillis?.() ?? null;
       if (desde === null || desde > limite) continue;
@@ -1533,6 +1554,7 @@ async function procesarCola(cuenta) {
       if (!SIMULAR) {
         await doc.ref.update({
           estado: 'revision',
+          avisoRevision: false,
           auditoria: {
             resumen: 'El analisis automatico ha fallado. Requiere revision humana.',
             riesgo: 50,

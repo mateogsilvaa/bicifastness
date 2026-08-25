@@ -830,8 +830,17 @@ test('los avisos repetibles llevan marca para no salir en cada pasada', () => {
     'la bienvenida se enviaria en cada pasada');
 
   const revision = worker.slice(worker.indexOf('async function avisarRevisionesLentas'));
-  assert.match(revision.slice(0, 1800), /avisoRevision: true/,
+  assert.match(revision.slice(0, 2600), /avisoRevision: true/,
     'el aviso de revision lenta se enviaria en cada pasada');
+
+  // Y la marca tiene que poder FILTRARSE, no solo mirarse en memoria. Un viaje
+  // sigue en revision hasta que una persona lo resuelve: descartando en memoria
+  // sobre los primeros 50, los ya avisados se quedan ocupando el hueco y con la
+  // cola cargada los nuevos no llegan a mirarse nunca.
+  assert.match(revision.slice(0, 2600), /where\('avisoRevision', '==', false\)/,
+    'la consulta no filtra por la marca: los avisados tapan a los nuevos');
+  assert.match(worker.slice(worker.indexOf('async function resolver')), /avisoRevision: false/,
+    'nadie escribe la marca al mandar un viaje a revision, asi que la consulta no lo encuentra');
 
   // Y la marca se pone aunque el correo falle: reintentarlo cada cinco minutos
   // no lo arregla, y sin marca el bucle no para.

@@ -117,6 +117,31 @@ test('el material antifraude y los secretos estan cerrados', () => {
   assert.match(bloque('secrets'), /allow read, write: if false/);
 });
 
+test('toda coleccion que toca el navegador tiene su regla', () => {
+  // El cierre por defecto deniega lo que no este declarado. Eso esta bien —es
+  // lo que hace que una coleccion nueva no nazca abierta— pero significa que
+  // olvidarse de la regla no se nota hasta que alguien usa la pantalla en
+  // produccion y se lleva un `permission-denied`. Aqui se nota antes.
+  const usadas = new Set();
+
+  for (const fichero of recorrerProyecto(/\.js$/)) {
+    const rel = path.relative(RAIZ, fichero);
+    if (!rel.startsWith('assets/js/')) continue;
+
+    const codigo = leerCodigo(rel);
+    for (const m of codigo.matchAll(/collection\(db,\s*'([a-z_]+)'/g)) usadas.add(m[1]);
+    for (const m of codigo.matchAll(/doc\(db,\s*'([a-z_]+)'/g)) usadas.add(m[1]);
+  }
+
+  assert.ok(usadas.size >= 10, `esperaba varias colecciones, encontradas ${usadas.size}`);
+
+  const declaradas = new Set([...REGLAS.matchAll(/match \/([a-z_]+)\//g)].map((m) => m[1]));
+  const sinRegla = [...usadas].filter((c) => !declaradas.has(c)).sort();
+
+  assert.deepStrictEqual(sinRegla, [],
+    `el navegador usa estas colecciones y no tienen regla: ${sinRegla.join(', ')}`);
+});
+
 test('las reglas cierran por defecto', () => {
   const cierre = REGLAS.slice(REGLAS.lastIndexOf('match /{document=**}'));
   assert.match(cierre, /allow read, write: if false/);

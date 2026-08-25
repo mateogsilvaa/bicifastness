@@ -1170,6 +1170,11 @@ const CONSULTAS_COMPUESTAS = [
     coleccion: 'usuarios',
     campos: [['clanId', 'ASCENDING'], ['biciRating', 'DESCENDING']],
   },
+  {
+    donde: 'worker.avisarRevisionesLentas(): los que esperan y aun no se han avisado',
+    coleccion: 'tiempos_viaje',
+    campos: [['estado', 'ASCENDING'], ['avisoRevision', 'ASCENDING']],
+  },
 ];
 
 test('cada consulta compuesta tiene su indice declarado', () => {

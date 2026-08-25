@@ -19,7 +19,31 @@ const divisiones = require('../src/divisiones');
 
 test('la temporada es el mes natural', () => {
   assert.strictEqual(temporadas.idTemporada(new Date('2026-08-20T10:00:00Z')), '2026-08');
+  // 01:00 en Madrid del 1 de enero: el mes ya ha cambiado aqui, y aqui es donde
+  // se juega. (En UTC son las 00:00 del 1, asi que las dos coinciden.)
   assert.strictEqual(temporadas.idTemporada(new Date('2026-01-01T00:00:00Z')), '2026-01');
+});
+
+test('el mes es el de Madrid, no el de UTC', () => {
+  // Una o dos horas al mes de diferencia, y caen justo donde mas duele.
+  //
+  // Lanzando el cierre a mano a las 00:30 del dia 1, en UTC todavia es el mes
+  // anterior: `temporadaAnterior` devolvia el mes de ANTES, uno que ya estaba
+  // cerrado. Y como cerrar es idempotente, no fallaba — contestaba "ya cerrada",
+  // quien lo lanzo se quedaba tranquilo y el mes recien terminado no se
+  // archivaba nunca.
+  const medianocheLarga = new Date('2026-08-31T22:30:00Z');   // 00:30 del 1-sep en Madrid
+
+  assert.strictEqual(temporadas.idTemporada(medianocheLarga), '2026-09',
+    'con el mes UTC diria 2026-08 y se cerraria la temporada equivocada');
+  assert.strictEqual(
+    temporadas.temporadaAnterior(temporadas.idTemporada(medianocheLarga)), '2026-08',
+    'el cierre tiene que archivar el mes que acaba de terminar');
+
+  // Y el cambio de año, por el mismo camino.
+  const finDeAnio = new Date('2026-12-31T23:30:00Z');          // 00:30 del 1-ene en Madrid
+  assert.strictEqual(temporadas.idTemporada(finDeAnio), '2027-01');
+  assert.strictEqual(temporadas.temporadaAnterior(temporadas.idTemporada(finDeAnio)), '2026-12');
 });
 
 test('la anterior a enero es diciembre del año pasado', () => {

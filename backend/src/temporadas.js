@@ -33,10 +33,19 @@ const admin = require('firebase-admin');
 // Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
 // que el contador de cuota (#38) vea TODO lo que hace el backend.
 const { db } = require('./db');
+const { diaMadrid } = require('./util');
 
 /** Identificador de temporada: el mes natural. */
 function idTemporada(fecha = new Date()) {
-  return `${fecha.getUTCFullYear()}-${String(fecha.getUTCMonth() + 1).padStart(2, '0')}`;
+  // El mes en MADRID, no en UTC. La diferencia son una o dos horas al mes, y
+  // caen justo donde mas duele: lanzando el cierre a mano a las 00:30 del dia 1,
+  // en UTC todavia es el mes anterior, asi que `temporadaAnterior` devolvia el
+  // mes de ANTES — uno que ya estaba cerrado.
+  //
+  // Y como cerrar es idempotente, no fallaba: contestaba "ya cerrada", quien lo
+  // lanzo se quedaba tranquilo y el mes que acababa de terminar no se archivaba
+  // nunca. Un no-op silencioso en la operacion mas destructiva del proyecto.
+  return diaMadrid(fecha).slice(0, 7);
 }
 
 /** La temporada anterior a la dada. */

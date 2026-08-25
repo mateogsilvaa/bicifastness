@@ -1030,7 +1030,11 @@ test('el unico dia que no es de Madrid es el de la cuota', () => {
     if (!rel.startsWith('backend/src/')) continue;
     if (['backend/src/util.js', 'backend/src/cuota.js'].includes(rel)) continue;
 
-    if (/toISOString\(\)\.slice\(0, 10\)/.test(leerCodigo(rel))) fuera.push(rel);
+    const codigo = leerCodigo(rel);
+    // Las dos formas de sacar un dia o un mes en UTC. `getUTCHours` no cuenta:
+    // esa se usa para saber la HORA, que no depende del calendario.
+    if (/toISOString\(\)\.slice\(0, (?:10|7)\)/.test(codigo)
+      || /getUTCFullYear\(\)/.test(codigo)) fuera.push(rel);
   }
 
   assert.deepStrictEqual(fuera, [],

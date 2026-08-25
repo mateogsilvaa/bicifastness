@@ -118,20 +118,60 @@ function generar(fecha) {
  * @param {Set} estacionesPrevias  estaciones donde el piloto ya habia terminado
  */
 function progreso(misiones, viajesDelDia, estacionesPrevias = new Set()) {
-  const metros = viajesDelDia.reduce((t, v) => t + (v.distanciaMetros || 0), 0);
-  const mejorVelocidad = Math.max(0, ...viajesDelDia.map((v) => v.velocidadKmh || 0));
+  return progresoDeTotales(misiones, totalesDelDia(viajesDelDia, estacionesPrevias));
+}
 
-  const nuevas = viajesDelDia.filter((v) => {
-    const destino = String(v.ruta || '').split('-')[1];
-    return destino && !estacionesPrevias.has(destino);
-  }).length;
+/**
+ * Los cuatro numeros de los que depende cualquier mision, sacados de una lista
+ * de viajes.
+ *
+ * @returns {{metros: number, mejorVelocidad: number, trayectos: number, nuevas: number}}
+ */
+function totalesDelDia(viajesDelDia, estacionesPrevias = new Set()) {
+  return {
+    metros: viajesDelDia.reduce((t, v) => t + (v.distanciaMetros || 0), 0),
+    mejorVelocidad: Math.max(0, ...viajesDelDia.map((v) => v.velocidadKmh || 0)),
+    trayectos: viajesDelDia.length,
+    nuevas: viajesDelDia.filter((v) => {
+      const destino = String(v.ruta || '').split('-')[1];
+      return destino && !estacionesPrevias.has(destino);
+    }).length,
+  };
+}
 
+/**
+ * Suma un viaje a los totales del dia, sin releer los anteriores.
+ *
+ * Es el camino que usa el worker. La alternativa —consultar los viajes
+ * verificados de hoy cada vez que se aprueba uno— seria una consulta por viaje
+ * aprobado para recalcular algo que ya sabiamos. El acumulador vive en el propio
+ * documento del usuario, que la transaccion ya tiene leido.
+ *
+ * `fecha` es el dia al que pertenecen los totales. Si no coincide con la del
+ * acumulador, se empieza de cero: es el cambio de dia.
+ */
+function acumular(totales, fecha, viaje, esEstacionNueva = false) {
+  const base = (totales && totales.fecha === fecha)
+    ? totales
+    : { fecha, metros: 0, mejorVelocidad: 0, trayectos: 0, nuevas: 0 };
+
+  return {
+    fecha,
+    metros: (base.metros || 0) + (viaje.distanciaMetros || 0),
+    mejorVelocidad: Math.max(base.mejorVelocidad || 0, viaje.velocidadKmh || 0),
+    trayectos: (base.trayectos || 0) + 1,
+    nuevas: (base.nuevas || 0) + (esEstacionNueva ? 1 : 0),
+  };
+}
+
+/** Progreso a partir de totales ya calculados. */
+function progresoDeTotales(misiones, totales) {
   return misiones.map((m) => {
     const hecho = {
-      distancia: metros,
-      velocidad: mejorVelocidad,
-      trayectos: viajesDelDia.length,
-      exploracion: nuevas,
+      distancia: totales.metros || 0,
+      velocidad: totales.mejorVelocidad || 0,
+      trayectos: totales.trayectos || 0,
+      exploracion: totales.nuevas || 0,
     }[m.tipo] || 0;
 
     return {
@@ -183,5 +223,8 @@ module.exports = {
   generador,
   generar,
   progreso,
+  totalesDelDia,
+  acumular,
+  progresoDeTotales,
   rutaDelDia,
 };

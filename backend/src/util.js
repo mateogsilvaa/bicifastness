@@ -157,6 +157,23 @@ function horaASegundos(texto) {
   return h * 3600 + min * 60 + s;
 }
 
+/**
+ * El dia natural en Madrid, como 'YYYY-MM-DD'.
+ *
+ * Existe para que worker y navegador estén de acuerdo en que dia es. No es
+ * `toISOString().slice(0, 10)`: eso es el dia en UTC, y en horario de verano
+ * Madrid va dos horas por delante, asi que entre las 22:00 y las 00:00 el UTC
+ * todavia dice ayer. Las misiones se publicaban con esa clave y el navegador
+ * las pedia con la suya, de modo que cada noche desaparecian un par de horas.
+ *
+ * Tampoco es la fecha local del dispositivo: quien abra la web desde otro pais
+ * veria las misiones de otro dia. El juego ocurre en Madrid.
+ */
+function diaMadrid(fecha = new Date()) {
+  // 'sv-SE' da exactamente YYYY-MM-DD, que es lo unico que se le pide.
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: TZ }).format(fecha);
+}
+
 module.exports = {
   ESTACIONES,
   normalizarEstacion,
@@ -168,5 +185,6 @@ module.exports = {
   exigirAuth,
   exigirAdmin,
   inicioDelDiaMadrid,
+  diaMadrid,
   horaASegundos,
 };

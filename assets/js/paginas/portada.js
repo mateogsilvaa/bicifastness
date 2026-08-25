@@ -25,10 +25,18 @@ iniciarPagina('ahora');
 const landing = id('landing');
 const panel = id('panel');
 
-/** Hoy, en formato YYYY-MM-DD y hora local. */
+/**
+ * Hoy en Madrid, como YYYY-MM-DD.
+ *
+ * En Madrid y no en la hora del dispositivo, que es lo que habia: quien abra la
+ * web desde otro pais veria las misiones de otro dia, y a quien lo tenga mal
+ * puesto le pasaria lo mismo. El juego ocurre en Madrid, asi que el dia lo
+ * decide Madrid — y asi coincide con la clave que usa el worker al publicarlas
+ * (`util.diaMadrid`).
+ */
 function hoy() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // 'sv-SE' da exactamente YYYY-MM-DD.
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(new Date());
 }
 
 /**

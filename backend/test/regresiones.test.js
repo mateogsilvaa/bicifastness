@@ -698,6 +698,32 @@ test('la migracion ofrece copia de seguridad y no la sobrescribe', () => {
   assert.match(guion, /--copia/);
 });
 
+test('alguien escribe el progreso de las misiones', () => {
+  // `misiones.progreso` estaba exportada, probada y sin llamar desde ningun
+  // sitio. La portada leia `perfil.misiones`, que no lo escribia nadie, asi que
+  // las tres misiones ponian "Pendiente" para siempre: se veian, y no habia
+  // forma de completarlas.
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /misiones\.(progreso|progresoDeTotales)\(/,
+    'nadie calcula el progreso de las misiones: se quedan en Pendiente para siempre');
+  assert.match(worker, /misiones: progresoMisiones|misiones: \{/,
+    'el progreso no se guarda en el perfil, que es de donde lo lee la portada');
+});
+
+test('worker y navegador estan de acuerdo en que dia es', () => {
+  // Las misiones se publican con una clave de fecha y el navegador las pide con
+  // la suya. Si una es UTC y la otra local, en horario de verano no coinciden
+  // entre las 22:00 y las 00:00, y la seccion de misiones desaparece cada noche.
+  const worker = leerCodigo('backend/worker.js');
+  const preparar = worker.slice(worker.indexOf('async function prepararDia'));
+  assert.match(preparar.slice(0, 400), /diaMadrid\(\)/,
+    'el worker publica las misiones con el dia UTC');
+
+  const portada = leerCodigo('assets/js/paginas/portada.js');
+  assert.match(portada, /timeZone: 'Europe\/Madrid'/,
+    'la portada usa la fecha del dispositivo: desde otro pais pediria otro dia');
+});
+
 test('el historial de la v1 no se cuela arriba de las temporadas', () => {
   // Las temporadas son meses naturales (`2026-08`) y se ordenan por su
   // identificador. `v1` empieza por letra, asi que en un orden descendente

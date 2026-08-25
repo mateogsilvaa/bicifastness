@@ -33,7 +33,7 @@
 const admin = require('firebase-admin');
 
 const { LIMITES, TIEMPO, IMAGEN } = require('./src/config');
-const { construirRuta, inicioDelDiaMadrid } = require('./src/util');
+const { construirRuta, inicioDelDiaMadrid, diaMadrid } = require('./src/util');
 const imagen = require('./src/imagen');
 const { leerCaptura, elegirTrayecto, cerrar: cerrarOcr } = require('./src/ocr');
 const { evaluar, distanciaCalleMetros } = require('./src/verificacion');
@@ -653,11 +653,52 @@ async function premiar(doc, viaje) {
       mejorRacha: racha.mejorRacha,
     });
 
+    // Misiones del dia (#30). Se generaban y se pintaban, pero NADIE escribia el
+    // progreso: `misiones.progreso` estaba exportada y probada, y no la llamaba
+    // nadie. La portada leia `perfil.misiones`, que no existia, asi que las tres
+    // misiones ponian "Pendiente" para siempre y no habia forma de completarlas.
+    //
+    // No cuesta ni una lectura. Las misiones son deterministas a partir de la
+    // fecha —por eso regenerarlas en cada pasada es inofensivo—, asi que aqui se
+    // generan igual que las genero la pasada que las publico, sin leer el
+    // documento. Y los totales se acumulan en el propio perfil, que la
+    // transaccion ya tiene leido, en vez de consultar los viajes de hoy cada vez
+    // que se aprueba uno.
+    //
+    // Solo cuenta si el viaje es de HOY. Un trayecto de hace cinco dias no puede
+    // completar la mision de hoy, por el mismo motivo por el que no toca la
+    // racha: no lo has hecho hoy.
+    let progresoMisiones = null;
+    const diaDelViaje = String(viaje.fechaViaje).slice(0, 10);
+
+    if (diaDelViaje === diaMadrid()) {
+      // Las estaciones donde ya habia terminado antes de este viaje. Sale de
+      // `puntosPorRuta`, que ya esta en el documento: igual que hace `logros.js`
+      // para las insignias de exploracion, y por la misma razon.
+      const previas = new Set();
+      for (const ruta of Object.keys(previo.puntosPorRuta || {})) {
+        const suDestino = String(ruta).split('-')[1];
+        if (suDestino) previas.add(suDestino);
+      }
+
+      const totales = misiones.acumular(
+        previo.misiones, diaDelViaje,
+        { distanciaMetros: metros, velocidadKmh: kmh },
+        Boolean(destino) && !previas.has(destino)
+      );
+
+      progresoMisiones = {
+        ...totales,
+        progreso: misiones.progresoDeTotales(misiones.generar(diaDelViaje).misiones, totales),
+      };
+    }
+
     tx.update(refUsuario, {
       viajesVerificados: admin.firestore.FieldValue.increment(1),
       metrosTotales: admin.firestore.FieldValue.increment(metros || 0),
       segundosTotales: admin.firestore.FieldValue.increment(viaje.tiempoSegundos || 0),
       puntosTemporada: admin.firestore.FieldValue.increment(puntos.total),
+      ...(progresoMisiones ? { misiones: progresoMisiones } : {}),
       racha: racha.racha,
       mejorRacha: racha.mejorRacha,
       escudos: racha.escudos,
@@ -764,7 +805,12 @@ async function conteoPorRuta() {
  * clasificacion diaria que la gente ya esta compitiendo.
  */
 async function prepararDia() {
-  const hoy = territorio.dia();
+  // El dia en Madrid, NO en UTC. `territorio.dia()` da el dia UTC, que en
+  // horario de verano va dos horas por detras: las misiones se publicaban con
+  // esa clave y el navegador las pedia con la suya, asi que entre las 22:00 y
+  // las 00:00 el documento que buscaba no existia todavia y la seccion de
+  // misiones desaparecia de la portada cada noche.
+  const hoy = diaMadrid();
   const refMisiones = db.doc(`config/misiones/dias/${hoy}`);
 
   if (!(await refMisiones.get()).exists) {

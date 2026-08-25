@@ -143,3 +143,46 @@ test('si todas son recientes, se repite antes que quedarse sin ruta', () => {
 
   assert.strictEqual(elegida, '001-002', 'mejor repetir que no tener ruta del dia');
 });
+
+test('el progreso acumulado da lo mismo que recorrer los viajes', () => {
+  // El worker acumula en el perfil en vez de consultar los viajes de hoy cada
+  // vez que aprueba uno. Las dos formas tienen que coincidir, o el progreso que
+  // ve la gente dependeria de por donde se calculo.
+  const { misiones: delDia } = misiones.generar('2026-09-14');
+  const previas = new Set(['110']);
+
+  const viajes = [
+    { ruta: '002-110', distanciaMetros: 2400, velocidadKmh: 17.5 },
+    { ruta: '045-118', distanciaMetros: 3100, velocidadKmh: 21.2 },
+    { ruta: '118-207', distanciaMetros: 1800, velocidadKmh: 14.0 },
+  ];
+
+  let totales = null;
+  const yaVistas = new Set(previas);
+  for (const v of viajes) {
+    const destino = v.ruta.split('-')[1];
+    totales = misiones.acumular(totales, '2026-09-14', v, !yaVistas.has(destino));
+    yaVistas.add(destino);
+  }
+
+  assert.deepStrictEqual(
+    misiones.progresoDeTotales(delDia, totales),
+    misiones.progreso(delDia, viajes, previas)
+  );
+});
+
+test('el acumulador se vacia al cambiar de dia', () => {
+  // Si no, el progreso de ayer contaria para las misiones de hoy y saldrian
+  // completadas sin haber pedaleado.
+  const ayer = misiones.acumular(null, '2026-09-13',
+    { distanciaMetros: 9000, velocidadKmh: 30 }, true);
+  assert.strictEqual(ayer.metros, 9000);
+
+  const hoy = misiones.acumular(ayer, '2026-09-14',
+    { distanciaMetros: 1000, velocidadKmh: 12 }, false);
+
+  assert.strictEqual(hoy.metros, 1000, 'los metros de ayer siguen contando hoy');
+  assert.strictEqual(hoy.trayectos, 1);
+  assert.strictEqual(hoy.mejorVelocidad, 12, 'la velocidad de ayer sigue contando hoy');
+  assert.strictEqual(hoy.nuevas, 0);
+});

@@ -698,6 +698,39 @@ test('la migracion ofrece copia de seguridad y no la sobrescribe', () => {
   assert.match(guion, /--copia/);
 });
 
+test('alguien cierra los dias perdidos de las rachas', () => {
+  // `rachas.cerrarDiasPerdidos` existia, estaba probada, y su documentacion
+  // decia "lo llama la pasada diaria del worker". No la llamaba nadie. El
+  // efecto: ninguna racha se rompia nunca y ningun escudo se gastaba jamas, asi
+  // que el escudo no protegia de nada y el perfil enseñaba rachas de gente que
+  // llevaba meses sin salir.
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /rachas\.cerrarDiasPerdidos\(/,
+    'nadie cierra los dias perdidos: las rachas no se rompen nunca');
+
+  // Y se llama desde la secuencia final, no solo definida.
+  const principal = worker.slice(worker.indexOf('async function main'));
+  assert.match(principal, /await cerrarRachas\(\)/,
+    'la pasada de rachas esta escrita pero no se ejecuta');
+});
+
+test('el cierre de rachas no recorre usuarios en cada pasada', () => {
+  // El worker corre cada cinco minutos: sin marca, el recorrido de `usuarios`
+  // se repetiria en las doce pasadas que caen en la ventana de medianoche.
+  const worker = leerCodigo('backend/worker.js');
+  const cierre = worker.slice(worker.indexOf('async function cerrarRachas'));
+
+  assert.match(cierre.slice(0, 900), /ultimoCierre/,
+    'sin marca del dia, el cierre recorre usuarios en cada pasada');
+
+  // Y la marca se escribe DESPUES del recorrido: si se corta a medias, la
+  // siguiente pasada lo reintenta entero.
+  const marca = cierre.indexOf('ultimoCierre: hoy');
+  const commit = cierre.indexOf('if (enLote) await lote.commit()');
+  assert.ok(commit !== -1 && marca > commit,
+    'la marca se escribe antes de terminar: un corte dejaria rachas sin cerrar');
+});
+
 test('alguien escribe el progreso de las misiones', () => {
   // `misiones.progreso` estaba exportada, probada y sin llamar desde ningun
   // sitio. La portada leia `perfil.misiones`, que no lo escribia nadie, asi que

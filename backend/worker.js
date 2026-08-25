@@ -1051,6 +1051,100 @@ async function avisarRachasEnPeligro() {
 }
 
 /**
+ * Cierra los dias perdidos de todo el mundo: gasta escudos y rompe las rachas
+ * que ya no se sostienen.
+ *
+ * `rachas.cerrarDiasPerdidos` existia, estaba probada y su propia documentacion
+ * decia "lo llama la pasada diaria del worker". No la llamaba nadie: no habia
+ * pasada diaria. El efecto era que **ninguna racha se rompia nunca** y **ningun
+ * escudo se gastaba jamas**. Quien salio una vez en septiembre seguia con su
+ * racha intacta en el perfil en diciembre, y el escudo —la mecanica que hace
+ * que valga la pena mantener la racha— no protegia de nada porque no habia nada
+ * de lo que proteger.
+ *
+ * UNA VEZ AL DIA, y de verdad una: la marca en `config/juego/rachas` cuesta una
+ * lectura y evita repetir el recorrido de `usuarios` en las doce pasadas que
+ * caen dentro de la ventana de medianoche.
+ *
+ * La operacion es idempotente de todas formas — al sobrevivir la racha se mueve
+ * `ultimoDiaActivo` a ayer para no cobrar dos veces por los mismos dias, y al
+ * romperse `racha` queda en 0 y la siguiente llamada no hace nada — pero
+ * idempotente no quiere decir gratis.
+ */
+async function cerrarRachas() {
+  const hoy = diaMadrid();
+  // Mismo sitio que el resto de marcas del worker: un documento suelto bajo
+  // `config`, como `config/agregados_pendientes`. Solo lo lee y lo escribe el
+  // Admin SDK, y el cierre por defecto de las reglas lo deja fuera del alcance
+  // del navegador sin tener que decir nada.
+  const ref = db.doc('config/rachas_ultimo_cierre');
+
+  try {
+    const marca = await ref.get();
+    if (marca.exists && marca.data().ultimoCierre === hoy) return 0;
+
+    const snap = await db.collection('usuarios').get();
+
+    let lote = db.batch();
+    let enLote = 0;
+    let tocados = 0;
+    let rotas = 0;
+    let escudosGastados = 0;
+
+    for (const doc of snap.docs) {
+      const datos = doc.data();
+      const cierre = rachas.cerrarDiasPerdidos({
+        racha: datos.racha,
+        mejorRacha: datos.mejorRacha,
+        escudos: datos.escudos,
+        diasHastaEscudo: datos.diasHastaEscudo,
+        ultimoDiaActivo: datos.ultimoDiaActivo,
+      });
+
+      // La inmensa mayoria no ha perdido nada: escribirles seria una escritura
+      // por usuario y por dia para confirmar que no ha pasado nada.
+      if (!cierre.escudosGastados && !cierre.rota) continue;
+
+      if (!SIMULAR) {
+        lote.update(doc.ref, {
+          racha: cierre.racha,
+          escudos: cierre.escudos,
+          ultimoDiaActivo: cierre.ultimoDiaActivo,
+        });
+        enLote++;
+      }
+
+      tocados++;
+      if (cierre.rota) rotas++;
+      escudosGastados += cierre.escudosGastados;
+
+      if (enLote >= 400) {
+        await lote.commit();
+        lote = db.batch();
+        enLote = 0;
+      }
+    }
+
+    if (enLote) await lote.commit();
+
+    // La marca va DESPUES. Si el recorrido se corta a medias, la siguiente
+    // pasada lo reintenta entero, y como la operacion es idempotente a quien ya
+    // se cerro no le vuelve a pasar nada.
+    if (!SIMULAR) await ref.set({ ultimoCierre: hoy }, { merge: true });
+
+    if (tocados) {
+      console.log(`Rachas: ${rotas} rotas, ${escudosGastados} escudo(s) gastado(s), `
+        + `${tocados} piloto(s) afectado(s).`);
+    }
+    return tocados;
+  } catch (error) {
+    // Que esto falle no puede parar la verificacion de viajes.
+    console.warn('No se han podido cerrar las rachas:', error.message);
+    return 0;
+  }
+}
+
+/**
  * Lo que la gestion de clanes no puede hacer desde el navegador (#29).
  *
  * Al expulsar a alguien, o al disolver un clan, solo se toca el documento del
@@ -1236,6 +1330,7 @@ async function main() {
   await procesarBajas();
   await procesarBorrados();
   await mantenerClanes();
+  await cerrarRachas();
 
   // Los agregados se reconstruyen UNA VEZ al final, no por viaje: es la
   // operacion mas cara que hace el worker (#36).

@@ -188,6 +188,16 @@ const WORKER = [
     detalle: 'los 200 mas rapidos de esa ruta + quien ya puntuaba en ella',
   },
   {
+    nombre: 'la transaccion de puntos e insignias (por viaje APROBADO)',
+    veces: ({ S }) => Math.round(S * 0.5),
+    // Una lectura: el perfil, dentro de la transaccion. De ahi salen los
+    // puntos, la racha, las insignias y las misiones del dia sin volver a
+    // leerlo. Estaba fuera de esta tabla y tambien fuera del contador de cuota,
+    // que se saltaba `runTransaction` entero.
+    coste: () => min1(1),
+    detalle: 'el perfil del piloto, una vez, dentro de la transaccion',
+  },
+  {
     nombre: 'recalcularEstaciones (una vez por pasada CON viajes)',
     veces: ({ S }) => ventanasConMovimiento(S, 288),
     // La influencia sobre una estacion sale SOLO de los viajes de las rutas que

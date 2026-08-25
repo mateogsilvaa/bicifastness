@@ -315,6 +315,7 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | validarBasico y captura (por viaje procesado) | 62 | sus 60 viajes recientes + la captura + la distancia de la ruta |
 | reunirContexto (por viaje procesado) | 42 | el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id |
 | cola y bajas (por pasada) | 3 | las consultas de cola, recalculo pendiente y bajas |
+| la transaccion de puntos e insignias (por viaje APROBADO) | 1 | el perfil del piloto, una vez, dentro de la transaccion |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
 | metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |
 | metricas.tocaResumir (por pasada) | 1 | la marca del agregado, para saber si toca el resumen caro |

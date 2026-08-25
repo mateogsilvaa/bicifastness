@@ -166,6 +166,72 @@ function contar(firestore) {
     });
   }
 
+  /**
+   * Una transaccion, que es el unico sitio del que el contador no se enteraba.
+   *
+   * `runTransaction` caia en el `default` del switch de abajo y pasaba de
+   * largo: todo lo que ocurria dentro —lecturas y escrituras— quedaba fuera de
+   * la cuenta. En el worker eso es una lectura y una escritura por CADA viaje
+   * aprobado, o sea justo lo que crece con el uso. Y un dia que alguien meta en
+   * una transaccion algo que lea cincuenta documentos, el contador seguiria
+   * diciendo cero.
+   *
+   * Es el peor sitio donde tener un punto ciego: `docs/COSTE.md` modela lo que
+   * DEBERIA costar y esto mide lo que cuesta de verdad, asi que la comparacion
+   * salia mal sin que nada lo delatara.
+   *
+   * LECTURAS Y ESCRITURAS NO SE CUENTAN IGUAL, y no es un capricho. Una
+   * transaccion se REINTENTA sola cuando hay contienda, y en cada reintento la
+   * funcion se ejecuta entera otra vez:
+   *
+   *   - las lecturas de cada intento ocurrieron de verdad y Firestore las
+   *     cobra, asi que se suman segun pasan
+   *   - las escrituras solo se confirman UNA vez, la del intento que sale bien,
+   *     asi que se apuntan aparte y se suman al final. Es la misma idea que ya
+   *     usa `envolverLote` con su `commit`: apuntar no es escribir
+   */
+  function envolverTransaccion(ejecutar) {
+    return (funcion, ...resto) => {
+      let escriturasDelIntento = 0;
+
+      const envolverTx = (tx) => new Proxy(tx, {
+        get(objetivo, propiedad) {
+          const valor = Reflect.get(objetivo, propiedad, objetivo);
+          if (typeof valor !== 'function') return valor;
+
+          if (propiedad === 'get') {
+            return (...args) => contarGet(valor.apply(objetivo, args));
+          }
+          if (propiedad === 'getAll') {
+            return (...args) => valor.apply(objetivo, args).then((docs) => {
+              sumarLectura(docs.length);
+              return docs;
+            });
+          }
+          if (ESCRIBEN.has(propiedad)) {
+            return (...args) => {
+              escriturasDelIntento++;
+              valor.apply(objetivo, args);
+              // Devuelve la propia transaccion, para poder encadenar.
+              return envolverTx(objetivo);
+            };
+          }
+          return (...args) => valor.apply(objetivo, args);
+        },
+      });
+
+      return ejecutar((tx) => {
+        // Cada intento empieza de cero: si este no llega a confirmarse, sus
+        // escrituras no se han cobrado.
+        escriturasDelIntento = 0;
+        return funcion(envolverTx(tx));
+      }, ...resto).then((resultado) => {
+        sumarEscritura(escriturasDelIntento);
+        return resultado;
+      });
+    };
+  }
+
   const envuelta = new Proxy(firestore, {
     get(objetivo, propiedad) {
       const valor = Reflect.get(objetivo, propiedad, objetivo);
@@ -175,6 +241,7 @@ function contar(firestore) {
         case 'collection': return (...a) => envolverConsulta(valor.apply(objetivo, a));
         case 'doc': return (...a) => envolverDocumento(valor.apply(objetivo, a));
         case 'batch': return (...a) => envolverLote(valor.apply(objetivo, a));
+        case 'runTransaction': return envolverTransaccion(valor.bind(objetivo));
         case 'getAll': return (...a) => valor.apply(objetivo, a).then((docs) => {
           sumarLectura(docs.length);
           return docs;

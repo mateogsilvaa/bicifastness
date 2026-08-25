@@ -2469,3 +2469,43 @@ test('nadie puede reescribir su avatar para que lo pida el navegador de los dema
   assert.doesNotMatch(perfil, /updateDoc\([^)]*\{[^}]*avatarUrl/,
     'el perfil escribe avatarUrl pero la regla ya no lo permite: la subida fallaria');
 });
+
+test('el contador de cuota no tiene ninguna puerta sin vigilar', () => {
+  // COMO SE LLEGO AQUI. `contar()` envuelve Firestore y suma lo que pasa, con
+  // un `switch` sobre los metodos de entrada y un `default` que deja pasar todo
+  // lo demas tal cual. `runTransaction` caia en ese `default`: una lectura y
+  // una escritura por CADA viaje aprobado que el contador no veia.
+  //
+  // Ese `default` es lo correcto —envolver a ciegas lo que no se conoce seria
+  // peor— pero significa que una puerta nueva no se nota. No falla nada: el
+  // contador simplemente dice menos de lo que hay, y como `docs/COSTE.md`
+  // modela lo que DEBERIA costar y esto mide lo que cuesta, la comparacion sale
+  // mal sin que nadie lo sepa.
+  //
+  // Asi que aqui se mira al reves: por que puertas entra de verdad el backend a
+  // Firestore, y estan todas atendidas.
+  const cuota = leerCodigo('backend/src/cuota.js');
+
+  // Metodos que no abren nada: no leen, no escriben y no devuelven referencias.
+  const INOFENSIVOS = new Set([
+    // `db.js` — el punto unico desde el que se coge Firestore. No es de
+    // Firestore, es del proyecto.
+    'usar',
+  ]);
+
+  const puertas = new Set();
+  for (const rel of ['backend/worker.js', ...fs.readdirSync(path.join(__dirname, '..', 'src'))
+    .filter((f) => f.endsWith('.js')).map((f) => `backend/src/${f}`)]) {
+    for (const [, metodo] of leerCodigo(rel).matchAll(/\bdb\(\)?\.(\w+)\s*\(/g)) {
+      if (!INOFENSIVOS.has(metodo)) puertas.add(metodo);
+    }
+  }
+
+  assert.ok(puertas.size >= 4, `solo se han encontrado ${puertas.size} puertas: ¿ha cambiado la forma?`);
+
+  const sinVigilar = [...puertas].filter((m) => !new RegExp(`case '${m}':`).test(cuota));
+
+  assert.deepStrictEqual(sinVigilar, [],
+    'el backend entra a Firestore por estos metodos y el contador de cuota no los '
+    + `envuelve, asi que lo que pase por ahi no se cuenta: ${sinVigilar.join(', ')}`);
+});

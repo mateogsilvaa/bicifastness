@@ -196,6 +196,12 @@ class Consulta {
     return { docs, size: docs.length, empty: docs.length === 0 };
   }
 
+  /** Lo mismo sin contar, para que lo use una transaccion. Ver `RefDocumento._leer`. */
+  _leer() {
+    const docs = this._resolver();
+    return { docs, size: docs.length, empty: docs.length === 0 };
+  }
+
   /**
    * La consulta de agregacion.
    *
@@ -275,6 +281,17 @@ class RefDocumento {
 
   async get() {
     this.bd.lecturas++;
+    return this._leer();
+  }
+
+  /**
+   * La lectura de verdad, sin contar ni pasar por el metodo publico. Es la
+   * pareja de `_aplicar`, y existe por el mismo motivo: una transaccion de
+   * Firestore NO llama a `ref.get()`, lee por su cuenta. Cuando el doble lo
+   * hacia asi, un envoltorio sobre los metodos publicos —el contador de cuota—
+   * contaba dos veces cada lectura de una transaccion.
+   */
+  _leer() {
     const { coleccion, id } = partir(this.ruta);
     return new Instantanea(id, this.bd._coleccion(coleccion).get(id), this);
   }
@@ -366,6 +383,46 @@ class Lote {
   }
 }
 
+/**
+ * Una transaccion.
+ *
+ * Se parece a un lote —las escrituras se apuntan y se aplican al final— con
+ * dos diferencias que importan para lo que se prueba con esto:
+ *
+ *   1. tambien LEE, y las lecturas ocurren al momento
+ *   2. si la funcion falla, no se aplica nada
+ *
+ * `reintentosPendientes` no existe en Firestore: es para poder ensayar aqui lo
+ * que alli pasa solo cuando hay contienda. Una transaccion se reintenta sola, y
+ * en cada reintento la funcion se ejecuta ENTERA otra vez — que es justo lo que
+ * hace que las lecturas y las escrituras no se puedan contar igual.
+ */
+class Transaccion {
+  constructor(bd) {
+    this.bd = bd;
+    this.operaciones = [];
+  }
+
+  // Por dentro, como hace Firestore: una transaccion no llama a `ref.get()`.
+  // Si lo hiciera, un envoltorio sobre los metodos publicos contaria dos veces.
+  async get(refOConsulta) { return refOConsulta._leer(); }
+
+  async getAll(...refs) { return refs.map((ref) => ref._leer()); }
+
+  set(ref, datos, opciones) { this.operaciones.push([ref, 'set', datos, opciones]); return this; }
+  update(ref, datos) { this.operaciones.push([ref, 'update', datos]); return this; }
+  delete(ref) { this.operaciones.push([ref, 'delete']); return this; }
+  create(ref, datos) { this.operaciones.push([ref, 'set', datos]); return this; }
+
+  _confirmar() {
+    for (const [ref, operacion, datos, opciones] of this.operaciones) {
+      this.bd.escrituras++;
+      ref._aplicar(operacion, datos, opciones);
+    }
+    this.operaciones = [];
+  }
+}
+
 // --- La base ---------------------------------------------------------------------
 
 class FirestoreFalso {
@@ -373,6 +430,8 @@ class FirestoreFalso {
     this.datos = new Map();
     this.lecturas = 0;
     this.escrituras = 0;
+    /** Cuantas veces se va a reintentar la proxima transaccion. Ver `runTransaction`. */
+    this.reintentosPendientes = 0;
   }
 
   _coleccion(nombre) {
@@ -383,6 +442,30 @@ class FirestoreFalso {
   collection(nombre) { return new RefColeccion(this, nombre); }
   doc(ruta) { return new RefDocumento(this, ruta); }
   batch() { return new Lote(this); }
+
+  /**
+   * Ejecuta una transaccion.
+   *
+   * `this.reintentosPendientes` simula la contienda: mientras quede alguno, la
+   * funcion se ejecuta y se DESCARTA lo que haya escrito, como hace Firestore
+   * cuando otro toca el mismo documento a la vez. Sirve para comprobar que
+   * quien cuente el gasto no cobre dos veces unas escrituras que solo se
+   * confirmaron una.
+   */
+  async runTransaction(funcion) {
+    for (;;) {
+      const tx = new Transaccion(this);
+      const resultado = await funcion(tx);
+
+      if (this.reintentosPendientes > 0) {
+        this.reintentosPendientes--;
+        continue;   // lo apuntado se tira con la transaccion
+      }
+
+      tx._confirmar();
+      return resultado;
+    }
+  }
 
   /**
    * Lee varios documentos de una tacada. Cuenta una lectura por documento, y

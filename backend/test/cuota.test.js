@@ -226,3 +226,87 @@ test('el contador no se pone a cero a medianoche UTC', async () => {
   assert.strictEqual(bd.leer('cuota/2026-08-25'), undefined,
     'ha abierto un dia nuevo a medianoche UTC, que no es cuando se reinicia la cuota');
 });
+
+// --- Transacciones ------------------------------------------------------------
+//
+// Era el unico agujero del contador: `runTransaction` caia en el `default` del
+// envoltorio y pasaba de largo, asi que todo lo que ocurria dentro quedaba
+// fuera de la cuenta. En el worker eso es una lectura y una escritura por cada
+// viaje aprobado — o sea justo lo que crece con el uso.
+
+test('una transaccion cuenta lo que lee y lo que escribe', async () => {
+  const { db, coste } = cuota.contar(conDatos());
+
+  await db.runTransaction(async (tx) => {
+    const doc = await tx.get(db.doc('usuarios/u1'));
+    tx.update(db.doc('usuarios/u1'), { puntos: (doc.data().puntos || 0) + 1 });
+  });
+
+  assert.strictEqual(coste.lecturas, 1);
+  assert.strictEqual(coste.escrituras, 1);
+});
+
+test('la transaccion escribe de verdad: contar no puede cambiar lo que hace', async () => {
+  // El contador envuelve Firestore, asi que un fallo suyo se lleva por delante
+  // la verificacion de viajes. Importa tanto que cuente como que no estorbe.
+  const bdReal = conDatos();
+  const { db } = cuota.contar(bdReal);
+
+  await db.runTransaction(async (tx) => {
+    tx.update(db.doc('usuarios/u1'), { puntos: 999 });
+  });
+
+  assert.strictEqual(bdReal.leer('usuarios/u1').puntos, 999);
+});
+
+test('lo que devuelve la transaccion llega a quien la lanzo', async () => {
+  const { db } = cuota.contar(conDatos());
+
+  const salida = await db.runTransaction(async (tx) => {
+    const doc = await tx.get(db.doc('usuarios/u3'));
+    return doc.data().puntos;
+  });
+
+  assert.strictEqual(salida, 3);
+});
+
+test('un reintento cobra sus lecturas pero no repite las escrituras', async () => {
+  // Firestore reintenta una transaccion cuando hay contienda, y en cada
+  // reintento ejecuta la funcion ENTERA otra vez. Las lecturas de cada intento
+  // ocurrieron y se cobran; las escrituras solo se confirman una vez, la del
+  // intento que sale bien. Contarlas al apuntarlas dava un gasto inflado en
+  // justo el momento en que mas apretaba la cuota.
+  const bdReal = conDatos();
+  bdReal.reintentosPendientes = 2;   // sale bien al tercer intento
+
+  const { db, coste } = cuota.contar(bdReal);
+
+  await db.runTransaction(async (tx) => {
+    await tx.get(db.doc('usuarios/u1'));
+    tx.update(db.doc('usuarios/u1'), { puntos: 1 });
+  });
+
+  assert.strictEqual(coste.lecturas, 3, 'tres intentos son tres lecturas de verdad');
+  assert.strictEqual(coste.escrituras, 1, 'solo se confirmo una escritura');
+});
+
+test('una transaccion que revienta no apunta escrituras que no ocurrieron', async () => {
+  const { db, coste } = cuota.contar(conDatos());
+
+  await assert.rejects(db.runTransaction(async (tx) => {
+    tx.update(db.doc('usuarios/u1'), { puntos: 1 });
+    throw new Error('contienda');
+  }));
+
+  assert.strictEqual(coste.escrituras, 0);
+});
+
+test('getAll dentro de una transaccion cuenta un documento por referencia', async () => {
+  const { db, coste } = cuota.contar(conDatos());
+
+  await db.runTransaction(async (tx) => {
+    await tx.getAll(db.doc('usuarios/u1'), db.doc('usuarios/u2'), db.doc('usuarios/u3'));
+  });
+
+  assert.strictEqual(coste.lecturas, 3);
+});

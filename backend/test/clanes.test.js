@@ -35,6 +35,7 @@ require.cache[rutaAdmin].exports = {
 
 const clanes = require('../src/clan-mantenimiento');
 const puntuacion = require('../src/puntuacion');
+const rachas = require('../src/rachas');
 
 const RAIZ = path.join(__dirname, '..', '..');
 const leer = (rel) => fs.readFileSync(path.join(RAIZ, rel), 'utf8');
@@ -42,6 +43,18 @@ const leer = (rel) => fs.readFileSync(path.join(RAIZ, rel), 'utf8');
 const AHORA = new Date('2026-08-23T12:00:00Z');
 const haceDias = (n) => new Date(AHORA.getTime() - n * 86400000);
 const dia = (f) => f.toISOString().slice(0, 10);
+
+/**
+ * `ultimoDiaActivo` tal y como lo guarda produccion: la medianoche del dia en
+ * Madrid, en milisegundos, que es lo que devuelve `rachas.diaDe`.
+ *
+ * Antes estas pruebas le pasaban un 'YYYY-MM-DD', y por eso no vieron que
+ * `elegirSucesor` comparaba texto contra texto: con fechas de texto la
+ * comparacion funciona, con los milisegundos de verdad no, y ningun clan sin
+ * lider se rescataba nunca. Una prueba que inventa el tipo del dato prueba otro
+ * programa.
+ */
+const activoHace = (n) => rachas.diaDe(haceDias(n));
 
 function sembrar() {
   bd = new FirestoreFalso();
@@ -54,9 +67,9 @@ function sembrar() {
     numMiembros: 3,
   }]);
   bd.sembrar('usuarios', [
-    { id: 'u1', clanId: 'rayos', biciRating: 100, ultimoDiaActivo: dia(haceDias(1)) },
-    { id: 'u2', clanId: 'rayos', biciRating: 50, ultimoDiaActivo: dia(haceDias(2)) },
-    { id: 'u3', clanId: 'rayos', biciRating: 25, ultimoDiaActivo: dia(haceDias(3)) },
+    { id: 'u1', clanId: 'rayos', biciRating: 100, ultimoDiaActivo: activoHace(1) },
+    { id: 'u2', clanId: 'rayos', biciRating: 50, ultimoDiaActivo: activoHace(2) },
+    { id: 'u3', clanId: 'rayos', biciRating: 25, ultimoDiaActivo: activoHace(3) },
     { id: 'u4', clanId: null, biciRating: 999 },
   ]);
   return bd;
@@ -228,9 +241,9 @@ test('una invitacion no mete a nadie en un clan lleno', async () => {
 test('un clan cuyo lider desaparece pasa al oficial mas activo', () => {
   const clan = { lider: 'u1', oficiales: ['u2', 'u3'] };
   const miembros = [
-    { uid: 'u1', ultimoDiaActivo: dia(haceDias(200)) },
-    { uid: 'u2', ultimoDiaActivo: dia(haceDias(30)) },
-    { uid: 'u3', ultimoDiaActivo: dia(haceDias(2)) },
+    { uid: 'u1', ultimoDiaActivo: activoHace(200) },
+    { uid: 'u2', ultimoDiaActivo: activoHace(30) },
+    { uid: 'u3', ultimoDiaActivo: activoHace(2) },
   ];
 
   assert.strictEqual(clanes.elegirSucesor(clan, miembros, AHORA), 'u3');
@@ -239,9 +252,9 @@ test('un clan cuyo lider desaparece pasa al oficial mas activo', () => {
 test('sin oficiales activos, al miembro mas activo', () => {
   const clan = { lider: 'u1', oficiales: ['u2'] };
   const miembros = [
-    { uid: 'u1', ultimoDiaActivo: dia(haceDias(200)) },
-    { uid: 'u2', ultimoDiaActivo: dia(haceDias(180)) },
-    { uid: 'u3', ultimoDiaActivo: dia(haceDias(5)) },
+    { uid: 'u1', ultimoDiaActivo: activoHace(200) },
+    { uid: 'u2', ultimoDiaActivo: activoHace(180) },
+    { uid: 'u3', ultimoDiaActivo: activoHace(5) },
   ];
 
   assert.strictEqual(clanes.elegirSucesor(clan, miembros, AHORA), 'u3');
@@ -250,8 +263,8 @@ test('sin oficiales activos, al miembro mas activo', () => {
 test('a un lider que sigue apareciendo no se le quita el mando', () => {
   const clan = { lider: 'u1', oficiales: ['u2'] };
   const miembros = [
-    { uid: 'u1', ultimoDiaActivo: dia(haceDias(3)) },
-    { uid: 'u2', ultimoDiaActivo: dia(haceDias(1)) },
+    { uid: 'u1', ultimoDiaActivo: activoHace(3) },
+    { uid: 'u2', ultimoDiaActivo: activoHace(1) },
   ];
 
   assert.strictEqual(clanes.elegirSucesor(clan, miembros, AHORA), null);
@@ -261,8 +274,8 @@ test('un clan que ya no juega nadie se queda como esta', () => {
   // Dar el mando al azar no arregla un clan abandonado, solo mueve el problema.
   const clan = { lider: 'u1', oficiales: ['u2'] };
   const miembros = [
-    { uid: 'u1', ultimoDiaActivo: dia(haceDias(300)) },
-    { uid: 'u2', ultimoDiaActivo: dia(haceDias(250)) },
+    { uid: 'u1', ultimoDiaActivo: activoHace(300) },
+    { uid: 'u2', ultimoDiaActivo: activoHace(250) },
     { uid: 'u3' },
   ];
 

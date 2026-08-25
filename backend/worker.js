@@ -1016,7 +1016,10 @@ async function avisarRachasEnPeligro() {
   // un viaje.
   const snap = await db.collection('usuarios').get();
   const usuarios = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-  const hoy = territorio.dia();
+  // El dia en Madrid, que es el que decide si alguien ha salido "hoy". A las
+  // 20:00 coincide con el UTC, pero atarlo al dia correcto evita que esto se
+  // rompa el dia que alguien mueva la hora del aviso.
+  const hoy = diaMadrid();
   const enPeligro = push.rachaEnPeligro(usuarios, hoy);
 
   if (!enPeligro.length) return 0;

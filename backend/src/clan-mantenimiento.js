@@ -31,7 +31,6 @@ const DIAS_LIDER_INACTIVO = 60;
 /** Tope de miembros. El mismo que aplican las reglas. */
 const MAX_MIEMBROS = 50;
 
-const dia = (fecha) => new Date(fecha).toISOString().slice(0, 10);
 
 /**
  * Pone a null el `clanId` de quien ya no esta en la plantilla de su clan.
@@ -147,10 +146,16 @@ async function aplicarInvitacion(codigo, uid, { simular = false, ahora = new Dat
  * dar el mando al azar no arregla un clan que ya no juega nadie.
  */
 function elegirSucesor(clan, miembros, ahora = new Date(), diasInactivo = DIAS_LIDER_INACTIVO) {
-  const limite = dia(new Date(ahora.getTime() - diasInactivo * 86400000));
+  // `ultimoDiaActivo` es la medianoche del dia en Madrid EN MILISEGUNDOS, que es
+  // lo que escribe `rachas.diaDe`. Antes esto lo comparaba como texto contra un
+  // 'YYYY-MM-DD', y '1756...' nunca es mayor que '2026-...': `activo` daba
+  // siempre false, no habia nunca candidatos y ningun clan sin lider se
+  // rescataba jamas. Las pruebas no lo veian porque le pasaban fechas de texto,
+  // que es lo que produccion no guarda.
+  const limite = ahora.getTime() - diasInactivo * 86400000;
 
-  const activo = (m) => String(m.ultimoDiaActivo || '') > limite;
-  const porActividad = (a, b) => String(b.ultimoDiaActivo || '').localeCompare(String(a.ultimoDiaActivo || ''));
+  const activo = (m) => Number(m.ultimoDiaActivo) > limite;
+  const porActividad = (a, b) => (Number(b.ultimoDiaActivo) || 0) - (Number(a.ultimoDiaActivo) || 0);
 
   const lider = miembros.find((m) => m.uid === clan.lider);
   // Si el lider sigue apareciendo, no hay nada que rescatar.

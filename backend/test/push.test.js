@@ -89,6 +89,33 @@ test('solo se avisa a quien tiene racha que perder y no ha salido hoy', () => {
   assert.deepStrictEqual(push.rachaEnPeligro(usuarios, HOY).map((u) => u.uid), ['a']);
 });
 
+test('quien ya ha salido hoy no recibe el aviso, con el dato real', () => {
+  // `ultimoDiaActivo` NO es un 'YYYY-MM-DD': es la medianoche del dia en Madrid
+  // en milisegundos, que es lo que escribe `rachas.diaDe`. El corte comparaba
+  // los dos directamente, asi que nunca coincidian y el aviso de "tu racha esta
+  // en peligro" salia cada tarde tambien a quien ya habia salido. La forma mas
+  // rapida de que alguien apague los avisos.
+  //
+  // Las pruebas de arriba usan texto y siguen valiendo — una fecha de texto se
+  // interpreta bien — pero ninguna probaba lo que guarda produccion.
+  const rachas = require('../src/rachas');
+  const mediodia = new Date('2026-08-23T12:00:00Z');
+  const hoy = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(mediodia);
+
+  const yaSalio = { uid: 'a', racha: 5, ultimoDiaActivo: rachas.diaDe(mediodia), ...conSuscripcion() };
+  const noSalio = {
+    uid: 'b', racha: 5,
+    ultimoDiaActivo: rachas.diaDe(new Date('2026-08-22T12:00:00Z')),
+    ...conSuscripcion(),
+  };
+
+  assert.deepStrictEqual(
+    push.rachaEnPeligro([yaSalio, noSalio], hoy).map((u) => u.uid),
+    ['b'],
+    'se esta avisando a quien ya ha salido hoy'
+  );
+});
+
 test('no se avisa dos veces el mismo dia', () => {
   // El worker corre cada cinco minutos. Sin esta marca, quien no salga se lleva
   // doce avisos en la hora que dura la ventana.

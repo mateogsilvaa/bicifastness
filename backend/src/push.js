@@ -26,6 +26,7 @@
 
 const webpush = require('web-push');
 const { db } = require('./db');
+const { diaMadrid } = require('./util');
 
 /**
  * Tipos de aviso. La lista es cerrada a proposito: sin ella se acaba enviando
@@ -157,7 +158,13 @@ function rachaEnPeligro(usuarios, hoy) {
     // Sin racha no hay nada que perder, y el aviso no significaria nada.
     if (!(u.racha > 0)) return false;
     // Ya ha salido hoy: la racha esta salvada.
-    if (u.ultimoDiaActivo === hoy) return false;
+    //
+    // `ultimoDiaActivo` es la medianoche del dia en Madrid EN MILISEGUNDOS
+    // (`rachas.diaDe`), y `hoy` es un 'YYYY-MM-DD'. Compararlos directamente
+    // daba SIEMPRE distinto, asi que este corte no cortaba nada: el aviso de
+    // "tu racha esta en peligro" salia cada tarde tambien a quien ya habia
+    // salido, que es la forma mas rapida de que alguien apague los avisos.
+    if (u.ultimoDiaActivo && diaMadrid(new Date(u.ultimoDiaActivo)) === hoy) return false;
     // Y una sola vez al dia.
     if (u.push?.ultimoAvisoRacha === hoy) return false;
     return true;

@@ -234,6 +234,26 @@ function historialMigrado({ tokenBaja = null, nombre, viajes = 0, puntos = 0, ki
 }
 
 /**
+ * Aviso suelto a la administracion.
+ *
+ * Para lo que hay que contar una vez y no tiene plantilla propia: una cuenta
+ * inundando la cola, por ejemplo. NO lleva enlace de baja, igual que el aviso de
+ * cuota: no es un correo de producto, es la unica via de enterarse de algo que
+ * esta pasando ahora.
+ */
+function avisoAdmin({ asunto, cuerpo, enlace = null }) {
+  return {
+    asunto: `BiciFastness — ${asunto}`,
+    html: envolver({
+      titulo: escapar(asunto),
+      contenido: parrafo(escapar(cuerpo))
+        + (enlace ? boton('Ver en el panel', enlace) : ''),
+    }),
+    texto: `${asunto}\n\n${cuerpo}\n${enlace ? `\n${enlace}\n` : ''}`,
+  };
+}
+
+/**
  * Aviso a la administracion de que la cuota se esta agotando (#38).
  *
  * NO lleva enlace de baja: no es un correo de producto, es el unico aviso de
@@ -292,6 +312,7 @@ function cuotaEnPeligro({ nivel, porcentaje, consumido, proyeccion, limites }) {
 }
 
 module.exports = {
+  avisoAdmin,
   bienvenida,
   cuotaEnPeligro,
   historialMigrado,

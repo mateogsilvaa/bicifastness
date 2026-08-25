@@ -1580,34 +1580,145 @@ async function cerrarCuota(alEmpezar) {
 
   if (!aviso) return;
 
+  const enviado = await enviarAAdmin(plantillas.cuotaEnPeligro({
+    nivel: aviso.nivel,
+    porcentaje: aviso.porcentaje,
+    consumido: acumulado,
+    proyeccion: cuota.estimar(acumulado),
+    limites: cuota.LIMITES,
+  }), `Cuota al ${Math.round(aviso.porcentaje)}%`);
+
+  if (enviado) console.log(`  avisado a la administracion: nivel ${aviso.nivel}.`);
+}
+
+/**
+ * Manda un mensaje ya montado a la administracion.
+ *
+ * El unico otro sitio del worker que llama a `correo.enviar` es
+ * `avisarPorCorreo`, que es el de los pilotos. Son dos canales distintos a
+ * proposito y no se pueden mezclar: al piloto hay que mirarle la preferencia y
+ * meterle el enlace de baja; a la administracion no, porque estos avisos son la
+ * unica forma de enterarse de algo que esta pasando ahora y darse de baja de
+ * ellos es quedarse sin saberlo.
+ *
+ * Sin `CORREO_ADMIN` el aviso se queda en el registro del workflow, que es donde
+ * no lo lee nadie hasta que ya es tarde. Se dice, para que se note que falta.
+ */
+async function enviarAAdmin(mensaje, resumenSiNoHayCorreo = '') {
   const destinatario = process.env.CORREO_ADMIN;
+
   if (!destinatario) {
-    console.warn(`::warning::Cuota al ${Math.round(aviso.porcentaje)}%, `
-      + 'y sin CORREO_ADMIN no hay a quien avisar.');
-    return;
+    console.warn(`::warning::${resumenSiNoHayCorreo || mensaje.asunto}: `
+      + 'sin CORREO_ADMIN no hay a quien avisar.');
+    return false;
   }
 
   try {
-    const mensaje = plantillas.cuotaEnPeligro({
-      nivel: aviso.nivel,
-      porcentaje: aviso.porcentaje,
-      consumido: acumulado,
-      proyeccion: cuota.estimar(acumulado),
-      limites: cuota.LIMITES,
-    });
-
     const resultado = await correo.enviar({
       ...mensaje,
       para: destinatario,
       remitente: REMITENTE,
       apiKey: process.env.RESEND_API_KEY,
+      simular: SIMULAR,
     });
 
-    if (resultado.error) console.warn(`  aviso de cuota no enviado: ${resultado.error}`);
-    else console.log(`  avisado a la administracion: nivel ${aviso.nivel}.`);
+    if (resultado.error) {
+      console.warn(`  aviso a la administracion no enviado: ${resultado.error}`);
+      return false;
+    }
+    return true;
   } catch (error) {
-    console.warn('  no se ha podido avisar de la cuota:', error.message);
+    console.warn('  no se ha podido avisar a la administracion:', error.message);
+    return false;
   }
+}
+
+/** Atajo para un aviso de una linea, sin plantilla propia. */
+function avisarAdmin(asunto, cuerpo, enlace = null) {
+  return enviarAAdmin(plantillas.avisoAdmin({ asunto, cuerpo, enlace }), `${asunto}: ${cuerpo}`);
+}
+
+/**
+ * Si una sola persona ha llenado la tanda, se le tira lo que sobra de golpe.
+ *
+ * NO es el arreglo de #62 — eso hay que pararlo ANTES de la escritura y esta
+ * por decidir — pero si arregla lo que pasaba mientras. Nada impide hoy que una
+ * cuenta escriba miles de viajes: las reglas de Firestore no saben contar, y el
+ * cupo de tres al dia se comprueba aqui, o sea cuando el documento ya existe.
+ *
+ * Y la cola es FIFO. Con mil viajes de una misma cuenta delante, los 25 de cada
+ * pasada son suyos: quien sube su trayecto legitimo se queda detras durante
+ * DIAS, aunque cada uno de esos mil se acabe rechazando. El problema no era solo
+ * la cuota, era que la cola dejaba de avanzar para todos los demas.
+ *
+ * Rechazar en bloque no adelanta ningun veredicto: por definicion pasan del cupo
+ * diario, que es lo mismo que iba a decidir `validarBasico` uno por uno. Solo
+ * evita pagar una pasada entera por cada 25.
+ *
+ * No suspende a nadie: eso es una decision con una persona detras, y se toma en
+ * el panel. Aqui se avisa y se sigue.
+ */
+async function despejarInundacion(cola) {
+  const porUid = new Map();
+  for (const doc of cola.docs) {
+    const uid = doc.data().uid;
+    if (uid) porUid.set(uid, (porUid.get(uid) || 0) + 1);
+  }
+
+  // Dominar la tanda entera es la señal. Con el cupo en tres al dia, alguien con
+  // veinte pendientes a la vez no esta usando la web.
+  const inunda = [...porUid.entries()]
+    .filter(([, cuantos]) => cuantos >= Math.min(MAX_POR_TANDA, LIMITES.VIAJES_POR_DIA * 4));
+
+  if (!inunda.length) return 0;
+
+  let tirados = 0;
+
+  for (const [uid, enLaTanda] of inunda) {
+    // Acotado: si tiene diez mil, se van despejando por pasadas. Lo que importa
+    // es que la cola vuelva a avanzar para los demas, no vaciarla de una vez.
+    const suyos = await db.collection('tiempos_viaje')
+      .where('uid', '==', uid)
+      .where('estado', '==', 'pendiente')
+      .limit(400)
+      .get();
+
+    console.log(`::warning::${uid} tiene ${suyos.size}+ viajes en cola (${enLaTanda} en esta tanda).`);
+
+    if (SIMULAR) { tirados += suyos.size; continue; }
+
+    // Se dejan los del cupo diario sin tocar: entre ellos puede estar el viaje
+    // de verdad, y decidirlo es de `procesar`.
+    const sobran = suyos.docs.slice(LIMITES.VIAJES_POR_DIA);
+
+    for (let i = 0; i < sobran.length; i += 200) {
+      const lote = db.batch();
+      for (const doc of sobran.slice(i, i + 200)) {
+        lote.update(doc.ref, {
+          estado: 'rechazado',
+          verificado: false,
+          motivos: ['cupo_diario'],
+          revisadoPor: 'automatico',
+          revisadoEn: AHORA(),
+        });
+      }
+      await lote.commit();
+      tirados += Math.min(200, sobran.length - i);
+    }
+
+    // Las capturas son lo que ocupa: 700 KB cada una. Van aparte del lote
+    // porque cada viaje puede compartirla con otros suyos.
+    for (const doc of sobran) await borrarCapturaSiSobra(doc, doc.data()).catch(() => {});
+
+    await avisarAdmin(
+      `Cola inundada por ${uid}`,
+      `${uid} ha dejado ${suyos.size}+ viajes pendientes. Se han rechazado ${sobran.length} `
+      + 'por cupo diario y se han borrado sus capturas. Si se repite, la cuenta se '
+      + 'suspende desde el panel.',
+    ).catch(() => {});
+  }
+
+  return tirados;
 }
 
 /**
@@ -1625,6 +1736,15 @@ async function procesarCola(cuenta) {
     .get();
 
   console.log(`Viajes en cola: ${cola.size}`);
+
+  // Antes de gastar una pasada entera en los viajes de una sola cuenta.
+  if (cola.size >= MAX_POR_TANDA) {
+    const tirados = await despejarInundacion(cola);
+    if (tirados) {
+      console.log(`Despejados ${tirados} viajes de la cola. La siguiente pasada ya avanza.`);
+      return cola.size;
+    }
+  }
 
   for (const doc of cola.docs) {
     try {

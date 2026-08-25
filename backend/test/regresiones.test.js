@@ -858,6 +858,47 @@ test('a la cola de la administracion solo llega lo ya comprobado', () => {
     'el panel se traeria tambien las descartadas');
 });
 
+test('una cuenta sola no puede parar la cola de todos los demas', () => {
+  // Nada impide hoy que alguien escriba miles de viajes: las reglas de Firestore
+  // no saben contar y el cupo de tres al dia se comprueba en el worker, o sea
+  // cuando el documento ya existe (#62). Mientras eso se decide, el daño que
+  // hacia no era solo la cuota: la cola es FIFO, asi que con mil viajes de una
+  // misma cuenta delante, los 25 de cada pasada eran suyos y quien subia su
+  // trayecto legitimo se quedaba detras DURANTE DIAS.
+  const worker = leerCodigo('backend/worker.js');
+
+  assert.match(worker, /async function despejarInundacion/,
+    'una cuenta que inunda la cola la para para todo el mundo');
+  assert.match(worker.slice(worker.indexOf('async function procesarCola')), /despejarInundacion\(cola\)/,
+    'la funcion existe y la cola no la usa');
+
+  const despeje = worker.slice(worker.indexOf('async function despejarInundacion'));
+
+  // Se dejan los del cupo diario: entre ellos puede estar el viaje de verdad.
+  assert.match(despeje.slice(0, 3000), /slice\(LIMITES\.VIAJES_POR_DIA\)/,
+    'se estarian tirando tambien los viajes que si entran en el cupo');
+
+  // Y las capturas, que son lo que ocupa: 700 KB cada una.
+  assert.match(despeje.slice(0, 3000), /borrarCapturaSiSobra/,
+    'los viajes se rechazan y sus capturas se quedan ocupando');
+
+  // No suspende: eso es una decision con una persona detras, y se toma en el
+  // panel (#61).
+  assert.ok(!/suspendido: true/.test(despeje.slice(0, 3000)),
+    'el worker suspende cuentas por su cuenta');
+});
+
+test('a la administracion se le avisa por un solo canal', () => {
+  // Dos canales distintos a proposito: al piloto hay que mirarle la preferencia
+  // y meterle el enlace de baja; a la administracion no, porque estos avisos son
+  // la unica forma de enterarse de algo que esta pasando y darse de baja de
+  // ellos es quedarse sin saberlo. Lo que no puede haber es tres.
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /async function enviarAAdmin/);
+  assert.match(worker, /enviarAAdmin\(plantillas\.cuotaEnPeligro/,
+    'el aviso de cuota va por su cuenta en vez de por el canal comun');
+});
+
 test('la gestion de clanes tiene interfaz, no solo acciones', () => {
   // Las doce acciones de clan llevaban escritas en `acciones.js` —con sus reglas
   // y sus pruebas— y no las llamaba NINGUNA pagina. El backend estaba entero y

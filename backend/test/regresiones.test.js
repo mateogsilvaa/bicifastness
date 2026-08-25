@@ -2509,3 +2509,37 @@ test('el contador de cuota no tiene ninguna puerta sin vigilar', () => {
     'el backend entra a Firestore por estos metodos y el contador de cuota no los '
     + `envuelve, asi que lo que pase por ahi no se cuenta: ${sinVigilar.join(', ')}`);
 });
+
+test('la cola de solicitudes de un clan tiene tope, como el resto de listas', () => {
+  // Era la UNICA lista del esquema sin tope. La plantilla corta en 50, los
+  // oficiales tienen que estar dentro de la plantilla, las rutas ancladas son
+  // tres — y las solicitudes crecian sin freno.
+  //
+  // Importa mas de lo que parece porque el documento del clan lo lee CUALQUIERA
+  // sin sesion (`allow read: if true`): cada solicitud pendiente se la descarga
+  // todo el que abra ese clan. Y al final del camino un documento de Firestore
+  // se planta en 1 MiB y deja de poder escribirse — el clan se quedaria
+  // congelado, sin poder aceptar a nadie ni echar a nadie.
+  const clanes = bloque('clanes');
+
+  const propia = (clanes.match(/allow update:[\s\S]*?;/g) || [])
+    .find((r) => /hasOnly\(\['solicitudes'\]\)/.test(r));
+
+  assert.ok(propia, 'no se encuentra la regla de meter la solicitud propia');
+  assert.match(propia, /solicitudes\.size\(\) <= (\d+)/,
+    'cualquiera puede anadirse a la cola de un clan y nada la corta');
+
+  // El tope tiene que dejar RETIRAR aunque este llena: quitar deja la lista mas
+  // corta, asi que un `<=` cumple y un `<` no. La diferencia es que con `<`
+  // quien entrase el ultimo no podria salir.
+  assert.doesNotMatch(propia, /solicitudes\.size\(\) < \d/,
+    'con `<` en vez de `<=`, quien entre el ultimo en una cola llena no puede retirarse');
+
+  // Y el navegador avisa antes, para no dar un permission-denied pelado.
+  const acciones = leerCodigo('assets/js/acciones.js');
+  const tope = Number(propia.match(/solicitudes\.size\(\) <= (\d+)/)[1]);
+  const enCliente = Number(acciones.match(/MAX_SOLICITUDES = (\d+)/)[1]);
+
+  assert.strictEqual(enCliente, tope,
+    `el navegador corta en ${enCliente} y las reglas en ${tope}`);
+});

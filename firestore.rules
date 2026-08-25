@@ -340,8 +340,22 @@ service cloud.firestore {
       // --- Lo que puede cualquiera ------------------------------------------
       // Meter o sacar su PROPIA solicitud. Las dos comprobaciones juntas
       // significan "la unica diferencia entre las dos listas soy yo".
+      //
+      // Y con tope. Era la UNICA lista del esquema que no lo tenia: la
+      // plantilla corta en 50, los oficiales tienen que estar dentro de la
+      // plantilla, las rutas ancladas son tres. Esta crecia sin freno, y este
+      // documento lo lee CUALQUIERA sin sesion (`allow read: if true`), asi que
+      // cada solicitud pendiente se la descarga todo el que abra el clan. Al
+      // final del camino un documento de Firestore se planta en 1 MiB y deja de
+      // poder escribirse: el clan se quedaria congelado, sin poder aceptar a
+      // nadie ni echar a nadie.
+      //
+      // 100 con una plantilla de 50 es de sobra. Y el tope no estorba para
+      // RETIRAR una solicitud: quitar deja la lista mas corta, asi que sigue
+      // cumpliendo aunque este llena.
       allow update: if autenticado()
         && cambia().hasOnly(['solicitudes'])
+        && datos().solicitudes.size() <= 100
         && datos().solicitudes.hasOnly(previo().solicitudes.concat([request.auth.uid]))
         && previo().solicitudes.hasOnly(datos().solicitudes.concat([request.auth.uid]));
 

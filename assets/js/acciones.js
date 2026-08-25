@@ -370,7 +370,26 @@ export async function crearClan({ nombre, descripcion, color }) {
   return clanId;
 }
 
+/**
+ * Tope de solicitudes pendientes por clan. El mismo que el de las reglas, y un
+ * test los ata.
+ *
+ * Aqui solo sirve para dar un mensaje que se entienda: quien pulse "solicitar"
+ * en un clan con la cola llena veria si no un `permission-denied` que no
+ * explica nada. Quien decide es la regla.
+ */
+export const MAX_SOLICITUDES = 100;
+
 export async function solicitarEntrada(clanId) {
+  const clan = await getDoc(doc(db, 'clanes', clanId));
+  if (!clan.exists()) throw new Error('Ese clan ya no existe.');
+
+  const pendientes = clan.data().solicitudes || [];
+  if (pendientes.includes(uidActual())) throw new Error('Ya has enviado una solicitud a este clan.');
+  if (pendientes.length >= MAX_SOLICITUDES) {
+    throw new Error('Este clan tiene la cola de solicitudes llena. Prueba mas tarde.');
+  }
+
   await updateDoc(doc(db, 'clanes', clanId), { solicitudes: arrayUnion(uidActual()) });
 }
 

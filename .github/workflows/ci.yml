@@ -55,6 +55,28 @@ jobs:
       - name: Comprobar que los datos generados estan al dia
         run: git diff --exit-code assets/data backend/lib
 
+      # El modelo de coste (#34) dice cuantas lecturas de Firestore cuesta cada
+      # operacion, y el plan Spark corta en 50.000 al dia: al agotarlas la web
+      # no va lenta, deja de funcionar hasta medianoche.
+      #
+      # Corria solo a mano, en la revision mensual, asi que un cambio que
+      # disparase una operacion no se notaba hasta que alguien se acordara de
+      # lanzarlo. Aqui falla en el sitio, en el commit que lo causa.
+      #
+      # `--comprobar` no mira el total —ese depende de cuanta gente entre, y ya
+      # se sabe que u200 se pasa— sino si alguna operacion SUELTA se come la
+      # cuota diaria ella sola. Eso siempre es un fallo.
+      - name: Comprobar el coste en lecturas
+        run: node scripts/auditar-lecturas.js --comprobar
+
+      # Y que las tablas de docs/COSTE.md sean las que sale del modelo: se
+      # copiaban a mano y el documento acabo con tres tablas de escenarios y
+      # tres totales distintos.
+      - name: Comprobar que docs/COSTE.md esta al dia
+        run: |
+          node scripts/auditar-lecturas.js --escribir
+          git diff --exit-code docs/COSTE.md
+
       # El banco de capturas (#16) ejecuta el OCR de verdad, y tesseract se baja
       # varios megas de modelo de idioma la primera vez.
       - name: Cache del idioma del OCR

@@ -311,7 +311,47 @@ function cuotaEnPeligro({ nivel, porcentaje, consumido, proyeccion, limites }) {
   };
 }
 
+/**
+ * Las plantillas que se le mandan a un USUARIO, por su nombre de tipo.
+ *
+ * Existe por la cola de reintentos (#65). Un correo encolado no puede guardar
+ * el mensaje ya montado —dentro va el nombre de la persona, y el destinatario
+ * habria que guardarlo tambien, que es la clase de dato que salio de Firestore
+ * en #59 y #60—. Lo que se guarda es el TIPO, y el mensaje se vuelve a montar
+ * en el momento de enviarlo, con la direccion recien pedida a Firebase Auth.
+ *
+ * Los nombres son los mismos que las claves de `correo.PRIORIDAD`, que decide
+ * que se cae primero cuando se acaba el cupo del dia. Una prueba ata las dos
+ * listas: si divergen, un correo encolado tendria prioridad 9 (la de "no se
+ * quien eres") y adelantaria o se retrasaria sin que nadie lo hubiera decidido.
+ *
+ * Los de administracion NO estan aqui a proposito: van a una direccion fija,
+ * por otro canal, y no se encolan.
+ */
+const POR_TIPO = {
+  bienvenida,
+  viaje_rechazado: viajeRechazado,
+  viaje_anulado: viajeAnulado,
+  revision_lenta: revisionLenta,
+};
+
+/**
+ * `viajesVerificados` NO esta arriba, y no es un olvido.
+ *
+ * Es el aviso de "se te han aprobado estos viajes", y **no lo manda nadie**.
+ * Aparecio al montar este registro: la comprobacion que habia solo miraba tres
+ * plantillas por su nombre y esta se le escapaba.
+ *
+ * No se puede encolar lo que nunca se envia, asi que no entra aqui. Y no lo
+ * enchufo de paso porque no es un reintento, es una funcion nueva con una
+ * decision dentro: el comentario del worker dice que estos avisos "van
+ * agrupados, o se come el cupo diario de Resend", y agrupar exige decidir cada
+ * cuanto y con que ventana. Una pasada son cinco minutos, asi que un resumen
+ * por pasada no es un resumen.
+ */
+
 module.exports = {
+  POR_TIPO,
   avisoAdmin,
   bienvenida,
   cuotaEnPeligro,

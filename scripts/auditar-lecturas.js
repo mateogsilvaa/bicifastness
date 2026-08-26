@@ -203,6 +203,15 @@ const WORKER = [
     detalle: 'TODOS los usuarios, para repartir las insignias de la temporada',
   },
   {
+    nombre: 'reenviarCorreos (por pasada)',
+    veces: () => 288,
+    // Acotada a 50 y ordenada por `reintentarTras`. Cuando la cola esta vacia
+    // —lo normal— es una lectura, porque Firestore cobra un minimo aunque la
+    // consulta no devuelva nada.
+    coste: () => min1(1),
+    detalle: 'la cola de correos pendientes, acotada a 50 y ordenada por cuando toca',
+  },
+  {
     nombre: 'revisarNombresDeClan (UNA vez al dia, en el trabajo diario)',
     veces: () => 1,
     // Acotada por `creado` a los clanes de los ultimos dos dias. Cuando no hay

@@ -853,6 +853,17 @@ test('el borrado de cuenta no se deja ninguna coleccion con uid dentro', () => {
       .filter((c) => c !== 'databases'),
   );
 
+  // Y las que NO tienen bloque de reglas porque solo las toca el Admin SDK: el
+  // cierre por defecto las deja fuera del navegador sin decir nada, asi que no
+  // aparecen arriba. `correos_pendientes` es una de esas y lleva uid dentro:
+  // mirando solo las reglas, se escapaba de esta comprobacion entera.
+  for (const rel of ['backend/worker.js', ...fs.readdirSync(path.join(__dirname, '..', 'src'))
+    .filter((f) => f.endsWith('.js')).map((f) => `backend/src/${f}`)]) {
+    for (const [, nombre] of leerCodigo(rel).matchAll(/\.collection\('([a-z_]+)'\)/g)) {
+      declaradas.add(nombre);
+    }
+  }
+
   // Colecciones sin ningun uid dentro, o donde quedarse es la decision.
   const SIN_UID = new Set([
     // Datos agregados o de configuracion: no llevan a nadie.
@@ -1130,12 +1141,51 @@ test('las plantillas de correo escritas se envian de verdad', () => {
   // Tres estaban escritas y probadas y no las enviaba nadie. La peor, la de
   // viaje anulado: anular un viaje le quita a alguien puntos que ya tenia, y sin
   // aviso lo que ve es que su puntuacion ha bajado sola de un dia para otro.
+  //
+  // La version anterior de esta prueba nombraba TRES plantillas a mano, y por
+  // eso se le escapo una cuarta: `viajesVerificados` tampoco la manda nadie, y
+  // no salio hasta que hubo que montar el registro por tipos de #65. Una lista
+  // escrita a mano solo vigila lo que alguien se acordo de escribir.
+  //
+  // Ahora se recorren TODAS las que exporta el modulo.
   const worker = leerCodigo('backend/worker.js');
+  const plantillas = require('../src/plantillas');
 
-  for (const plantilla of ['viajeAnulado', 'bienvenida', 'revisionLenta']) {
-    assert.match(worker, new RegExp(`plantillas\\.${plantilla}\\b`),
-      `la plantilla ${plantilla} esta escrita y no la envia nadie`);
+  // Las que no van a un usuario: van a una direccion fija y por otro canal.
+  const DE_ADMINISTRACION = new Set(['avisoAdmin', 'cuotaEnPeligro']);
+
+  // Con su motivo escrito, como el resto de listas de excepciones del proyecto.
+  const FUERA = {
+    // No es un reintento, es una funcion nueva con una decision dentro: el
+    // worker dice que estos avisos van AGRUPADOS para no comerse el cupo de
+    // Resend, y agrupar exige decidir cada cuanto y con que ventana. Una pasada
+    // son cinco minutos, asi que un resumen por pasada no es un resumen.
+    viajesVerificados: 'nadie lo manda todavia: falta decidir el agrupado',
+    // La manda el script de migracion, no el worker.
+    historialMigrado: 'lo manda scripts/migrar-datos.js',
+  };
+
+  const sinRemitente = [];
+
+  for (const [nombre, valor] of Object.entries(plantillas)) {
+    if (typeof valor !== 'function') continue;
+    if (nombre === 'envolver') continue;
+    if (DE_ADMINISTRACION.has(nombre) || nombre in FUERA) continue;
+
+    // Desde #65 el worker las nombra por su tipo (`'viaje_rechazado'`), que es
+    // como se pueden encolar. Vale cualquiera de las dos formas.
+    const porTipo = Object.entries(plantillas.POR_TIPO)
+      .find(([, fn]) => fn === valor)?.[0];
+
+    const enviada = new RegExp(`plantillas\\.${nombre}\\b`).test(worker)
+      || (porTipo && new RegExp(`'${porTipo}'`).test(worker));
+
+    if (!enviada) sinRemitente.push(nombre);
   }
+
+  assert.deepStrictEqual(sinRemitente, [],
+    `estas plantillas estan escritas y no las envia nadie: ${sinRemitente.join(', ')}. `
+    + 'Si es a proposito, va a FUERA con el motivo escrito.');
 });
 
 test('el envio de correo esta en un solo sitio', () => {

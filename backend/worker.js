@@ -53,6 +53,7 @@ const almacen = require('./src/db');
 const misiones = require('./src/misiones');
 const denuncias = require('./src/denuncias');
 const nombres = require('./src/nombres');
+const colaCorreo = require('./src/cola-correo');
 
 const SIMULAR = process.argv.includes('--simular');
 const SOLO_UNO = process.argv.includes('--once');
@@ -556,7 +557,10 @@ async function borrarCapturaSiSobra(doc, viaje) {
  *
  * @returns {boolean} si el correo ha salido
  */
-async function avisarPorCorreo(uid, plantilla, extra = {}, yaLeido = null) {
+async function avisarPorCorreo(uid, tipo, extra = {}, yaLeido = null, { encolar = true } = {}) {
+  const plantilla = plantillas.POR_TIPO[tipo];
+  if (!plantilla) throw new Error(`tipo de correo desconocido: ${tipo}`);
+
   try {
     const refUsuario = db.doc(`usuarios/${uid}`);
     const usuario = yaLeido || await refUsuario.get();
@@ -602,6 +606,22 @@ async function avisarPorCorreo(uid, plantilla, extra = {}, yaLeido = null) {
 
     if (resultado.error) {
       console.warn(`  aviso no enviado a ${uid}: ${resultado.error}`);
+
+      // Un 429, un 5xx o un timeout SI mejoran reintentando; un 422 por
+      // direccion invalida, no. `enviar` ya hace esa distincion y hasta ahora
+      // se tiraba a la basura: el correo se perdia para siempre (#65).
+      //
+      // `encolar` esta para que el propio reintento no vuelva a encolarse desde
+      // aqui — de eso se ocupa `reenviarCorreos`, que lleva la cuenta de los
+      // intentos.
+      if (resultado.reintentable && encolar && !SIMULAR) {
+        await db.collection('correos_pendientes')
+          .add(colaCorreo.entrada(uid, tipo, extra))
+          .catch((error) => {
+            console.error('::warning::No se ha podido encolar el correo de'
+              + ` ${uid}:`, error.message);
+          });
+      }
       return false;
     }
     return true;
@@ -622,7 +642,7 @@ async function avisarPorCorreo(uid, plantilla, extra = {}, yaLeido = null) {
  * Que falle el correo no puede afectar al veredicto: el viaje ya esta resuelto.
  */
 async function avisarRechazo(viaje, veredicto) {
-  await avisarPorCorreo(viaje.uid, plantillas.viajeRechazado, {
+  await avisarPorCorreo(viaje.uid, 'viaje_rechazado', {
     ruta: viaje.ruta,
     // `resumen` es el texto para la persona. Las señales con sus pesos se
     // quedan en la auditoria: no salen en el correo.
@@ -859,7 +879,7 @@ async function revertirPremio(doc, viaje) {
   // El motivo sale de lo que escribio quien reviso, o de un texto generico.
   // NUNCA del resumen de la auditoria: esta escrito para quien revisa y lleva
   // los numeros del antifraude dentro, y esto se manda por correo.
-  await avisarPorCorreo(viaje.uid, plantillas.viajeAnulado, {
+  await avisarPorCorreo(viaje.uid, 'viaje_anulado', {
     ruta: viaje.ruta,
     motivo: viaje.motivoRevision
       || 'Una revision posterior no ha podido dar el trayecto por bueno.',
@@ -1334,7 +1354,7 @@ async function darBienvenidas() {
             + ` ${doc.id}:`, error.message);
         });
 
-      const enviado = await avisarPorCorreo(doc.id, plantillas.bienvenida, {}, doc);
+      const enviado = await avisarPorCorreo(doc.id, 'bienvenida', {}, doc);
 
       // La marca se pone salga o no el correo. Si ha fallado, reintentarlo en
       // la siguiente pasada tampoco va a arreglarlo, y sin marca este perfil
@@ -1394,7 +1414,7 @@ async function avisarRevisionesLentas() {
       const desde = viaje.revisadoEn?.toMillis?.() ?? viaje.creado?.toMillis?.() ?? null;
       if (desde === null || desde > limite) continue;
 
-      const enviado = await avisarPorCorreo(viaje.uid, plantillas.revisionLenta, { ruta: viaje.ruta });
+      const enviado = await avisarPorCorreo(viaje.uid, 'revision_lenta', { ruta: viaje.ruta });
 
       // La marca va DESPUES del envio, y se pone tambien si el correo no sale:
       // reintentarlo cada pasada no lo va a arreglar, y sin marca este viaje
@@ -1456,6 +1476,91 @@ async function trabajoDiario() {
     // Que esto falle no puede parar la verificacion de viajes.
     console.warn('El trabajo diario no ha podido terminar:', error.message);
     return false;
+  }
+}
+
+/**
+ * Vacia la cola de correos que no pudieron salir (#65).
+ *
+ * Va en cada pasada, no en el trabajo diario: un aviso de viaje rechazado que
+ * llega al dia siguiente ya no sirve de nada, y la consulta es indexada y
+ * acotada — cuesta una lectura cuando la cola esta vacia, que es lo normal.
+ *
+ * El mensaje se vuelve a montar aqui, no se saca guardado: la cola solo lleva
+ * el tipo y los datos de la plantilla, y la direccion se le pide a Firebase
+ * Auth en el momento. Ver `cola-correo.js` para por que.
+ *
+ * `encolar: false` en el reintento es lo que evita el bucle: si volviera a
+ * fallar, `avisarPorCorreo` crearia OTRA entrada y la cola se multiplicaria en
+ * vez de agotarse. Los intentos los lleva la entrada que ya existe.
+ */
+async function reenviarCorreos() {
+  try {
+    const pendientes = await db.collection('correos_pendientes')
+      .orderBy('reintentarTras')
+      .limit(colaCorreo.POR_PASADA)
+      .get();
+
+    if (pendientes.empty) return 0;
+
+    const cola = pendientes.docs.map((d) => ({ id: d.id, ref: d.ref, ...d.data() }));
+
+    // El cupo del dia sale de lo que lleve gastado el contador de cuota, que ya
+    // cuenta los correos... no: cuenta lecturas y escrituras de Firestore, no
+    // correos. Lo que se lleva enviado hoy no lo sabe nadie sin guardarlo, asi
+    // que se cuenta lo que se manda en esta pasada y se deja el resto para la
+    // siguiente. Con una pasada cada cinco minutos, el reparto por prioridad
+    // sigue haciendo su trabajo dentro de cada tanda.
+    const { ahora, esperan } = colaCorreo.tocaAhora(cola);
+    if (!ahora.length) return 0;
+
+    let enviados = 0;
+    let rendidos = 0;
+
+    for (const entrada of ahora) {
+      if (correo.debeDejarDeIntentar(entrada)) {
+        if (!SIMULAR) await entrada.ref.delete();
+        rendidos++;
+        continue;
+      }
+
+      const salio = await avisarPorCorreo(
+        entrada.uid, entrada.tipo, entrada.extra || {}, null, { encolar: false });
+
+      const veredicto = correo.decidirReintento(
+        entrada,
+        // `avisarPorCorreo` devuelve un booleano, no el resultado de Resend. Lo
+        // que hace falta aqui es si merece otro intento, y eso ya se decidio al
+        // encolar: si el correo sigue sin salir, se sigue reintentando hasta
+        // agotar `MAX_INTENTOS`.
+        { enviado: salio, reintentable: true });
+
+      if (!SIMULAR) {
+        if (veredicto.estado === 'enviado') {
+          await entrada.ref.delete();
+        } else if (veredicto.estado === 'fallido') {
+          await entrada.ref.delete();
+          console.warn(`  correo ${entrada.tipo} para ${entrada.uid} descartado: ${veredicto.error}`);
+        } else {
+          await entrada.ref.update({
+            intentos: veredicto.intentos,
+            reintentarTras: veredicto.reintentarTras,
+            ultimoError: veredicto.error || null,
+          });
+        }
+      }
+
+      if (veredicto.estado === 'enviado') enviados++;
+      if (veredicto.estado === 'fallido') rendidos++;
+    }
+
+    console.log(`Cola de correo: ${enviados} enviado(s), ${rendidos} descartado(s), `
+      + `${esperan.length} esperando cupo.`);
+    return enviados;
+  } catch (error) {
+    // Que falle la cola de correo no puede tumbar la verificacion de viajes.
+    console.warn('No se ha podido vaciar la cola de correo:', error.message);
+    return 0;
   }
 }
 
@@ -1928,6 +2033,10 @@ async function main() {
   await procesarInvitaciones();
   await resolverDenuncias();
   await darBienvenidas();
+  // Despues de las bienvenidas a proposito: si una acaba de fallar y se ha
+  // encolado, el primer reintento es dentro de un minuto, o sea en la pasada
+  // siguiente. Ponerlo antes no adelantaria nada y haria una lectura de mas.
+  await reenviarCorreos();
   await trabajoDiario();
 
   // Los agregados se reconstruyen UNA VEZ al final, no por viaje: es la

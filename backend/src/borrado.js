@@ -110,7 +110,7 @@ async function borrarSubcoleccion(ruta) {
 async function ejecutar(uid, { simular = false } = {}) {
   const resumen = {
     uid, viajes: 0, capturas: 0, auditorias: 0, subcolecciones: 0, huellas: 0,
-    reportes: 0, invitaciones: 0,
+    reportes: 0, invitaciones: 0, correosEncolados: 0,
   };
 
   const perfilRef = db().doc(`usuarios/${uid}`);
@@ -181,6 +181,20 @@ async function ejecutar(uid, { simular = false } = {}) {
   if (!simular) {
     // Su peticion de entrar en un clan con un codigo. El id ES el uid.
     await db().doc(`usos_invitacion/${uid}`).delete();
+
+    // Y los correos que tenia encolados (#65). No llevan su direccion —eso vive
+    // en Auth— pero si su uid, y ademas escribirle a quien acaba de borrar su
+    // cuenta es justo lo que no se puede hacer.
+    //
+    // OJO: esta coleccion no tiene bloque en `firestore.rules` porque solo la
+    // toca el Admin SDK, asi que la comprobacion que cruza reglas con este
+    // fichero NO la ve. Se limpia aqui a mano y esa comprobacion mira ahora
+    // tambien las colecciones que solo salen en el codigo.
+    const encolados = await db().collection('correos_pendientes')
+      .where('uid', '==', uid).get();
+
+    for (const doc of encolados.docs) await doc.ref.delete();
+    resumen.correosEncolados = encolados.size;
 
     // Las invitaciones que hubiera creado. Ademas de llevar su uid, un enlace
     // que sigue funcionando despues de que su autor se haya ido mete gente en

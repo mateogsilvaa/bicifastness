@@ -271,10 +271,10 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 <!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 10.434 | 21% |
-| u50 | 50 | 3000 | 39.649 | 79% |
-| u200 | 200 | 15.000 | 174.922 | 350% **se agota** |
-| u1000 | 1000 | 90.000 | 1.634.258 | 3269% **se agota** |
+| hoy | 6 | 1022 | 10.722 | 21% |
+| u50 | 50 | 3000 | 39.937 | 80% |
+| u200 | 200 | 15.000 | 175.210 | 350% **se agota** |
+| u1000 | 1000 | 90.000 | 1.634.546 | 3269% **se agota** |
 <!-- fin:escenarios -->
 
 
@@ -327,6 +327,7 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | cola y bajas (por pasada) | 3 | las consultas de cola, recalculo pendiente y bajas |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
 | metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |
+| reenviarCorreos (por pasada) | 1 | la cola de correos pendientes, acotada a 50 y ordenada por cuando toca |
 | metricas.tocaResumir (por pasada) | 1 | la marca del agregado, para saber si toca el resumen caro |
 | la transaccion de puntos e insignias (por viaje APROBADO) | 1 | el perfil del piloto, una vez, dentro de la transaccion |
 | agregados.tocaReconstruir (por pasada con movimiento) | 1 | la marca del agregado de portada, para saber si toca |

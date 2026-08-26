@@ -162,7 +162,57 @@ export function traducirErrorAuth(error) {
   return mensajes[error?.code] || 'No se ha podido completar la operacion.';
 }
 
-/** Avatar por defecto, generado a partir del nombre de piloto. */
+/**
+ * Avatar por defecto: las iniciales sobre el azul de la marca.
+ *
+ * SE DIBUJA AQUI, no se pide fuera, y el motivo es de #55. Antes salia de
+ * `api.dicebear.com`, o sea que cada avatar era una peticion a un tercero — y
+ * no solo cuando entraba esa persona: **cuando cualquiera abria una
+ * clasificacion donde ella salia**. Con el nombre de piloto dentro de la URL:
+ *
+ *     https://api.dicebear.com/7.x/initials/svg?seed=Nombre+Del+Piloto
+ *
+ * Un identificador seudonimo mas la IP de quien mira, en cada carga, a un
+ * servidor que la politica de privacidad no declaraba.
+ *
+ * Y no habia por que: es un circulo con dos letras. Dibujarlo en local quita
+ * el tercero, quita una peticion de red por avatar, quita una entrada de la
+ * CSP y —lo que mas se nota— **hace que los avatares funcionen sin conexion**,
+ * que con la PWA de #52 importa.
+ *
+ * `encodeURIComponent` sobre el SVG entero, no solo sobre el nombre: dentro va
+ * texto que ha escrito un usuario, y un `"` o un `<` sueltos romperian el
+ * data: URI o meterian marcado donde no toca.
+ */
 export function avatarPorDefecto(nombre) {
-  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nombre || 'Piloto')}&backgroundColor=0071c3`;
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">'
+    + '<rect width="80" height="80" rx="40" fill="#0071c3"/>'
+    + '<text x="40" y="40" fill="#fff" font-family="system-ui,sans-serif" font-size="32"'
+    + ' font-weight="600" text-anchor="middle" dominant-baseline="central">'
+    + escaparXml(iniciales(nombre))
+    + '</text></svg>';
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+/** Una o dos letras: "Ana Perez" -> "AP", "Ana" -> "A". */
+function iniciales(nombre) {
+  const palabras = String(nombre || 'Piloto').trim().split(/\s+/).filter(Boolean);
+  if (!palabras.length) return 'P';
+
+  const letras = palabras.length === 1
+    ? palabras[0].slice(0, 1)
+    : palabras[0].slice(0, 1) + palabras[palabras.length - 1].slice(0, 1);
+
+  return letras.toUpperCase();
+}
+
+/** Lo minimo para que un nombre no pueda romper el SVG. */
+function escaparXml(texto) {
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }

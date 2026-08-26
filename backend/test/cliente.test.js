@@ -633,3 +633,82 @@ test('un EXIF con caracteres de control no se cuela en el panel', async () => {
 
   assert.strictEqual(datos.software, undefined);
 });
+
+
+// --- El avatar, dibujado en casa (#55) ---------------------------------------
+
+/**
+ * `firebase.js` importa el SDK de Firebase por URL, asi que no se puede cargar
+ * entero desde Node. Se extrae el generador, que no depende de nada.
+ */
+function generadorDeAvatar() {
+  const codigo = leer('assets/js/firebase.js');
+  const desde = codigo.indexOf('export function avatarPorDefecto');
+  const hasta = codigo.indexOf('\n}\n', codigo.indexOf('function escaparXml', desde));
+
+  const fuente = `${codigo.slice(desde, hasta + 3).replace(/export /g, '')}
+    module.exports = { avatarPorDefecto };`;
+
+  const modulo = { exports: {} };
+  new Function('module', 'exports', fuente)(modulo, modulo.exports);
+  return modulo.exports.avatarPorDefecto;
+}
+
+const svgDe = (url) => decodeURIComponent(url.replace('data:image/svg+xml,', ''));
+
+test('el avatar se dibuja aqui, sin pedirselo a nadie', () => {
+  // Antes salia de `api.dicebear.com`, o sea una peticion a un tercero por cada
+  // avatar — y no solo cuando entraba esa persona: cuando CUALQUIERA abria una
+  // clasificacion donde ella salia. Con el nombre de piloto dentro de la URL.
+  const avatar = generadorDeAvatar();
+  const url = avatar('Ana Perez');
+
+  assert.ok(url.startsWith('data:image/svg+xml,'), 'el avatar sigue saliendo de fuera');
+
+  // El `xmlns` de un SVG es una URL y no se descarga: es un identificador, y
+  // sin el el navegador no lo pinta. Lo que no puede haber es ninguna OTRA.
+  const enlaces = svgDe(url)
+    .match(/https?:\/\/[^"'\s]+/g)
+    .filter((u) => u !== 'http://www.w3.org/2000/svg');
+
+  assert.deepStrictEqual(enlaces, [], 'el avatar pide algo a algun sitio');
+});
+
+test('las iniciales salen del nombre, y siempre sale alguna', () => {
+  const avatar = generadorDeAvatar();
+  const letras = (n) => svgDe(avatar(n)).match(/central">([^<]*)</)[1];
+
+  assert.strictEqual(letras('Ana Perez'), 'AP');
+  assert.strictEqual(letras('Ana'), 'A');
+  assert.strictEqual(letras('ana maria lopez'), 'AL', 'con tres palabras, la primera y la ultima');
+
+  // Un avatar vacio es un circulo mudo, que es peor que una letra cualquiera.
+  for (const vacio of [null, undefined, '', '   ']) {
+    assert.ok(letras(vacio).length > 0, `sin iniciales para ${JSON.stringify(vacio)}`);
+  }
+});
+
+test('un nombre no puede romper el SVG ni meter marcado dentro', () => {
+  // Dentro del avatar va texto que ha escrito un usuario. Un `<` suelto rompe
+  // el data: URI, y uno bien puesto mete marcado donde no toca.
+  const avatar = generadorDeAvatar();
+  const svg = svgDe(avatar('<script>x</script> Perez'));
+
+  assert.ok(!svg.includes('<script'), 'se ha colado marcado en el avatar');
+  assert.match(svg, /&lt;/);
+});
+
+test('el proyecto ya no se conecta a dicebear', () => {
+  // Ni el codigo ni la CSP. Si vuelve el codigo sin la CSP, el avatar no carga;
+  // si vuelve la CSP sin el codigo, se declara un tercero que no se usa. Las
+  // dos cosas se comprueban juntas.
+  const cabeceras = leer('shared/cabeceras.json');
+  assert.ok(!cabeceras.includes('dicebear'),
+    'la CSP sigue autorizando un tercero que ya no se usa');
+
+  for (const rel of ['assets/js/firebase.js', 'assets/js/paginas/yo.js', 'vercel.json']) {
+    // Sin comentarios: los de estos ficheros explican POR QUE se quito.
+    const sinComentarios = leer(rel).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    assert.ok(!sinComentarios.includes('dicebear'), `${rel} sigue pidiendo el avatar fuera`);
+  }
+});

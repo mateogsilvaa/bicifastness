@@ -16,10 +16,10 @@
     "",
     "Cada origen esta porque algo lo usa. Si quitas la funcion, quita el origen."
   ],
-
   "csp": {
-    "default-src": ["'self'"],
-
+    "default-src": [
+      "'self'"
+    ],
     "script-src": [
       "'self'",
       "https://www.gstatic.com",
@@ -27,45 +27,46 @@
       "https://unpkg.com",
       "'wasm-unsafe-eval'"
     ],
-
-    "worker-src": ["'self'", "blob:"],
-
+    "worker-src": [
+      "'self'",
+      "blob:"
+    ],
     "style-src": [
       "'self'",
       "'unsafe-inline'",
       "https://unpkg.com"
     ],
-
-    "font-src": ["'self'"],
-
+    "font-src": [
+      "'self'"
+    ],
     "img-src": [
       "'self'",
       "data:",
       "blob:",
-      "https://api.dicebear.com",
       "https://*.basemaps.cartocdn.com",
       "https://*.tile.openstreetmap.org"
     ],
-
     "connect-src": [
       "'self'",
       "https://*.googleapis.com",
       "https://*.firebaseio.com",
       "wss://*.firebaseio.com"
     ],
-
     "frame-src": [
       "https://www.google.com",
       "https://bicifastness.firebaseapp.com"
     ],
-
-    "base-uri": ["'self'"],
-    "form-action": ["'self'"],
-    "object-src": ["'none'"],
-
+    "base-uri": [
+      "'self'"
+    ],
+    "form-action": [
+      "'self'"
+    ],
+    "object-src": [
+      "'none'"
+    ],
     "upgrade-insecure-requests": []
   },
-
   "_csp_worker_src": [
     "El OCR del navegador (#8) corre en un Worker propio. `blob:` hace falta de",
     "verdad: tesseract.js se descarga su propio script de worker y lo arranca",
@@ -80,16 +81,16 @@
     "porque asi un origen que se anada manana a `script-src` no da permiso de",
     "worker sin que nadie lo haya decidido."
   ],
-
   "_csp_solo_cabecera": [
     "Directivas que el navegador IGNORA cuando la CSP llega por <meta>, asi que",
     "solo tienen efecto en la cabecera HTTP. Es justo lo que se perdia al",
     "plantearse GitHub Pages."
   ],
   "csp_solo_cabecera": {
-    "frame-ancestors": ["'none'"]
+    "frame-ancestors": [
+      "'none'"
+    ]
   },
-
   "_otras": [
     "El resto de cabeceras de seguridad. Ninguna tiene equivalente en <meta>:",
     "o van por HTTP o no existen."

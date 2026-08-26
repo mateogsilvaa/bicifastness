@@ -7,6 +7,7 @@
 import {
   auth, db, onAuthStateChanged, signOut,
   collection, getDocs, getCountFromServer, query, where, orderBy, limit, startAfter, doc, getDoc,
+  avatarPorDefecto,
 } from '/assets/js/firebase.js';
 import { iniciarPagina, alternarTema, nombreRuta, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar, confirmar, pedirTexto, esqueleto } from '/assets/js/dom.js';
@@ -50,8 +51,10 @@ async function cargarPerfil() {
   id('verificados').textContent = perfil.viajesVerificados || 0;
   contarTrayectos();
   id('clan').textContent = perfil.clanId ? `Clan: ${perfil.clanId}` : 'Sin clan';
-  id('avatar').src = perfil.avatarUrl
-    || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(perfil.username || 'P')}&backgroundColor=0071c3`;
+  // El mismo generador que usa el alta, no una copia de la URL: cuando esto era
+  // una direccion de dicebear repetida a mano, cambiarla en un sitio dejaba el
+  // otro apuntando fuera (#55).
+  id('avatar').src = perfil.avatarUrl || avatarPorDefecto(perfil.username);
 
   reemplazar(id('insignias'), generarNodosInsignias(perfil.logros || []));
 

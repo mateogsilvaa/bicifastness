@@ -234,7 +234,7 @@ entonces `main` parece la unica que hay.
 | #34 Coste por pantalla | **Hecho.** Modelo ejecutable en `scripts/auditar-lecturas.js` y `docs/COSTE.md`. De paso, arreglado lo que se llevaba el 95% de las lecturas |
 | #37 Cache y paginacion | **Hecho.** Persistencia local, agregados en sesion, historial paginado y las dos consultas sin techo, cerradas |
 | #52 PWA | **Hecho.** Manifiesto, iconos maskable, pantalla offline util e invitacion tras el primer viaje |
-| #55 Repaso legal | **Hecho** lo que depende del codigo. Faltan los datos del responsable, que no puedo rellenar yo |
+| #55 Repaso legal | **Hecho** lo que depende del codigo, incluido quitar `api.dicebear.com`: cada avatar era una peticion a un tercero con el nombre de piloto dentro, en cada carga de cualquiera. Faltan los datos del responsable, que no puedo rellenar yo |
 | #56 Ensayo general | **Hecho.** Las periodicas corren sobre 200 usuarios y 5.000 viajes en el CI, contando lecturas |
 | #57 y #7 Documentacion | **Hecho.** `LANZAMIENTO.md`, `MANTENIMIENTO.md`, `ENSAYO.md` y `COSTE.md` |
 | #54 Migrar la v1 | **Hecho.** Distancia y velocidad de los viajes historicos, puntos de la v1 archivados como temporada `v1`, copia de seguridad con `--copia` y aviso por correo. Falta ejecutarla: `docs/MIGRACION.md` |
@@ -242,9 +242,9 @@ entonces `main` parece la unica que hay.
 | #59 y #60 Fuga de correos | Codigo hecho. **Falta desplegar las reglas**, que es lo unico que corta la fuga |
 | #61 Denunciar un tiempo | **Hecho y cerrado.** La cola de moderacion ya tiene entrada, sin publicar ningun uid |
 | #62 Escribir sin freno | **Abierto y es tuyo.** La decision de fondo (App Check o contador en reglas) no la puedo tomar yo |
-| #64 Nombres sin sanear | **Abierto y es tuyo.** El filtro de palabras y `limpiarTexto` existen y no los llama nadie. Que hacer con un nombre que da positivo es decision tuya; el saneado de invisibles se puede hacer ya y por separado |
-| #65 Correo sin reintento | **Abierto y es tuyo.** Un 429 borra el correo para siempre. Guardar la cola toca datos personales, y ahi hay que elegir |
-| #66 Señal antifraude muerta | **Abierto y es tuyo.** Los 45 puntos de "editada con Photoshop" no pueden saltar nunca. Lo que si esta hecho: la limpieza de EXIF, que ocurria por accidente, queda escrita y con prueba |
+| #64 Nombres sin sanear | **Hecho.** El worker revisa el nombre de cada piloto y clan nuevo, gratis (donde ya se leen los datos) y sin renombrar a nadie: lo que no cuadra va a la cola de moderacion. `badwords` y `limpiarTexto` vuelven a tener llamante |
+| #65 Correo sin reintento | **Hecho.** Cola de reintentos que guarda `{uid, tipo, extra}` y NUNCA el destinatario ni el mensaje montado: los dos se resuelven al enviar. Falta el webhook de rebotes de Resend para que `debeDejarDeIntentar` tenga datos |
+| #66 Señal antifraude muerta | **Hecho.** El navegador lee el EXIF del fichero original antes de comprimir y declara solo `Software` y `Make`. El peso baja de 45 a 15: sola no decide —recortar es legitimo— pero inclina |
 | #67 Agotar la cuota sin cuenta | **Abierto.** Hecha la mitad que no tiene discusion (quitar la amplificacion de la poda). El agujero lo tapa App Check, o sea #4 |
 
 ### Documentacion que manda hacer lo imposible

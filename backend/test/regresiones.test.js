@@ -2745,3 +2745,33 @@ test('las tablas de COSTE.md son las que sale del modelo, no una copia vieja', (
     assert.strictEqual(veces, 1, `hay ${veces} tablas "${nombre}" en docs/COSTE.md`);
   }
 });
+
+test('en modo degradado tampoco se poda: podar son escrituras', () => {
+  // El modo degradado (#38) existe para que, por encima del 95% de la cuota, el
+  // worker deje de hacer todo menos lo unico que la gente espera: verificar
+  // viajes. Su propio comentario lo dice.
+  //
+  // `agregarSesiones` se quedaba fuera de esa puerta por considerarse "la
+  // barata". Y lo es en LECTURAS —una consulta acotada a 450— pero poda el
+  // detalle viejo, y podar son ESCRITURAS: hasta 450 por pasada, 288 pasadas al
+  // dia. El techo son 129.600 borrados, seis veces la cuota entera de
+  // escrituras.
+  //
+  // Importa porque en `sesiones_web` puede escribir cualquiera sin sesion
+  // (#67): una inundacion pone al worker a gastarse el dia borrando basura
+  // mientras los viajes de verdad se quedan en la cola. Y `cuota.nivel` mira
+  // las dos cuotas y se queda con la que mas apriete, asi que ahi `degradado`
+  // ya esta encendido — solo faltaba mirarlo.
+  const worker = leerCodigo('backend/worker.js');
+
+  const llamada = worker.indexOf('metricas.agregarSesiones()');
+  assert.ok(llamada > 0, 'no se encuentra la llamada a agregarSesiones');
+
+  // La guarda que la envuelve, mirando hacia atras hasta el `if` mas cercano.
+  const antes = worker.slice(Math.max(0, llamada - 300), llamada);
+  const guarda = antes.slice(antes.lastIndexOf('if ('));
+
+  assert.match(guarda, /!degradado/,
+    'se poda tambien en degradado, y podar son escrituras: es justo el recurso '
+    + 'que aprieta cuando alguien inunda sesiones_web');
+});

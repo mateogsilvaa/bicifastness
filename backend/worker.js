@@ -1905,7 +1905,20 @@ async function main() {
   // costaba 288 x (usuarios + viajes) lecturas al dia — 402.000 con los datos
   // de hoy, ocho veces la cuota diaria, con seis personas usando la web y
   // aunque no pasara nada. Ahora va como mucho una vez por hora (#34).
-  if (!SIMULAR) {
+  // TAMBIEN se salta en degradado, aunque sea la barata. Es barata en LECTURAS
+  // —una consulta acotada a 450— pero poda el detalle viejo, y podar son
+  // escrituras: hasta 450 por pasada.
+  //
+  // Y las escrituras son el recurso que aprieta en el caso que importa. Cualquiera
+  // puede escribir en `sesiones_web` sin sesion (#67), asi que una inundacion
+  // pone al worker a gastar el dia entero borrando basura mientras los viajes
+  // de verdad se quedan en la cola. `cuota.nivel` mira las dos cuotas y se
+  // queda con la que mas apriete, asi que en ese caso `degradado` ya esta
+  // encendido: solo faltaba mirarlo aqui.
+  //
+  // Lo que se pierde es que el detalle se acumule un rato mas. Lo que se
+  // protege es lo unico que la gente esta esperando de verdad.
+  if (!SIMULAR && !degradado) {
     try {
       const sesiones = await metricas.agregarSesiones();
       console.log(`Metricas: ${sesiones.sesiones || 0} sesiones agregadas, `

@@ -557,3 +557,79 @@ test('el navegador lee la captura con los mismos ajustes que el worker', async (
   // La resolucion que se le declara. Cambia como escala la imagen internamente.
   assert.strictEqual(AJUSTES_WORKER.RESOLUCION, ocr.RESOLUCION);
 });
+
+
+// --- EXIF: la unica pista de edicion que sobrevive al lienzo (#66) -----------
+
+/**
+ * Una imagen JPEG de verdad, con o sin EXIF.
+ *
+ * Se construye con `sharp` en vez de guardar un binario en el repositorio: asi
+ * se ve en el codigo QUE lleva dentro, que es lo que se esta probando, y no hay
+ * que fiarse de un blob que nadie puede leer.
+ */
+async function jpeg(exif) {
+  const sharp = require('sharp');
+  const imagen = sharp({ create: { width: 40, height: 40, channels: 3, background: '#777' } });
+  return (exif ? imagen.withExif({ IFD0: exif }) : imagen).jpeg().toBuffer();
+}
+
+/** Un Buffer de Node como el ArrayBuffer que daria el navegador. */
+const comoDelNavegador = (buf) => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+
+test('se lee el programa que toco la captura, antes de que el lienzo lo borre', async () => {
+  // La señal `metadatos_edicion` no podia saltar NUNCA: el navegador recodifica
+  // toda captura en un `<canvas>`, y un lienzo solo guarda pixeles. Lo que se
+  // lea hay que leerlo del fichero original y antes de comprimir.
+  const { leerExif } = await cargarModuloCliente('assets/js/exif.js');
+
+  const datos = leerExif(comoDelNavegador(
+    await jpeg({ Software: 'Adobe Photoshop 25.0', Make: 'Apple' })));
+
+  assert.strictEqual(datos.software, 'Adobe Photoshop 25.0');
+  assert.strictEqual(datos.marca, 'Apple');
+});
+
+test('una captura limpia no declara nada', async () => {
+  const { leerExif } = await cargarModuloCliente('assets/js/exif.js');
+
+  assert.deepStrictEqual(leerExif(comoDelNavegador(await jpeg(null))), {});
+});
+
+test('solo salen esas dos etiquetas, nunca las de posicion', async () => {
+  // El EXIF de una foto lleva DONDE se hizo, y las capturas se guardan en
+  // Firestore: fueron parte de la fuga de #59. La lista es cerrada a proposito,
+  // porque leer el bloque entero "por si acaso" es como se acaba publicando la
+  // casa de la gente.
+  const { leerExif } = await cargarModuloCliente('assets/js/exif.js');
+
+  const datos = leerExif(comoDelNavegador(await jpeg({
+    Software: 'Snapseed',
+    Make: 'samsung',
+    Copyright: 'Fulanito de Tal',
+    Artist: 'Fulanito',
+  })));
+
+  assert.deepStrictEqual(Object.keys(datos).sort(), ['marca', 'software']);
+  assert.ok(!JSON.stringify(datos).includes('Fulanito'),
+    'ha salido algo que no estaba en la lista');
+});
+
+test('lo que no es un JPEG no revienta, devuelve vacio', async () => {
+  const { leerExif } = await cargarModuloCliente('assets/js/exif.js');
+
+  for (const basura of [new ArrayBuffer(0), new ArrayBuffer(2), new Uint8Array([1, 2, 3, 4, 5]).buffer]) {
+    assert.deepStrictEqual(leerExif(basura), {});
+  }
+});
+
+test('un EXIF con caracteres de control no se cuela en el panel', async () => {
+  // Ese texto acaba en el veredicto y de ahi en la pantalla de quien revisa. Un
+  // nombre de programa no lleva caracteres de control: eso es alguien probando.
+  const { leerExif } = await cargarModuloCliente('assets/js/exif.js');
+
+  const conControl = 'Foto' + String.fromCharCode(7) + 'Bar';
+  const datos = leerExif(comoDelNavegador(await jpeg({ Software: conControl })));
+
+  assert.strictEqual(datos.software, undefined);
+});

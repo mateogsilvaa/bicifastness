@@ -2887,3 +2887,56 @@ test('las dos listas de caracteres invisibles no divergen', () => {
     rangos(leerCodigo('backend/src/util.js')),
     'el navegador y el worker no quitan los mismos caracteres invisibles');
 });
+
+test('la pista de edicion se lee del fichero original, no de lo que llega al worker', () => {
+  // #66. La señal `metadatos_edicion` valia 45 puntos y NO PODIA SALTAR NUNCA:
+  // el navegador recodifica toda captura en un `<canvas>`, un lienzo solo
+  // guarda pixeles, y el EXIF —donde se buscaban las firmas de Photoshop—
+  // desaparecia antes de que la imagen saliera del movil.
+  //
+  // Lo que lo hacia invisible es que no habia nada que buscar con `grep`: la
+  // funcion se llamaba, la prueba pasaba porque le metia el `true` a mano, y el
+  // valor solo era constante en produccion.
+  const subir = leerCodigo('assets/js/paginas/subir.js');
+
+  // Se lee del FICHERO, no de la imagen ya comprimida.
+  assert.match(subir, /leerExif\(await fichero\./,
+    'el EXIF se lee de algo que no es el fichero original: ahi ya no queda nada');
+
+  // Y antes de que `preparada` se monte con el dataUrl del lienzo.
+  const donde = subir.indexOf('leerExif(');
+  const dondeSube = subir.indexOf('datos: preparada.dataUrl');
+  assert.ok(donde > 0 && donde < dondeSube,
+    'se lee el EXIF despues de haber subido: para entonces ya se ha perdido');
+
+  // El worker mira lo declarado, no solo lo que trae el buffer.
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /imagen\.editorEn\(viaje\.metadatos\?\.software\)/,
+    'el worker ignora lo que declaro el navegador: la señal vuelve a estar muerta');
+
+  // Y la lista de editores es UNA, compartida por las dos puntas: si cada lado
+  // tuviera la suya, una podria reconocer Snapseed y la otra no.
+  assert.match(leerCodigo('backend/src/imagen.js'), /const EDITORES = \[/);
+  assert.match(worker, /imagen\.editorEn\(/);
+});
+
+test('del EXIF solo sale lo que no lleva a ninguna parte', () => {
+  // El EXIF de una foto lleva DONDE se hizo, y las capturas se guardan en
+  // Firestore: fueron parte de la fuga de #59. Leer el bloque entero y mandarlo
+  // "por si acaso" es como se acaba publicando la casa de la gente.
+  const exif = leerCodigo('assets/js/exif.js');
+
+  const etiquetas = [...exif.matchAll(/0x[0-9a-f]{4}: '(\w+)'/g)].map((m) => m[1]);
+  assert.deepStrictEqual(etiquetas.sort(), ['marca', 'software'],
+    `del EXIF sale algo mas que la marca y el programa: ${etiquetas.join(', ')}`);
+
+  // Y ni rastro de las de posicion, por si alguien las añade sin pensar.
+  for (const prohibida of ['GPS', 'Latitude', 'Longitude', 'gps']) {
+    assert.ok(!exif.includes(prohibida), `el lector de EXIF menciona ${prohibida}`);
+  }
+
+  // La regla acota el campo, como todo lo que escribe el navegador.
+  const viajes = bloque('tiempos_viaje');
+  assert.match(viajes, /metadatos\.keys\(\)\.hasOnly\(\['software', 'marca'\]\)/,
+    'el campo `metadatos` admite cualquier clave');
+});

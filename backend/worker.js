@@ -383,6 +383,11 @@ async function procesar(doc) {
   // rechazados por `ruta_no_coincide`.
   const lectura = elegirTrayecto(await leerCaptura({ buffer, mime }), viaje.ruta);
 
+  // Lo que el navegador leyo del EXIF del fichero original, antes de que el
+  // lienzo lo borrase. Se pasa por la MISMA lista de editores que el servidor,
+  // para que las dos puntas no puedan discrepar sobre que es un editor.
+  const editorDeclarado = imagen.editorEn(viaje.metadatos?.software);
+
   // 5. Veredicto.
   const veredicto = evaluar({
     ruta: viaje.ruta,
@@ -391,8 +396,15 @@ async function procesar(doc) {
     capturaId,
     hashSha,
     hashPerceptual,
-    edicionSospechosa: inspeccion.sospechaEdicion,
-    software: inspeccion.software,
+    // El EXIF del fichero (`inspeccion`) casi nunca trae nada: el navegador
+    // recodifica la captura en un lienzo y eso lo borra antes de subirla. Por
+    // eso se mira TAMBIEN lo que el navegador declaro leyendo el original antes
+    // de comprimir (#66).
+    //
+    // El del servidor manda si alguna vez trae algo: viene del fichero, no de
+    // lo que diga el cliente.
+    edicionSospechosa: inspeccion.sospechaEdicion || Boolean(editorDeclarado),
+    software: inspeccion.software || editorDeclarado,
     ...contexto,
   });
 

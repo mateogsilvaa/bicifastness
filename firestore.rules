@@ -267,8 +267,25 @@ service cloud.firestore {
       allow create: if esYo(datos().uid)
         && datos().keys().hasOnly([
           'uid', 'username', 'ruta', 'tiempoSegundos', 'tiempoFormateado',
-          'fechaViaje', 'estado', 'verificado', 'creado', 'correcciones', 'capturaId'
+          'fechaViaje', 'estado', 'verificado', 'creado', 'correcciones', 'capturaId',
+          'metadatos'
         ])
+        // `metadatos` son las DOS unicas etiquetas del EXIF que el navegador
+        // lee antes de comprimir: el programa que toco la captura y la marca
+        // del movil (#66). Nunca las de posicion — el EXIF de una foto lleva
+        // donde se hizo, y las capturas se guardan en Firestore.
+        //
+        // Lo declara el cliente, asi que quien sepa lo que hace no lo manda. Se
+        // usa igual porque solo puede QUITARSE puntos a si mismo: no hay forma
+        // de mandarlo por otro, y no mandarlo deja las cosas como estaban. Por
+        // eso la señal que alimenta pesa 15 y no 45.
+        && (!datos().keys().hasAny(['metadatos']) || (
+          datos().metadatos.keys().hasOnly(['software', 'marca'])
+          && (!('software' in datos().metadatos)
+            || (datos().metadatos.software is string && datos().metadatos.software.size() <= 40))
+          && (!('marca' in datos().metadatos)
+            || (datos().metadatos.marca is string && datos().metadatos.marca.size() <= 40))
+        ))
         // Varios viajes pueden apuntar a la MISMA captura: una imagen del
         // historial de la app lleva dos o tres trayectos (#11). Por eso el
         // documento de la captura ya no se llama forzosamente como el viaje.

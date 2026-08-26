@@ -149,10 +149,38 @@ test('mejorar el record por poco margen no molesta a nadie', () => {
   assert.strictEqual(r.decision, 'aprobado');
 });
 
-test('los metadatos de un editor de imagen levantan sospecha', () => {
-  const r = evaluar(contextoBase({ edicionSospechosa: true, software: 'Photoshop' }));
-  assert.strictEqual(r.decision, 'revision');
-  assert.ok(r.señales.some((s) => s.codigo === 'metadatos_edicion'));
+test('los metadatos de un editor de imagen levantan sospecha, pero no deciden solos', () => {
+  // CAMBIO DE PESO, Y ES A PROPOSITO (#66). Valia 45 —bastaba para mandar a
+  // revision el solo— cuando se creia que el dato salia del EXIF del fichero,
+  // o sea del servidor. Resulta que no podia: el navegador recodifica toda
+  // captura en un `<canvas>` y eso borra el EXIF antes de que salga del movil.
+  // La señal no habia saltado NUNCA en produccion.
+  //
+  // Ahora el dato lo declara el navegador leyendo el fichero original. Eso
+  // pilla a quien edita sin pensar, pero no a quien va en serio: le basta con
+  // no mandarlo. Una pista que se puede omitir no puede pesar como una prueba.
+  //
+  // Y sobre todo: RECORTAR ES LEGITIMO Y COMUN. `normalizar.js` dice que "mucha
+  // gente recorta para quitar la barra de estado". Si eso mandara a revision el
+  // solo, media subida honrada acabaria esperando a una persona.
+  const r = evaluar(contextoBase({ edicionSospechosa: true, software: 'Snapseed' }));
+
+  assert.ok(r.señales.some((s) => s.codigo === 'metadatos_edicion'),
+    'la señal no se emite');
+  assert.strictEqual(r.decision, 'aprobado',
+    'declarar un editor manda a revision el solo: recortar la captura es legitimo');
+});
+
+test('pero sumada a otra cosa, si inclina la balanza', () => {
+  // Para eso sigue estando. Sola no decide; junto a algo mas, empuja por encima
+  // del umbral de revision.
+  const soloRecord = evaluar(contextoBase({ mejorTiempoRuta: 900 }));
+  const conEditor = evaluar(contextoBase({
+    mejorTiempoRuta: 900, edicionSospechosa: true, software: 'Photoshop',
+  }));
+
+  assert.ok(conEditor.riesgo > soloRecord.riesgo,
+    'declarar un editor no suma nada al riesgo');
 });
 
 test('la ruta leida en la foto no coincide con la declarada', () => {

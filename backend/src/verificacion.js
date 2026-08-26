@@ -228,9 +228,21 @@ function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios
 function comprobarContexto({ tiempoSegundos, mejorTiempoRuta, mejorTiempoPropio, edicionSospechosa, software }) {
   const señales = [];
 
+  // 15 y no 45, y el cambio tiene motivo (#66).
+  //
+  // Valia 45 cuando se creia que el dato salia del EXIF del fichero, o sea del
+  // servidor. Resulta que no podia: el navegador recodifica toda captura en un
+  // `<canvas>` y eso borra el EXIF antes de que salga del movil, asi que esta
+  // señal no habia saltado NUNCA en produccion. Estaba llamada, probada y
+  // muerta.
+  //
+  // Ahora el dato lo lee el navegador del fichero original y lo declara. Eso
+  // pilla a quien edita una captura sin pensar —que es el caso corriente— pero
+  // no a quien va en serio: le basta con no mandarlo. Una pista que se puede
+  // omitir no puede pesar como una prueba.
   if (edicionSospechosa) {
-    señales.push(señal('metadatos_edicion', 45,
-      `La imagen conserva metadatos de ${software}. Una captura de pantalla autentica no pasa por un editor.`));
+    señales.push(señal('metadatos_edicion', 15,
+      `La captura declara haber pasado por ${software}. Una captura de pantalla autentica no pasa por un editor.`));
   }
 
   if (mejorTiempoRuta && tiempoSegundos < mejorTiempoRuta) {

@@ -30,6 +30,7 @@ import {
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { diaMadrid, diaMadridHace } from '/assets/js/dia.js';
 import { revisar, LIMITES_CLIENTE } from '/assets/js/precheck.js';
+import { leerExif } from '/assets/js/exif.js';
 import { extraer, cerrar as cerrarLector } from '/assets/js/extraccion.js';
 import { seguirViaje, recordarViaje, olvidarViaje, pintarEstado } from '/assets/js/estado-viaje.js';
 import { marcarPrimerViaje } from '/assets/js/instalar.js';
@@ -173,12 +174,28 @@ async function elegirFoto() {
   });
   if (entradaFoto.files[0] !== fichero) return;
 
+  // El EXIF, del fichero ORIGINAL. Tiene que ser aqui: lo que se sube ya ha
+  // pasado por el lienzo, y un lienzo solo guarda pixeles — el EXIF entero
+  // desaparece al recodificar. Por eso la señal de "editada con Photoshop" del
+  // antifraude no habia saltado nunca (#66).
+  //
+  // Solo salen `software` y `marca`. Nunca las de posicion: el EXIF de una foto
+  // lleva donde se hizo, y las capturas se guardan en Firestore.
+  let metadatos = {};
+  try {
+    metadatos = leerExif(await fichero.slice(0, 65536).arrayBuffer());
+  } catch {
+    // Un fichero que no se puede leer aqui tampoco cambia nada: el antifraude
+    // funciona igual sin esta pista, que es justo donde estabamos antes.
+  }
+
   progreso.textContent = '';
   preparada = {
     fichero,
     dataUrl: revision.comprimida?.dataUrl || null,
     avisos: revision.avisos,
     lectura: lectura.disponible ? lectura : null,
+    metadatos,
   };
 
   await decidirPaso(lectura);
@@ -511,6 +528,12 @@ async function crearViajes(viajes, fechaViaje, correccionesDe = null) {
 
     const corregido = correccionesDe ? correccionesDe(viaje) : null;
     if (corregido) datos.correcciones = corregido;
+
+    // Solo si hay algo. Un documento con `metadatos: {}` ocupa por nada, y las
+    // capturas de pantalla limpias —que son la mayoria— no traen EXIF.
+    if (preparada?.metadatos && Object.keys(preparada.metadatos).length) {
+      datos.metadatos = preparada.metadatos;
+    }
 
     lote.set(viajeRef, datos);
   }

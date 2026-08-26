@@ -2940,3 +2940,25 @@ test('del EXIF solo sale lo que no lleva a ninguna parte', () => {
   assert.match(viajes, /metadatos\.keys\(\)\.hasOnly\(\['software', 'marca'\]\)/,
     'el campo `metadatos` admite cualquier clave');
 });
+
+test('App Check no se enciende a medias', () => {
+  // La clave de reCAPTCHA vive en el propio `firebase.js` con un hueco por
+  // rellenar, y App Check solo arranca si esta puesta. El riesgo no es que se
+  // quede apagado: es el ORDEN. Si se activa el modo obligatorio en la consola
+  // ANTES de poner la clave, el navegador no manda token y Firestore rechaza
+  // todas las peticiones del sitio — nadie entra, nadie sube, nadie ve nada,
+  // hasta que alguien lo desactive a mano en la consola.
+  //
+  // Eso no se puede impedir desde el codigo, asi que lo que se comprueba es que
+  // el aviso este escrito donde se va a leer: en la lista de lanzamiento.
+  const firebase = leerCodigo('assets/js/firebase.js');
+
+  assert.match(firebase, /RECAPTCHA_SITE_KEY/);
+  assert.match(firebase, /startsWith\('__'\)/,
+    'ya no se distingue la clave puesta del hueco sin rellenar');
+
+  const lanzamiento = leer('docs/LANZAMIENTO.md');
+  assert.match(lanzamiento, /RECAPTCHA_SITE_KEY/);
+  assert.match(lanzamiento, /rechaza todas las peticiones/i,
+    'la lista de lanzamiento no avisa de que activarlo antes de tiempo tumba el sitio');
+});

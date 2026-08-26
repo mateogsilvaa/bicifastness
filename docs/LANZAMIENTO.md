@@ -80,6 +80,19 @@ modo mantenimiento no protege ni un dato. Lo unico que protege son las reglas.
 - [ ] `RECAPTCHA_SITE_KEY` puesta en `assets/js/firebase.js`
 - [ ] App Check en modo obligatorio para Firestore, **despues** de comprobar que
       el worker no se ve afectado: el Admin SDK no pasa por App Check
+
+> **EL ORDEN DE ESTOS TRES NO ES OPCIONAL.** `assets/js/firebase.js` solo
+> arranca App Check si `RECAPTCHA_SITE_KEY` esta puesta; con el hueco sin
+> rellenar se limita a un aviso en consola. Si se activa el **modo obligatorio**
+> antes de poner la clave, el navegador deja de mandar token y Firestore
+> **rechaza todas las peticiones del sitio**: nadie entra, nadie sube y nadie
+> ve una clasificacion, hasta que se vuelva a desactivar en la consola. La
+> clave primero, se comprueba que la web sigue yendo, y solo entonces el modo
+> obligatorio.
+>
+> Y merece la pena hacerlo pronto: App Check es hoy la unica defensa contra
+> #67 —cualquiera sin cuenta puede agotar las 20.000 escrituras del dia— y la
+> salida mas probable para #62.
 - [ ] El dominio antiguo sigue autorizado durante la transicion
 
 Firebase Auth solo acepta peticiones desde dominios de su lista blanca. Si esto

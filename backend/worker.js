@@ -1718,7 +1718,14 @@ async function despejarInundacion(cola) {
       `${uid} ha dejado ${suyos.size}+ viajes pendientes. Se han rechazado ${sobran.length} `
       + 'por cupo diario y se han borrado sus capturas. Si se repite, la cuenta se '
       + 'suspende desde el panel.',
-    ).catch(() => {});
+    ).catch((error) => {
+      // Que no salga el correo no puede parar el despeje —lo importante es que
+      // la cola quede libre para los demas— pero un aviso que se pierde EN
+      // SILENCIO es lo peor de las dos opciones: la administracion no se entera
+      // del abuso, y tampoco se entera de que no se ha enterado.
+      console.error('::warning::No se ha podido avisar del flood a la administracion:',
+        error.message);
+    });
   }
 
   return tirados;

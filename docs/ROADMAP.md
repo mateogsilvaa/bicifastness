@@ -467,6 +467,40 @@ Dos cosas que costaron y conviene no repetir:
   siempre habria dejado sin poder tocar sus preferencias a cualquier perfil
   cuyo registro no tenga hoy exactamente esa forma.
 
+### Un `catch` vacio sobre algo que no puede fallar
+
+`borrado.ejecutar` —la funcion que cumple el derecho de supresion del RGPD—
+llevaba `.catch(() => {})` en cada borrado y devolvia un resumen de exito
+pasara lo que pasara.
+
+El worker hace lo correcto: registra el error y **deja la solicitud** para
+reintentarla, porque `ejecutar` es idempotente justo para eso. Pero nunca se
+enteraba. La solicitud se borraba en la misma pasada y los datos se quedaban
+dentro para siempre — y quien lo pidio ya no tiene cuenta de Auth, asi que no
+puede volver a entrar ni a pedirlo.
+
+Lo que lo hace evitable es el detalle tecnico: **en Firestore, borrar un
+documento que no existe NO falla**. Es un no-op. Asi que esos `catch` no
+protegian ninguna idempotencia —eso ya lo da Firestore— y lo unico que podian
+hacer era tragarse un error de verdad.
+
+La regla que sale de aqui: **antes de escribir un `catch` vacio, mirar si la
+operacion puede fallar por el motivo que se esta imaginando.** Muchas veces no,
+y entonces el `catch` solo esconde los motivos que no se imaginaron.
+
+Cuando el `catch` si tiene motivo, se queda —pero hablando. Quedan tres asi, y
+los tres dicen por que en el propio codigo:
+
+- el `update` sobre un clan que puede haberse disuelto entre la consulta y la
+  escritura; cualquier otro motivo deja el uid de la persona en un documento
+  publico
+- el recalculo del agregado del clan, que no echa atras el borrado —los datos
+  gordos ya se han ido— pero mientras tanto deja su nombre publicado en la
+  plantilla
+- el aviso a la administracion de una cola inundada: que no salga el correo no
+  puede parar el despeje, pero un aviso perdido en silencio es lo peor de las
+  dos opciones — no te enteras del abuso, y tampoco de que no te has enterado
+
 ### Lo que encontro el banco de capturas
 
 Los tres son fallos de capturas normales, de gente normal, y ninguno se veia

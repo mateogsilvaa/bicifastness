@@ -185,3 +185,35 @@ test('borrar una cuenta sin nada no revienta', async () => {
   borradosDeAuth.length = 0;
   await assert.doesNotReject(() => borrado.ejecutar('uid-fantasma'));
 });
+
+test('si algo del borrado falla, la solicitud NO se da por hecha', async () => {
+  // POR QUE ESTO IMPORTA MAS QUE OTRAS COSAS. Borrar una cuenta es una
+  // obligacion del RGPD, y quien la pide se queda sin forma de reclamar: al
+  // final se borra tambien su cuenta de Auth, asi que no puede volver a entrar
+  // ni a pedirlo otra vez.
+  //
+  // `ejecutar` se tragaba los fallos con `.catch(() => {})` en cada borrado y
+  // devolvia un resumen de exito. El worker, que hace lo correcto —registrar el
+  // error y DEJAR la solicitud para reintentarla, porque `ejecutar` es
+  // idempotente— nunca se enteraba: la solicitud se borraba y los datos se
+  // quedaban dentro para siempre.
+  //
+  // Y esos catch no hacian falta: en Firestore, borrar un documento que no
+  // existe NO falla. Solo podian tragarse un error de verdad.
+  sembrar();
+
+  const original = bd.doc.bind(bd);
+  bd.doc = (ruta) => {
+    const ref = original(ruta);
+    if (ruta === 'usuarios/uid-1') ref.delete = async () => { throw new Error('permission-denied'); };
+    return ref;
+  };
+
+  await assert.rejects(borrado.ejecutar('uid-1'), /permission-denied/,
+    'el borrado ha dicho que si con el perfil todavia dentro');
+
+  // Y lo que importa de verdad: la solicitud sigue ahi, asi que el worker lo
+  // reintenta en la siguiente pasada.
+  assert.ok(bd.leer('solicitudes_borrado/uid-1'),
+    'la solicitud se ha dado por hecha con el borrado a medias');
+});

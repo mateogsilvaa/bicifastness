@@ -180,7 +180,7 @@ async function ejecutar(uid, { simular = false } = {}) {
   // --- Lo transitorio: se borra entero ------------------------------------
   if (!simular) {
     // Su peticion de entrar en un clan con un codigo. El id ES el uid.
-    await db().doc(`usos_invitacion/${uid}`).delete().catch(() => {});
+    await db().doc(`usos_invitacion/${uid}`).delete();
 
     // Las invitaciones que hubiera creado. Ademas de llevar su uid, un enlace
     // que sigue funcionando despues de que su autor se haya ido mete gente en
@@ -198,7 +198,7 @@ async function ejecutar(uid, { simular = false } = {}) {
     // token, asi que solo se puede encontrar desde el perfil — y el perfil se
     // borra unas lineas mas abajo.
     if (datos?.tokenBaja) {
-      await db().doc(`solicitudes_baja/${datos.tokenBaja}`).delete().catch(() => {});
+      await db().doc(`solicitudes_baja/${datos.tokenBaja}`).delete();
     }
   }
 
@@ -225,10 +225,16 @@ async function ejecutar(uid, { simular = false } = {}) {
     for (const doc of pendientes.docs) {
       await doc.ref.update({
         solicitudes: admin.firestore.FieldValue.arrayRemove(uid),
-      }).catch(() => {});
+      }).catch((error) => {
+        // El clan puede haberse disuelto entre la consulta y esto. Cualquier
+        // otro motivo deja su uid en un documento publico, asi que se dice: el
+        // borrado sigue —los datos gordos ya se han ido— pero no en silencio.
+        console.warn(`  no se ha podido sacar su solicitud del clan ${doc.id}:`,
+          error.message);
+      });
     }
     if (datos.usernameLower) {
-      await db().doc(`nombres_usuario/${datos.usernameLower}`).delete().catch(() => {});
+      await db().doc(`nombres_usuario/${datos.usernameLower}`).delete();
     }
 
     // Y se rehace el agregado del clan, que lleva la plantilla con nombres
@@ -238,13 +244,21 @@ async function ejecutar(uid, { simular = false } = {}) {
     // periodica, porque "en algun momento" no es un plazo.
     if (datos.clanId) {
       const puntuacion = require('./puntuacion');
-      await puntuacion.recalcularClan(datos.clanId).catch(() => {});
+
+      // Este SI puede fallar sin echar atras el borrado: los datos de la
+      // persona ya se han ido, y lo que queda es refrescar un agregado que la
+      // pasada periodica va a rehacer igual. Pero se dice, porque mientras
+      // tanto su nombre sigue publicado en la plantilla del clan.
+      await puntuacion.recalcularClan(datos.clanId).catch((error) => {
+        console.warn(`  el agregado del clan ${datos.clanId} no se ha podido rehacer:`,
+          error.message);
+      });
     }
   }
 
   // --- El perfil y la cuenta ----------------------------------------------
   if (!simular) {
-    await perfilRef.delete().catch(() => {});
+    await perfilRef.delete();
 
     // Al final, y a prueba de que ya no exista: si el borrado se reintenta,
     // aqui es donde falla la segunda vez.
@@ -252,7 +266,7 @@ async function ejecutar(uid, { simular = false } = {}) {
       if (error.code !== 'auth/user-not-found') throw error;
     });
 
-    await db().doc(`solicitudes_borrado/${uid}`).delete().catch(() => {});
+    await db().doc(`solicitudes_borrado/${uid}`).delete();
   }
 
   return resumen;

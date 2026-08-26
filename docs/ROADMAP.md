@@ -240,6 +240,12 @@ entonces `main` parece la unica que hay.
 | #54 Migrar la v1 | **Hecho.** Distancia y velocidad de los viajes historicos, puntos de la v1 archivados como temporada `v1`, copia de seguridad con `--copia` y aviso por correo. Falta ejecutarla: `docs/MIGRACION.md` |
 | #29 Clanes | **Hecho**, incluida la pantalla, que era lo que faltaba: las doce acciones existian sin nada que las llamara |
 | #59 y #60 Fuga de correos | Codigo hecho. **Falta desplegar las reglas**, que es lo unico que corta la fuga |
+| #61 Denunciar un tiempo | **Hecho y cerrado.** La cola de moderacion ya tiene entrada, sin publicar ningun uid |
+| #62 Escribir sin freno | **Abierto y es tuyo.** La decision de fondo (App Check o contador en reglas) no la puedo tomar yo |
+| #64 Nombres sin sanear | **Abierto y es tuyo.** El filtro de palabras y `limpiarTexto` existen y no los llama nadie. Que hacer con un nombre que da positivo es decision tuya; el saneado de invisibles se puede hacer ya y por separado |
+| #65 Correo sin reintento | **Abierto y es tuyo.** Un 429 borra el correo para siempre. Guardar la cola toca datos personales, y ahi hay que elegir |
+| #66 Señal antifraude muerta | **Abierto y es tuyo.** Los 45 puntos de "editada con Photoshop" no pueden saltar nunca. Lo que si esta hecho: la limpieza de EXIF, que ocurria por accidente, queda escrita y con prueba |
+| #67 Agotar la cuota sin cuenta | **Abierto.** Hecha la mitad que no tiene discusion (quitar la amplificacion de la poda). El agujero lo tapa App Check, o sea #4 |
 
 ### Documentacion que manda hacer lo imposible
 

@@ -268,12 +268,14 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 
 ## Donde se esta hoy
 
+<!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 9839 | 20% |
-| u50 | 50 | 3000 | 39.368 | 79% |
-| u200 | 200 | 15.000 | 173.971 | 348% **se agota** |
-| u1000 | 1000 | 90.000 | 1.631.185 | 3262% **se agota** |
+| hoy | 6 | 1022 | 10.431 | 21% |
+| u50 | 50 | 3000 | 39.646 | 79% |
+| u200 | 200 | 15.000 | 174.919 | 350% **se agota** |
+| u1000 | 1000 | 90.000 | 1.634.255 | 3269% **se agota** |
+<!-- fin:escenarios -->
 
 
 Tres cosas que hay que leer bien de esa tabla:
@@ -291,6 +293,7 @@ acumulados**, que sube todos los dias aunque no entre nadie nuevo.
 
 ## Coste por pantalla
 
+<!-- tabla:pantallas -->
 | Pantalla | Lecturas por carga | De donde salen |
 |---|---:|---|
 | `/subir/` | 61 | perfil + sus 60 viajes mas recientes, para el limite diario |
@@ -299,11 +302,13 @@ acumulados**, que sube todos los dias aunque no entre nadie nuevo.
 | `/statssss/` | 2 | los agregados de portada y mapa |
 | `/clasificacion/` | 1 | el agregado del modo; las visitas repetidas salen de la cache de sesion |
 | `/territorio/` | 1 | el agregado del mapa: clanes y estaciones en un solo documento |
+<!-- fin:pantallas -->
 
 _Con 200 usuarios activos y 15.000 viajes acumulados._
 
 ## Coste por operacion del worker
 
+<!-- tabla:worker -->
 | Operacion del worker | Lecturas por vez | De donde salen |
 |---|---:|---|
 | metricas.resumir (una vez cada 6 h) | 677 | los 200 dias + el resumen anterior + las altas recientes y su ultimo viaje + los conteos de totales y ventanas |
@@ -325,20 +330,7 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | la transaccion de puntos e insignias (por viaje APROBADO) | 1 | el perfil del piloto, una vez, dentro de la transaccion |
 | agregados.tocaReconstruir (por pasada con movimiento) | 1 | la marca del agregado de portada, para saber si toca |
 | prepararDia, la parte cara (UNA vez al dia) | 1 | el indice de rutas, que ya trae cuantos viajes tiene cada tramo |
-
-| Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
-|---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 10.431 | 21% |
-| u50 | 50 | 3000 | 39.646 | 79% |
-| u200 | 200 | 15.000 | 174.919 | 350% **se agota** |
-| u1000 | 1000 | 90.000 | 1.634.255 | 3269% **se agota** |
-
-| Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
-|---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 10.381 | 21% |
-| u50 | 50 | 3000 | 39.596 | 79% |
-| u200 | 200 | 15.000 | 174.869 | 350% **se agota** |
-| u1000 | 1000 | 90.000 | 1.634.205 | 3268% **se agota** |
+<!-- fin:worker -->
 
 ## Lo que queda, por impacto
 

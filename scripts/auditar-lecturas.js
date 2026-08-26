@@ -14,9 +14,13 @@
  *
  * Uso:
  *   node scripts/auditar-lecturas.js              # tabla en pantalla
- *   node scripts/auditar-lecturas.js --markdown   # cuerpo de docs/COSTE.md
+ *   node scripts/auditar-lecturas.js --markdown   # las tablas, por pantalla
+ *   node scripts/auditar-lecturas.js --escribir   # las mete en docs/COSTE.md
  *   node scripts/auditar-lecturas.js --comprobar  # falla si algo se dispara
  */
+
+const fs = require('node:fs');
+const path = require('node:path');
 
 // --- Escenarios ------------------------------------------------------------------
 /**
@@ -357,27 +361,81 @@ function imprimirTexto() {
   }
 }
 
-function imprimirMarkdown() {
-  console.log('| Pantalla | Lecturas por carga | De donde salen |');
-  console.log('|---|---:|---|');
+/**
+ * Las tres tablas de `docs/COSTE.md`, cada una con su nombre.
+ *
+ * Antes esto se imprimia y se copiaba a mano al documento. Copiar a mano una
+ * tabla generada acaba como acaba: al anadir operaciones al modelo, las dos
+ * primeras tablas se reemplazaron y la tercera se pego DEBAJO de la anterior,
+ * asi que el documento acabo con tres tablas de escenarios y tres totales
+ * distintos. Ahora van entre marcas y las escribe `--escribir`.
+ */
+function tablas() {
   const base = calcular('u200');
-  for (const p of [...base.pantallas].sort((a, b) => b.porCarga - a.porCarga)) {
-    console.log(`| \`${p.ruta}\` | ${num(p.porCarga)} | ${p.detalle} |`);
+
+  const pantallas = [
+    '| Pantalla | Lecturas por carga | De donde salen |',
+    '|---|---:|---|',
+    ...[...base.pantallas].sort((a, b) => b.porCarga - a.porCarga)
+      .map((p) => `| \`${p.ruta}\` | ${num(p.porCarga)} | ${p.detalle} |`),
+  ];
+
+  const worker = [
+    '| Operacion del worker | Lecturas por vez | De donde salen |',
+    '|---|---:|---|',
+    ...[...base.worker].sort((a, b) => b.porVez - a.porVez)
+      .map((o) => `| ${o.nombre} | ${num(o.porVez)} | ${o.detalle} |`),
+  ];
+
+  const escenarios = [
+    '| Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |',
+    '|---|---:|---:|---:|---:|',
+    ...Object.keys(ESCENARIOS).map((nombre) => {
+      const r = calcular(nombre);
+      const aviso = r.total > CUOTA_LECTURAS ? ' **se agota**' : '';
+      return `| ${nombre} | ${r.e.A} | ${num(r.e.V)} | ${num(r.total)} | ${pct(r.total)}${aviso} |`;
+    }),
+  ];
+
+  return { pantallas: pantallas.join('\n'), worker: worker.join('\n'), escenarios: escenarios.join('\n') };
+}
+
+const RUTA_COSTE = path.join(__dirname, '..', 'docs', 'COSTE.md');
+
+/** Mete cada tabla entre sus marcas. Devuelve el documento nuevo. */
+function conLasTablas(documento, generadas) {
+  let salida = documento;
+
+  for (const [nombre, tabla] of Object.entries(generadas)) {
+    const marca = new RegExp(
+      `(<!-- tabla:${nombre} -->\n)[\\s\\S]*?(\n<!-- fin:${nombre} -->)`);
+
+    if (!marca.test(salida)) {
+      throw new Error(`falta la marca <!-- tabla:${nombre} --> en docs/COSTE.md`);
+    }
+    salida = salida.replace(marca, `$1${tabla}$2`);
   }
 
-  console.log('\n| Operacion del worker | Lecturas por vez | De donde salen |');
-  console.log('|---|---:|---|');
-  for (const o of [...base.worker].sort((a, b) => b.porVez - a.porVez)) {
-    console.log(`| ${o.nombre} | ${num(o.porVez)} | ${o.detalle} |`);
+  return salida;
+}
+
+function imprimirMarkdown() {
+  const { pantallas, worker, escenarios } = tablas();
+  console.log(`${pantallas}\n\n${worker}\n\n${escenarios}`);
+}
+
+function escribirCoste() {
+  const antes = fs.readFileSync(RUTA_COSTE, 'utf8');
+  const despues = conLasTablas(antes, tablas());
+
+  if (antes === despues) {
+    console.log('docs/COSTE.md ya estaba al dia.');
+    return false;
   }
 
-  console.log('\n| Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |');
-  console.log('|---|---:|---:|---:|---:|');
-  for (const nombre of Object.keys(ESCENARIOS)) {
-    const r = calcular(nombre);
-    const aviso = r.total > CUOTA_LECTURAS ? ' **se agota**' : '';
-    console.log(`| ${nombre} | ${r.e.A} | ${num(r.e.V)} | ${num(r.total)} | ${pct(r.total)}${aviso} |`);
-  }
+  fs.writeFileSync(RUTA_COSTE, despues);
+  console.log('docs/COSTE.md actualizado.');
+  return true;
 }
 
 /** Devuelve las operaciones que por si solas se comen la cuota. */
@@ -392,6 +450,8 @@ function insostenibles(escenario = 'u200') {
 if (require.main === module) {
   if (process.argv.includes('--markdown')) {
     imprimirMarkdown();
+  } else if (process.argv.includes('--escribir')) {
+    escribirCoste();
   } else if (process.argv.includes('--comprobar')) {
     const malas = insostenibles();
     for (const m of malas) console.error(`  ${m.que}: ${num(m.alDia)} lecturas/dia, por si sola`);

@@ -2702,3 +2702,46 @@ test('todo lo que hace el trabajo diario esta en el modelo de coste', () => {
     'el trabajo diario lanza esto y el modelo de coste no lo conoce, asi que '
     + `\`--comprobar\` no lo mira: ${sinModelar.join(', ')}`);
 });
+
+test('las tablas de COSTE.md son las que sale del modelo, no una copia vieja', () => {
+  // COMO SE LLEGO AQUI, y da algo de vergüenza. Las tres tablas de
+  // `docs/COSTE.md` las genera `auditar-lecturas.js --markdown`, y se copiaban
+  // A MANO. Al anadir operaciones al modelo se reemplazaron las dos primeras y
+  // la tercera se pego DEBAJO de la anterior: el documento acabo con tres
+  // tablas de escenarios y tres totales distintos, todos con pinta de ser el
+  // bueno.
+  //
+  // Es la familia de "documentacion que se queda atras" del roadmap, pero en su
+  // version peor: no es que el documento diga algo que ya no es verdad, es que
+  // dice tres cosas a la vez.
+  //
+  // Ahora las tablas van entre marcas y las escribe `--escribir`. Esto
+  // comprueba que nadie las haya tocado a mano por el camino.
+  const { execFileSync } = require('node:child_process');
+
+  const salida = execFileSync('node',
+    [path.join(RAIZ, 'scripts', 'auditar-lecturas.js'), '--markdown'],
+    { encoding: 'utf8' }).trim();
+
+  const [pantallas, worker, escenarios] = salida.split('\n\n');
+
+  // `leer` y no `leerCodigo`: el segundo quita los comentarios, y las marcas
+  // que delimitan las tablas SON comentarios de HTML.
+  const coste = leer('docs/COSTE.md');
+
+  for (const [nombre, tabla] of Object.entries({ pantallas, worker, escenarios })) {
+    const marcada = coste.match(
+      new RegExp(`<!-- tabla:${nombre} -->\\n([\\s\\S]*?)\\n<!-- fin:${nombre} -->`));
+
+    assert.ok(marcada, `docs/COSTE.md no tiene la marca <!-- tabla:${nombre} -->`);
+    assert.strictEqual(marcada[1], tabla,
+      `la tabla "${nombre}" de docs/COSTE.md no es la que sale del modelo. `
+      + 'Se regenera con `node scripts/auditar-lecturas.js --escribir`.');
+  }
+
+  // Y una sola de cada, que el fallo original fue tener tres.
+  for (const nombre of ['pantallas', 'worker', 'escenarios']) {
+    const veces = (coste.match(new RegExp(`<!-- tabla:${nombre} -->`, 'g')) || []).length;
+    assert.strictEqual(veces, 1, `hay ${veces} tablas "${nombre}" en docs/COSTE.md`);
+  }
+});

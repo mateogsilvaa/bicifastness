@@ -47,9 +47,14 @@ Si vuelves al proyecto dentro de seis meses, con esto y con
    insignias que no tiene nadie.
 4. **Vuelve a correr las dos auditorias**, que el codigo habra cambiado:
    ```bash
-   node scripts/auditar-lecturas.js
+   node scripts/auditar-lecturas.js --escribir   # y actualiza docs/COSTE.md
    cd backend && node --test test/ensayo.test.js
    ```
+   Las tres tablas de `docs/COSTE.md` salen de ahi y van entre marcas
+   (`<!-- tabla:worker -->`), asi que `--escribir` las reemplaza en su sitio. No
+   hay que copiarlas a mano: cuando se hacia asi, el documento acabo con tres
+   tablas de escenarios y tres totales distintos. Una prueba compara ahora el
+   documento con lo que sale del modelo.
 
 ## Las operaciones periodicas
 

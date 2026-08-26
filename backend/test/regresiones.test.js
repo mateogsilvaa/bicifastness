@@ -2775,3 +2775,65 @@ test('en modo degradado tampoco se poda: podar son escrituras', () => {
     'se poda tambien en degradado, y podar son escrituras: es justo el recurso '
     + 'que aprieta cuando alguien inunda sesiones_web');
 });
+
+test('los nombres nuevos los revisa alguien, y llegan a la cola de moderacion', () => {
+  // #64. `badwords` y `util.limpiarTexto` llevaban sin un solo llamante desde
+  // que se borro `src/clanes.js`, asi que los nombres de piloto y de clan no
+  // los miraba nada — y los dos salen en clasificaciones publicas.
+  //
+  // Las reglas no pueden hacerlo: no recorren una lista de 169 palabras, y para
+  // los invisibles harian falta clases Unicode en `matches()` que sin emulador
+  // no hay forma de comprobar. El navegador tampoco, que no es seguridad. Queda
+  // el worker.
+  const worker = leerCodigo('backend/worker.js');
+
+  assert.match(worker, /require\('\.\/src\/nombres'\)/, 'el worker no revisa ningun nombre');
+
+  // El de piloto, DENTRO del bucle de bienvenidas: es la unica vez que el
+  // worker ve a esa persona, porque las reglas no dejan cambiar `username`
+  // despues de crear el perfil. Y ahi el documento ya esta leido, o sea gratis.
+  const bienvenidas = worker.slice(worker.indexOf('async function darBienvenidas'));
+  assert.match(bienvenidas.slice(0, 1200), /revisarNombre\(/,
+    'el nombre de piloto no se revisa donde ya se lee el perfil: o cuesta lecturas, o no se hace');
+
+  // El de clan, en el trabajo diario y acotado por fecha.
+  assert.match(worker, /async function revisarNombresDeClan/);
+  assert.match(worker, /collection\('clanes'\)\.where\('creado', '>=', desde\)/,
+    'la revision de nombres de clan lee la coleccion entera');
+
+  // Y el id del reporte es determinista, que es lo que permite repetir sin
+  // llenar la cola de copias del mismo caso.
+  assert.match(worker, /nombre-clan-\$\{clanId\}/);
+  assert.match(worker, /nombre-piloto-\$\{uid\}/);
+});
+
+test('el panel sabe resolver un reporte de nombre, que no tiene captura ni viaje', () => {
+  // Un reporte de nombre no tiene captura que mirar ni viaje que quitar del
+  // ranking. Pintarle "Eliminar viaje" seria un boton que no puede hacer nada,
+  // y "Ver captura reportada" abriria un visor vacio.
+  const admin = leerCodigo('assets/js/paginas/admin.js');
+
+  assert.match(admin, /tipo === 'nombre'/, 'el panel trata igual los dos tipos de reporte');
+  assert.match(admin, /esDeNombre \? null : el\('button'/,
+    'el boton de ver captura se pinta tambien en los reportes de nombre');
+
+  // Suspender si tiene que estar: es la unica accion que queda contra un nombre.
+  assert.match(admin, /botonSuspender\(reporte\)/);
+});
+
+test('las dos listas de caracteres invisibles no divergen', () => {
+  // Estan duplicadas porque el backend es CommonJS y el navegador es un modulo
+  // ES, igual que las funciones de extraccion. Si se movieran de un lado y no
+  // del otro, el navegador dejaria pasar una marca que el worker luego manda a
+  // la cola: la persona no habria hecho nada raro y acabaria revisada a mano.
+  const rangos = (codigo) => {
+    const bloque = codigo.slice(codigo.indexOf('INVISIBLES = ['));
+    return bloque.slice(0, bloque.indexOf('];'))
+      .match(/0x[0-9a-f]{4}/g).join(',');
+  };
+
+  assert.strictEqual(
+    rangos(leerCodigo('assets/js/acciones.js')),
+    rangos(leerCodigo('backend/src/util.js')),
+    'el navegador y el worker no quitan los mismos caracteres invisibles');
+});

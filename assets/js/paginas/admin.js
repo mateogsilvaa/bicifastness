@@ -427,30 +427,66 @@ async function cargarReportes() {
       return;
     }
 
-    reemplazar(rejilla, snapshot.docs.map((doc) => {
-      const reporte = doc.data();
-      const botonBorrar = el('button', {
-        clase: 'btn peligro', texto: 'Eliminar viaje',
-        on: { click: () => resolver(doc.id, 'eliminar_viaje', botonBorrar, reporte.viajeId) },
-      });
-      const botonIgnorar = el('button', {
-        clase: 'btn plano', texto: 'Falsa alarma',
-        on: { click: () => resolver(doc.id, 'ignorar', botonIgnorar, reporte.viajeId) },
-      });
-
-      return el('article', { clase: 'tarjeta riesgo-alto', attrs: { 'data-reporte': doc.id } }, [
-        el('div', { clase: 'cabecera' }, [el('span', { texto: `Reporte en ${nombreRuta(reporte.ruta)}` })]),
-        el('p', { clase: 'meta', texto: reporte.motivo || 'Sin motivo indicado.' }),
-        el('button', {
-          clase: 'btn plano', texto: 'Ver captura reportada',
-          on: { click: (e) => abrirCaptura(reporte.viajeId, e.currentTarget) },
-        }),
-        el('div', { clase: 'acciones' }, [botonIgnorar, botonBorrar, botonSuspender(reporte)]),
-      ]);
-    }));
+    reemplazar(rejilla, snapshot.docs.map((doc) => tarjetaDeReporte(doc)));
   } catch (error) {
     reemplazar(rejilla, el('div', { clase: 'vacio', texto: `Error: ${error.message}` }));
   }
+}
+
+/**
+ * Un reporte, en la cola de moderacion.
+ *
+ * Hay dos clases y no se resuelven igual (#64):
+ *
+ *   - los de VIAJE los manda alguien desde la clasificacion. Llevan captura que
+ *     mirar y se pueden resolver quitando el viaje del ranking
+ *   - los de NOMBRE los pone el worker al ver un nombre de piloto o de clan con
+ *     caracteres invisibles o una palabra de la lista. No hay captura que ver ni
+ *     viaje que quitar: o es falsa alarma, o se suspende la cuenta
+ *
+ * Ensenar "Eliminar viaje" en uno de nombre seria un boton que no puede hacer
+ * nada, y "Ver captura reportada" abriria un visor vacio.
+ */
+function tarjetaDeReporte(doc) {
+  const reporte = doc.data();
+  const esDeNombre = reporte.tipo === 'nombre';
+
+  const botonIgnorar = el('button', {
+    clase: 'btn plano', texto: 'Falsa alarma',
+    on: { click: () => resolver(doc.id, 'ignorar', botonIgnorar, reporte.viajeId) },
+  });
+
+  const titulo = esDeNombre
+    ? `Nombre de ${reporte.ambito === 'clan' ? 'clan' : 'piloto'} a revisar`
+    : `Reporte en ${nombreRuta(reporte.ruta)}`;
+
+  const acciones = [botonIgnorar];
+
+  if (!esDeNombre) {
+    const botonBorrar = el('button', {
+      clase: 'btn peligro', texto: 'Eliminar viaje',
+      on: { click: () => resolver(doc.id, 'eliminar_viaje', botonBorrar, reporte.viajeId) },
+    });
+    acciones.push(botonBorrar);
+  }
+
+  acciones.push(botonSuspender(reporte));
+
+  return el('article', { clase: 'tarjeta riesgo-alto', attrs: { 'data-reporte': doc.id } }, [
+    el('div', { clase: 'cabecera' }, [el('span', { texto: titulo })]),
+    el('p', { clase: 'meta', texto: reporte.motivo || 'Sin motivo indicado.' }),
+    // El nombre, aparte y con `texto`, que es lo que nunca interpreta marcado.
+    // Llega ya limpio de invisibles desde el worker, pero es el dato que ha
+    // escrito un usuario y se pinta como tal.
+    esDeNombre && reporte.nombre
+      ? el('p', { clase: 'meta', texto: `Tal y como se ve: ${reporte.nombre}` })
+      : null,
+    esDeNombre ? null : el('button', {
+      clase: 'btn plano', texto: 'Ver captura reportada',
+      on: { click: (e) => abrirCaptura(reporte.viajeId, e.currentTarget) },
+    }),
+    el('div', { clase: 'acciones' }, acciones),
+  ]);
 }
 
 /**

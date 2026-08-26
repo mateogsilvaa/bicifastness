@@ -203,6 +203,15 @@ const WORKER = [
     detalle: 'TODOS los usuarios, para repartir las insignias de la temporada',
   },
   {
+    nombre: 'revisarNombresDeClan (UNA vez al dia, en el trabajo diario)',
+    veces: () => 1,
+    // Acotada por `creado` a los clanes de los ultimos dos dias. Cuando no hay
+    // clanes nuevos —lo normal— es una lectura, porque Firestore cobra un
+    // minimo aunque la consulta salga vacia.
+    coste: ({ C }) => min1(Math.min(C, 3)),
+    detalle: 'los clanes creados en los ultimos dos dias',
+  },
+  {
     nombre: 'avisarRevisionesLentas (UNA vez al dia, en el trabajo diario)',
     veces: () => 1,
     // Acotada a 50 y filtrada por `avisoRevision`, asi que los ya avisados no

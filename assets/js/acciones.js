@@ -25,26 +25,54 @@ const uidActual = () => auth.currentUser?.uid;
 // --- Perfil -------------------------------------------------------------------
 
 /**
+ * Rangos de caracteres invisibles que no pueden sobrevivir en un nombre.
+ *
+ * Es la copia en el navegador de `INVISIBLES` en `backend/src/util.js`, y un
+ * test los ata. Estan duplicados porque el backend es CommonJS y esto es un
+ * modulo ES, igual que las funciones de extraccion.
+ *
+ * Aqui NO es seguridad: quien quiera se salta esto abriendo la consola, y para
+ * eso el worker revisa los nombres nuevos y manda a la cola de moderacion lo
+ * que no cuadre (#64). Esto es para que un nombre no salga sucio por accidente
+ * —copiar y pegar de otra web arrastra estas marcas sin que se vea— y acabe en
+ * la cola de una persona sin que nadie quisiera nada malo.
+ */
+const INVISIBLES = [
+  [0x0000, 0x001f], [0x007f, 0x009f], [0x200b, 0x200f],
+  [0x2060, 0x2064], [0x2066, 0x2069], [0x202a, 0x202e], [0xfeff, 0xfeff],
+];
+
+/** Quita del texto lo que no se ve. La pareja de `util.limpiarTexto`. */
+export function limpiarNombre(texto, maxLongitud = 200) {
+  let salida = '';
+  for (const ch of String(texto ?? '')) {
+    const cp = ch.codePointAt(0);
+    if (INVISIBLES.some(([lo, hi]) => cp >= lo && cp <= hi)) continue;
+    salida += ch;
+  }
+  return salida.trim().slice(0, maxLongitud);
+}
+
+/**
  * Crea el perfil de piloto.
  *
  * Las reglas obligan a que todos los contadores nazcan a cero y no admiten un
  * campo de rol: en la version anterior el navegador enviaba `isAdmin: false`,
  * lo que dejaba claro que ese campo era manipulable desde el cliente.
- */
-/**
- * Crea el perfil de piloto.
  *
  * NO guarda el correo, y es deliberado: el correo ya vive en Firebase Auth, que
  * es su sitio. Copiarlo aqui lo metia en una coleccion que se leia sin sesion
  * para alimentar los rankings, o sea que publicaba la direccion de todo el
  * mundo. El worker lo saca de Auth cuando necesita escribir.
  *
- * El parametro `email` se sigue aceptando para no romper a quien llame con el,
- * pero se ignora.
+ * El nombre se limpia de invisibles antes de guardarlo (#64). Eso no es
+ * seguridad —el worker lo revisa igual— sino que un nombre copiado y pegado de
+ * otra web no arrastre marcas que nadie ve y acabe en la cola de moderacion sin
+ * que su dueño quisiera nada malo.
  */
 export async function crearPerfil({ username }) {
   const uid = uidActual();
-  const nombre = String(username || '').trim();
+  const nombre = limpiarNombre(username, 24);
   const clave = nombre.toLowerCase();
 
   // La reserva del nombre es orientativa: sirve para avisar pronto de que esta
@@ -135,7 +163,6 @@ export async function impugnarViaje(viajeId, alegacion) {
   });
 }
 
-/** Denuncia un tiempo sospechoso. */
 /**
  * Denuncia un tiempo (#61).
  *
@@ -336,7 +363,7 @@ export const MAX_MIEMBROS = 50;
 
 export async function crearClan({ nombre, descripcion, color }) {
   const uid = uidActual();
-  const limpio = String(nombre || '').trim();
+  const limpio = limpiarNombre(nombre, 28);
   const clanId = limpio.toLowerCase()
     .normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
@@ -617,13 +644,6 @@ export async function confirmarEntrada(clanId) {
 // --- Avisos push (#33) --------------------------------------------------------------
 
 /**
- * Guarda la suscripcion de ESTE navegador.
- *
- * Se acumulan, no se sustituyen: el movil y el ordenador son dos navegadores
- * distintos y cada uno tiene la suya. Guardar solo la ultima dejaria sin aviso
- * al dispositivo que se este usando.
- */
-/**
  * Tope de navegadores suscritos a la vez. El mismo que el de las reglas, y un
  * test los ata.
  *
@@ -633,6 +653,13 @@ export async function confirmarEntrada(clanId) {
  */
 export const MAX_SUSCRIPCIONES_PUSH = 10;
 
+/**
+ * Guarda la suscripcion de ESTE navegador.
+ *
+ * Se acumulan, no se sustituyen: el movil y el ordenador son dos navegadores
+ * distintos y cada uno tiene la suya. Guardar solo la ultima dejaria sin aviso
+ * al dispositivo que se este usando.
+ */
 export async function guardarSuscripcionPush(suscripcion) {
   // `toJSON()` porque el objeto del navegador tiene metodos y Firestore solo
   // admite datos.

@@ -271,10 +271,10 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 <!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 10.431 | 21% |
-| u50 | 50 | 3000 | 39.646 | 79% |
-| u200 | 200 | 15.000 | 174.919 | 350% **se agota** |
-| u1000 | 1000 | 90.000 | 1.634.255 | 3269% **se agota** |
+| hoy | 6 | 1022 | 10.434 | 21% |
+| u50 | 50 | 3000 | 39.649 | 79% |
+| u200 | 200 | 15.000 | 174.922 | 350% **se agota** |
+| u1000 | 1000 | 90.000 | 1.634.258 | 3269% **se agota** |
 <!-- fin:escenarios -->
 
 
@@ -323,6 +323,7 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | validarBasico y captura (por viaje procesado) | 62 | sus 60 viajes recientes + la captura + la distancia de la ruta |
 | avisarRevisionesLentas (UNA vez al dia, en el trabajo diario) | 50 | los 50 viajes mas antiguos en revision sin avisar |
 | reunirContexto (por viaje procesado) | 42 | el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id |
+| revisarNombresDeClan (UNA vez al dia, en el trabajo diario) | 3 | los clanes creados en los ultimos dos dias |
 | cola y bajas (por pasada) | 3 | las consultas de cola, recalculo pendiente y bajas |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
 | metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |

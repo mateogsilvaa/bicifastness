@@ -52,6 +52,7 @@ const push = require('./src/push');
 const almacen = require('./src/db');
 const misiones = require('./src/misiones');
 const denuncias = require('./src/denuncias');
+const nombres = require('./src/nombres');
 
 const SIMULAR = process.argv.includes('--simular');
 const SOLO_UNO = process.argv.includes('--once');
@@ -1257,6 +1258,57 @@ async function resolverDenuncias() {
  * siguiente no es un saludo. La consulta es indexada y acotada: cuesta tanto
  * como pilotos nuevos haya, que casi siempre son cero.
  */
+/**
+ * Manda un nombre a la cola de moderacion, si hace falta (#64).
+ *
+ * NO RENOMBRA A NADIE, y es a proposito. El filtro es por subcadena y se
+ * equivoca —para eso existe la lista de excepciones de `badwords.js`— y
+ * cambiarle el nombre a alguien por un falso positivo es peor que el problema.
+ * Lo que sale de aqui lo mira una persona en el panel, que existe desde #61.
+ *
+ * EL ID DEL DOCUMENTO ES DETERMINISTA, y eso es lo que hace que esto se pueda
+ * llamar todas las veces que haga falta: `create` falla con ALREADY_EXISTS si
+ * ese nombre ya se reporto, asi que no se acumulan copias del mismo caso ni
+ * hace falta leer antes para comprobarlo. Es el mismo truco que ya usa la
+ * huella de captura.
+ *
+ * Nace en `pendiente` y no en `sin_resolver` porque `sin_resolver` es el estado
+ * de lo que manda el navegador y todavia hay que averiguar a quien señala.
+ * Aqui ya se sabe: lo escribe el worker.
+ *
+ * @returns {Promise<boolean>} si ha entrado en la cola AHORA
+ */
+async function revisarNombre(nombre, { uid, ambito, clanId = null }) {
+  const veredicto = nombres.revisar(nombre, { ambito });
+  if (veredicto.aceptable) return false;
+
+  const id = ambito === 'clan' ? `nombre-clan-${clanId}` : `nombre-piloto-${uid}`;
+  if (SIMULAR) {
+    console.log(`  [simulacion] nombre a revisar: ${nombres.explicar(nombre, veredicto, ambito)}`);
+    return true;
+  }
+
+  try {
+    await db.collection('reportes').doc(id).create({
+      tipo: 'nombre',
+      ambito,
+      reportadoUid: uid,
+      clanId,
+      // El nombre va LIMPIO: mandarlo tal cual meteria las marcas bidi en el
+      // panel, que es justo donde no se quieren.
+      nombre: veredicto.limpio,
+      motivo: nombres.explicar(nombre, veredicto, ambito),
+      estado: denuncias.ESTADOS.PENDIENTE,
+      creado: AHORA(),
+    });
+    console.log(`  nombre a revisar: ${nombres.explicar(nombre, veredicto, ambito)}`);
+    return true;
+  } catch (error) {
+    if (error.code === 6) return false;   // ya estaba reportado
+    throw error;
+  }
+}
+
 async function darBienvenidas() {
   try {
     const nuevos = await db.collection('usuarios')
@@ -1269,6 +1321,19 @@ async function darBienvenidas() {
     let saludados = 0;
 
     for (const doc of nuevos.docs) {
+      // El nombre se mira AQUI y no en una pasada aparte, y no es casualidad:
+      // las reglas no dejan cambiar `username` despues de crear el perfil, asi
+      // que se escribe una sola vez y esta es la unica vez que el worker ve a
+      // esta persona. Ademas el documento ya esta leido — cuesta cero (#64).
+      await revisarNombre(doc.data().username, { uid: doc.id, ambito: 'piloto' })
+        .catch((error) => {
+          // Que no se pueda encolar el nombre no puede dejar a nadie sin
+          // bienvenida, pero tampoco se calla: es una revision que no se hara
+          // nunca mas, porque la marca de abajo se pone igual.
+          console.error('::warning::No se ha podido revisar el nombre de'
+            + ` ${doc.id}:`, error.message);
+        });
+
       const enviado = await avisarPorCorreo(doc.id, plantillas.bienvenida, {}, doc);
 
       // La marca se pone salga o no el correo. Si ha fallado, reintentarlo en
@@ -1379,6 +1444,9 @@ async function trabajoDiario() {
     const dobles = await clanes.limpiarDoblesMembresias({ simular: SIMULAR });
     if (dobles) console.log(`Clanes: ${dobles} membresia(s) fantasma limpiada(s).`);
 
+    const nombresClan = await revisarNombresDeClan();
+    if (nombresClan) console.log(`Clanes: ${nombresClan} nombre(s) a revisar.`);
+
     const rescatados = await clanes.rescatarSinLider({ simular: SIMULAR });
     if (rescatados) console.log(`Clanes: ${rescatados} rescatado(s) de un lider inactivo.`);
 
@@ -1389,6 +1457,40 @@ async function trabajoDiario() {
     console.warn('El trabajo diario no ha podido terminar:', error.message);
     return false;
   }
+}
+
+/**
+ * Los nombres de los clanes nuevos (#64).
+ *
+ * Solo los CREADOS EN LOS ULTIMOS DOS DIAS, no la coleccion entera. Las reglas
+ * tampoco dejan cambiar el nombre de un clan despues de crearlo, asi que basta
+ * con verlo una vez; y una consulta acotada por `creado` cuesta una lectura
+ * cuando no hay clanes nuevos, que es lo normal.
+ *
+ * Dos dias y no uno: si una ejecucion diaria se salta —el cron falla, el
+ * repositorio esta en mantenimiento— con un solo dia de ventana ese clan no se
+ * miraria nunca. Repetir no cuesta nada porque el id del reporte es
+ * determinista.
+ */
+async function revisarNombresDeClan() {
+  const desde = new Date(Date.now() - 2 * 86400000);
+
+  const nuevos = await db.collection('clanes').where('creado', '>=', desde).get();
+  if (nuevos.empty) return 0;
+
+  let encolados = 0;
+
+  for (const doc of nuevos.docs) {
+    const clan = doc.data();
+    // `reportadoUid` es el lider: un clan no es una persona, y quien responde
+    // del nombre es quien lo puso.
+    const entrado = await revisarNombre(clan.nombre, {
+      uid: clan.lider || null, ambito: 'clan', clanId: doc.id,
+    });
+    if (entrado) encolados++;
+  }
+
+  return encolados;
 }
 
 async function cerrarRachas() {

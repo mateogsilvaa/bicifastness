@@ -482,7 +482,37 @@ function correcciones(enviado) {
 // --- Escritura ----------------------------------------------------------------
 
 /**
- * Escribe los viajes elegidos y su captura, todo en un lote.
+ * El cupo de esta cuenta hoy, y por donde van sus contadores (#62).
+ *
+ * El navegador lleva su propio contador en `cupos/{uid}` y lo escribe en el
+ * MISMO lote que el viaje. No es una comprobacion de cortesia: las reglas miran
+ * como queda ese documento despues del lote y exigen que el ID del viaje sea el
+ * numero nuevo, asi que un lote no cabe mas que un viaje y una captura. Es lo
+ * unico que frena a una cuenta ANTES de escribir; el worker llega despues.
+ *
+ * El dia es UTC porque es lo unico que las reglas saben mirar. Por eso el tope
+ * es holgado y NO es el cupo del juego: ese lo sigue poniendo el worker, en hora
+ * de Madrid. Ver firestore.rules.
+ */
+const diaUTC = () => Math.floor(Date.now() / 86400000);
+
+async function leerCupo() {
+  const dia = diaUTC();
+  const snap = await getDoc(doc(db, 'cupos', perfil.uid));
+  const previo = snap.exists() ? snap.data() : null;
+
+  // Un cupo de ayer no se arrastra: se reinicia al escribir el dia nuevo.
+  if (!previo || previo.dia !== dia) return { dia, viajes: 0, capturas: 0 };
+  return { dia, viajes: previo.viajes || 0, capturas: previo.capturas || 0 };
+}
+
+/**
+ * Escribe los viajes elegidos y su captura.
+ *
+ * UN LOTE POR VIAJE, y no todos juntos como antes: el freno de #62 solo deja un
+ * viaje por lote, porque el id tiene que ser el numero que marca el contador y
+ * dos viajes del mismo lote pedirian el mismo. Se paga un lote de mas por cada
+ * trayecto extra de la misma captura, que son como mucho dos.
  *
  * La captura se guarda UNA vez aunque haya varios viajes: son tres trayectos de
  * la misma imagen, y triplicarla serian megas de cuota para nada. Cada viaje
@@ -496,19 +526,18 @@ function correcciones(enviado) {
  * @returns {Promise<string[]>} los ids de los viajes creados
  */
 async function crearViajes(viajes, fechaViaje, correccionesDe = null) {
-  const lote = writeBatch(db);
-  const capturaRef = doc(collection(db, 'capturas'));
+  const cupo = await leerCupo();
+  const cupoRef = doc(db, 'cupos', perfil.uid);
 
-  lote.set(capturaRef, {
-    uid: perfil.uid,
-    datos: preparada.dataUrl,
-    creado: serverTimestamp(),
-  });
+  const capturaId = `${perfil.uid}_${cupo.dia}_c${cupo.capturas + 1}`;
+  let escritas = cupo.capturas;
+  let contados = cupo.viajes;
 
   const ids = [];
+
   for (const viaje of viajes) {
-    const viajeRef = doc(collection(db, 'tiempos_viaje'));
-    ids.push(viajeRef.id);
+    contados += 1;
+    const viajeId = `${perfil.uid}_${cupo.dia}_${contados}`;
 
     const minutos = Math.floor(viaje.tiempoSegundos / 60);
     const segundos = viaje.tiempoSegundos % 60;
@@ -522,7 +551,7 @@ async function crearViajes(viajes, fechaViaje, correccionesDe = null) {
       fechaViaje,
       estado: 'pendiente',
       verificado: false,
-      capturaId: capturaRef.id,
+      capturaId,
       creado: serverTimestamp(),
     };
 
@@ -535,10 +564,27 @@ async function crearViajes(viajes, fechaViaje, correccionesDe = null) {
       datos.metadatos = preparada.metadatos;
     }
 
-    lote.set(viajeRef, datos);
+    const lote = writeBatch(db);
+
+    // La captura va con el primer viaje, no en un lote suyo: si fuera aparte y
+    // fallara el viaje, quedaria una captura de 700 KB sin dueño que nadie
+    // borra nunca.
+    if (escritas === cupo.capturas) {
+      escritas += 1;
+      lote.set(doc(db, 'capturas', capturaId), {
+        uid: perfil.uid,
+        datos: preparada.dataUrl,
+        creado: serverTimestamp(),
+      });
+    }
+
+    lote.set(cupoRef, { dia: cupo.dia, viajes: contados, capturas: escritas });
+    lote.set(doc(db, 'tiempos_viaje', viajeId), datos);
+
+    await lote.commit();
+    ids.push(viajeId);
   }
 
-  await lote.commit();
   return ids;
 }
 

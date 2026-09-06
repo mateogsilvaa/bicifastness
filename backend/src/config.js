@@ -11,8 +11,6 @@
 // --- Limites de subida -------------------------------------------------------
 const LIMITES = {
   VIAJES_POR_DIA: 3,
-  VIAJES_POR_SEMANA: 12,
-  SEGUNDOS_ENTRE_SUBIDAS: 60,
   // Antiguedad maxima de un viaje que se puede reclamar.
   DIAS_MAX_ANTIGUEDAD: 30,
   // Tamano maximo de la captura ya comprimida por el cliente.

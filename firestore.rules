@@ -45,6 +45,48 @@ service cloud.firestore {
       return datos().diff(previo()).affectedKeys();
     }
 
+    // --- Freno de escritura (#62) -------------------------------------------
+    //
+    // EL PROBLEMA. El cupo de tres viajes al dia lo comprueba el worker, o sea
+    // CUANDO EL VIAJE YA ESTA ESCRITO. Entre medias no habia nada: una cuenta
+    // con sesion podia crear miles de viajes y una captura de 700 KB por cada
+    // uno desde la consola del navegador, sin saltarse ninguna regla. Con 20.000
+    // escrituras al dia en el plan Spark, eso es tirar la web hasta medianoche.
+    //
+    // COMO SE FRENA. Las reglas no saben contar, pero si saben mirar como va a
+    // quedar un documento DESPUES de esta misma escritura (`getAfter`). Asi que
+    // el navegador lleva su propio contador en `cupos/{uid}` y lo actualiza en
+    // el MISMO lote que el viaje. Dos cosas lo hacen infalsificable:
+    //
+    //   1. Un lote no puede escribir dos veces el mismo documento, y la regla de
+    //      `cupos` solo deja subir cada contador de uno en uno. O sea: como
+    //      mucho un viaje y una captura por lote.
+    //   2. El ID del viaje TIENE QUE SER el numero que va a marcar el contador.
+    //      Dos viajes en el mismo lote pedirian el mismo id, y el segundo falla
+    //      porque `create` sobre un id que ya existe no pasa.
+    //
+    // Sin lo segundo esto no serviria de nada: un lote de quinientos viajes
+    // subiendo el contador una sola vez pasaria entero.
+    //
+    // EL DIA ES UTC, no Madrid. A proposito: `request.time` es lo unico que hay
+    // aqui y no se puede convertir. Por eso el tope de abajo NO es el cupo del
+    // juego — ese lo sigue poniendo el worker, en hora de Madrid — sino un techo
+    // antiinundacion holgado: un dia UTC pisa dos dias de Madrid, asi que quien
+    // gaste sus tres viajes a las 23:00 y otros tres a las 01:00 sigue por
+    // debajo. Un tope ajustado bloquearia a gente legitima de madrugada.
+    function diaUTC() {
+      return int(request.time.toMillis() / 86400000);
+    }
+
+    // Como queda `cupos/{uid}` DESPUES de este lote.
+    function cupoTras(uid) {
+      return getAfter(/databases/$(database)/documents/cupos/$(uid)).data;
+    }
+
+    // Techo diario por cuenta. Tres veces el cupo del juego
+    // (`LIMITES.VIAJES_POR_DIA`), que hay un test que lo ata.
+    function topeDiario() { return 10; }
+
     // --- Perfiles ----------------------------------------------------------
     match /usuarios/{uid} {
       /**
@@ -290,7 +332,7 @@ service cloud.firestore {
         // historial de la app lleva dos o tres trayectos (#11). Por eso el
         // documento de la captura ya no se llama forzosamente como el viaje.
         && (!datos().keys().hasAny(['capturaId'])
-          || (datos().capturaId is string && datos().capturaId.size() <= 40))
+          || (datos().capturaId is string && datos().capturaId.size() <= 64))
         && (!datos().keys().hasAny(['correcciones']) || datos().correcciones.keys().hasOnly([
           'confianza', 'origen', 'destino', 'tiempoSegundos', 'desfaseSegundos'
         ]))
@@ -303,7 +345,13 @@ service cloud.firestore {
         && datos().tiempoSegundos <= 7200
         && datos().fechaViaje is string
         && datos().fechaViaje.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && datos().creado == request.time;
+        && datos().creado == request.time
+        // El freno de escritura (#62). El id LLEVA DENTRO el numero que va a
+        // marcar el contador, asi que solo cabe un viaje por lote.
+        && viajeId == request.auth.uid + '_' + string(diaUTC())
+          + '_' + string(cupoTras(request.auth.uid).viajes)
+        && cupoTras(request.auth.uid).dia == diaUTC()
+        && cupoTras(request.auth.uid).viajes <= topeDiario();
 
       // El dueno solo puede pedir revision humana de un rechazo automatico
       // (art. 22.3 RGPD). No puede tocar el tiempo, la ruta ni el veredicto.
@@ -347,13 +395,72 @@ service cloud.firestore {
         && datos().datos.matches('^data:image/(jpeg|png|webp);base64,.*')
         // 700 KB de base64 (~500 KB de imagen). El limite duro de un documento
         // de Firestore es 1 MiB; dejamos margen para el resto de campos.
-        && datos().datos.size() < 700000;
+        && datos().datos.size() < 700000
+        // El mismo freno que en los viajes (#62), y aqui es el que mas importa:
+        // son 700 KB cada una. Sin esto, una cuenta recien registrada podia
+        // llenar el proyecto de capturas hasta agotar la cuota del dia.
+        && viajeId == request.auth.uid + '_' + string(diaUTC())
+          + '_c' + string(cupoTras(request.auth.uid).capturas)
+        && cupoTras(request.auth.uid).dia == diaUTC()
+        && cupoTras(request.auth.uid).capturas <= topeDiario();
 
       allow update, delete: if false;
     }
 
     // Material antifraude: publicarlo permitiria saber que imagenes estan ya
     // quemadas antes de intentar subirlas.
+    /**
+     * El contador que frena las escrituras de una cuenta (#62).
+     *
+     * Lo lleva el propio navegador, en el mismo lote que lo que escribe, y las
+     * reglas de arriba comprueban como queda. Que lo escriba quien esta siendo
+     * limitado suena mal y no lo es: aqui lo unico que se puede hacer es SUBIR
+     * los contadores, y subirlos es lo que le cierra la puerta.
+     *
+     * Lo que NO se puede hacer, que es donde estaria el agujero:
+     *
+     *   - bajarlos ni dejarlos igual mientras se escribe un viaje, porque el id
+     *     del viaje tiene que ser el numero nuevo;
+     *   - subirlos de mas de uno en uno, asi que un lote no cabe mas que un
+     *     viaje y una captura;
+     *   - falsear el dia: tiene que ser el de `request.time`;
+     *   - borrar el documento para empezar de cero.
+     *
+     * El reinicio diario se hace escribiendo el dia nuevo, y entonces los
+     * contadores vuelven a empezar. Es la unica forma de que baje un contador.
+     */
+    match /cupos/{uid} {
+      // Su dueño lo lee para saber por donde va; a nadie mas le dice nada.
+      allow read: if esYo(uid) || esAdmin();
+
+      allow create: if esYo(uid)
+        && datos().keys().hasOnly(['dia', 'viajes', 'capturas'])
+        && datos().dia == diaUTC()
+        && datos().viajes is int && datos().viajes >= 0 && datos().viajes <= 1
+        && datos().capturas is int && datos().capturas >= 0 && datos().capturas <= 1;
+
+      allow update: if esYo(uid)
+        && datos().keys().hasOnly(['dia', 'viajes', 'capturas'])
+        && datos().dia == diaUTC()
+        && datos().viajes is int && datos().capturas is int
+        && datos().viajes <= topeDiario() && datos().capturas <= topeDiario()
+        && (
+          // Mismo dia: cada contador se queda igual o sube exactamente uno.
+          (previo().dia == diaUTC()
+            && datos().viajes >= previo().viajes
+            && datos().viajes <= previo().viajes + 1
+            && datos().capturas >= previo().capturas
+            && datos().capturas <= previo().capturas + 1)
+          // Dia nuevo: se reinicia, y como mucho con lo de este lote dentro.
+          || (previo().dia != diaUTC()
+            && datos().viajes >= 0 && datos().viajes <= 1
+            && datos().capturas >= 0 && datos().capturas <= 1)
+        );
+
+      // Borrarlo seria la forma facil de reiniciar el contador.
+      allow delete: if false;
+    }
+
     match /huellas_captura/{hash} {
       allow read, write: if false;
     }

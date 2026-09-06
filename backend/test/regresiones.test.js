@@ -2368,12 +2368,6 @@ test('ningun modulo de backend/src se queda sin que lo requiera nadie', () => {
     // lista de 169 palabras y, sobre todo, las excepciones ("Cassandra",
     // "competitivo") que costo afinar. Su unico llamante era el modulo muerto.
     'badwords.js': 'sin llamante desde #64; la lista se conserva porque el arreglo la necesita',
-    // No es que se haya olvidado enchufarlo: NO PUEDE correr donde hace falta.
-    // Cuenta escrituras para frenar a una cuenta suelta, y eso hay que hacerlo
-    // ANTES de escribir, cosa que el worker no puede porque llega despues y con
-    // el Admin SDK, que se salta las reglas. Se queda hasta que #62 decida
-    // entre App Check y un contador en reglas.
-    'limites.js': 'no puede correr donde hace falta; a la espera de la decision de #62',
   };
 
   const SRC = path.join(__dirname, '..', 'src');

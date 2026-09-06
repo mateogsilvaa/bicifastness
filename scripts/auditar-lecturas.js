@@ -134,8 +134,11 @@ const PANTALLAS = [
   },
   {
     ruta: '/subir/', veces: 1,
-    coste: () => min1(1) + min1(60),
-    detalle: 'perfil + sus 60 viajes mas recientes, para el limite diario',
+    // El contador de escrituras del dia (#62) se lee una vez al enviar, y las
+    // reglas hacen un `getAfter` por documento creado: dos por viaje subido.
+    coste: () => min1(1) + min1(60) + min1(1) + min1(2),
+    detalle: 'perfil + sus 60 viajes mas recientes, para el limite diario '
+      + '+ el contador de escrituras y los dos getAfter de las reglas',
   },
   {
     ruta: '/statssss/', veces: 0.1,

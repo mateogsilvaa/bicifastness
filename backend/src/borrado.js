@@ -21,6 +21,7 @@
  *   - La auditoria de cada viaje suyo (`auditorias/{viajeId}`), que lleva
  *     dentro lo que se leyo en esa captura: estaciones, horas y duracion.
  *   - La reserva de su nombre de piloto, para que quede libre.
+ *   - Su contador de escrituras del dia (`cupos/{uid}`).
  *   - Su pertenencia al clan.
  *   - Sus suscripciones a los avisos push, que van dentro del perfil y se
  *     borran con el.
@@ -181,6 +182,11 @@ async function ejecutar(uid, { simular = false } = {}) {
   if (!simular) {
     // Su peticion de entrar en un clan con un codigo. El id ES el uid.
     await db().doc(`usos_invitacion/${uid}`).delete();
+
+    // Su contador de escrituras del dia (#62). El id ES el uid, y lleva dentro
+    // cuantas veces ha subido algo hoy: no es gran cosa, pero es suyo y no hay
+    // ningun motivo para conservarlo cuando la cuenta ya no existe.
+    await db().doc(`cupos/${uid}`).delete();
 
     // Y los correos que tenia encolados (#65). No llevan su direccion —eso vive
     // en Auth— pero si su uid, y ademas escribirle a quien acaba de borrar su

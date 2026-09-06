@@ -355,7 +355,7 @@ que una que funciona.
 | `plantillas.bienvenida`, `viajeAnulado`, `revisionLenta` | Nadie recibia el correo de registro, ni sabia por que le habian bajado los puntos |
 | Las doce acciones de clan y `guardarFavoritas` | Escritas, con reglas, y sin una sola pantalla desde la que ejecutarlas |
 | `reportarViaje` y `suspenderUsuario` | La moderacion tenia cola, reglas y panel, y ninguna forma de crear una denuncia (#61) |
-| `limites.js` entero | No hay limitacion de frecuencia en ningun sitio (#62) |
+| `limites.js` entero | No hay limitacion de frecuencia en ningun sitio (#62) — se borro: no podia correr donde hacia falta |
 | `clanes.js` entero, y con el `badwords` | Los nombres de piloto y de clan no los filtra nadie (#64) |
 | `correo.decidirReintento`, `debeDejarDeIntentar`, `repartirCupo` | Un correo que falla se pierde para siempre, y nadie cuenta el cupo diario (#65) |
 
@@ -365,14 +365,26 @@ quien se señala, y publicar los uid en las clasificaciones es justo lo que no s
 hace desde #60: se resolvio denunciando el VIAJE y dejando que el worker
 averigüe el dueño.
 
-Quedan dos abiertos. El primero es de otra clase que todos los demas:
+El noveno, **#62**, era de otra clase que todos los demas: `limites.js` no es
+que no se ejecutara, es que **no podia ejecutarse donde hacia falta**. Usaba el
+Admin SDK, o sea que corria en el worker, y para entonces la escritura ya habia
+ocurrido.
 
-- **#62** `limites.js`. No es que no se ejecute, es que **no se puede ejecutar
-  donde hace falta**. Usa el Admin SDK, o sea que corre en el worker, y para
-  entonces la escritura ya ha ocurrido. Mientras siga ahi sin llamar es peor que
-  no tenerlo: quien lo lea dara por hecho que hay limitacion de frecuencia, y no
-  la hay. El worker ya despeja la cola cuando una cuenta la inunda, pero eso es
-  un parachoques: la escritura sigue ocurriendo.
+Se resolvio por el otro lado: el freno vive ahora en las reglas. El navegador
+lleva un contador en `cupos/{uid}` y lo escribe en el mismo lote que el viaje;
+las reglas miran como queda ese documento DESPUES del lote y exigen que el ID del
+viaje sea el numero nuevo. Como un lote no puede escribir dos veces el mismo
+documento y el contador solo sube de uno en uno, **no cabe mas que un viaje y una
+captura por lote**. Sin lo del id no serviria de nada: un lote de quinientos
+viajes que subiera el contador una vez pasaria entero.
+
+El dia de las reglas es UTC, que es lo unico que `request.time` sabe dar, asi que
+el tope es holgado (diez) y NO es el cupo del juego: ese lo sigue poniendo el
+worker en hora de Madrid. Un tope ajustado bloquearia de madrugada a gente
+legitima, que es peor que el problema que resuelve.
+
+`limites.js` se borro, y con el los dos limites de `config.js` que solo usaba.
+App Check (#4) sigue siendo la medida complementaria, y necesita la consola.
 
 El decimo, **#64**, es el mas grande y el que dejo una comprobacion util detras.
 `backend/src/clanes.js` eran 220 lineas y siete funciones que no requeria nadie:

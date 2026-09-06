@@ -271,10 +271,10 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 <!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 10.722 | 21% |
-| u50 | 50 | 3000 | 39.937 | 80% |
-| u200 | 200 | 15.000 | 175.210 | 350% **se agota** |
-| u1000 | 1000 | 90.000 | 1.634.546 | 3269% **se agota** |
+| hoy | 6 | 1022 | 10.740 | 21% |
+| u50 | 50 | 3000 | 40.087 | 80% |
+| u200 | 200 | 15.000 | 175.810 | 352% **se agota** |
+| u1000 | 1000 | 90.000 | 1.637.546 | 3275% **se agota** |
 <!-- fin:escenarios -->
 
 
@@ -296,7 +296,7 @@ acumulados**, que sube todos los dias aunque no entre nadie nuevo.
 <!-- tabla:pantallas -->
 | Pantalla | Lecturas por carga | De donde salen |
 |---|---:|---|
-| `/subir/` | 61 | perfil + sus 60 viajes mas recientes, para el limite diario |
+| `/subir/` | 64 | perfil + sus 60 viajes mas recientes, para el limite diario + el contador de escrituras y los dos getAfter de las reglas |
 | `/yo/` | 25 | perfil + temporadas + el conteo + la primera pagina del historial (20) |
 | `/` | 7 | perfil + mision + config + clan + su ultimo viaje + el conteo + el agregado de la ruta |
 | `/statssss/` | 2 | los agregados de portada y mapa |
@@ -436,7 +436,9 @@ aviso lo dice.
 ## Cuentas que no se han hecho aqui
 
 - **Escrituras.** El limite es 20.000 al dia y `reconstruirAgregados` escribe en
-  lotes. Merece su propia auditoria.
+  lotes. Merece su propia auditoria. Lo que si esta cerrado es el agujero por el
+  que una sola cuenta podia gastarlas todas: las reglas frenan a un viaje y una
+  captura por lote, con un contador que no se puede falsear (#62).
 - **Ancho de banda.** Traerse 15.000 documentos no solo cuesta cuota: cuesta
   megas en un movil, en la calle. Eso no lo mide este modelo y es lo que decide
   si la app se siente rapida.

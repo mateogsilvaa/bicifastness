@@ -2956,3 +2956,45 @@ test('App Check no se enciende a medias', () => {
   assert.match(lanzamiento, /rechaza todas las peticiones/i,
     'la lista de lanzamiento no avisa de que activarlo antes de tiempo tumba el sitio');
 });
+
+test('no queda ningun catch vacio sin un motivo escrito al lado', () => {
+  // La regla sale de `borrado.ejecutar`, que llevaba `.catch(() => {})` en cada
+  // borrado y devolvia exito pasara lo que pasara: la solicitud de supresion se
+  // borraba en la misma pasada y los datos se quedaban dentro para siempre.
+  //
+  // Lo que lo hacia evitable es el detalle: en Firestore, borrar un documento
+  // que NO EXISTE no falla, es un no-op. Asi que esos catch no protegian
+  // ninguna idempotencia — eso ya lo da Firestore — y lo unico que podian hacer
+  // era tragarse un error de verdad.
+  //
+  // Aqui no se prohibe el catch vacio: se exige que las tres lineas de encima
+  // digan por que. Un catch con motivo escrito es una decision; uno sin motivo
+  // es lo que nadie se acuerda de haber escrito.
+  const VACIO = /\.catch\(\(\) => \{\}\)|catch \{\s*\}/;
+
+  const ficheros = recorrerProyecto(/\.js$/);
+
+  const mudos = [];
+
+  for (const fichero of ficheros) {
+    const lineas = fs.readFileSync(fichero, 'utf8').split('\n');
+
+    lineas.forEach((linea, i) => {
+      if (!VACIO.test(linea)) return;
+      // El propio comentario que explica el patron no es un catch.
+      if (/^\s*(\*|\/\/)/.test(linea)) return;
+
+      const encima = lineas.slice(Math.max(0, i - 3), i).join('\n');
+      const explicado = /(\*|\/\/)/.test(encima) || /\/\*|\/\//.test(linea.slice(linea.indexOf('catch')));
+
+      if (!explicado) {
+        mudos.push(`${path.relative(RAIZ, fichero)}:${i + 1}`);
+      }
+    });
+  }
+
+  assert.deepStrictEqual(mudos, [],
+    `catch vacio sin motivo escrito en: ${mudos.join(', ')}. `
+    + 'Mira primero si la operacion puede fallar por el motivo que imaginas: '
+    + 'muchas veces no, y entonces el catch solo esconde los que no imaginaste.');
+});

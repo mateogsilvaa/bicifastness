@@ -332,6 +332,10 @@ async function cerrar() {
   if (!worker) return;
   const suyo = worker;
   worker = null;
+  // Con `catch` y sin ruido: esto corre al final de la tanda, cuando ya no queda
+  // nada que leer. Un worker que no se deja cerrar limpiamente se va con el
+  // proceso, y avisar de ello en la ultima linea del log solo sirve para
+  // preocupar por algo que no ha afectado a ningun viaje.
   await suyo.terminate().catch(() => {});
 }
 

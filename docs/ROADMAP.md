@@ -506,8 +506,19 @@ La regla que sale de aqui: **antes de escribir un `catch` vacio, mirar si la
 operacion puede fallar por el motivo que se esta imaginando.** Muchas veces no,
 y entonces el `catch` solo esconde los motivos que no se imaginaron.
 
-Cuando el `catch` si tiene motivo, se queda —pero hablando. Quedan tres asi, y
-los tres dicen por que en el propio codigo:
+Ahora hay una comprobacion que lo ata: **un `catch` vacio sin motivo escrito en
+las tres lineas de encima falla el CI**. No prohibe el patron — a veces es lo
+correcto — obliga a decir por que. Un catch con motivo escrito es una decision;
+uno sin motivo es lo que nadie se acuerda de haber escrito.
+
+Al ponerla salieron cinco mas, y dos eran del mismo tipo que el original —
+borrados con `catch` sobre algo que no puede fallar: la captura sobrante de un
+viaje rechazado (700 KB que se quedaban ocupando en silencio), la solicitud de
+baja de correo (que la escribe gente SIN SESION, o sea la coleccion que menos
+puede acumular) y la peticion anterior de invitacion en el navegador.
+
+Cuando el `catch` si tiene motivo, se queda —pero hablando. Los que quedan dicen
+por que en el propio codigo:
 
 - el `update` sobre un clan que puede haberse disuelto entre la consulta y la
   escritura; cualquier otro motivo deja el uid de la persona en un documento
@@ -518,6 +529,14 @@ los tres dicen por que en el propio codigo:
 - el aviso a la administracion de una cola inundada: que no salga el correo no
   puede parar el despeje, pero un aviso perdido en silencio es lo peor de las
   dos opciones — no te enteras del abuso, y tampoco de que no te has enterado
+- el camino de fallo del procesado, que ya esta dentro del manejo de un error:
+  si tampoco se puede mover el viaje a revision, lo que NO puede pasar es tumbar
+  la tanda y dejar sin procesar los de los demas
+- los dos cierres de worker de OCR, uno en el servidor y otro en el navegador:
+  corren cuando ya no queda nada que leer, y avisar ahi solo sirve para
+  preocupar por algo que no ha afectado a ninguna captura
+- el correo de verificacion del registro, que Firebase limita por cuenta y por
+  rato: quedarse sin el no puede impedir terminar de registrarse
 
 ### Lo que encontro el banco de capturas
 

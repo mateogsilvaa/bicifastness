@@ -623,8 +623,14 @@ export async function usarInvitacion(codigo) {
   // Si habia una peticion anterior se borra primero: `create` no puede
   // sobrescribir, y una peticion resuelta bloquearia todos los intentos
   // siguientes.
+  //
+  // El borrado va sin `catch`: en Firestore borrar un documento que no existe NO
+  // falla, es un no-op, asi que tragarse el error no protegia el caso "no habia
+  // peticion anterior" — eso ya lo da Firestore — y lo unico que podia esconder
+  // era un permiso denegado. Y entonces el `setDoc` de abajo falla igual, pero
+  // con un error que no dice donde estaba el problema.
   const ref = doc(db, 'usos_invitacion', uidActual());
-  await deleteDoc(ref).catch(() => {});
+  await deleteDoc(ref);
   await setDoc(ref, {
     uid: uidActual(),
     codigo,

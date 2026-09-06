@@ -100,7 +100,13 @@ id('form-registro').addEventListener('submit', async (evento) => {
     // manipulable desde el cliente: bastaba con enviarlo a true.
     await crearPerfil({ username, email });
 
-    await sendEmailVerification(auth.currentUser).catch(() => {});
+    // Con `catch` a proposito: esto SI puede fallar de verdad (Firebase limita
+    // los envios por cuenta y por rato), y quedarse sin correo de verificacion
+    // no puede impedir terminar el registro. Pero se dice, aunque sea a la
+    // consola: sin esto, "no me llega el correo de verificacion" no tiene ni un
+    // rastro que mirar.
+    await sendEmailVerification(auth.currentUser)
+      .catch((error) => console.warn('No se ha podido enviar la verificacion:', error.message));
     window.location.replace('/');
   } catch (error) {
     registrando = false;

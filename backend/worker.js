@@ -556,7 +556,11 @@ async function borrarCapturaSiSobra(doc, viaje) {
     if (laNecesitaAlguien) return;
   }
 
-  await db.doc(`capturas/${capturaId}`).delete().catch(() => {});
+  // Sin `catch`. Borrar en Firestore un documento que no existe NO falla: es un
+  // no-op. Asi que tragarse el error aqui no protegia ninguna idempotencia — eso
+  // ya lo da Firestore — y lo unico que podia esconder era un fallo de verdad,
+  // que en esta linea significa 700 KB que se quedan ocupando para siempre.
+  await db.doc(`capturas/${capturaId}`).delete();
 }
 
 /**
@@ -1015,7 +1019,11 @@ async function procesarBajas() {
       dadas++;
     }
 
-    if (!SIMULAR) await solicitud.ref.delete().catch(() => {});
+    // Sin `catch`: borrar lo que no existe no falla, asi que solo podia
+    // esconder un error real. Y aqui uno silencioso es de los caros: la
+    // solicitud se queda dando vueltas en cada pasada, y esta coleccion la
+    // escribe gente SIN SESION, o sea que es justo la que no debe acumular.
+    if (!SIMULAR) await solicitud.ref.delete();
   }
 
   console.log(`Bajas de correo procesadas: ${dadas} de ${solicitudes.size} solicitudes.`);
@@ -1936,7 +1944,14 @@ async function despejarInundacion(cola) {
 
     // Las capturas son lo que ocupa: 700 KB cada una. Van aparte del lote
     // porque cada viaje puede compartirla con otros suyos.
-    for (const doc of sobran) await borrarCapturaSiSobra(doc, doc.data()).catch(() => {});
+    for (const doc of sobran) {
+      // Aqui el `catch` SI tiene motivo — que falle una captura no puede parar
+      // el despeje de las otras — pero hablando: son 700 KB cada una, y si
+      // fallan todas en silencio el despeje deja de servir para lo que sirve.
+      await borrarCapturaSiSobra(doc, doc.data())
+        .catch((error) => console.warn(`  no se ha podido borrar la captura de ${doc.id}:`,
+          error.message));
+    }
 
     await avisarAdmin(
       `Cola inundada por ${uid}`,
@@ -1993,18 +2008,26 @@ async function procesarCola(cuenta) {
       if (!SIMULAR) {
         // El mensaje del error va a la auditoria, no al viaje: es texto interno
         // — a veces con rutas de fichero dentro — y el viaje lo lee su dueño.
+        // Estos dos `catch` si tienen motivo: se esta ya dentro del manejo de un
+        // error, y si tambien falla mover el viaje a revision, lo que NO puede
+        // pasar es tumbar la tanda entera y dejar sin procesar los viajes de los
+        // demas. Pero se dice, porque un viaje que se queda pendiente para
+        // siempre sin que nadie se entere es exactamente lo que este bloque
+        // intenta evitar.
         await escribirAuditoria(doc.id, {
           resumen: 'El analisis automatico ha fallado. Requiere revision humana.',
           riesgo: 50,
           señales: [{ codigo: 'error_worker', gravedad: 50, mensaje: error.message }],
-        }).catch(() => {});
+        }).catch((fallo) => console.error(`  [${doc.id}] tampoco se ha podido guardar `
+          + `la auditoria del fallo:`, fallo.message));
 
         await doc.ref.update({
           estado: 'revision',
           avisoRevision: false,
           motivos: ['error_worker'],
           auditoria: admin.firestore.FieldValue.delete(),
-        }).catch(() => {});
+        }).catch((fallo) => console.error(`  [${doc.id}] SE QUEDA PENDIENTE: tampoco se `
+          + `ha podido pasar a revision:`, fallo.message));
       }
     }
   }
@@ -2124,7 +2147,11 @@ async function main() {
     // que sin esto la ruta se quedaria con el agregado viejo. Vale para las dos
     // razones por las que se llega aqui: el limitador de quince minutos y el
     // modo degradado por cuota.
-    await agregados.apuntarPendientes(rutasTocadas, estacionesTocadas).catch(() => {});
+    // Con `catch` porque apuntar no puede tumbar la pasada, pero hablando: si
+    // esto falla, las rutas y estaciones movidas se pierden al morir el proceso
+    // y sus agregados se quedan viejos hasta que alguien vuelva a moverlas.
+    await agregados.apuntarPendientes(rutasTocadas, estacionesTocadas)
+      .catch((error) => console.warn('No se ha podido apuntar lo pendiente:', error.message));
     console.log(`Agregados: movimiento en ${rutasTocadas.size} rutas y `
       + `${estacionesTocadas.size} estaciones, sin reconstruir todavia. `
       + 'Queda apuntado para la proxima.');

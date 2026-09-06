@@ -315,6 +315,10 @@ export async function cerrar() {
   worker = null;
   cargando = null;
   fallo = null;
+  // Con `catch` y sin ruido: esto suelta el motor cuando ya no queda nada que
+  // leer. Un worker que no se deja cerrar limpiamente se va con la pestaña, y
+  // avisar de ello solo serviria para preocupar por algo que no ha afectado a
+  // ninguna captura.
   if (suyo) await suyo.terminate().catch(() => {});
 }
 

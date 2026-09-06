@@ -1,0 +1,583 @@
+// Modulo de la pagina /yo/
+//
+// Vive en un fichero propio y no incrustado en el HTML porque la CSP
+// declara `script-src 'self'`: un <script> en linea quedaria bloqueado.
+
+
+import {
+  auth, db, onAuthStateChanged, signOut,
+  collection, getDocs, getCountFromServer, query, where, orderBy, limit, startAfter, doc, getDoc,
+  avatarPorDefecto,
+} from '/assets/js/firebase.js';
+import { iniciarPagina, alternarTema, nombreRuta, formatearFecha, formatearTiempo } from '/assets/js/ui.js';
+import { id, el, estado, reemplazar, confirmar, pedirTexto, esqueleto } from '/assets/js/dom.js';
+import { generarNodosInsignias } from '/assets/js/insignias.js';
+import {
+  impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo, guardarFavoritas,
+} from '/assets/js/acciones.js';
+import { motivoDeViaje } from '/assets/js/motivos.js';
+import { vaciarCache } from '/assets/js/cache.js';
+import { sonidoActivo, activarSonido, sonar } from '/assets/js/celebrar.js';
+import {
+  soportado as soportadoPush, configurado as configuradoPush,
+  suscribir, desuscribir, suscripcionActual,
+} from '/assets/js/push.js';
+import { guardarSuscripcionPush, olvidarSuscripcionPush, ajustarAvisoPush } from '/assets/js/acciones.js';
+import { TIPOS as TIPOS_PUSH } from '/assets/data/push-tipos.js';
+
+iniciarPagina('yo');
+
+
+let usuario = null;
+
+onAuthStateChanged(auth, async (u) => {
+  if (!u) { window.location.replace('/entrar/'); return; }
+  usuario = u;
+  id('email').textContent = u.email;
+  await cargarPerfil();
+  await cargarHistorial();
+});
+
+async function cargarPerfil() {
+  const snap = await getDoc(doc(db, 'usuarios', usuario.uid));
+  if (!snap.exists()) {
+    estado(id('msg-avatar'), 'Tu perfil aun no esta creado. Vuelve a registrarte.', 'aviso');
+    return;
+  }
+  const perfil = snap.data();
+
+  id('nombre').textContent = perfil.username || 'Piloto';
+  id('rating').textContent = perfil.biciRating || 0;
+  id('verificados').textContent = perfil.viajesVerificados || 0;
+  contarTrayectos();
+  id('clan').textContent = perfil.clanId ? `Clan: ${perfil.clanId}` : 'Sin clan';
+  // El mismo generador que usa el alta, no una copia de la URL: cuando esto era
+  // una direccion de dicebear repetida a mano, cambiarla en un sitio dejaba el
+  // otro apuntando fuera (#55).
+  id('avatar').src = perfil.avatarUrl || avatarPorDefecto(perfil.username);
+
+  reemplazar(id('insignias'), generarNodosInsignias(perfil.logros || []));
+
+  // Activados salvo que se hayan apagado a proposito: `undefined` significa que
+  // nunca se ha tocado la preferencia, no que este desactivada.
+  id('avisos-correo').checked = perfil.avisosCorreo !== false;
+
+  pintarModos(perfil);
+  await montarAvisosPush(perfil);
+  pintarFavoritas(perfil);
+  await cargarTemporadas();
+}
+
+/**
+ * Rutas ancladas (maximo tres, como impone la regla).
+ *
+ * `guardarFavoritas` llevaba escrita desde la reescritura y no la llamaba
+ * ninguna pantalla: se podian anclar rutas por consola y de ninguna otra forma.
+ *
+ * Las opciones salen de `puntosPorRuta`, que ya esta en el documento leido: los
+ * tramos donde el piloto ha puntuado. Ofrecer las 600 rutas de Madrid en un
+ * desplegable no es ofrecer nada.
+ */
+function pintarFavoritas(perfil) {
+  const destino = id('favoritas');
+  if (!destino) return;
+
+  const suyas = Object.keys(perfil.puntosPorRuta || {}).sort();
+  const ancladas = new Set(perfil.favoritas || []);
+
+  if (!suyas.length) {
+    reemplazar(destino, el('div', { clase: 'vacio' }, [
+      el('h3', { texto: 'Todavia no has puntuado en ningun tramo' }),
+      el('p', { texto: 'Cuando subas tu primer viaje verificado podras anclar tus rutas.' }),
+    ]));
+    return;
+  }
+
+  const alPulsar = async (ruta, boton) => {
+    const siguiente = new Set(ancladas);
+
+    if (siguiente.has(ruta)) siguiente.delete(ruta);
+    else if (siguiente.size >= 3) {
+      // La regla de Firestore rechazaria la escritura, pero decirlo antes es
+      // mejor que dejar que falle y ensenar un error.
+      estado(id('msg-favoritas'), 'Solo puedes anclar tres rutas. Quita una antes.', 'aviso');
+      return;
+    } else siguiente.add(ruta);
+
+    boton.disabled = true;
+    try {
+      await guardarFavoritas([...siguiente]);
+      estado(id('msg-favoritas'), '');
+      pintarFavoritas({ ...perfil, favoritas: [...siguiente] });
+    } catch (error) {
+      estado(id('msg-favoritas'), error.message || 'No se ha podido guardar.', 'error');
+      boton.disabled = false;
+    }
+  };
+
+  reemplazar(destino,
+    el('div', { clase: 'fila', estilo: { flexWrap: 'wrap' } }, suyas.map((ruta) => {
+      const anclada = ancladas.has(ruta);
+      const boton = el('button', {
+        clase: anclada ? 'btn' : 'btn secundario',
+        texto: nombreRuta(ruta),
+        attrs: {
+          type: 'button',
+          // El estado no puede ir solo en el color del boton.
+          'aria-pressed': String(anclada),
+          'aria-label': `${anclada ? 'Desanclar' : 'Anclar'} ${nombreRuta(ruta)}`,
+        },
+      });
+      boton.addEventListener('click', () => alPulsar(ruta, boton));
+      return boton;
+    })),
+    el('p', { clase: 'mensaje', attrs: { id: 'msg-favoritas', 'aria-live': 'polite' } }));
+}
+
+/**
+ * Las tres cifras de los modos.
+ *
+ * Se calculan aqui, del propio documento del usuario, y no se leen de un
+ * agregado: el agregado solo trae a quien puntua, y quien acaba de empezar no
+ * sale en ninguno. Verse con ceros propios es mejor que no verse.
+ */
+function pintarModos(perfil) {
+  const sprint = Object.values(perfil.puntosPorRuta || {}).reduce((t, p) => t + p, 0);
+
+  id('modo-sprint').textContent = String(sprint);
+  id('modo-fondo').textContent = ((perfil.metrosTotales || 0) / 1000).toFixed(1);
+  id('modo-constancia').textContent = String(perfil.mejorRacha || 0);
+
+  // La racha viva importa mas que la mejor historica cuando esta activa: es la
+  // que se puede perder hoy.
+  const viva = perfil.racha || 0;
+  id('racha-actual').textContent = viva > 0
+    ? `mejor racha · ${viva} ${viva === 1 ? 'dia' : 'dias'} ahora`
+    : 'mejor racha';
+}
+
+/**
+ * Historial de temporadas cerradas.
+ *
+ * Vive en una subcoleccion del propio usuario, asi que se borra con su cuenta
+ * sin tener que ir a buscarlo a otro sitio.
+ */
+/**
+ * Identificador de la temporada donde vive el historial migrado de la v1.
+ * Lo escribe `scripts/migrar-datos.js`.
+ */
+const TEMPORADA_V1 = 'v1';
+
+/**
+ * Clave de orden de una temporada.
+ *
+ * Las temporadas son meses naturales (`2026-08`), asi que ordenar por el
+ * identificador basta — salvo para `v1`, que empieza por letra y en un orden
+ * descendente se colaria ARRIBA del todo. Justo al reves de lo que es: el
+ * historial de la v1 es lo mas antiguo que tiene nadie.
+ */
+function ordenTemporada(temporada) {
+  return temporada === TEMPORADA_V1 ? '0000-00' : String(temporada);
+}
+
+/**
+ * Como se llama una temporada en pantalla.
+ *
+ * `v1` es un nombre interno: fuera de este repositorio nadie sabe que hubo una
+ * v1 ni por que su historial esta aparte.
+ */
+function nombreTemporada(temporada) {
+  return temporada === TEMPORADA_V1 ? 'Historial anterior' : String(temporada);
+}
+
+async function cargarTemporadas() {
+  const destino = id('temporadas');
+
+  try {
+    const snap = await getDocs(collection(db, 'usuarios', usuario.uid, 'temporadas'));
+    if (snap.empty) { reemplazar(destino, el('div', {})); return; }
+
+    const filas = snap.docs
+      .map((d) => d.data())
+      .sort((a, b) => ordenTemporada(b.temporada).localeCompare(ordenTemporada(a.temporada)));
+
+    reemplazar(destino,
+      el('h2', { clase: 'h2', texto: 'Temporadas anteriores' }),
+      el('div', { clase: 'tabla-scroll' }, [
+        el('table', { clase: 'tabla' }, [
+          el('thead', {}, [el('tr', {}, [
+            el('th', { texto: 'Temporada', attrs: { scope: 'col' } }),
+            el('th', { texto: 'Puesto', clase: 'col-marca', attrs: { scope: 'col' } }),
+            el('th', { texto: 'Puntos', clase: 'col-fecha', attrs: { scope: 'col' } }),
+          ])]),
+          el('tbody', {}, filas.map((t) => el('tr', {}, [
+            el('th', { texto: nombreTemporada(t.temporada), attrs: { scope: 'row' }, clase: 'nombre' }),
+            el('td', { clase: 'col-marca' }, [
+              el('span', { clase: 'marca', texto: t.posicion ? `${t.posicion}` : '—' }),
+            ]),
+            el('td', { clase: 'col-fecha menor apagado', texto: String(t.puntos || 0) }),
+          ]))),
+        ]),
+      ]));
+  } catch (error) {
+    console.debug('No se han podido cargar las temporadas', error);
+    reemplazar(destino, el('div', {}));
+  }
+}
+
+/**
+ * Cuantos trayectos ha subido, verificados o no.
+ *
+ * Con la consulta de conteo, no trayendose la coleccion: Firestore cobra UNA
+ * lectura por cada 1.000 documentos contados. Antes el numero salia de
+ * `snapshot.size` sobre el historial entero, o sea una lectura por trayecto solo
+ * para poner una cifra en pantalla (#37).
+ *
+ * Si falla, la tarjeta se queda como esta en vez de enseñar un cero que seria
+ * mentira.
+ */
+async function contarTrayectos() {
+  try {
+    const total = await getCountFromServer(query(
+      collection(db, 'tiempos_viaje'),
+      where('uid', '==', usuario.uid),
+    ));
+    id('total-viajes').textContent = total.data().count;
+  } catch (error) {
+    console.debug('No se ha podido contar los trayectos', error);
+  }
+}
+
+/**
+ * Viajes por pagina del historial.
+ *
+ * Antes se traia el historial ENTERO para pintar las primeras filas. Quien lleva
+ * un ano usando esto acumula cientos de viajes, y todos se pagaban en cada
+ * visita a su perfil aunque solo mirara los tres ultimos (#37).
+ *
+ * Veinte llenan mas de una pantalla de movil, que es el listón: la primera carga
+ * tiene que enseñar mas de lo que cabe, o el boton de "ver mas" aparece antes de
+ * que a nadie le haga falta.
+ */
+const POR_PAGINA = 20;
+
+/** Ultimo documento de la pagina traida, para pedir la siguiente desde ahi. */
+let ultimoVisto = null;
+let quedanMas = true;
+
+async function cargarHistorial({ mas = false } = {}) {
+  const contenedor = id('historial');
+  if (!mas) {
+    reemplazar(contenedor, esqueleto(3, 74));
+    ultimoVisto = null;
+    quedanMas = true;
+  }
+
+  try {
+    // `startAfter` continua desde donde se quedo la pagina anterior. Es
+    // paginacion de verdad: Firestore solo cobra los documentos que devuelve,
+    // no los que se salta.
+    const partes = [
+      collection(db, 'tiempos_viaje'),
+      where('uid', '==', usuario.uid),
+      orderBy('creado', 'desc'),
+      ...(ultimoVisto ? [startAfter(ultimoVisto)] : []),
+      limit(POR_PAGINA),
+    ];
+    const snapshot = await getDocs(query(...partes));
+
+    ultimoVisto = snapshot.docs[snapshot.docs.length - 1] || ultimoVisto;
+    quedanMas = snapshot.size === POR_PAGINA;
+
+    if (snapshot.empty && !mas) {
+      reemplazar(contenedor, el('div', { clase: 'vacio' }, [
+        el('p', { texto: 'Aun no has subido ningun viaje.', estilo: { margin: '0 0 12px', fontWeight: '700' } }),
+        el('a', { texto: 'Subir mi primer tiempo', attrs: { href: '/subir/' },
+          estilo: { color: 'var(--azul)', fontWeight: '700', textDecoration: 'none' } }),
+      ]));
+      return;
+    }
+
+    const filas = snapshot.docs.map((d) => {
+      const viaje = d.data();
+      // El chip lleva SIEMPRE la palabra: el color no puede ser el unico
+      // portador del estado.
+      const estados = {
+        aprobado: ['verificado', 'Verificado'],
+        revision: ['revision', 'En revision'],
+        rechazado: ['rechazado', 'Rechazado'],
+      };
+      const [clase, texto] = estados[viaje.estado] || ['pendiente', 'Pendiente'];
+
+      return el('div', { clase: 'bloque' }, [
+        el('div', { clase: 'fila separada' }, [
+          el('div', {}, [
+            el('div', { clase: 'nombre', texto: nombreRuta(viaje.ruta) }),
+            el('div', { clase: 'clan', texto: formatearFecha(viaje.fechaViaje) }),
+          ]),
+          el('div', { estilo: { textAlign: 'right' } }, [
+            el('div', { clase: 'marca', texto: formatearTiempo(viaje.tiempoSegundos) }),
+            el('span', { clase: `chip ${clase}`, texto }),
+          ]),
+        ]),
+
+        // Si se ha rechazado, el piloto merece saber por que. El texto sale de
+        // `motivos.js`: el resumen de la auditoria esta escrito para quien
+        // revisa y lleva dentro los numeros del antifraude.
+        viaje.estado === 'rechazado' ? bloqueMotivo(viaje) : null,
+
+        // Derecho a que una persona revise una decision automatica
+        // (art. 22.3 RGPD). Solo tiene sentido si quien rechazo fue la maquina.
+        viaje.estado === 'rechazado' && viaje.revisadoPor === 'automatico' && !viaje.impugnado
+          ? el('button', {
+            clase: 'btn plano',
+            texto: 'Pedir revision humana',
+            attrs: { type: 'button' },
+            on: { click: (e) => impugnar(d.id, e.currentTarget) },
+          })
+          : null,
+
+        viaje.impugnado
+          ? el('p', { clase: 'menor apagado', estilo: { marginTop: 'var(--e3)', marginBottom: '0' },
+              texto: 'Has pedido revision humana. Un administrador lo mirara.' })
+          : null,
+      ]);
+    });
+
+    // La primera pagina reemplaza el esqueleto; las siguientes se anaden debajo,
+    // para no perder el sitio en el que estaba la persona leyendo.
+    if (mas) {
+      id('ver-mas')?.remove();
+      contenedor.append(...filas);
+    } else {
+      reemplazar(contenedor, filas);
+    }
+
+    if (quedanMas) contenedor.append(botonVerMas());
+  } catch (error) {
+    const mensaje = el('p', { texto: `No se ha podido cargar el historial: ${error.message}` });
+    if (mas) contenedor.append(mensaje);
+    else reemplazar(contenedor, mensaje);
+  }
+}
+
+function botonVerMas() {
+  return el('button', {
+    clase: 'btn secundario',
+    texto: 'Ver mas trayectos',
+    attrs: { type: 'button', id: 'ver-mas' },
+    on: {
+      click: async (evento) => {
+        const boton = evento.currentTarget;
+        boton.disabled = true;
+        boton.textContent = 'Cargando...';
+        await cargarHistorial({ mas: true });
+      },
+    },
+  });
+}
+
+/** Por que se rechazo, en castellano y sin contar como funciona el antifraude. */
+function bloqueMotivo(viaje) {
+  const motivo = motivoDeViaje(viaje);
+  return el('div', { clase: 'aviso error', estilo: { marginTop: 'var(--e3)', marginBottom: '0' } }, [
+    el('p', { clase: 'etiqueta', texto: motivo.dePersona ? 'Lo que dice quien lo ha revisado' : 'Motivo' }),
+    el('p', { texto: motivo.texto }),
+    motivo.queHacer ? el('p', { clase: 'menor apagado', texto: motivo.queHacer }) : null,
+  ]);
+}
+
+/**
+ * Pide que una persona revise un rechazo automatico.
+ * Es un derecho del art. 22.3 del RGPD, no una cortesia: la politica de
+ * privacidad lo promete y hasta ahora no habia forma de ejercerlo.
+ */
+async function impugnar(viajeId, boton) {
+  const alegacion = await pedirTexto(
+    'Explica por que crees que el rechazo es un error. Lo leera un administrador.',
+    { etiqueta: 'Tu explicacion', textoAceptar: 'Pedir revision', minimo: 15,
+      marcador: 'Por ejemplo: la captura es autentica, el trayecto lo hice el...' }
+  );
+  if (!alegacion) return;
+
+  boton.disabled = true;
+  boton.textContent = 'Enviando...';
+  try {
+    await impugnarViaje(viajeId, alegacion);
+    estado(id('msg-datos'), 'Revision solicitada. Te responderemos por el estado del viaje.', 'ok');
+    await cargarHistorial();
+  } catch (error) {
+    boton.disabled = false;
+    boton.textContent = 'Pedir revision humana';
+    estado(id('msg-datos'), error.message, 'error');
+  }
+}
+
+// La subida de avatar se ha retirado: Cloud Storage exige el plan Blaze y
+// meter la imagen en Firestore encareceria cada lectura del ranking, que trae
+// todos los perfiles. El avatar se genera a partir del nombre de piloto.
+
+// --- Acciones ---
+
+/**
+ * Interruptor de avisos por correo.
+ *
+ * Por defecto ACTIVADOS: los avisos son sobre los propios trayectos de quien los
+ * recibe (un rechazo hay que poder arreglarlo), asi que es informacion del
+ * servicio, no promocion. Quien no los quiera los apaga aqui o desde el enlace
+ * de cualquier correo, sin tener que iniciar sesion.
+ */
+id('avisos-correo').addEventListener('change', async (evento) => {
+  const casilla = evento.currentTarget;
+  casilla.disabled = true;
+  try {
+    await guardarAvisosCorreo(casilla.checked);
+    estado(id('msg-avisos'),
+      casilla.checked ? 'Te avisaremos por correo.' : 'No volveremos a escribirte.', 'ok');
+  } catch (error) {
+    // Se devuelve la casilla a donde estaba: dejarla marcada cuando no se ha
+    // guardado hace creer que si.
+    casilla.checked = !casilla.checked;
+    estado(id('msg-avisos'), error.message, 'error');
+  } finally {
+    casilla.disabled = false;
+  }
+});
+
+/**
+ * Los interruptores de los avisos push (#33).
+ *
+ * El primero es el maestro: sin suscripcion no hay a donde enviar, asi que los
+ * de tipo no significan nada hasta que exista. Darse de baja es apagar ese, y
+ * son dos toques.
+ */
+async function montarAvisosPush(perfil) {
+  if (!soportadoPush() || !configuradoPush()) return;
+
+  id('ajustes-push').classList.remove('oculto');
+
+  const suscripcion = await suscripcionActual();
+  const preferencias = perfil.push?.avisos || {};
+
+  const interruptor = (etiqueta, detalle, marcado, alCambiar, deshabilitado = false) => {
+    const casilla = el('input', {
+      attrs: { type: 'checkbox', checked: marcado ? '' : null, disabled: deshabilitado ? '' : null },
+      on: {
+        change: async (e) => {
+          e.target.disabled = true;
+          try {
+            await alCambiar(e.target.checked);
+            estado(id('msg-push'), '');
+          } catch (error) {
+            e.target.checked = !e.target.checked;
+            estado(id('msg-push'), `No se ha podido guardar: ${error.message}`, 'error');
+          } finally {
+            e.target.disabled = false;
+          }
+        },
+      },
+    });
+
+    return el('label', { clase: 'fila', estilo: { marginBottom: 'var(--e3)' } }, [
+      casilla,
+      el('span', {}, [
+        el('span', { texto: etiqueta }),
+        detalle ? el('span', { clase: 'clan', texto: detalle }) : null,
+      ]),
+    ]);
+  };
+
+  const nodos = [
+    interruptor(
+      'Recibir avisos en este dispositivo',
+      suscripcion ? 'Activado aqui. En otro movil hay que activarlo aparte.' : null,
+      Boolean(suscripcion),
+      async (activar) => {
+        if (activar) {
+          const nueva = await suscribir();
+          if (!nueva) throw new Error('el navegador no ha dado permiso');
+          await guardarSuscripcionPush(nueva);
+        } else {
+          const vieja = await desuscribir();
+          await olvidarSuscripcionPush(vieja);
+        }
+        // Se vuelve a montar: los de tipo dependen de que exista suscripcion.
+        await montarAvisosPush({ ...perfil, push: { ...perfil.push, suscripciones: activar ? [1] : [] } });
+      }),
+  ];
+
+  for (const [tipo, info] of Object.entries(TIPOS_PUSH)) {
+    nodos.push(interruptor(
+      info.etiqueta,
+      null,
+      preferencias[tipo] === undefined ? info.porDefecto : preferencias[tipo] === true,
+      (activo) => ajustarAvisoPush(tipo, activo),
+      !suscripcion));
+  }
+
+  reemplazar(id('lista-avisos'), nodos);
+}
+
+// El sonido va apagado salvo que se encienda a proposito: una web que suena
+// sola la primera vez que la abres en el metro es una web que se cierra (#51).
+id('sonido').checked = sonidoActivo();
+id('sonido').addEventListener('change', (e) => {
+  activarSonido(e.target.checked);
+  // Al encenderlo suena una vez, que es la unica forma de saber que suena. Y
+  // ademas el gesto del clic es lo que autoriza al navegador a reproducir.
+  if (e.target.checked) sonar();
+});
+
+id('btn-tema').addEventListener('click', alternarTema);
+id('btn-salir').addEventListener('click', async () => {
+  // Aunque los agregados sean publicos, dejar en la pestana los datos de la
+  // sesion anterior confunde a quien entre despues con otra cuenta.
+  vaciarCache();
+  await signOut(auth);
+  window.location.replace('/entrar/');
+});
+
+id('btn-exportar').addEventListener('click', async () => {
+  const boton = id('btn-exportar');
+  boton.disabled = true;
+  estado(id('msg-datos'), 'Preparando la descarga...');
+  try {
+    const datos = await exportarMisDatos();
+    const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+    const enlace = document.createElement('a');
+    enlace.href = URL.createObjectURL(blob);
+    enlace.download = `bicifastness-mis-datos-${new Date().toISOString().slice(0, 10)}.json`;
+    enlace.click();
+    URL.revokeObjectURL(enlace.href);
+    estado(id('msg-datos'), 'Descarga lista.', 'exito');
+  } catch (error) {
+    estado(id('msg-datos'), error.message, 'error');
+  } finally {
+    boton.disabled = false;
+  }
+});
+
+id('btn-borrar').addEventListener('click', async () => {
+  const confirmado = await confirmar(
+    'Vas a eliminar tu cuenta de forma permanente. Tus tiempos verificados se anonimizaran y perderas el acceso. Esta accion no se puede deshacer.',
+    { textoAceptar: 'Eliminar mi cuenta', peligroso: true }
+  );
+  if (!confirmado) return;
+
+  const escrito = await pedirTexto(
+    'Esto es irreversible. Escribe la frase exacta para confirmar.',
+    { etiqueta: 'Confirmacion', textoAceptar: 'Eliminar definitivamente',
+      multilinea: false, exacto: 'BORRAR MI CUENTA', marcador: 'BORRAR MI CUENTA' }
+  );
+  if (escrito !== 'BORRAR MI CUENTA') {
+    estado(id('msg-datos'), 'No se ha borrado nada.', 'aviso');
+    return;
+  }
+
+  try {
+    await solicitarBorradoCuenta('BORRAR MI CUENTA');
+    window.location.replace('/entrar/');
+  } catch (error) {
+    estado(id('msg-datos'), error.message, 'error');
+  }
+});

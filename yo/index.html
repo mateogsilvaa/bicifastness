@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Tu perfil de piloto en BiciFastness: historial, insignias, clan y ajustes.">
+<meta name="robots" content="noindex">
+<title>Mi perfil | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<main class="container" id="principal">
+
+  <!-- Cabecera del piloto -->
+  <div class="fila" style="gap: var(--e4); margin-bottom: var(--e6);">
+    <img id="avatar" alt="" width="72" height="72">
+    <div>
+      <h1 class="d2" id="nombre" style="margin: 0;">...</h1>
+      <p class="menor apagado" id="clan" style="margin: 0;"></p>
+      <p class="menor apagado" id="email" style="margin: 0;"></p>
+    </div>
+  </div>
+  <p class="mensaje" id="msg-avatar" aria-live="polite"></p>
+
+  <!--
+    Los tres modos, cada uno con su cifra. Es lo que hace que cada quien sepa en
+    que es bueno en vez de mirar un solo numero y sentirse mediocre.
+  -->
+  <div class="rejilla tres seccion">
+    <div class="bloque">
+      <p class="etiqueta">Sprint</p>
+      <p class="cifra" id="modo-sprint" style="margin: 0;">0</p>
+      <p class="clan">puntos por tramo</p>
+    </div>
+    <div class="bloque">
+      <p class="etiqueta">Fondo</p>
+      <p class="cifra" id="modo-fondo" style="margin: 0;">0</p>
+      <p class="clan">kilometros</p>
+    </div>
+    <div class="bloque">
+      <p class="etiqueta">Constancia</p>
+      <p class="cifra" id="modo-constancia" style="margin: 0;">0</p>
+      <p class="clan" id="racha-actual">mejor racha</p>
+    </div>
+  </div>
+
+  <div class="rejilla tres seccion">
+    <div class="bloque">
+      <p class="etiqueta">BiciRating</p>
+      <p class="cifra" id="rating" style="margin: 0;">0</p>
+    </div>
+    <div class="bloque">
+      <p class="etiqueta">Trayectos subidos</p>
+      <p class="cifra" id="total-viajes" style="margin: 0;">0</p>
+    </div>
+    <div class="bloque">
+      <p class="etiqueta">Verificados</p>
+      <p class="cifra" id="verificados" style="margin: 0;">0</p>
+    </div>
+  </div>
+
+  <div id="temporadas" class="seccion"></div>
+
+  <section class="seccion">
+    <h2 class="h2">Insignias</h2>
+    <div class="fila" id="insignias" style="flex-wrap: wrap;"></div>
+  </section>
+
+  <section class="seccion">
+    <h2 class="h2">Rutas ancladas</h2>
+    <p class="menor apagado">
+      Hasta tres tramos que quieres tener a mano. Salen de los que ya has hecho.
+    </p>
+    <div id="favoritas"></div>
+  </section>
+
+  <section class="seccion">
+    <h2 class="h2">Mi historial</h2>
+    <div id="historial"></div>
+  </section>
+
+  <section class="seccion">
+    <h2 class="h2">Ajustes</h2>
+
+    <label class="fila" style="margin-bottom: var(--e4);">
+      <input type="checkbox" id="avisos-correo">
+      <span>
+        Avisarme por correo de lo que pase con mis trayectos
+        <span class="clan">Rechazos, anulaciones y trayectos verificados.</span>
+      </span>
+    </label>
+    <p class="mensaje" id="msg-avisos" aria-live="polite"></p>
+
+    <!-- Avisos push (#33). Toda la seccion se oculta si el navegador no puede:
+         ensenar interruptores que no hacen nada es peor que no ensenarlos. -->
+    <div id="ajustes-push" class="oculto" style="margin-bottom: var(--e4);">
+      <p class="etiqueta">Avisos en el movil</p>
+      <div id="lista-avisos"></div>
+      <p class="mensaje" id="msg-push" aria-live="polite"></p>
+    </div>
+
+    <label class="fila" style="margin-bottom: var(--e4);">
+      <input type="checkbox" id="sonido">
+      <span>
+        Sonido al verificarse un trayecto
+        <span class="clan">Apagado por defecto. Solo suena con la app abierta.</span>
+      </span>
+    </label>
+
+    <div class="fila" style="flex-wrap: wrap;">
+      <button class="btn secundario" id="btn-tema" type="button">Cambiar tema</button>
+      <button class="btn secundario" id="btn-salir" type="button">Cerrar sesion</button>
+    </div>
+  </section>
+
+  <!--
+    Derechos del RGPD. Van juntos y al final: son acciones raras pero tienen que
+    poder encontrarse sin escribir a nadie.
+  -->
+  <section class="bloque">
+    <p class="etiqueta">Mis datos</p>
+    <p class="menor apagado">
+      Puedes descargar todo lo que guardamos sobre ti (derecho de acceso y
+      portabilidad) o eliminar tu cuenta por completo (derecho de supresion). Al
+      eliminarla, tus tiempos verificados se anonimizan para no dejar huecos en
+      los rankings de los demas pilotos, y dejan de estar vinculados a ti.
+    </p>
+    <div class="fila" style="flex-wrap: wrap;">
+      <button class="btn secundario" id="btn-exportar" type="button">Descargar mis datos</button>
+      <button class="btn peligro" id="btn-borrar" type="button">Eliminar mi cuenta</button>
+    </div>
+    <p class="mensaje" id="msg-datos" aria-live="polite"></p>
+  </section>
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/yo.js"></script>
+</body>
+</html>

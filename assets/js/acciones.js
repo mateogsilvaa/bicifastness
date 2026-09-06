@@ -14,8 +14,8 @@
  */
 
 import {
-  db, auth, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
-  query, where, serverTimestamp, arrayUnion, arrayRemove, writeBatch,
+  db, auth, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  query, where, serverTimestamp, arrayUnion, arrayRemove, writeBatch, Timestamp,
   avatarPorDefecto,
 } from './firebase.js';
 import { VERSION_LEGAL } from './ui.js';
@@ -25,15 +25,54 @@ const uidActual = () => auth.currentUser?.uid;
 // --- Perfil -------------------------------------------------------------------
 
 /**
+ * Rangos de caracteres invisibles que no pueden sobrevivir en un nombre.
+ *
+ * Es la copia en el navegador de `INVISIBLES` en `backend/src/util.js`, y un
+ * test los ata. Estan duplicados porque el backend es CommonJS y esto es un
+ * modulo ES, igual que las funciones de extraccion.
+ *
+ * Aqui NO es seguridad: quien quiera se salta esto abriendo la consola, y para
+ * eso el worker revisa los nombres nuevos y manda a la cola de moderacion lo
+ * que no cuadre (#64). Esto es para que un nombre no salga sucio por accidente
+ * —copiar y pegar de otra web arrastra estas marcas sin que se vea— y acabe en
+ * la cola de una persona sin que nadie quisiera nada malo.
+ */
+const INVISIBLES = [
+  [0x0000, 0x001f], [0x007f, 0x009f], [0x200b, 0x200f],
+  [0x2060, 0x2064], [0x2066, 0x2069], [0x202a, 0x202e], [0xfeff, 0xfeff],
+];
+
+/** Quita del texto lo que no se ve. La pareja de `util.limpiarTexto`. */
+export function limpiarNombre(texto, maxLongitud = 200) {
+  let salida = '';
+  for (const ch of String(texto ?? '')) {
+    const cp = ch.codePointAt(0);
+    if (INVISIBLES.some(([lo, hi]) => cp >= lo && cp <= hi)) continue;
+    salida += ch;
+  }
+  return salida.trim().slice(0, maxLongitud);
+}
+
+/**
  * Crea el perfil de piloto.
  *
  * Las reglas obligan a que todos los contadores nazcan a cero y no admiten un
  * campo de rol: en la version anterior el navegador enviaba `isAdmin: false`,
  * lo que dejaba claro que ese campo era manipulable desde el cliente.
+ *
+ * NO guarda el correo, y es deliberado: el correo ya vive en Firebase Auth, que
+ * es su sitio. Copiarlo aqui lo metia en una coleccion que se leia sin sesion
+ * para alimentar los rankings, o sea que publicaba la direccion de todo el
+ * mundo. El worker lo saca de Auth cuando necesita escribir.
+ *
+ * El nombre se limpia de invisibles antes de guardarlo (#64). Eso no es
+ * seguridad —el worker lo revisa igual— sino que un nombre copiado y pegado de
+ * otra web no arrastre marcas que nadie ve y acabe en la cola de moderacion sin
+ * que su dueño quisiera nada malo.
  */
-export async function crearPerfil({ username, email }) {
+export async function crearPerfil({ username }) {
   const uid = uidActual();
-  const nombre = String(username || '').trim();
+  const nombre = limpiarNombre(username, 24);
   const clave = nombre.toLowerCase();
 
   // La reserva del nombre es orientativa: sirve para avisar pronto de que esta
@@ -49,7 +88,6 @@ export async function crearPerfil({ username, email }) {
 
   lote.set(doc(db, 'usuarios', uid), {
     uid,
-    email: String(email || '').toLowerCase(),
     username: nombre,
     usernameLower: clave,
     avatarUrl: avatarPorDefecto(nombre),
@@ -60,6 +98,10 @@ export async function crearPerfil({ username, email }) {
     clanId: null,
     favoritas: [],
     suspendido: false,
+    // En `false` y no ausente: asi el worker encuentra a quien falta por saludar
+    // con una consulta indexada, en vez de recorrer `usuarios` entera. Un campo
+    // que falta no lo encuentra ninguna consulta de Firestore.
+    bienvenidaEnviada: false,
     creado: serverTimestamp(),
     // Registro de consentimiento: el RGPD exige poder demostrar QUE se acepto,
     // CUANDO y sobre QUE version del texto.
@@ -90,6 +132,17 @@ export async function guardarFavoritas(favoritas) {
   await updateDoc(doc(db, 'usuarios', uidActual()), { favoritas });
 }
 
+/**
+ * Activa o desactiva los avisos por correo.
+ *
+ * La preferencia la escribe el propio usuario y solo el: darse de baja no puede
+ * depender de que un administrador lo haga por ti. El enlace de los correos
+ * hace lo mismo sin necesidad de iniciar sesion (ver /baja/).
+ */
+export async function guardarAvisosCorreo(activados) {
+  await updateDoc(doc(db, 'usuarios', uidActual()), { avisosCorreo: Boolean(activados) });
+}
+
 // --- Viajes --------------------------------------------------------------------
 
 /**
@@ -110,18 +163,35 @@ export async function impugnarViaje(viajeId, alegacion) {
   });
 }
 
-/** Denuncia un tiempo sospechoso. */
-export async function reportarViaje(viaje, motivo = 'Reportado desde el ranking') {
-  const uid = uidActual();
-  if (viaje.uid === uid) throw new Error('No puedes reportar tu propio viaje.');
+/**
+ * Denuncia un tiempo (#61).
+ *
+ * Se denuncia UN VIAJE, no a una persona: lo unico que sale de aqui es el id
+ * del viaje. Antes habia que mandar tambien `reportadoUid`, y eso obligaba a
+ * que el uid del denunciado estuviera publicado en algun sitio desde el que
+ * leerlo — o sea, a publicar los uid en las clasificaciones, que es justo lo
+ * que la lista blanca de `agregados` prohibe desde la fuga de correos (#60).
+ *
+ * Quien es el dueño lo resuelve el worker, que si puede leer el viaje. Tambien
+ * es el que descarta las autodenuncias: aqui no hay forma de saber de quien es
+ * el viaje, y fiarse de lo que diga el navegador seria fiarse de la parte
+ * interesada.
+ *
+ * `estado: 'sin_resolver'` y no `'pendiente'`: pendiente es "esperando a que lo
+ * mire una persona", y esto todavia no ha llegado ahi. La cola del panel solo
+ * enseña las que el worker ha dado por buenas.
+ */
+export async function reportarViaje(viajeId, motivo) {
+  const texto = String(motivo || '').trim();
+  if (texto.length < 10) {
+    throw new Error('Explica un poco mas que le ves de raro: al menos diez caracteres.');
+  }
 
   await addDoc(collection(db, 'reportes'), {
-    viajeId: viaje.viajeId,
-    reportanteUid: uid,
-    reportadoUid: viaje.uid,
-    ruta: viaje.ruta,
-    motivo: String(motivo).slice(0, 300),
-    estado: 'pendiente',
+    viajeId: String(viajeId),
+    reportanteUid: uidActual(),
+    motivo: texto.slice(0, 300),
+    estado: 'sin_resolver',
     creado: serverTimestamp(),
   });
 }
@@ -131,15 +201,34 @@ export async function reportarViaje(viaje, motivo = 'Reportado desde el ranking'
 /** Descarga de todos los datos propios (derecho de acceso y portabilidad). */
 export async function exportarMisDatos() {
   const uid = uidActual();
-  const [perfil, viajes, reportes] = await Promise.all([
+  const [perfil, temporadas, viajes, reportes] = await Promise.all([
     getDoc(doc(db, 'usuarios', uid)),
+    // Las temporadas archivadas son una SUBCOLECCION: no vienen dentro del
+    // perfil, hay que pedirlas aparte. Sin esto, el export se dejaba fuera todo
+    // el historial de competicion, que es justo lo que el art. 20 del RGPD
+    // llama portabilidad.
+    getDocs(collection(db, 'usuarios', uid, 'temporadas')).catch(() => ({ docs: [] })),
     getDocs(query(collection(db, 'tiempos_viaje'), where('uid', '==', uid))),
     getDocs(query(collection(db, 'reportes'), where('reportanteUid', '==', uid))).catch(() => ({ docs: [] })),
   ]);
 
   return {
     exportadoEn: new Date().toISOString(),
+    // La cuenta sale de Firebase Auth, no del perfil: el correo vive alli y no
+    // se duplica en Firestore (#60). Sin esto, el export se quedaba sin el dato
+    // que el art. 15 obliga a devolver.
+    cuenta: {
+      uid,
+      email: auth.currentUser?.email ?? null,
+      emailVerificado: auth.currentUser?.emailVerified ?? null,
+      creada: auth.currentUser?.metadata?.creationTime ?? null,
+      ultimoAcceso: auth.currentUser?.metadata?.lastSignInTime ?? null,
+    },
+    // El perfil lleva dentro `push`, con la suscripcion de cada dispositivo. Es
+    // un dato personal y sale entero en el export, sin recortar: el art. 15 no
+    // admite quedarse con lo que a uno le parezca relevante.
     perfil: perfil.exists() ? perfil.data() : null,
+    temporadas: temporadas.docs.map((d) => ({ id: d.id, ...d.data() })),
     viajes: viajes.docs.map((d) => ({ id: d.id, ...d.data() })),
     reportesEnviados: reportes.docs.map((d) => ({ id: d.id, ...d.data() })),
   };
@@ -170,7 +259,9 @@ export async function solicitarBorradoCuenta(confirmacion) {
  */
 export async function resolverViaje(viajeId, accion, motivo = null) {
   const aprobar = accion === 'aprobar';
-  await updateDoc(doc(db, 'tiempos_viaje', viajeId), {
+  const lote = writeBatch(db);
+
+  lote.update(doc(db, 'tiempos_viaje', viajeId), {
     estado: aprobar ? 'aprobado' : 'rechazado',
     verificado: aprobar,
     revisadoPor: uidActual(),
@@ -178,6 +269,19 @@ export async function resolverViaje(viajeId, accion, motivo = null) {
     motivoRevision: motivo,
     recalculoPendiente: true,
   });
+
+  // Cada decision manual deja rastro, y en el mismo lote que la decision: un
+  // rastro que se escribe "despues, si eso" es un rastro con agujeros. La
+  // coleccion no admite modificar ni borrar, asi que esto no se puede maquillar
+  // luego (ni por quien lo escribio).
+  lote.set(doc(collection(db, 'auditoria_admin')), {
+    adminUid: uidActual(),
+    accion: `viaje:${aprobar ? 'aprobado' : 'rechazado'}`,
+    detalle: { viajeId, motivo: motivo || null },
+    creado: serverTimestamp(),
+  });
+
+  await lote.commit();
 }
 
 export async function resolverReporte(reporteId, accion, viajeId) {
@@ -239,10 +343,27 @@ export async function suspenderUsuario(uid, suspender, motivo = null) {
 }
 
 // --- Clanes ----------------------------------------------------------------------
+//
+// Cada funcion de aqui manda EXACTAMENTE los campos que su regla permite. Las
+// reglas distinguen tres papeles y una via abierta a cualquiera:
+//
+//   lider      plantilla + oficiales + liderazgo + identidad del clan
+//   oficial    plantilla (aceptar y expulsar), nada mas
+//   miembro    irse
+//   cualquiera meter o sacar su propia solicitud
+//
+// `usuarios/{uid}.clanId` lo escribe cada uno en su documento, pero la regla
+// solo lo admite si el clan YA le lista como miembro. La fuente de verdad de la
+// plantilla es `clanes/{id}.miembros`, y de ahi es de donde suma el worker: si
+// se fiara del campo del usuario, cualquiera le inflaria la puntuacion a un clan
+// ajeno con cuentas nuevas.
+
+/** Con mas gente deja de sentirse como un equipo. Mismo tope que en las reglas. */
+export const MAX_MIEMBROS = 50;
 
 export async function crearClan({ nombre, descripcion, color }) {
   const uid = uidActual();
-  const limpio = String(nombre || '').trim();
+  const limpio = limpiarNombre(nombre, 28);
   const clanId = limpio.toLowerCase()
     .normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
@@ -254,87 +375,333 @@ export async function crearClan({ nombre, descripcion, color }) {
   const existente = await getDoc(doc(db, 'clanes', clanId));
   if (existente.exists()) throw new Error('Ya existe un clan con ese nombre.');
 
-  const lote = writeBatch(db);
-  lote.set(doc(db, 'clanes', clanId), {
+  // El clan PRIMERO y el `clanId` del usuario despues, en dos pasos y no en un
+  // lote: la regla del usuario comprueba que el clan ya le liste como miembro,
+  // y dentro de un lote ese clan todavia no existe.
+  await setDoc(doc(db, 'clanes', clanId), {
     clanId,
     nombre: limpio,
     descripcion: String(descripcion || '').slice(0, 160),
     color,
     lider: uid,
     miembros: [uid],
+    oficiales: [],
     solicitudes: [],
     biciRating: 0,
     numMiembros: 1,
     logros: [],
     creado: serverTimestamp(),
   });
-  lote.update(doc(db, 'usuarios', uid), { clanId });
-  await lote.commit();
+
+  await updateDoc(doc(db, 'usuarios', uid), { clanId });
   return clanId;
 }
 
+/**
+ * Tope de solicitudes pendientes por clan. El mismo que el de las reglas, y un
+ * test los ata.
+ *
+ * Aqui solo sirve para dar un mensaje que se entienda: quien pulse "solicitar"
+ * en un clan con la cola llena veria si no un `permission-denied` que no
+ * explica nada. Quien decide es la regla.
+ */
+export const MAX_SOLICITUDES = 100;
+
 export async function solicitarEntrada(clanId) {
+  const clan = await getDoc(doc(db, 'clanes', clanId));
+  if (!clan.exists()) throw new Error('Ese clan ya no existe.');
+
+  const pendientes = clan.data().solicitudes || [];
+  if (pendientes.includes(uidActual())) throw new Error('Ya has enviado una solicitud a este clan.');
+  if (pendientes.length >= MAX_SOLICITUDES) {
+    throw new Error('Este clan tiene la cola de solicitudes llena. Prueba mas tarde.');
+  }
+
   await updateDoc(doc(db, 'clanes', clanId), { solicitudes: arrayUnion(uidActual()) });
 }
 
+/** Retira la propia solicitud. La misma regla que la de arriba, al reves. */
+export async function retirarSolicitud(clanId) {
+  await updateDoc(doc(db, 'clanes', clanId), { solicitudes: arrayRemove(uidActual()) });
+}
+
+/**
+ * Acepta o rechaza a un candidato. Lider u oficial.
+ *
+ * Al aceptar solo se toca el CLAN: el `clanId` del nuevo miembro lo escribe el,
+ * porque su documento solo lo puede escribir el. Hasta que entre, la plantilla
+ * del clan ya le lista, que es lo que cuenta para la puntuacion.
+ */
 export async function responderSolicitud(clanId, candidatoUid, aceptar) {
   const snap = await getDoc(doc(db, 'clanes', clanId));
   if (!snap.exists()) throw new Error('Ese clan ya no existe.');
 
   const clan = snap.data();
-  const lote = writeBatch(db);
 
-  if (aceptar) {
-    lote.update(snap.ref, {
-      solicitudes: arrayRemove(candidatoUid),
-      miembros: arrayUnion(candidatoUid),
-      numMiembros: clan.miembros.length + 1,
-    });
-    lote.update(doc(db, 'usuarios', candidatoUid), { clanId });
-  } else {
-    lote.update(snap.ref, { solicitudes: arrayRemove(candidatoUid) });
+  if (!aceptar) {
+    await updateDoc(snap.ref, { solicitudes: arrayRemove(candidatoUid) });
+    return;
   }
 
-  await lote.commit();
+  if ((clan.miembros || []).length >= MAX_MIEMBROS) {
+    throw new Error(`Un clan no puede pasar de ${MAX_MIEMBROS} miembros.`);
+  }
+
+  await updateDoc(snap.ref, {
+    solicitudes: arrayRemove(candidatoUid),
+    miembros: arrayUnion(candidatoUid),
+    numMiembros: clan.miembros.length + 1,
+  });
 }
 
+/**
+ * Expulsa a un miembro. Lider u oficial.
+ *
+ * Solo se le saca de la plantilla del clan. Su `clanId` se queda apuntando a un
+ * clan que ya no le lista, y eso lo limpia el worker: nadie mas que esa persona
+ * puede escribir su documento, y no se le va a pedir que colabore en su propia
+ * expulsion. La puntuacion no se ve afectada porque suma desde `miembros`.
+ */
 export async function expulsarMiembro(clanId, miembroUid) {
   const snap = await getDoc(doc(db, 'clanes', clanId));
-  const lote = writeBatch(db);
-  lote.update(snap.ref, {
+  if (!snap.exists()) throw new Error('Ese clan ya no existe.');
+
+  const clan = snap.data();
+  if (clan.lider === miembroUid) throw new Error('No se puede expulsar al lider.');
+
+  await updateDoc(snap.ref, {
     miembros: arrayRemove(miembroUid),
-    numMiembros: Math.max(0, snap.data().miembros.length - 1),
+    // Al salir pierde el cargo: si volviera a entrar, seria oficial otra vez sin
+    // que nadie lo hubiera decidido.
+    oficiales: arrayRemove(miembroUid),
+    numMiembros: Math.max(0, (clan.miembros || []).length - 1),
   });
-  lote.update(doc(db, 'usuarios', miembroUid), { clanId: null });
-  await lote.commit();
+}
+
+/** Nombra o retira un oficial. Solo el lider. */
+export async function cambiarOficial(clanId, miembroUid, nombrar) {
+  const snap = await getDoc(doc(db, 'clanes', clanId));
+  if (!snap.exists()) throw new Error('Ese clan ya no existe.');
+
+  if (nombrar && !(snap.data().miembros || []).includes(miembroUid)) {
+    throw new Error('Solo se puede nombrar oficial a alguien del clan.');
+  }
+
+  await updateDoc(snap.ref, {
+    oficiales: nombrar ? arrayUnion(miembroUid) : arrayRemove(miembroUid),
+  });
+}
+
+/**
+ * Traspasa el liderazgo. Solo el lider, y solo a alguien de dentro.
+ *
+ * Es lo que permite irse sin disolver el clan, y lo que hace que un clan
+ * sobreviva a que su fundador se canse.
+ */
+export async function cederLiderazgo(clanId, nuevoLiderUid) {
+  const snap = await getDoc(doc(db, 'clanes', clanId));
+  if (!snap.exists()) throw new Error('Ese clan ya no existe.');
+
+  const clan = snap.data();
+  if (clan.lider !== uidActual()) throw new Error('Solo el lider puede ceder el mando.');
+  if (!(clan.miembros || []).includes(nuevoLiderUid)) {
+    throw new Error('El nuevo lider tiene que ser del clan.');
+  }
+
+  // La lista se calcula entera y se manda entera. No se puede hacer con
+  // `arrayUnion` y `arrayRemove` a la vez sobre el mismo campo — Firestore no
+  // admite las dos en una escritura— y el comentario decia una cosa mientras el
+  // codigo hacia solo la mitad: el nuevo lider se quedaba tambien de oficial,
+  // en las dos listas.
+  const oficiales = [...new Set([...(clan.oficiales || []), clan.lider])]
+    .filter((uid) => uid !== nuevoLiderUid);
+
+  await updateDoc(snap.ref, {
+    lider: nuevoLiderUid,
+    // El anterior pasa a oficial: asi quien monto el clan no se queda sin poder
+    // ayudar a gestionarlo.
+    oficiales,
+  });
 }
 
 export async function abandonarClan(clanId) {
   const uid = uidActual();
   const snap = await getDoc(doc(db, 'clanes', clanId));
+
   if (snap.exists() && snap.data().lider === uid) {
     throw new Error('Eres el lider. Cede el liderazgo o disuelve el clan antes de irte.');
   }
 
-  const lote = writeBatch(db);
   if (snap.exists()) {
-    lote.update(snap.ref, {
+    const clan = snap.data();
+    await updateDoc(snap.ref, {
       miembros: arrayRemove(uid),
-      numMiembros: Math.max(0, snap.data().miembros.length - 1),
+      oficiales: arrayRemove(uid),
+      numMiembros: Math.max(0, (clan.miembros || []).length - 1),
     });
   }
-  lote.update(doc(db, 'usuarios', uid), { clanId: null });
-  await lote.commit();
+
+  // Ahora si: el clan ya no me lista, y la regla admite ponerlo a null siempre.
+  await updateDoc(doc(db, 'usuarios', uid), { clanId: null });
 }
 
 export async function disolverClan(clanId) {
   const snap = await getDoc(doc(db, 'clanes', clanId));
   if (!snap.exists()) return;
+  if (snap.data().lider !== uidActual()) throw new Error('Solo el lider puede disolver el clan.');
 
-  const lote = writeBatch(db);
-  for (const miembro of snap.data().miembros || []) {
-    lote.update(doc(db, 'usuarios', miembro), { clanId: null });
+  // El `clanId` de los demas se queda colgando y lo limpia el worker: nadie
+  // puede escribir el documento de otro. El de quien disuelve, aqui mismo.
+  await deleteDoc(snap.ref);
+  await updateDoc(doc(db, 'usuarios', uidActual()), { clanId: null });
+}
+
+// --- Invitaciones ------------------------------------------------------------------
+
+/** Cuanto vale un enlace de invitacion, por defecto. */
+const DIAS_INVITACION = 7;
+
+/**
+ * Crea un enlace de invitacion. Solo el lider.
+ *
+ * El codigo es el id del documento y es lo unico que hace falta saber para
+ * usarlo, asi que tiene que ser imposible de adivinar y la coleccion no se
+ * puede listar (lo impide la regla). 128 bits de `crypto`, no `Math.random()`:
+ * un codigo predecible es una puerta abierta a cualquiera.
+ */
+export async function crearInvitacion(clanId, { dias = DIAS_INVITACION, maxUsos = 1 } = {}) {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  const codigo = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+  const caduca = new Date(Date.now() + dias * 86400000);
+
+  await setDoc(doc(db, 'invitaciones', codigo), {
+    clanId,
+    creadaPor: uidActual(),
+    creada: serverTimestamp(),
+    caduca: Timestamp.fromDate(caduca),
+    usos: 0,
+    maxUsos,
+  });
+
+  return { codigo, caduca, enlace: `${window.location.origin}/territorio/?invitacion=${codigo}` };
+}
+
+export async function retirarInvitacion(codigo) {
+  await deleteDoc(doc(db, 'invitaciones', codigo));
+}
+
+/**
+ * Usa un enlace de invitacion.
+ *
+ * El cliente NO se mete solo en el clan: deja una solicitud marcada con el
+ * codigo, y el worker comprueba la caducidad y los usos y la resuelve. Si el
+ * contador de usos lo llevara el navegador, un codigo de un solo uso valdria
+ * para todo el que lo tenga.
+ */
+export async function usarInvitacion(codigo) {
+  const snap = await getDoc(doc(db, 'invitaciones', codigo));
+  if (!snap.exists()) throw new Error('Esa invitacion no existe o ya se ha retirado.');
+
+  const invitacion = snap.data();
+  const caduca = invitacion.caduca?.toDate?.();
+
+  // Se comprueba aqui para poder decirlo claro, pero quien decide es el worker:
+  // esto es un aviso, no el control.
+  if (caduca && caduca < new Date()) throw new Error('Esa invitacion ha caducado.');
+  if ((invitacion.usos || 0) >= (invitacion.maxUsos || 1)) {
+    throw new Error('Esa invitacion ya se ha usado.');
   }
-  lote.delete(snap.ref);
-  await lote.commit();
+
+  // La peticion, con el codigo dentro. Antes esto se limitaba a meter al
+  // candidato en `solicitudes`, o sea a convertir el enlace de invitacion en una
+  // solicitud normal que el lider tenia que aprobar a mano: exactamente lo que
+  // un enlace de invitacion existe para evitar. Y el codigo no se guardaba en
+  // ningun sitio, asi que el worker no tenia forma de saber que invitacion
+  // gastar.
+  //
+  // Si habia una peticion anterior se borra primero: `create` no puede
+  // sobrescribir, y una peticion resuelta bloquearia todos los intentos
+  // siguientes.
+  //
+  // El borrado va sin `catch`: en Firestore borrar un documento que no existe NO
+  // falla, es un no-op, asi que tragarse el error no protegia el caso "no habia
+  // peticion anterior" — eso ya lo da Firestore — y lo unico que podia esconder
+  // era un permiso denegado. Y entonces el `setDoc` de abajo falla igual, pero
+  // con un error que no dice donde estaba el problema.
+  const ref = doc(db, 'usos_invitacion', uidActual());
+  await deleteDoc(ref);
+  await setDoc(ref, {
+    uid: uidActual(),
+    codigo,
+    estado: 'pendiente',
+    creada: serverTimestamp(),
+  });
+
+  return invitacion.clanId;
+}
+
+/** Confirma la entrada despues de que el clan te haya aceptado. */
+export async function confirmarEntrada(clanId) {
+  await updateDoc(doc(db, 'usuarios', uidActual()), { clanId });
+}
+
+
+// --- Avisos push (#33) --------------------------------------------------------------
+
+/**
+ * Tope de navegadores suscritos a la vez. El mismo que el de las reglas, y un
+ * test los ata.
+ *
+ * No es un capricho: el worker hace UNA peticion al servicio de avisos por cada
+ * entrada de esta lista. Diez son de sobra para los navegadores de una persona,
+ * y ademas el worker va limpiando las que el servicio ya no reconoce.
+ */
+export const MAX_SUSCRIPCIONES_PUSH = 10;
+
+/**
+ * Guarda la suscripcion de ESTE navegador.
+ *
+ * Se acumulan, no se sustituyen: el movil y el ordenador son dos navegadores
+ * distintos y cada uno tiene la suya. Guardar solo la ultima dejaria sin aviso
+ * al dispositivo que se este usando.
+ */
+export async function guardarSuscripcionPush(suscripcion) {
+  // `toJSON()` porque el objeto del navegador tiene metodos y Firestore solo
+  // admite datos.
+  const plana = typeof suscripcion.toJSON === 'function' ? suscripcion.toJSON() : suscripcion;
+
+  const ref = doc(db, 'usuarios', uidActual());
+
+  // La regla corta en seco y sin explicar. Aqui se mira antes para poder decir
+  // que pasa: `arrayUnion` sobre una que ya esta no anade nada, asi que solo
+  // molesta a quien llegue de un navegador NUEVO con la lista llena.
+  const perfil = await getDoc(ref);
+  const actuales = perfil.data()?.push?.suscripciones || [];
+  const yaEsta = actuales.some((s) => s.endpoint === plana.endpoint);
+
+  if (!yaEsta && actuales.length >= MAX_SUSCRIPCIONES_PUSH) {
+    throw new Error(
+      `Ya tienes avisos activos en ${MAX_SUSCRIPCIONES_PUSH} navegadores. `
+      + 'Desactivalos en alguno antes de anadir este.');
+  }
+
+  await updateDoc(ref, { 'push.suscripciones': arrayUnion(plana) });
+}
+
+/** Quita la suscripcion de este navegador. Darse de baja tiene que ser facil. */
+export async function olvidarSuscripcionPush(suscripcion) {
+  if (!suscripcion) return;
+  const plana = typeof suscripcion.toJSON === 'function' ? suscripcion.toJSON() : suscripcion;
+
+  await updateDoc(doc(db, 'usuarios', uidActual()), {
+    'push.suscripciones': arrayRemove(plana),
+  });
+}
+
+/** Enciende o apaga un tipo de aviso. */
+export async function ajustarAvisoPush(tipo, activo) {
+  await updateDoc(doc(db, 'usuarios', uidActual()), {
+    [`push.avisos.${tipo}`]: activo === true,
+  });
 }

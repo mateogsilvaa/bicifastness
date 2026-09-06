@@ -85,49 +85,49 @@ function comprobarFisica({ ruta, tiempoSegundos }) {
 
 // --- Comprobacion 2: coherencia de la captura con lo declarado ---------------
 /**
- * Cruza lo que la IA ha leido en la imagen con lo que el usuario ha escrito en
- * el formulario, y ademas comprueba que la propia captura sea coherente consigo
- * misma: llegada - salida tiene que dar la duracion del recuadro. Si alguien
- * retoca solo el numero grande, esta resta lo delata.
+ * Cruza lo que se ha LEIDO en la imagen con lo que el usuario ha escrito, y
+ * ademas comprueba que la propia captura sea coherente consigo misma:
+ * llegada - salida tiene que dar la duracion del recuadro.
+ *
+ * Esa resta es la comprobacion mas valiosa de todo el bloque, y desde que se
+ * quito la IA es ademas la principal defensa contra el retoque: quien manipula
+ * una captura cambia el numero grande y se deja las horas. Es determinista, o
+ * sea que no opina ni falla distinto cada vez.
  */
-function comprobarCaptura({ ruta, tiempoSegundos, ia }) {
+function comprobarCaptura({ ruta, tiempoSegundos, lectura }) {
   const señales = [];
 
-  if (!ia.disponible) {
-    señales.push(señal('ia_no_disponible', 30,
-      `No se ha podido auditar la imagen automaticamente (${ia.error}). Requiere revision humana.`));
+  if (!lectura.disponible) {
+    señales.push(señal('lectura_no_disponible', 30,
+      `No se ha podido leer la captura automaticamente (${lectura.error}). Requiere revision humana.`));
     return señales;
   }
 
-  if (!ia.esBicimad) {
-    señales.push(fatal('no_es_bicimad', 'La imagen no es una captura de la app BiciMAD.'));
+  if (!lectura.esBicimad) {
+    señales.push(fatal('no_es_bicimad', 'La imagen no parece una captura de la app BiciMAD.'));
     return señales;
   }
 
-  if (!ia.integridadVisual) {
-    señales.push(fatal('manipulacion_visual',
-      `Manipulacion detectada en la imagen: ${ia.motivoManipulacion || 'sin detalle'}.`));
-    return señales;
-  }
-
-  if (ia.confianza < 55) {
-    señales.push(señal('ia_poco_segura', 25,
-      `La IA solo tiene un ${ia.confianza}% de confianza en su lectura.`));
+  // La confianza la da el propio OCR, no un juicio. Por debajo de esto lo que
+  // haya leido no es de fiar y decide una persona.
+  if (lectura.confianza < 55) {
+    señales.push(señal('lectura_poco_segura', 25,
+      `La lectura de la captura solo alcanza un ${lectura.confianza}% de confianza.`));
   }
 
   // Coherencia interna de la propia captura.
-  const salida = horaASegundos(ia.horaSalida);
-  const llegada = horaASegundos(ia.horaLlegada);
-  if (salida !== null && llegada !== null && ia.segundosDuracion !== null) {
+  const salida = horaASegundos(lectura.horaSalida);
+  const llegada = horaASegundos(lectura.horaLlegada);
+  if (salida !== null && llegada !== null && lectura.segundosDuracion !== null) {
     let diferencia = llegada - salida;
     if (diferencia < 0) diferencia += 24 * 3600; // el viaje cruza la medianoche
-    const desviacion = Math.abs(diferencia - ia.segundosDuracion);
+    const desviacion = Math.abs(diferencia - lectura.segundosDuracion);
 
     if (desviacion > 90) {
       señales.push(fatal('captura_incoherente',
-        `Entre las horas de la captura hay ${diferencia}s, pero el recuadro de duracion marca ${ia.segundosDuracion}s. ` +
+        `Entre las horas de la captura hay ${diferencia}s, pero el recuadro de duracion marca ${lectura.segundosDuracion}s. ` +
         'La imagen ha sido retocada.',
-        { diferenciaHoras: diferencia, duracionMostrada: ia.segundosDuracion }));
+        { diferenciaHoras: diferencia, duracionMostrada: lectura.segundosDuracion }));
     } else if (desviacion > 5) {
       señales.push(señal('captura_desviada', 30,
         `Descuadre de ${desviacion}s entre las horas y la duracion mostrada.`));
@@ -138,8 +138,8 @@ function comprobarCaptura({ ruta, tiempoSegundos, ia }) {
 
   // Coherencia con lo que ha escrito el usuario.
   const [origenDeclarado, destinoDeclarado] = ruta.split('-').map((v) => v.replace(/^0+/, ''));
-  const origenLeido = ia.origen.replace(/^0+/, '');
-  const destinoLeido = ia.destino.replace(/^0+/, '');
+  const origenLeido = lectura.origen.replace(/^0+/, '');
+  const destinoLeido = lectura.destino.replace(/^0+/, '');
 
   if (origenLeido && destinoLeido) {
     if (origenLeido !== origenDeclarado || destinoLeido !== destinoDeclarado) {
@@ -150,11 +150,11 @@ function comprobarCaptura({ ruta, tiempoSegundos, ia }) {
     señales.push(señal('estaciones_ilegibles', 20, 'No se han podido leer las estaciones en la captura.'));
   }
 
-  if (ia.segundosDuracion !== null) {
-    const desfase = Math.abs(ia.segundosDuracion - tiempoSegundos);
+  if (lectura.segundosDuracion !== null) {
+    const desfase = Math.abs(lectura.segundosDuracion - tiempoSegundos);
     if (desfase > 60) {
       señales.push(señal('tiempo_no_coincide', 60,
-        `La captura marca ${ia.segundosDuracion}s pero se han declarado ${tiempoSegundos}s.`));
+        `La captura marca ${lectura.segundosDuracion}s pero se han declarado ${tiempoSegundos}s.`));
     } else if (desfase > 5) {
       señales.push(señal('tiempo_desviado', 25,
         `Diferencia de ${desfase}s entre la captura y el tiempo declarado.`));
@@ -170,10 +170,20 @@ function comprobarCaptura({ ruta, tiempoSegundos, ia }) {
  * no solo del que sube. Asi se detecta tambien que dos cuentas suban la misma
  * imagen, que es el patron tipico de las cuentas multiples.
  */
-function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios }) {
+function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios, capturaId }) {
   const señales = [];
 
-  const duplicadoExacto = shaPrevios.find((p) => p.sha === hashSha);
+  // Una misma captura puede sostener VARIOS viajes: el historial de la app es
+  // una lista y ahi caben tres trayectos del mismo dia (#11). Los viajes que
+  // comparten captura comparten huella, asi que si no se descartasen aqui, el
+  // segundo y el tercero se rechazarian por "captura reutilizada" — que es
+  // exactamente lo contrario de lo que esa comprobacion quiere detectar.
+  //
+  // Lo que sigue detectando: la misma imagen subida en OTRO lote, sea de quien
+  // sea. Eso es lo que hace un duplicado de verdad.
+  const deOtraCaptura = (previo) => !capturaId || !previo.capturaId || previo.capturaId !== capturaId;
+
+  const duplicadoExacto = shaPrevios.filter(deOtraCaptura).find((p) => p.sha === hashSha);
   if (duplicadoExacto) {
     señales.push(fatal('captura_reutilizada',
       duplicadoExacto.uid
@@ -188,6 +198,7 @@ function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios
   let masParecido = null;
   for (const previo of hashesPrevios) {
     if (!previo.dhash) continue;
+    if (!deOtraCaptura(previo)) continue;
     const distancia = distanciaHamming(hashPerceptual, previo.dhash);
     if (!masParecido || distancia < masParecido.distancia) {
       masParecido = { ...previo, distancia };
@@ -217,9 +228,21 @@ function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios
 function comprobarContexto({ tiempoSegundos, mejorTiempoRuta, mejorTiempoPropio, edicionSospechosa, software }) {
   const señales = [];
 
+  // 15 y no 45, y el cambio tiene motivo (#66).
+  //
+  // Valia 45 cuando se creia que el dato salia del EXIF del fichero, o sea del
+  // servidor. Resulta que no podia: el navegador recodifica toda captura en un
+  // `<canvas>` y eso borra el EXIF antes de que salga del movil, asi que esta
+  // señal no habia saltado NUNCA en produccion. Estaba llamada, probada y
+  // muerta.
+  //
+  // Ahora el dato lo lee el navegador del fichero original y lo declara. Eso
+  // pilla a quien edita una captura sin pensar —que es el caso corriente— pero
+  // no a quien va en serio: le basta con no mandarlo. Una pista que se puede
+  // omitir no puede pesar como una prueba.
   if (edicionSospechosa) {
-    señales.push(señal('metadatos_edicion', 45,
-      `La imagen conserva metadatos de ${software}. Una captura de pantalla autentica no pasa por un editor.`));
+    señales.push(señal('metadatos_edicion', 15,
+      `La captura declara haber pasado por ${software}. Una captura de pantalla autentica no pasa por un editor.`));
   }
 
   if (mejorTiempoRuta && tiempoSegundos < mejorTiempoRuta) {
@@ -250,25 +273,41 @@ function comprobarContexto({ tiempoSegundos, mejorTiempoRuta, mejorTiempoPropio,
  * distribucion es un detector mucho mejor: si un tiempo se sale varias
  * desviaciones tipicas por debajo de lo que consigue todo el mundo, algo pasa
  * aunque la velocidad media este dentro de lo teoricamente posible.
+ *
+ * Recibe la distribucion ya calculada, no la lista de tiempos, y eso arregla un
+ * fallo que no se veia: el worker le pasaba los 200 tiempos MAS RAPIDOS de la
+ * ruta, porque la consulta iba ordenada. En cuanto una ruta pasaba de 200
+ * marcas, "la media de la ruta" era la media de su cola rapida, no la de la
+ * ruta, y la comprobacion se iba deformando segun crecia el tramo — sin fallar
+ * nunca, que es lo peor que puede hacer un detector.
+ *
+ * Ahora sale de `agregados/ruta-{X}`, que el worker calcula sobre TODOS los
+ * tiempos verificados del tramo. De paso cuesta una lectura en vez de 200.
  */
-function comprobarEstadistica({ tiempoSegundos, tiemposRuta }) {
-  const muestras = (tiemposRuta || []).filter((t) => Number.isFinite(t));
-  if (muestras.length < FISICA.MINIMO_MUESTRAS_ESTADISTICA) return [];
+function distribucion(tiempos) {
+  const muestras = (tiempos || []).filter((t) => Number.isFinite(t));
+  if (!muestras.length) return { muestras: 0, media: 0, desviacion: 0 };
 
   const media = muestras.reduce((a, b) => a + b, 0) / muestras.length;
   const varianza = muestras.reduce((a, t) => a + (t - media) ** 2, 0) / muestras.length;
-  const desviacion = Math.sqrt(varianza);
+
+  return { muestras: muestras.length, media, desviacion: Math.sqrt(varianza) };
+}
+
+function comprobarEstadistica({ tiempoSegundos, distribucionRuta }) {
+  const { muestras, media, desviacion } = distribucionRuta || {};
+  if (!muestras || muestras < FISICA.MINIMO_MUESTRAS_ESTADISTICA) return [];
 
   // Sin dispersion no hay nada que medir (todos han hecho el mismo tiempo).
-  if (desviacion < 1) return [];
+  if (!desviacion || desviacion < 1) return [];
 
   const z = (media - tiempoSegundos) / desviacion;
   if (z < FISICA.DESVIACIONES_SOSPECHOSA) return [];
 
   return [señal('atipico_estadistico', 30,
     `El tiempo esta ${z.toFixed(1)} desviaciones por debajo de la media de la ruta ` +
-    `(${Math.round(media)}s de media en ${muestras.length} marcas).`,
-    { z: Number(z.toFixed(2)), mediaRuta: Math.round(media), muestras: muestras.length })];
+    `(${Math.round(media)}s de media en ${muestras} marcas).`,
+    { z: Number(z.toFixed(2)), mediaRuta: Math.round(media), muestras })];
 }
 
 // --- Comprobacion 6: perfil del propio piloto --------------------------------
@@ -299,17 +338,17 @@ function comprobarPerfilPiloto({ kmh, velocidadesPrevias }) {
  * facil resulta justificar un tiempo imposible. No se penaliza mucho: es solo
  * un dato de contexto para la persona que revisa.
  */
-function comprobarHorario({ ia }) {
-  if (!ia?.disponible) return [];
+function comprobarHorario({ lectura }) {
+  if (!lectura?.disponible) return [];
 
-  const salida = horaASegundos(ia.horaSalida);
+  const salida = horaASegundos(lectura.horaSalida);
   if (salida === null) return [];
 
   const hora = Math.floor(salida / 3600);
   if (hora < HORARIO.HORA_INICIO_MADRUGADA || hora >= HORARIO.HORA_FIN_MADRUGADA) return [];
 
   return [señal('horario_inusual', 10,
-    `El trayecto figura a las ${ia.horaSalida}, en plena madrugada.`)];
+    `El trayecto figura a las ${lectura.horaSalida}, en plena madrugada.`)];
 }
 
 // --- Orquestador --------------------------------------------------------------
@@ -358,7 +397,8 @@ function evaluar(contexto) {
     metros: fisica.metros,
     kmh: fisica.kmh,
     evaluadoEn: new Date().toISOString(),
+    varianteCaptura: contexto.lectura?.variante || null,
   };
 }
 
-module.exports = { evaluar, distanciaCalleMetros, velocidadKmh };
+module.exports = { evaluar, distribucion, distanciaCalleMetros, velocidadKmh };

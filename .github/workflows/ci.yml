@@ -17,15 +17,6 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Regenerar datos compartidos
-        run: node scripts/build-estaciones.js
-
-      # Si los ficheros generados no coinciden con sus fuentes, alguien ha
-      # editado a mano un fichero generado y el frontend y el backend van a
-      # divergir.
-      - name: Comprobar que los datos generados estan al dia
-        run: git diff --exit-code assets/data backend/lib
-
       - name: Instalar utillaje
         run: npm install --no-audit --no-fund
 
@@ -43,11 +34,83 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      # TODOS los generadores deterministas, no solo el de estaciones. Con uno
+      # solo, la comprobacion de abajo cazaba a quien editaba a mano un fichero
+      # generado, pero NO a quien editaba la FUENTE y se olvidaba de regenerar:
+      # ahi el generado sigue coincidiendo con lo que hay en git, el diff sale
+      # limpio, y el catalogo de insignias que ven el navegador y el worker se
+      # queda con los textos viejos.
+      #
+      # Va DESPUES de instalar las dependencias del worker: `build-push.js` lee
+      # los tipos de aviso de `backend/src/push.js`, que carga `web-push`.
+      #
+      # `build-version.js` se queda fuera a proposito: escribe el SHA del commit,
+      # asi que siempre difiere y haria fallar la comprobacion. Lo lanza el
+      # `buildCommand` de Vercel en cada despliegue, que es cuando importa.
+      - name: Regenerar datos compartidos
+        run: npm run datos:fuente
+
+      # Si los generados no coinciden con sus fuentes, o alguien ha editado a
+      # mano un fichero generado, el frontend y el backend van a divergir.
+      - name: Comprobar que los datos generados estan al dia
+        run: git diff --exit-code assets/data backend/lib
+
+      # El modelo de coste (#34) dice cuantas lecturas de Firestore cuesta cada
+      # operacion, y el plan Spark corta en 50.000 al dia: al agotarlas la web
+      # no va lenta, deja de funcionar hasta medianoche.
+      #
+      # Corria solo a mano, en la revision mensual, asi que un cambio que
+      # disparase una operacion no se notaba hasta que alguien se acordara de
+      # lanzarlo. Aqui falla en el sitio, en el commit que lo causa.
+      #
+      # `--comprobar` no mira el total —ese depende de cuanta gente entre, y ya
+      # se sabe que u200 se pasa— sino si alguna operacion SUELTA se come la
+      # cuota diaria ella sola. Eso siempre es un fallo.
+      - name: Comprobar el coste en lecturas
+        run: node scripts/auditar-lecturas.js --comprobar
+
+      # Y que las tablas de docs/COSTE.md sean las que sale del modelo: se
+      # copiaban a mano y el documento acabo con tres tablas de escenarios y
+      # tres totales distintos.
+      - name: Comprobar que docs/COSTE.md esta al dia
+        run: |
+          node scripts/auditar-lecturas.js --escribir
+          git diff --exit-code docs/COSTE.md
+
+      # El banco de capturas (#16) ejecuta el OCR de verdad, y tesseract se baja
+      # varios megas de modelo de idioma la primera vez.
+      - name: Cache del idioma del OCR
+        uses: actions/cache@v4
+        with:
+          path: backend/.tesseract
+          key: tesseract-spa-${{ runner.os }}
+
       - name: Tests
         working-directory: backend
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test | tee "$RUNNER_TEMP/tests.log"
 
-  desplegar:
+      # El porcentaje de extraccion del banco, a la vista en el resumen del PR:
+      # es el numero que dice si un cambio en el extractor mejora o empeora, y
+      # enterrado en el log no lo mira nadie.
+      - name: Banco de capturas en el resumen
+        if: always()
+        run: |
+          if grep -q "Extraccion del banco" "$RUNNER_TEMP/tests.log"; then
+            {
+              echo "### Banco de capturas"
+              grep -A 13 "Extraccion del banco" "$RUNNER_TEMP/tests.log" | sed 's/^/    /'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "El banco de capturas no ha llegado a medirse (OCR no disponible)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # El sitio lo publica Vercel, conectado a este repositorio. Aqui solo quedan las
+  # REGLAS y los INDICES de Firestore, que no son estaticos: son el control de
+  # acceso del proyecto (no hay servidor delante) y tienen que seguir
+  # desplegandose en cada push, porque Vercel no las toca.
+  reglas:
     needs: tests
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -57,16 +120,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Regenerar datos compartidos
-        run: node scripts/build-estaciones.js
-
-      # Despliega el sitio estatico y las reglas de seguridad. En el plan Spark
-      # esto es gratis: Hosting y Firestore entran en la cuota sin coste.
-      - name: Desplegar en Firebase Hosting
+      - name: Desplegar reglas e indices de Firestore
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/cuenta-servicio.json
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          MANTENIMIENTO: ${{ vars.MANTENIMIENTO }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
             echo "Sin FIREBASE_SERVICE_ACCOUNT: me salto el despliegue."
@@ -75,19 +132,8 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > cuenta-servicio.json
           npm install -g firebase-tools
 
-          # Con MANTENIMIENTO=true se publica SOLO la pagina de obras. El resto
-          # del sitio no se sube, asi que ninguna URL antigua sigue accesible:
-          # Firebase sirve primero el fichero estatico que exista, de modo que
-          # un rewrite por si solo no bastaria para ocultar /home/ o /admin/.
-          if [ "$MANTENIMIENTO" = "true" ]; then
-            echo "::notice::Modo mantenimiento: se publica solo la pagina de obras."
-            firebase deploy --only hosting \
-              --config firebase.mantenimiento.json \
-              --project bicifastness --non-interactive
-          else
-            firebase deploy \
-              --only hosting,firestore:rules,firestore:indexes \
-              --project bicifastness --non-interactive
-          fi
+          firebase deploy \
+            --only firestore:rules,firestore:indexes \
+            --project bicifastness --non-interactive
 
           rm -f cuenta-servicio.json

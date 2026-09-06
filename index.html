@@ -1,149 +1,18 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Compite con tus tiempos de BiciMAD en Madrid. Rankings por ruta, clanes y dominio de estaciones.">
 <title>BiciFastness | El circuito urbano de Madrid</title>
-<meta name="description" content="Cronometra tus trayectos en la bici publica de Madrid, compite por cada ruta y conquista estaciones con tu clan. Cada tiempo se verifica solo.">
-<link rel="canonical" href="https://bicifastness.es/">
-<meta property="og:title" content="BiciFastness | El circuito urbano de Madrid">
-<meta property="og:description" content="Cronometra tus trayectos, compite por cada ruta y conquista estaciones con tu clan.">
-<meta property="og:type" content="website">
-<meta property="og:locale" content="es_ES">
 <link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
-<style>
-  /* La landing no lleva barra inferior: aqui la unica decision es entrar. */
-  body { padding-bottom: 0; }
-
-  /* --- Portada ---------------------------------------------------------- */
-  .portada { position: relative; padding: 26px 0 44px; }
-  .kicker {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-family: var(--fuente-mono); font-size: .66rem; font-weight: 500;
-    text-transform: uppercase; letter-spacing: .18em; color: var(--velocidad);
-    background: var(--velocidad-tenue); border: 1px solid rgba(200,247,81,.25);
-    padding: 6px 13px; border-radius: 100px; margin-bottom: 20px;
-  }
-  .kicker::before {
-    content: ''; width: 6px; height: 6px; border-radius: 50%;
-    background: var(--velocidad); box-shadow: 0 0 9px var(--velocidad);
-    animation: latido 2.4s ease-in-out infinite;
-  }
-  @keyframes latido { 50% { opacity: .35; } }
-
-  .portada h1 { font-size: clamp(2.7rem, 14vw, 6.4rem); font-stretch: 86%; letter-spacing: -.038em; }
-  .portada h1 .lleno { display: block; color: var(--primary-claro); }
-  .portada h1 .hueco { display: block; color: transparent; -webkit-text-stroke: 1.5px var(--primary); }
-  .portada .entradilla { color: var(--text-muted); font-size: 1.04rem; max-width: 48ch; margin: 20px 0 28px; }
-
-  .acciones { display: flex; flex-direction: column; gap: 10px; }
-  .acciones a {
-    display: flex; align-items: center; justify-content: center; gap: 9px;
-    padding: 15px 24px; border-radius: var(--radio-s); text-decoration: none;
-    font-weight: 800; font-size: .96rem; min-height: 50px;
-    transition: all var(--transicion);
-  }
-  .btn-principal {
-    background: linear-gradient(160deg, var(--primary-claro), var(--primary-hover));
-    color: #fff; box-shadow: 0 6px 22px -8px rgba(30,144,255,.75);
-  }
-  .btn-principal:hover { filter: brightness(1.08); transform: translateY(-1px); }
-  .btn-secundario { border: 1px solid var(--border-fuerte); color: var(--text-main); }
-  .btn-secundario:hover { background: var(--bg-input); border-color: var(--primary); }
-
-  /* Marcas de carril en diagonal, como las del asfalto. */
-  .portada::after {
-    content: ''; position: absolute; right: -20px; top: 40px;
-    width: 84px; height: 150px; pointer-events: none; opacity: .45;
-    background: repeating-linear-gradient(112deg, var(--primary) 0 3px, transparent 3px 14px);
-    mask-image: linear-gradient(200deg, #000, transparent 78%);
-    -webkit-mask-image: linear-gradient(200deg, #000, transparent 78%);
-  }
-
-  /* --- Cifras ----------------------------------------------------------- */
-  .cifras {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
-    background: var(--border); border: 1px solid var(--border);
-    border-radius: var(--radio); overflow: hidden; margin-bottom: 52px;
-  }
-  .cifra { background: var(--bg-card); padding: 18px 10px; text-align: center; }
-  .cifra strong {
-    display: block; font-family: var(--fuente-mono); font-variant-numeric: tabular-nums;
-    font-size: clamp(1.3rem, 6vw, 1.9rem); font-weight: 600; letter-spacing: -.04em;
-    color: var(--primary-claro);
-  }
-  .cifra span {
-    font-size: .66rem; color: var(--text-tenue); text-transform: uppercase;
-    letter-spacing: .1em; font-weight: 700;
-  }
-
-  /* --- Secciones -------------------------------------------------------- */
-  section { margin-bottom: 52px; }
-  .intro { color: var(--text-muted); max-width: 56ch; margin: 0 0 24px; font-size: .95rem; }
-
-  .pasos { display: grid; grid-template-columns: 1fr; gap: 12px; counter-reset: paso; }
-  .paso {
-    position: relative; background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radio); padding: 20px 20px 20px 62px;
-  }
-  .paso::before {
-    counter-increment: paso; content: counter(paso, decimal-leading-zero);
-    position: absolute; left: 20px; top: 19px;
-    font-family: var(--fuente-mono); font-size: 1.05rem; font-weight: 600;
-    color: var(--primary); letter-spacing: -.04em;
-  }
-  .paso h3 { margin: 0 0 5px; font-size: .98rem; }
-  .paso p { margin: 0; color: var(--text-muted); font-size: .87rem; line-height: 1.5; }
-
-  .comprobaciones { display: grid; grid-template-columns: 1fr; gap: 10px; }
-  .comprobacion {
-    display: flex; gap: 13px; align-items: flex-start;
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radio); padding: 16px;
-  }
-  .comprobacion i {
-    flex: none; width: 38px; height: 38px; border-radius: 11px;
-    display: grid; place-items: center; font-size: 1rem;
-    color: var(--primary-claro); background: var(--primary-tenue);
-    border: 1px solid rgba(30,144,255,.2);
-  }
-  .comprobacion strong { display: block; font-size: .9rem; margin-bottom: 3px; }
-  .comprobacion span { color: var(--text-muted); font-size: .83rem; line-height: 1.5; }
-
-  /* --- Aviso de seguridad vial ------------------------------------------ */
-  .vial {
-    background: rgba(255,176,32,.07); border: 1px solid rgba(255,176,32,.28);
-    border-left-width: 3px; border-radius: var(--radio); padding: 20px;
-  }
-  .vial h3 { color: var(--aviso); margin: 0 0 8px; font-size: .95rem; }
-  .vial p { margin: 0; color: var(--text-muted); font-size: .87rem; line-height: 1.6; }
-
-  /* --- Cierre ------------------------------------------------------------ */
-  .cierre { text-align: center; padding: 40px 20px; }
-  .cierre h2 { justify-content: center; margin-bottom: 10px; }
-  .cierre p { color: var(--text-muted); margin: 0 auto 22px; max-width: 40ch; font-size: .93rem; }
-  .cierre .acciones { max-width: 320px; margin: 0 auto; }
-
-  .enlace-mapa {
-    display: inline-flex; align-items: center; gap: 9px; padding: 13px 22px;
-    border: 1px solid var(--border-fuerte); border-radius: var(--radio-s);
-    text-decoration: none; color: var(--text-main); font-weight: 700; font-size: .9rem;
-    transition: all var(--transicion);
-  }
-  .enlace-mapa:hover { background: var(--bg-input); border-color: var(--primary); }
-
-  @media (min-width: 700px) {
-    .portada { padding: 44px 0 56px; }
-    .acciones { flex-direction: row; }
-    .acciones a { flex: 1; }
-    .pasos { grid-template-columns: repeat(3, 1fr); }
-    .comprobaciones { grid-template-columns: 1fr 1fr; }
-    .portada::after { width: 130px; height: 210px; right: 0; }
-  }
-</style>
 </head>
 <body>
 <a href="#principal" class="saltar-contenido">Saltar al contenido</a>
@@ -151,151 +20,106 @@
 
 <main class="container" id="principal">
 
-  <header class="portada">
-    <span class="kicker entra entra-1">Temporada 1 en curso</span>
-    <h1 class="entra entra-2">
-      <span class="lleno">El circuito</span><span class="hueco">urbano</span>
-    </h1>
-    <p class="entradilla entra entra-3">
-      Cronometra tus trayectos en la bici publica de Madrid, compite por cada
-      ruta y conquista estaciones con tu clan. Cada tiempo se verifica solo.
+  <!--
+    Dos versiones de la misma ruta. Sin sesion, lo que hay que contar es que es
+    esto; con sesion, en que punto estas. Antes eran dos pantallas: `/` explicaba
+    el proyecto y `/home/` era un indice de enlaces a las demas.
+  -->
+
+  <!-- SIN SESION -->
+  <section id="landing" class="oculto">
+    <p class="etiqueta">Madrid · BiciMAD</p>
+    <h1 class="d1">El circuito<br>es la ciudad</h1>
+    <p>
+      Coge una BiciMAD, haz tu trayecto de siempre y sube la captura. Nosotros
+      sacamos de ahi las estaciones y el tiempo.
     </p>
-    <div class="acciones entra entra-4">
-      <a href="/register/" class="btn-principal">Empezar a competir</a>
-      <a href="/home/" class="btn-secundario">
-        <i class="fi fi-rr-eye" aria-hidden="true"></i> Echar un vistazo
-      </a>
-    </div>
-  </header>
-
-  <div class="cifras entra entra-4">
-    <div class="cifra"><strong>631</strong><span>Estaciones</span></div>
-    <div class="cifra"><strong id="c-pilotos">&mdash;</strong><span>Pilotos</span></div>
-    <div class="cifra"><strong id="c-tiempos">&mdash;</strong><span>Tiempos</span></div>
-  </div>
-
-  <section>
-    <h2>Como funciona</h2>
-    <p class="intro">Tres pasos. Sin apuntarte a nada mas y sin instalar nada.</p>
-    <div class="pasos">
-      <article class="paso">
-        <h3>Haz tu trayecto</h3>
-        <p>Coge una bici, ve de una estacion a otra y, al terminar, haz una captura del resumen que te muestra la app oficial.</p>
-      </article>
-      <article class="paso">
-        <h3>Sube la captura</h3>
-        <p>Indica salida, meta y tiempo, y adjunta la imagen. Te lleva menos de un minuto.</p>
-      </article>
-      <article class="paso">
-        <h3>Entra al ranking</h3>
-        <p>Si la captura cuadra, tu tiempo se publica y suma puntos para ti y para tu clan.</p>
-      </article>
-    </div>
-  </section>
-
-  <section>
-    <h2>Aqui nadie hace trampas</h2>
-    <p class="intro">
-      Un ranking sin control no vale nada. Cada captura pasa por estas
-      comprobaciones antes de publicarse, sin que nadie tenga que mirarla.
+    <p>
+      Cada trayecto suma por <strong>distancia</strong>, por <strong>velocidad</strong>
+      y por <strong>constancia</strong>: no hace falta correr para puntuar.
     </p>
-    <div class="comprobaciones">
-      <div class="comprobacion">
-        <i class="fi fi-sr-marker" aria-hidden="true"></i>
-        <div>
-          <strong>La geografia no negocia</strong>
-          <span>Calculamos la distancia real entre las dos estaciones. Las bicis cortan la asistencia a 25 km/h, asi que hay un tiempo minimo que nadie puede bajar.</span>
-        </div>
+
+    <div class="fila" style="flex-wrap: wrap; margin-bottom: var(--e7);">
+      <a class="btn" href="/register/">Crear cuenta</a>
+      <a class="btn secundario" href="/entrar/">Ya tengo cuenta</a>
+    </div>
+
+    <div class="rejilla tres">
+      <div class="bloque">
+        <p class="etiqueta">Rutas</p>
+        <h2 class="h2">Un record por tramo</h2>
+        <p class="menor apagado">Cada par de estaciones tiene su propia clasificacion.</p>
       </div>
-      <div class="comprobacion">
-        <i class="fi fi-sr-time-check" aria-hidden="true"></i>
-        <div>
-          <strong>Las cuentas tienen que salir</strong>
-          <span>La resta entre la hora de llegada y la de salida debe dar la duracion que aparece en pantalla. Retocar solo el numero grande se nota.</span>
-        </div>
+      <div class="bloque">
+        <p class="etiqueta">Clanes</p>
+        <h2 class="h2">La ciudad se reparte</h2>
+        <p class="menor apagado">Los clanes se disputan las estaciones, y el territorio se pierde si nadie pedalea.</p>
       </div>
-      <div class="comprobacion">
-        <i class="fi fi-sr-shield-check" aria-hidden="true"></i>
-        <div>
-          <strong>Imagenes sin retocar</strong>
-          <span>Se analiza el renderizado del texto y los metadatos en busca de rastros de editores de imagen.</span>
-        </div>
-      </div>
-      <div class="comprobacion">
-        <i class="fi fi-sr-copy-alt" aria-hidden="true"></i>
-        <div>
-          <strong>Una captura, un viaje</strong>
-          <span>Guardamos una huella de cada imagen. No sirve reutilizarla, ni recortandola ni volviendola a comprimir.</span>
-        </div>
+      <div class="bloque">
+        <p class="etiqueta">Verificacion</p>
+        <h2 class="h2">Sin trampas</h2>
+        <p class="menor apagado">Cada captura pasa por un analisis automatico antes de contar.</p>
       </div>
     </div>
   </section>
 
-  <section>
-    <h2>Clanes y territorio</h2>
-    <p class="intro">
-      Junta a tu gente en un clan. En cada ruta, los diez mejores tiempos
-      reparten puntos, y el clan con mas puntos en una estacion la domina: se
-      pinta de vuestro color en el mapa de la ciudad.
-    </p>
-    <a href="/mapa/" class="enlace-mapa">
-      <i class="fi fi-sr-marker" aria-hidden="true"></i> Ver el mapa de dominio
-    </a>
-  </section>
+  <!-- CON SESION -->
+  <section id="panel" class="oculto">
+    <p class="etiqueta" id="saludo-etiqueta">Tu ultima marca</p>
+    <h1 class="d2" id="titulo-panel">Ahora</h1>
 
-  <section>
-    <div class="vial">
-      <h3>Una cosa importante</h3>
-      <p>
-        Esto se juega en calles reales, con trafico real. <strong>No es una
-        invitacion a correr.</strong> Respeta siempre las normas de circulacion:
-        ningun puesto en un ranking justifica un accidente. De hecho, los tiempos
-        que solo se consiguen infringiendo la ley son fisicamente imposibles con
-        una bici de pedaleo asistido, y el sistema los rechaza solo.
-      </p>
+    <!--
+      El orden lo decide una pregunta: que hago hoy. Primero lo que se acaba de
+      subir y todavia esta en el aire, que es la razon por la que mucha gente
+      vuelve a abrir esto; luego lo que se puede perder (la racha), luego lo que
+      se puede hacer (misiones y ruta del dia), y solo despues lo que ya pasó.
+    -->
+    <div id="viaje-en-curso"></div>
+    <div id="racha"></div>
+    <div id="misiones"></div>
+    <div id="ruta-del-dia"></div>
+    <div id="ultima-marca"></div>
+    <div id="estado-clan"></div>
+
+    <!-- Invitacion a instalar. Solo aparece tras el primer viaje subido (#52). -->
+    <div id="invitacion-instalar" class="oculto"></div>
+
+    <div class="fila" style="flex-wrap: wrap; margin-top: var(--e5);">
+      <a class="btn" href="/subir/">Subir un trayecto</a>
+      <a class="btn secundario" href="/clasificacion/">Ver la clasificacion</a>
     </div>
   </section>
 
-  <section class="cierre">
-    <h2 class="sin-marca">Nos vemos en el asfalto</h2>
-    <p>Crear la cuenta es gratis y lleva medio minuto.</p>
-    <div class="acciones">
-      <a href="/register/" class="btn-principal">Crear mi cuenta</a>
-    </div>
-    <p style="margin-top: 16px; font-size: .85rem;">
-      <a href="/entrar/" style="color: var(--text-muted); text-decoration: none; font-weight: 600;">Ya tengo cuenta</a>
+  <!-- Alta a medias: la cuenta existe en Auth pero no hay perfil. -->
+  <section id="recuperar-perfil" class="bloque oculto">
+    <p class="etiqueta">Falta un paso</p>
+    <h2 class="h2">Elige tu nombre de piloto</h2>
+    <p class="menor apagado">
+      Tu cuenta se creo pero el perfil se quedo a medias. Sin el no puedes subir
+      trayectos.
     </p>
+
+    <div class="campo">
+      <label for="rec-username">Nombre de piloto</label>
+      <input id="rec-username" type="text" autocomplete="nickname" maxlength="20">
+    </div>
+
+    <label class="fila menor" style="margin-bottom: var(--e4);">
+      <input type="checkbox" id="rec-legal">
+      <span>Acepto los <a href="/legal/terminos/">terminos</a> y la
+        <a href="/legal/privacidad/">politica de privacidad</a>.</span>
+    </label>
+
+    <button class="btn" id="rec-enviar">Terminar el alta</button>
+    <p class="mensaje" id="rec-mensaje" aria-live="polite"></p>
   </section>
 
+  <p class="mensaje" id="mensaje" aria-live="polite"></p>
 </main>
 
 <footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
 
-<script type="module">
-  import { db, collection, getDocs, query, where } from '/assets/js/firebase.js';
-  import { aplicarTema, montarPieLegal, montarAvisoCookies, montarNavegacion } from '/assets/js/ui.js';
-  import { id } from '/assets/js/dom.js';
-
-  aplicarTema();
-  montarNavegacion('');
-  montarPieLegal();
-  montarAvisoCookies();
-
-  // Las cifras dan credibilidad, pero la pagina tiene que servir igual si la
-  // consulta falla: por eso arrancan con una raya y solo se sustituyen cuando
-  // llegan datos. Nunca se muestra un cero que haga parecer que esto esta vacio.
-  (async () => {
-    try {
-      const [pilotos, tiempos] = await Promise.all([
-        getDocs(collection(db, 'usuarios')),
-        getDocs(query(collection(db, 'tiempos_viaje'), where('verificado', '==', true))),
-      ]);
-      if (pilotos.size) id('c-pilotos').textContent = pilotos.size.toLocaleString('es-ES');
-      if (tiempos.size) id('c-tiempos').textContent = tiempos.size.toLocaleString('es-ES');
-    } catch (error) {
-      console.debug('Cifras no disponibles', error);
-    }
-  })();
-</script>
+<script type="module" src="/assets/js/paginas/portada.js"></script>
 </body>
 </html>

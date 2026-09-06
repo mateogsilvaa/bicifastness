@@ -112,6 +112,21 @@ function distanciaHamming(hexA, hexB) {
 }
 
 /**
+ * Los editores que se buscan por su firma.
+ *
+ * Se exporta porque hacen falta en DOS sitios desde #66: aqui, sobre el EXIF
+ * del fichero, y en el worker sobre lo que declara el navegador. El buffer que
+ * llega aqui casi nunca tiene EXIF —el navegador recodifica en un lienzo y eso
+ * lo borra— asi que en la practica quien encuentra algo es el segundo.
+ */
+const EDITORES = ['Photoshop', 'GIMP', 'Snapseed', 'Picsart', 'Pixlr', 'Lightroom', 'Canva'];
+
+/** El editor que aparece en un texto, o null. */
+function editorEn(texto) {
+  return EDITORES.find((e) => String(texto || '').includes(e)) || null;
+}
+
+/**
  * Metadatos utiles para la auditoria: dimensiones y si la imagen conserva EXIF.
  *
  * Una captura de pantalla autentica de un movil NO lleva datos de camara. Si
@@ -127,9 +142,7 @@ async function inspeccionar(buffer) {
 
     if (meta.exif) {
       // Basta con buscar las firmas de los editores habituales en el bloque EXIF.
-      const texto = meta.exif.toString('latin1');
-      const editores = ['Photoshop', 'GIMP', 'Snapseed', 'Picsart', 'Pixlr', 'Lightroom', 'Canva'];
-      const encontrado = editores.find((e) => texto.includes(e));
+      const encontrado = editorEn(meta.exif.toString('latin1'));
       if (encontrado) {
         software = encontrado;
         sospechaEdicion = true;
@@ -161,6 +174,8 @@ async function normalizarParaGuardar(buffer) {
 }
 
 module.exports = {
+  editorEn,
+  EDITORES,
   decodificarDataUrl,
   hashExacto,
   hashPerceptual,

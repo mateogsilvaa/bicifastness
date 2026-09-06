@@ -8,21 +8,21 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { evaluar, distanciaCalleMetros, velocidadKmh } = require('../src/verificacion');
+const { evaluar, distribucion, distanciaCalleMetros, velocidadKmh } = require('../src/verificacion');
 
 // Ruta real: 002 (Metro Callao) -> 110 (Intercambiador de Moncloa).
 const RUTA = '002-110';
 const METROS = distanciaCalleMetros('002', '110');
 
 /** Auditoria de IA "perfecta" para un tiempo dado. */
-function iaLimpia(segundos, ruta = RUTA) {
+function lecturaLimpia(segundos, ruta = RUTA) {
   const [o, d] = ruta.split('-').map((v) => v.replace(/^0+/, ''));
   const salida = 10 * 3600;
   const llegada = salida + segundos;
   const hhmmss = (s) => [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60]
     .map((n) => String(n).padStart(2, '0')).join(':');
   return {
-    disponible: true, esBicimad: true, integridadVisual: true, confianza: 95,
+    disponible: true, esBicimad: true, confianza: 95,
     motivoManipulacion: '', origen: o, destino: d,
     segundosDuracion: segundos, horaSalida: hhmmss(salida), horaLlegada: hhmmss(llegada),
   };
@@ -33,7 +33,7 @@ function contextoBase(overrides = {}) {
   return {
     ruta: RUTA,
     tiempoSegundos,
-    ia: iaLimpia(tiempoSegundos),
+    lectura: lecturaLimpia(tiempoSegundos),
     hashSha: 'a'.repeat(64),
     hashPerceptual: '0f0f0f0f0f0f0f0f',
     shaPrevios: [],
@@ -73,9 +73,9 @@ test('una velocidad alta pero posible va a revision, no a la basura', () => {
 });
 
 test('descuadre entre las horas y el recuadro de duracion = manipulacion', () => {
-  const ia = iaLimpia(600);
-  ia.segundosDuracion = 300; // el usuario ha retocado solo el numero grande
-  const r = evaluar(contextoBase({ tiempoSegundos: 300, ia }));
+  const lectura = lecturaLimpia(600);
+  lectura.segundosDuracion = 300; // el usuario ha retocado solo el numero grande
+  const r = evaluar(contextoBase({ tiempoSegundos: 300, lectura }));
   assert.strictEqual(r.decision, 'rechazado');
   assert.ok(r.señales.some((s) => s.codigo === 'captura_incoherente'));
 });
@@ -106,21 +106,36 @@ test('una captura distinta no se confunde con un duplicado', () => {
   assert.strictEqual(r.decision, 'aprobado');
 });
 
-test('la IA declara la imagen manipulada y se rechaza', () => {
-  const ia = iaLimpia(600);
-  ia.integridadVisual = false;
-  ia.motivoManipulacion = 'La hora de llegada usa otra fuente';
-  const r = evaluar(contextoBase({ ia }));
-  assert.strictEqual(r.decision, 'rechazado');
-  assert.ok(r.señales.some((s) => s.codigo === 'manipulacion_visual'));
+test('una lectura poco fiable no se aprueba sola', () => {
+  // Al quitar la IA, esto dejo de ser un rechazo automatico y paso a ser una
+  // duda: sin nadie que juzgue la imagen, lo honesto es que lo mire una
+  // persona en vez de rechazarle el viaje a alguien por un OCR flojo.
+  const lectura = lecturaLimpia(600);
+  lectura.confianza = 20;
+
+  const r = evaluar(contextoBase({ lectura }));
+  assert.strictEqual(r.decision, 'revision');
+  assert.ok(r.señales.some((s) => s.codigo === 'lectura_poco_segura'));
 });
 
-test('si la IA no responde, el viaje va a revision (no se aprueba a ciegas)', () => {
+test('una captura que no es de BiciMAD se rechaza sola', () => {
+  // Esto lo decidia la IA con `es_bicimad`. Ahora sale de si el texto leido
+  // contiene marcadores de la app: es heuristica, pero es determinista y basta
+  // para descartar una foto cualquiera.
+  const lectura = lecturaLimpia(600);
+  lectura.esBicimad = false;
+
+  const r = evaluar(contextoBase({ lectura }));
+  assert.strictEqual(r.decision, 'rechazado');
+  assert.ok(r.señales.some((s) => s.codigo === 'no_es_bicimad'));
+});
+
+test('si el OCR no responde, el viaje va a revision (no se aprueba a ciegas)', () => {
   const r = evaluar(contextoBase({
-    ia: { disponible: false, error: 'timeout' },
+    lectura: { disponible: false, error: 'timeout' },
   }));
   assert.strictEqual(r.decision, 'revision');
-  assert.ok(r.señales.some((s) => s.codigo === 'ia_no_disponible'));
+  assert.ok(r.señales.some((s) => s.codigo === 'lectura_no_disponible'));
 });
 
 test('romper el record por mucho margen siempre pasa por revision humana', () => {
@@ -134,16 +149,44 @@ test('mejorar el record por poco margen no molesta a nadie', () => {
   assert.strictEqual(r.decision, 'aprobado');
 });
 
-test('los metadatos de un editor de imagen levantan sospecha', () => {
-  const r = evaluar(contextoBase({ edicionSospechosa: true, software: 'Photoshop' }));
-  assert.strictEqual(r.decision, 'revision');
-  assert.ok(r.señales.some((s) => s.codigo === 'metadatos_edicion'));
+test('los metadatos de un editor de imagen levantan sospecha, pero no deciden solos', () => {
+  // CAMBIO DE PESO, Y ES A PROPOSITO (#66). Valia 45 —bastaba para mandar a
+  // revision el solo— cuando se creia que el dato salia del EXIF del fichero,
+  // o sea del servidor. Resulta que no podia: el navegador recodifica toda
+  // captura en un `<canvas>` y eso borra el EXIF antes de que salga del movil.
+  // La señal no habia saltado NUNCA en produccion.
+  //
+  // Ahora el dato lo declara el navegador leyendo el fichero original. Eso
+  // pilla a quien edita sin pensar, pero no a quien va en serio: le basta con
+  // no mandarlo. Una pista que se puede omitir no puede pesar como una prueba.
+  //
+  // Y sobre todo: RECORTAR ES LEGITIMO Y COMUN. `normalizar.js` dice que "mucha
+  // gente recorta para quitar la barra de estado". Si eso mandara a revision el
+  // solo, media subida honrada acabaria esperando a una persona.
+  const r = evaluar(contextoBase({ edicionSospechosa: true, software: 'Snapseed' }));
+
+  assert.ok(r.señales.some((s) => s.codigo === 'metadatos_edicion'),
+    'la señal no se emite');
+  assert.strictEqual(r.decision, 'aprobado',
+    'declarar un editor manda a revision el solo: recortar la captura es legitimo');
+});
+
+test('pero sumada a otra cosa, si inclina la balanza', () => {
+  // Para eso sigue estando. Sola no decide; junto a algo mas, empuja por encima
+  // del umbral de revision.
+  const soloRecord = evaluar(contextoBase({ mejorTiempoRuta: 900 }));
+  const conEditor = evaluar(contextoBase({
+    mejorTiempoRuta: 900, edicionSospechosa: true, software: 'Photoshop',
+  }));
+
+  assert.ok(conEditor.riesgo > soloRecord.riesgo,
+    'declarar un editor no suma nada al riesgo');
 });
 
 test('la ruta leida en la foto no coincide con la declarada', () => {
-  const ia = iaLimpia(600);
-  ia.origen = '999';
-  const r = evaluar(contextoBase({ ia }));
+  const lectura = lecturaLimpia(600);
+  lectura.origen = '999';
+  const r = evaluar(contextoBase({ lectura }));
   assert.ok(['revision', 'rechazado'].includes(r.decision));
   assert.ok(r.señales.some((s) => s.codigo === 'ruta_no_coincide'));
 });
@@ -166,27 +209,27 @@ test('velocidadKmh calcula bien', () => {
 
 test('un tiempo muy fuera de la distribucion de la ruta se marca', () => {
   // La ruta se corre habitualmente en torno a 600 s con poca dispersion.
-  const tiemposRuta = [590, 600, 605, 610, 615, 620, 625, 630];
-  const r = evaluar(contextoBase({ tiempoSegundos: 450, tiemposRuta, mejorTiempoRuta: 590 }));
+  const distribucionRuta = distribucion([590, 600, 605, 610, 615, 620, 625, 630]);
+  const r = evaluar(contextoBase({ tiempoSegundos: 450, distribucionRuta, mejorTiempoRuta: 590 }));
   assert.ok(r.señales.some((s) => s.codigo === 'atipico_estadistico'));
 });
 
 test('con pocas marcas no se aplica la estadistica (no hay muestra)', () => {
-  const r = evaluar(contextoBase({ tiempoSegundos: 450, tiemposRuta: [600, 620] }));
+  const r = evaluar(contextoBase({ tiempoSegundos: 450, distribucionRuta: distribucion([600, 620]) }));
   assert.ok(!r.señales.some((s) => s.codigo === 'atipico_estadistico'));
 });
 
 test('un tiempo normal dentro de la distribucion no molesta', () => {
-  const tiemposRuta = [560, 580, 600, 610, 620, 640, 660, 700];
-  const r = evaluar(contextoBase({ tiempoSegundos: 595, tiemposRuta }));
+  const distribucionRuta = distribucion([560, 580, 600, 610, 620, 640, 660, 700]);
+  const r = evaluar(contextoBase({ tiempoSegundos: 595, distribucionRuta }));
   assert.ok(!r.señales.some((s) => s.codigo === 'atipico_estadistico'));
   assert.strictEqual(r.decision, 'aprobado');
 });
 
 test('una ruta donde todos hacen el mismo tiempo no genera falsos positivos', () => {
   // Desviacion tipica cero: dividir por ella daria Infinity.
-  const tiemposRuta = [600, 600, 600, 600, 600, 600, 600];
-  const r = evaluar(contextoBase({ tiempoSegundos: 600, tiemposRuta }));
+  const distribucionRuta = distribucion([600, 600, 600, 600, 600, 600, 600]);
+  const r = evaluar(contextoBase({ tiempoSegundos: 600, distribucionRuta }));
   assert.ok(!r.señales.some((s) => s.codigo === 'atipico_estadistico'));
 });
 
@@ -217,10 +260,10 @@ test('mantener el ritmo de siempre no levanta ninguna alerta', () => {
 // --- Horario -------------------------------------------------------------------
 
 test('un trayecto de madrugada se anota como contexto', () => {
-  const ia = iaLimpia(600);
-  ia.horaSalida = '03:20:00';
-  ia.horaLlegada = '03:30:00';
-  const r = evaluar(contextoBase({ ia }));
+  const lectura = lecturaLimpia(600);
+  lectura.horaSalida = '03:20:00';
+  lectura.horaLlegada = '03:30:00';
+  const r = evaluar(contextoBase({ lectura }));
   assert.ok(r.señales.some((s) => s.codigo === 'horario_inusual'));
   // Por si sola no basta para sacarlo de aprobado: es solo un dato.
   assert.strictEqual(r.decision, 'aprobado');
@@ -235,15 +278,57 @@ test('un trayecto a media tarde no genera nada', () => {
 
 test('varias señales debiles juntas mandan el viaje a revision', () => {
   // Ninguna es concluyente, pero sumadas pasan del umbral de aprobacion.
-  const ia = iaLimpia(600);
-  ia.horaSalida = '03:00:00';
-  ia.horaLlegada = '03:10:00';
+  const lectura = lecturaLimpia(600);
+  lectura.horaSalida = '03:00:00';
+  lectura.horaLlegada = '03:10:00';
   const r = evaluar(contextoBase({
     tiempoSegundos: 600,
-    ia,
-    tiemposRuta: [700, 710, 715, 720, 725, 730, 740, 750],
+    lectura,
+    distribucionRuta: distribucion([700, 710, 715, 720, 725, 730, 740, 750]),
     velocidadesPrevias: [9, 9.5, 10, 9.8, 10.2],
   }));
   assert.strictEqual(r.decision, 'revision');
   assert.ok(r.señales.length >= 3, `esperaba varias señales, hay ${r.señales.length}`);
+});
+
+// --- Varios viajes con la misma captura (#11) ---------------------------------
+
+test('dos viajes de la MISMA captura no son un duplicado', () => {
+  // El historial de la app es una lista: una captura puede sostener tres
+  // trayectos. Los tres comparten imagen y, por tanto, huella. Si eso contara
+  // como "captura reutilizada", subir los tres acabaria con dos rechazados.
+  const capturaId = 'captura-compartida';
+  const r = evaluar(contextoBase({
+    capturaId,
+    shaPrevios: [{ sha: 'a'.repeat(64), tripId: 'viaje-hermano', uid: 'yo', capturaId }],
+    hashesPrevios: [{ dhash: '0f0f0f0f0f0f0f0f', tripId: 'viaje-hermano', capturaId }],
+  }));
+
+  assert.strictEqual(r.decision, 'aprobado');
+  assert.ok(!r.señales.some((s) => s.codigo === 'captura_reutilizada'));
+  assert.ok(!r.señales.some((s) => s.codigo === 'captura_casi_identica'));
+});
+
+test('la misma imagen subida en OTRO lote sigue siendo un duplicado', () => {
+  // Lo de arriba no puede convertirse en una puerta: si la huella viene de otra
+  // captura, es reenvio y se rechaza igual que siempre.
+  const r = evaluar(contextoBase({
+    capturaId: 'captura-de-ahora',
+    shaPrevios: [{ sha: 'a'.repeat(64), tripId: 'viaje-viejo', uid: 'otro', capturaId: 'captura-de-antes' }],
+  }));
+
+  assert.strictEqual(r.decision, 'rechazado');
+  assert.ok(r.señales.some((s) => s.codigo === 'captura_reutilizada'));
+});
+
+test('una huella antigua sin capturaId sigue detectando el reenvio', () => {
+  // Las huellas escritas antes de #11 no llevan `capturaId`. No pueden dejar de
+  // proteger por eso.
+  const r = evaluar(contextoBase({
+    capturaId: 'captura-de-ahora',
+    shaPrevios: [{ sha: 'a'.repeat(64), tripId: 'viaje-viejo', uid: 'otro', capturaId: null }],
+  }));
+
+  assert.strictEqual(r.decision, 'rechazado');
+  assert.ok(r.señales.some((s) => s.codigo === 'captura_reutilizada'));
 });

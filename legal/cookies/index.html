@@ -2,26 +2,30 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Politica de cookies | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <link rel="stylesheet" href="/assets/css/legal.css">
 </head>
 <body>
 <nav id="nav-principal"></nav>
-<div class="bottom-nav" id="nav-inferior"></div>
+<div id="nav-inferior"></div>
 
 <main class="legal">
   <h1>Politica de cookies</h1>
-  <p class="version">Version 1.0.0 &middot; Ultima actualizacion: 26 de julio de 2026</p>
+  <p class="version">Version 1.2.0 &middot; Ultima actualizacion: 23 de agosto de 2026</p>
 
   <h2>1. Que usamos</h2>
   <div class="recuadro">
     <p>
-      <strong>BiciFastness no utiliza cookies publicitarias, de analitica ni de
+      <strong>BiciFastness no utiliza cookies publicitarias, de analitica de terceros ni de
       seguimiento.</strong> No hay Google Analytics, ni pixeles de redes sociales,
       ni perfilado de ningun tipo.
     </p>
@@ -80,6 +84,41 @@
           <td>Propia</td>
         </tr>
         <tr>
+          <td><code>viaje-en-curso</code></td>
+          <td>sessionStorage</td>
+          <td>Recordar que trayecto acabas de subir, para seguir enseñandote su estado si cambias de pagina mientras se verifica.</td>
+          <td>Hasta que cierres la pestaña</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>bf_agregado:*</code></td>
+          <td>sessionStorage</td>
+          <td>Guardar unos minutos las clasificaciones ya descargadas, para no volver a pedirlas al ir y venir entre pantallas. Son datos publicos: nombre, avatar y puntos.</td>
+          <td>Hasta que cierres la pestaña</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>bf_primer_viaje_subido</code>, <code>bf_instalar_rechazado</code></td>
+          <td>localStorage</td>
+          <td>Saber si ya has subido un trayecto y si ya dijiste que no a instalar la app, para no volver a proponertelo.</td>
+          <td>Persistente</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>bf_ultimo_resumen</code></td>
+          <td>localStorage</td>
+          <td>Tu puntuacion y tus viajes, para poder enseñartelos cuando abras la app sin conexion. No sale de este dispositivo.</td>
+          <td>Persistente</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>firestore/*</code></td>
+          <td>IndexedDB</td>
+          <td>Copia local de lo que ya has consultado, para que volver a una pantalla no tenga que descargarlo otra vez. Es lo que hace que la app funcione sin cobertura.</td>
+          <td>Hasta que borres los datos del sitio</td>
+          <td>Propia (Firebase)</td>
+        </tr>
+        <tr>
           <td><code>_GRECAPTCHA</code></td>
           <td>Cookie</td>
           <td>reCAPTCHA de Google, empleado por App Check para distinguir personas de bots. Es una medida de seguridad, no de seguimiento.</td>
@@ -104,12 +143,34 @@
     bloquea la navegacion: no hay nada que rechazar, porque no cargamos nada
     opcional.
   </p>
+
+  <h3>Si medimos el uso de la web, ¿por que no hay banner?</h3>
+  <p>
+    Porque <strong>esa medicion no usa cookies ni identificadores que
+    sobrevivan a la pestaña</strong>, y el articulo 22.2 de la LSSI habla
+    precisamente de almacenar o recuperar informacion en tu dispositivo.
+  </p>
+  <p>
+    Lo que hacemos es contar cuantas veces ocurre cada paso de subir un
+    trayecto. Cada sesion escribe <strong>un unico documento con contadores</strong>,
+    identificado por un numero aleatorio que se genera al abrir la pestaña y
+    desaparece al cerrarla. No queda nada en tu dispositivo, no se lee nada de
+    el, y dos visitas tuyas en dias distintos no se pueden relacionar. Esta
+    contado con detalle en la
+    <a href="/legal/privacidad/#medicion">politica de privacidad</a>.
+  </p>
+  <p>
+    Con analitica de terceros — Google Analytics y companía — la respuesta
+    seria otra: ahi si hay cookie, si hay identificador persistente y si haria
+    falta un consentimiento real. Es una de las razones de no usarla.
+  </p>
+
   <div class="recuadro">
     <p>
-      Si en el futuro incorporasemos analitica o cualquier elemento no
-      imprescindible, cambiariamos este aviso por un sistema de consentimiento
-      real, con la opcion de <strong>rechazar tan accesible como la de
-      aceptar</strong> y sin carga previa de nada hasta obtenerlo.
+      Si en el futuro incorporasemos analitica de terceros o cualquier elemento
+      no imprescindible, cambiariamos este aviso por un sistema de
+      consentimiento real, con la opcion de <strong>rechazar tan accesible como
+      la de aceptar</strong> y sin carga previa de nada hasta obtenerlo.
     </p>
   </div>
 
@@ -134,9 +195,6 @@
 </main>
 
 <footer id="pie-legal"></footer>
-<script type="module">
-  import { iniciarPagina } from '/assets/js/ui.js';
-  iniciarPagina('');
-</script>
+<script type="module" src="/assets/js/paginas/legal-cookies.js"></script>
 </body>
 </html>

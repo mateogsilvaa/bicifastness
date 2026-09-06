@@ -18,7 +18,7 @@ ya no las use:
 | Credencial | Donde estaba | Quien podia verla | Accion |
 |---|---|---|---|
 | Contrasena de aplicacion de Gmail | `functions/index.js`, en claro y commiteada | Cualquiera con acceso al repositorio, y sigue en el historial de git | Revocar en la cuenta de Google y generar otra |
-| API key de Gemini | Coleccion `secrets` de Firestore | **Cualquier usuario registrado**: `subir/index.html` la leia en el navegador de cada usuario | Borrar la clave en Google AI Studio y crear otra |
+| API key de Gemini | Coleccion `secrets` de Firestore | **Cualquier usuario registrado**: `subir/index.html` la leia en el navegador de cada usuario | Borrar la clave en Google AI Studio. El proyecto ya no usa Gemini. |
 | Token del bot de Telegram | Coleccion `secrets` de Firestore | **Cualquier usuario registrado** | `/revoke` en @BotFather y generar otro |
 | Contrasenas de la instancia de PocketBase | Enviadas al tunel de ngrok desde el login | Quien controlase ese tunel | Apagar la instancia; forzar cambio de contrasena |
 
@@ -38,7 +38,7 @@ Navegador ──lectura──▶ Firestore
     └──escritura──────────┘   (SOLO propuestas: viaje "pendiente", nunca "verificado")
                           │
    GitHub Actions ────────┘   worker cada 5 min: analiza, decide y recalcula
-   (Node + sharp + Gemini)     — es el unico con credenciales de administrador
+   (Node + sharp + OCR)        — es el unico con credenciales de administrador
 ```
 
 **Regla invariable: el navegador puede PROPONER, nunca DECIDIR.** Puede crear un
@@ -54,8 +54,9 @@ un viaje tarda unos minutos en resolverse en vez de segundos.
 ### Stack
 
 - Frontend: HTML + CSS + JavaScript con modulos ES. Sin framework ni build. Mobile-first.
-- Datos: Firebase Auth + Firestore + Firebase Hosting, todo en el plan Spark (gratis, sin tarjeta).
-- Worker: Node 20 en GitHub Actions, con `sharp` y Gemini 2.0 Flash.
+- Alojamiento: Vercel, conectado a la rama `main`. El sitio es estatico y habla con Firestore desde el navegador.
+- Datos: Firebase Auth + Firestore, en el plan Spark (gratis, sin tarjeta).
+- Worker: Node 20 en GitHub Actions, con `sharp` y OCR local (`tesseract.js`). **Sin IA ni servicios externos.**
 - Mapa: Leaflet + GeoJSON de estaciones.
 
 ### Lo que cuesta el plan gratuito
@@ -97,8 +98,11 @@ En el repositorio: **Settings → Secrets and variables → Actions → New repo
 
 | Secreto | De donde sale |
 |---|---|
-| `FIREBASE_SERVICE_ACCOUNT` | Firebase → Configuracion del proyecto → Cuentas de servicio → Generar nueva clave privada. Pega el JSON entero. |
-| `GEMINI_API_KEY` | aistudio.google.com → Get API key |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase → Configuracion del proyecto → **SDK de Firebase Admin** → *Generar nueva clave privada*. Pega el JSON entero. |
+
+Es el **unico** secreto que hace falta. No lo confundas con **Secretos de la base
+de datos**, que esta en esa misma pantalla: son los tokens heredados de Realtime
+Database, estan obsoletos y no sirven para esto.
 
 Nunca en el codigo ni en Firestore: ahi es donde estaban cuando robaron las claves.
 
@@ -113,11 +117,56 @@ script suelto en vez de desde la web.
 
 ### 5. Desplegar
 
-El workflow `ci.yml` lo hace solo en cada push a `main`. A mano:
+Dos caminos, cada uno con lo suyo, y los dos solos en cada push a `main`:
+
+| Quien | Que despliega |
+|---|---|
+| Vercel | El sitio, por su integracion con Git. Lo gobierna `vercel.json` |
+| `ci.yml` | Las reglas y los indices de Firestore |
+
+Las reglas van aparte a proposito: **no son estaticas**. Son el control de acceso
+del proyecto, porque no hay servidor delante, y Vercel no las toca.
+
+A mano, solo las reglas:
 
 ```bash
-firebase deploy --only hosting,firestore:rules,firestore:indexes --project bicifastness
+firebase deploy --only firestore:rules,firestore:indexes --project bicifastness
 ```
+
+### 5.1. Por que Vercel y no GitHub Pages
+
+Por una sola razon, pero decisiva: **Pages no permite configurar cabeceras
+HTTP**. Serviria el sitio igual de bien, pero se perderian seis cabeceras de
+seguridad que no tienen equivalente en `<meta>`:
+
+`frame-ancestors` · `Strict-Transport-Security` · `X-Frame-Options` ·
+`X-Content-Type-Options` · `Permissions-Policy` · `Cross-Origin-Opener-Policy`
+
+Vercel las da gratis, sin tarjeta y sin dominio propio.
+
+Las cabeceras salen de **`shared/cabeceras.json`**, que es la fuente unica. El
+script las vuelca en dos sitios:
+
+```bash
+npm run cabeceras
+```
+
+1. `vercel.json`, como cabeceras HTTP de verdad
+2. cada pagina, la CSP tambien como `<meta>`, por si el HTML se sirve desde otro
+   sitio (en local, un mirror, un despliegue de prueba) donde no habria cabecera
+
+`npm run validar` falla si alguno de los dos se queda atras. **No edites el
+bloque `headers` de `vercel.json` a mano.**
+
+**Consecuencia practica:** la CSP declara `script-src 'self'` sin
+`'unsafe-inline'`, asi que **el JavaScript de las paginas no puede ir incrustado
+en el HTML**. Vive en `assets/js/paginas/`, un modulo por pagina. Hay un test
+que falla si alguien lo vuelve a meter en linea.
+
+> Esto no era una precaucion teorica: la CSP ya declaraba `script-src 'self'`
+> mientras las 17 paginas llevaban su codigo incrustado, o sea que **la politica
+> bloqueaba todo el JavaScript del sitio**. No se noto porque la unica pagina
+> publicada, la de obras, es la unica sin scripts.
 
 ### 6. Crear el primer administrador
 
@@ -142,20 +191,32 @@ Revisa la salida y, si cuadra, repite con `--aplicar`.
 
 ## Modo mantenimiento
 
-Para dejar el sitio en obras (util mientras se rota lo comprometido, o ante
-cualquier incidente):
+El sitio esta en obras ahora mismo, y lo hace **el PRIMER redirect** de
+`vercel.json`:
 
-1. En GitHub: **Settings -> Secrets and variables -> Actions -> Variables**
-2. Crea la variable `MANTENIMIENTO` con valor `true`
-3. Lanza el workflow o haz push a `main`
+```json
+{ "source": "/((?!mantenimiento|images/).*)", "destination": "/mantenimiento/", "permanent": false }
+```
 
-Se publica unicamente `mantenimiento/index.html`. **El resto del sitio no se
-sube**, asi que ninguna URL antigua sigue accesible: Firebase Hosting sirve
-primero el fichero estatico que exista, de modo que un simple redirect no
-bastaria para ocultar `/home/` o `/admin/`.
+En Vercel los redirects se evaluan **antes** del sistema de ficheros, asi que
+tapan tambien las paginas que existen: sin eso, entrar a `/admin/` escribiendo
+la URL seguiria funcionando.
 
-Para volver a la normalidad, pon la variable a `false` (o borrala) y vuelve a
-desplegar.
+**Para volver a abrir la web, borra SOLO ese primer redirect** (issue #7). Los
+demas NO se tocan: son las rutas viejas del redisenio — `/home/`, `/ranking/`,
+`/bicirating/`, `/mapa/`, `/clanes/` y `/profile/` — que estan enlazadas desde
+fuera y se quedan para siempre.
+
+El sitio es estatico y se sirve desde la RAIZ del repositorio, y por eso
+`vercel.json` declara `"outputDirectory": "."`. No es opcional: en cuanto hay un
+`buildCommand`, Vercel busca la salida en `public/` y falla con "No Output
+Directory named public found".
+
+Y una advertencia que costo cinco despliegues fallidos: **`vercel.json` no
+admite comentarios**, ni siquiera con la convencion de la clave `"//"`. Su
+esquema rechaza cualquier clave que no conozca y el despliegue ni llega a
+construirse ("should NOT have additional property"). Lo que haya que explicar,
+se explica aqui. Hay un test que lo vigila.
 
 La pagina de obras es autocontenida a proposito: sin scripts, sin depender de
 `app.css` ni de ningun modulo. Si algo del sitio se rompe, tiene que seguir en pie.
@@ -228,7 +289,6 @@ en el worker (`backend/src/verificacion.js`):
 | Plausibilidad fisica | Distancia real entre estaciones frente al tiempo declarado. Por encima de 25 km/h de media (el corte de asistencia de una bicicleta electrica) el trayecto es imposible. |
 | Coherencia interna de la captura | `hora_llegada − hora_salida` debe coincidir con la duracion mostrada. Delata retocar solo el numero grande. |
 | Coincidencia con lo declarado | Estaciones y tiempo leidos en la imagen frente a lo escrito en el formulario. |
-| Integridad grafica (Gemini) | Texto superpuesto, tipografias que no encajan, restos de clonado. |
 | Metadatos EXIF | Rastros de Photoshop, Snapseed, Picsart y similares. Una captura autentica no pasa por un editor. |
 | Huella exacta (SHA-256) | Reenvio literal del mismo fichero. |
 | Huella perceptual (dHash) | La misma imagen recomprimida, recortada o reescalada. Sobrevive a los intentos de "disimularla". |
@@ -238,6 +298,28 @@ en el worker (`backend/src/verificacion.js`):
 Las señales suman riesgo. Menos de 20 → aprobado solo. 70 o mas → rechazado solo. En
 medio → cola de revision manual. Algunas señales son concluyentes por si mismas y
 deciden sin pasar por la suma.
+
+### Por que no hay IA
+
+La verificacion no depende de ningun modelo externo. Eso quita una clave que
+rotar, una cuota que agotar, un servicio que puede caerse y una llamada de red
+de hasta 45 s por viaje.
+
+Lo que se pierde con ello, dicho claro: **la deteccion de retoque visual**
+(tipografia que no encaja, restos de clonado) no tiene sustituto directo sin IA.
+
+Lo que la cubre, y son comprobaciones deterministas, o sea que no opinan ni
+fallan distinto cada vez:
+
+- **Coherencia interna.** `llegada - salida` tiene que dar la duracion del
+  recuadro. Quien retoca una captura cambia el numero grande y se deja las
+  horas: esa resta lo delata, y es mas fiable que un juicio visual.
+- **Plausibilidad fisica.** La geografia no negocia.
+- **Huellas exacta y perceptual.** Reenvios, recortes y recompresiones.
+- **EXIF.** Rastros de Photoshop, Snapseed y compania.
+
+Y la regla que lo sostiene: **lo que no se lee con claridad no se aprueba solo**,
+va a la cola de revision humana.
 
 **Ajustar la sensibilidad:** todos los umbrales estan en `backend/src/config.js`.
 Si entra demasiado a la cola manual, sube `RIESGO.UMBRAL_APROBACION`; si se cuela
@@ -291,22 +373,38 @@ assets/
   js/acciones.js            todas las escrituras, una por regla de Firestore
   js/dom.js                 construccion segura de interfaz (sin innerHTML)
   js/ui.js                  tema, navegacion, estaciones, aviso de cookies
+  js/precheck.js            avisos sobre la captura antes de subirla, y compresion
+  js/extraccion.js          lee la captura EN EL NAVEGADOR, para confirmar al momento
+  ocr/                      GENERADO: motor y modelo del OCR del navegador (~6 MB)
+  js/estado-viaje.js        el viaje recien subido, en vivo (un solo documento)
+  js/motivos.js             del veredicto del worker al castellano
   data/                     GENERADO: estaciones y palabras prohibidas
 backend/
   worker.js                 el que decide: corre en GitHub Actions
   src/config.js             todos los umbrales de negocio y antifraude
   src/verificacion.js       motor de decision
   src/imagen.js             huellas y limpieza de EXIF
-  src/gemini.js             auditoria forense
+  src/ocr.js                lectura de la captura, sin IA
+  src/normalizar.js         deja toda captura en la misma forma antes de leerla
+  test/banco/               GENERADO: capturas sinteticas y su verdad (#16)
   src/puntuacion.js         BiciRating y dominio de estaciones
-  test/                     51 pruebas
+  test/                     pruebas de regresion y del motor de decision
 .github/workflows/
-  verificar-viajes.yml      worker cada 5 minutos
-  ci.yml                    tests y despliegue
+  verificar-viajes.yml      worker cada 5 minutos (cron apagado hasta el lanzamiento)
+  periodicas.yml            cierre de temporada y divisiones (cron apagado)
+  ci.yml                    tests y despliegue de reglas de Firestore
+vercel.json                 despliegue del sitio y cabeceras de seguridad
+docs/
+  ROADMAP.md                hitos, issues y en que orden
+  JUEGO.md                  las reglas del juego y por que son esas
 firestore.rules             EL control de acceso: no hay servidor delante
 legal/                      aviso-legal, privacidad, terminos, cookies
-scripts/                    build-estaciones, set-admin, migrar-datos
+shared/cabeceras.json       fuente unica de las cabeceras de seguridad
+scripts/                    build-estaciones, build-capturas, build-ocr, aplicar-cabeceras, build-distancias, set-admin
 ```
+
+En `assets/js/paginas/` hay un modulo por pagina. No estan incrustados en el HTML
+porque la CSP los bloquearia: ver el apartado 5.1.
 
 ---
 
@@ -327,15 +425,27 @@ scripts/                    build-estaciones, set-admin, migrar-datos
 
 ---
 
-## Tareas pendientes antes de publicar
+## Que viene ahora
 
-- [ ] Rotar **todas** las credenciales de la tabla del principio
-- [ ] Rellenar los datos del responsable en los cuatro documentos legales (marcados en amarillo)
-- [ ] Poner `RECAPTCHA_SITE_KEY` en `assets/js/firebase.js`
-- [ ] Crear los dos secretos de GitHub (`FIREBASE_SERVICE_ACCOUNT` y `GEMINI_API_KEY`)
-- [ ] Hacer el repositorio publico, o comprobar que quedan minutos de Actions
-- [ ] Crear el primer administrador con `scripts/set-admin.js`
-- [ ] Ejecutar la migracion de datos, primero con `--simular`
-- [ ] Borrar la coleccion `secrets` de Firestore
-- [ ] Apagar la instancia de PocketBase y el tunel de ngrok
-- [ ] Purgar del historial de git la contrasena de Gmail (`git filter-repo`) o dar el repositorio por comprometido
+El plan completo esta en [`docs/ROADMAP.md`](docs/ROADMAP.md), repartido en
+hitos e issues. Las reglas del juego que se esta construyendo, en
+[`docs/JUEGO.md`](docs/JUEGO.md).
+
+### Antes de publicar
+
+El checklist completo, con el orden y el porque de cada paso, esta en
+[`docs/LANZAMIENTO.md`](docs/LANZAMIENTO.md). Vive ahi y no aqui para que no
+haya dos copias que se separen.
+
+**El orden importa.** El historial de git todavia contiene la contrasena de
+Gmail en claro, y el worker solo es gratis e ilimitado si el repositorio es
+publico: hacerlo publico antes de purgar el historial es publicar esa
+contrasena.
+
+Y para cuando ya este abierto: [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md)
+dice que mirar cada semana, que mirar cada mes y que hacer cuando algo falla.
+
+El cron del worker esta apagado a proposito: sin credenciales no puede hacer
+nada, y cada despertar mandaba un correo de fallo y gastaba un minuto de Actions
+(se factura por minuto empezado, asi que eran ~288 minutos al dia contra el
+limite de 2.000 al mes).

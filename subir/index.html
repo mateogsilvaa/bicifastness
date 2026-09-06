@@ -1,326 +1,135 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Sube el tiempo de tu trayecto en BiciMAD con la captura de la app.">
+<meta name="robots" content="noindex">
 <title>Subir tiempo | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
-<style>
-  .estacion { font-size: .75rem; margin-top: 4px; font-weight: 600; min-height: 16px; }
-  .estacion.ok { color: var(--primary); }
-  .estacion.mal { color: var(--error); }
-  .zona-foto { position: relative; display: flex; align-items: center; justify-content: center; padding: 25px; border: 2px dashed var(--border); border-radius: var(--radio-s); background: var(--bg-input); cursor: pointer; text-align: center; transition: .3s; }
-  .zona-foto:hover, .zona-foto.encima { border-color: var(--primary); background: var(--primary-tenue); }
-  .zona-foto input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-  #vista-previa { max-width: 100%; max-height: 220px; border-radius: var(--radio-s); margin-top: 12px; display: none; }
-  .cupo { font-size: .8rem; color: var(--text-muted); text-align: center; margin-top: 12px; }
-  .resultado { margin-top: 20px; padding: 16px; border-radius: var(--radio); border: 1px solid var(--border); display: none; }
-  .resultado h3 { margin: 0 0 8px; font-size: 1rem; }
-  .resultado ul { margin: 10px 0 0; padding-left: 20px; font-size: .85rem; color: var(--text-muted); line-height: 1.6; }
-  .resultado.aprobado { border-color: var(--exito); background: rgba(52,217,123,.09); }
-  .resultado.revision { border-color: var(--aviso); background: rgba(255,176,32,.09); }
-  .resultado.rechazado { border-color: var(--error); background: rgba(255,90,90,.09); }
-  .aviso-seguridad { font-size: .8rem; color: var(--text-muted); background: var(--bg-input); border-left: 3px solid var(--primary); padding: 12px; border-radius: 6px; margin-bottom: 20px; line-height: 1.5; }
-
-  .zona-foto { border-radius: var(--radio); border-color: var(--border-fuerte); transition: all var(--transicion); }
-  .zona-foto:hover, .zona-foto.encima { background: var(--primary-tenue); }
-  .aviso-seguridad { border-radius: var(--radio-s); border-left-width: 3px; }
-  #min, #sec { font-size: 20px; text-align: center; letter-spacing: .04em; }
-  .resultado { border-radius: var(--radio); }
-</style>
 </head>
 <body>
 <a href="#principal" class="saltar-contenido">Saltar al contenido</a>
 <nav id="nav-principal"></nav>
-<div class="bottom-nav" id="nav-inferior"></div>
 
 <main class="container estrecho" id="principal">
-  <div class="card">
-    <h2>Registrar viaje</h2>
+  <h1 class="d2">Subir tiempo</h1>
 
-    <p class="aviso-seguridad">
-      Tu captura se analiza automaticamente: comprobamos que las estaciones y el
-      tiempo coincidan con lo que declaras, que el trayecto sea fisicamente posible
-      y que la imagen no se haya usado ya ni este retocada. El analisis tarda unos
-      minutos y veras el resultado en tu perfil.
-    </p>
+  <p class="menor apagado" id="cupo"></p>
+
+  <!--
+    PASO 1: la foto, y nada mas.
+
+    Antes esta pantalla pedia escribir las dos estaciones y el tiempo, que ya
+    estaban en la imagen. Cada errata acababa en la cola de revision manual.
+  -->
+  <section id="paso-foto">
+    <div class="campo">
+      <label for="foto">Captura de la app de BiciMAD</label>
+      <div class="vacio" id="zona-foto">
+        <p class="menor" id="texto-foto">Arrastra la captura o pulsa para elegirla</p>
+        <input id="foto" name="foto" type="file" accept="image/jpeg,image/png,image/webp">
+        <img id="vista-previa" class="oculto" alt="Vista previa de la captura">
+      </div>
+      <p class="menor apagado">
+        Sube la captura original de la app, sin recortar y sin pasarla por ningun
+        editor. Si la mandas por WhatsApp antes de subirla, llega recomprimida y
+        se lee peor.
+      </p>
+
+      <!-- Avisos de la comprobacion previa: son avisos, no barreras. -->
+      <div id="avisos-foto" aria-live="polite"></div>
+    </div>
+
+    <!-- Progreso de la lectura. Se rellena solo mientras se lee. -->
+    <p class="menor" id="progreso-lectura" aria-live="polite"></p>
+  </section>
+
+  <!--
+    PASO 1b: elegir, cuando la captura lleva varios trayectos.
+
+    El historial de la app es una lista, asi que una captura con dos o tres
+    viajes es lo normal, no la excepcion. Antes eso era "un viaje raro" que
+    acababa en revision manual.
+  -->
+  <section id="paso-varios" class="oculto">
+    <div class="aviso" id="resumen-varios" role="status"></div>
+    <div id="lista-trayectos"></div>
+
+    <div class="campo">
+      <label for="fecha-varios">Dia de los trayectos</label>
+      <input id="fecha-varios" type="date" required>
+    </div>
+
+    <button type="button" class="btn" id="btn-subir-varios">Subir los elegidos</button>
+    <button type="button" class="btn plano" id="btn-otra-foto-varios">Elegir otra captura</button>
+    <p class="mensaje" id="mensaje-varios" aria-live="polite"></p>
+  </section>
+
+  <!--
+    PASO 2: confirmar lo leido.
+
+    Los campos vienen rellenos con lo que se ha leido en la captura. Se pueden
+    corregir, y cada correccion se anota: saber cuanto se equivoca el lector es
+    la unica forma de mejorarlo.
+  -->
+  <section id="paso-confirmar" class="oculto">
+    <div class="aviso" id="resumen-lectura" role="status"></div>
 
     <form id="form-viaje" novalidate>
-      <div class="row">
-        <div class="form-group">
-          <label for="origen">Salida</label>
-          <input type="text" id="origen" placeholder="Ej: 25A" maxlength="4" autocomplete="off" required>
-          <p class="estacion" id="origen-nombre" aria-live="polite"></p>
+      <div class="rejilla dos">
+        <div class="campo mono">
+          <label for="origen">Estacion de salida</label>
+          <input id="origen" name="origen" type="text" inputmode="numeric"
+                 autocomplete="off" required aria-describedby="origen-nombre">
+          <p class="menor apagado" id="origen-nombre" aria-live="polite"></p>
         </div>
-        <div class="form-group">
-          <label for="destino">Meta</label>
-          <input type="text" id="destino" placeholder="Ej: 180" maxlength="4" autocomplete="off" required>
-          <p class="estacion" id="destino-nombre" aria-live="polite"></p>
+
+        <div class="campo mono">
+          <label for="destino">Estacion de meta</label>
+          <input id="destino" name="destino" type="text" inputmode="numeric"
+                 autocomplete="off" required aria-describedby="destino-nombre">
+          <p class="menor apagado" id="destino-nombre" aria-live="polite"></p>
         </div>
       </div>
 
-      <div class="row">
-        <div class="form-group">
-          <label for="min">Minutos</label>
-          <input type="number" id="min" placeholder="00" min="0" max="120" inputmode="numeric" required>
+      <div class="rejilla dos">
+        <div class="campo">
+          <label for="min">Tiempo</label>
+          <div class="fila">
+            <input id="min" name="min" type="number" min="0" max="120" step="1"
+                   inputmode="numeric" placeholder="min" required aria-label="Minutos">
+            <span class="apagado" aria-hidden="true">:</span>
+            <input id="sec" name="sec" type="number" min="0" max="59" step="1"
+                   inputmode="numeric" placeholder="seg" required aria-label="Segundos">
+          </div>
         </div>
-        <div class="form-group">
-          <label for="sec">Segundos</label>
-          <input type="number" id="sec" placeholder="00" min="0" max="59" inputmode="numeric" required>
+
+        <div class="campo">
+          <label for="fecha">Dia del trayecto</label>
+          <input id="fecha" name="fecha" type="date" required>
         </div>
       </div>
 
-      <div class="form-group">
-        <label for="fecha">Fecha del viaje</label>
-        <input type="date" id="fecha" required>
-      </div>
-
-      <div class="form-group">
-        <label for="foto">Captura de verificacion</label>
-        <div class="zona-foto" id="zona-foto">
-          <span id="texto-foto">Toca para elegir la captura</span>
-          <!-- Sin `capture`: la captura sale de la galeria, no de la camara.
-               Poner capture="environment" en movil abre la camara trasera
-               directamente, que es justo lo que NO queremos aqui. -->
-          <input type="file" id="foto" accept="image/png,image/jpeg,image/webp" required>
-        </div>
-        <img id="vista-previa" alt="Vista previa de la captura seleccionada">
-      </div>
-
-      <button type="submit" id="btn-enviar">Enviar</button>
+      <button type="submit" class="btn" id="btn-enviar">Confirmar y subir</button>
+      <button type="button" class="btn plano" id="btn-otra-foto">Elegir otra captura</button>
+      <p class="mensaje" id="mensaje" aria-live="polite"></p>
     </form>
+  </section>
 
-    <p class="mensaje" id="mensaje"></p>
-    <p class="cupo" id="cupo"></p>
-
-    <section class="resultado" id="resultado" tabindex="-1"></section>
-  </div>
+  <div id="resultado"></div>
 </main>
 
 <footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
 
-<script type="module">
-  import {
-    auth, db, onAuthStateChanged, traducirError,
-    collection, doc, getDoc, writeBatch, serverTimestamp,
-  } from '/assets/js/firebase.js';
-  import { iniciarPagina, normalizarEstacion, nombreEstacion } from '/assets/js/ui.js';
-  import { id, el, estado, reemplazar } from '/assets/js/dom.js';
-
-  iniciarPagina('subir');
-
-  const mensaje = id('mensaje');
-  const boton = id('btn-enviar');
-  const resultado = id('resultado');
-  let perfil = null;
-
-  onAuthStateChanged(auth, async (usuario) => {
-    if (!usuario) { window.location.replace('/entrar/'); return; }
-    const snap = await getDoc(doc(db, 'usuarios', usuario.uid));
-    if (!snap.exists()) {
-      estado(mensaje, 'Termina de crear tu perfil antes de subir viajes.', 'aviso');
-      boton.disabled = true;
-      return;
-    }
-    perfil = { uid: usuario.uid, ...snap.data() };
-    if (perfil.suspendido) {
-      estado(mensaje, 'Tu cuenta esta suspendida.', 'error');
-      boton.disabled = true;
-    }
-  });
-
-  // La fecha no puede ser futura ni de hace mas de 30 dias: el mismo limite que
-  // aplica el servidor, aqui solo para que el selector no ofrezca imposibles.
-  const hoy = new Date();
-  const campoFecha = id('fecha');
-  campoFecha.max = hoy.toISOString().slice(0, 10);
-  campoFecha.min = new Date(hoy.getTime() - 30 * 864e5).toISOString().slice(0, 10);
-  campoFecha.value = campoFecha.max;
-
-  // --- Estaciones ---
-  function pintarEstacion(campo) {
-    const entrada = id(campo);
-    const etiqueta = id(`${campo}-nombre`);
-    const valor = normalizarEstacion(entrada.value);
-    if (valor) entrada.value = valor;
-
-    const nombre = nombreEstacion(valor);
-    if (!valor) { etiqueta.textContent = ''; etiqueta.className = 'estacion'; return true; }
-    etiqueta.textContent = nombre ? `📍 ${nombre}` : 'Esa estacion no existe';
-    etiqueta.className = `estacion ${nombre ? 'ok' : 'mal'}`;
-    entrada.setAttribute('aria-invalid', nombre ? 'false' : 'true');
-    return Boolean(nombre);
-  }
-  for (const campo of ['origen', 'destino']) {
-    id(campo).addEventListener('blur', () => pintarEstacion(campo));
-  }
-
-  // --- Captura ---
-  const zona = id('zona-foto');
-  const entradaFoto = id('foto');
-  const vista = id('vista-previa');
-
-  ['dragenter', 'dragover'].forEach((ev) => zona.addEventListener(ev, (e) => {
-    e.preventDefault(); zona.classList.add('encima');
-  }));
-  ['dragleave', 'drop'].forEach((ev) => zona.addEventListener(ev, (e) => {
-    e.preventDefault(); zona.classList.remove('encima');
-  }));
-  zona.addEventListener('drop', (e) => {
-    if (e.dataTransfer.files.length) { entradaFoto.files = e.dataTransfer.files; mostrarFoto(); }
-  });
-  entradaFoto.addEventListener('change', mostrarFoto);
-
-  function mostrarFoto() {
-    const fichero = entradaFoto.files[0];
-    if (!fichero) return;
-    id('texto-foto').textContent = fichero.name;
-    vista.src = URL.createObjectURL(fichero);
-    vista.style.display = 'block';
-  }
-
-  /**
-   * Comprime la captura antes de enviarla.
-   * Se sube a 900 px de ancho (antes eran 500) porque el analisis forense del
-   * servidor necesita ver el renderizado del texto para detectar retoques; a
-   * 500 px se perdia justo la informacion que delata la manipulacion.
-   */
-  function comprimir(fichero) {
-    return new Promise((resolver, rechazar) => {
-      const lector = new FileReader();
-      lector.onerror = () => rechazar(new Error('No se ha podido leer el fichero.'));
-      lector.onload = (e) => {
-        const img = new Image();
-        img.onerror = () => rechazar(new Error('El fichero no es una imagen valida.'));
-        img.onload = () => {
-          const anchoMax = 900;
-          const escala = Math.min(1, anchoMax / img.width);
-          const lienzo = document.createElement('canvas');
-          lienzo.width = Math.round(img.width * escala);
-          lienzo.height = Math.round(img.height * escala);
-          const ctx = lienzo.getContext('2d');
-          ctx.fillStyle = '#fff';
-          ctx.fillRect(0, 0, lienzo.width, lienzo.height);
-          ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height);
-          resolver(lienzo.toDataURL('image/jpeg', 0.85));
-        };
-        img.src = e.target.result;
-      };
-      lector.readAsDataURL(fichero);
-    });
-  }
-
-  // --- Envio ---
-  id('form-viaje').addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-    resultado.style.display = 'none';
-
-    const origenOk = pintarEstacion('origen');
-    const destinoOk = pintarEstacion('destino');
-    const fichero = entradaFoto.files[0];
-
-    if (!origenOk || !destinoOk) { estado(mensaje, 'Revisa las estaciones.', 'error'); return; }
-    if (!fichero) { estado(mensaje, 'Falta la captura de verificacion.', 'error'); return; }
-
-    if (!perfil) { estado(mensaje, 'Todavia se esta cargando tu perfil.', 'aviso'); return; }
-
-    const minutos = Number(id('min').value) || 0;
-    const segundos = Number(id('sec').value) || 0;
-    const tiempoSegundos = minutos * 60 + segundos;
-
-    if (tiempoSegundos < 30 || tiempoSegundos > 7200) {
-      estado(mensaje, 'El tiempo debe estar entre 30 segundos y 2 horas.', 'error');
-      return;
-    }
-
-    boton.disabled = true;
-    boton.textContent = 'Enviando...';
-    estado(mensaje, 'Subiendo la captura...');
-
-    try {
-      const captura = await comprimir(fichero);
-
-      // El viaje y su captura se escriben juntos, en un lote: si una de las dos
-      // fallara, el worker se encontraria un viaje sin imagen (o al reves).
-      //
-      // El navegador solo puede PROPONER: las reglas obligan a que nazca en
-      // estado 'pendiente' y con verificado en false. El veredicto lo pone el
-      // worker, que corre en GitHub Actions con credenciales de administrador.
-      const ruta = `${normalizarEstacion(id('origen').value)}-${normalizarEstacion(id('destino').value)}`;
-      const viajeRef = doc(collection(db, 'tiempos_viaje'));
-      const lote = writeBatch(db);
-
-      lote.set(viajeRef, {
-        uid: perfil.uid,
-        username: perfil.username,
-        ruta,
-        tiempoSegundos,
-        tiempoFormateado: `${String(minutos).padStart(2, '0')}m ${String(segundos).padStart(2, '0')}s`,
-        fechaViaje: campoFecha.value,
-        estado: 'pendiente',
-        verificado: false,
-        creado: serverTimestamp(),
-      });
-
-      // La imagen va en su propia coleccion, cerrada al cliente: asi el ranking
-      // no arrastra megas de fotos y nadie puede rasparlas.
-      lote.set(doc(db, 'capturas', viajeRef.id), {
-        uid: perfil.uid,
-        datos: captura,
-        creado: serverTimestamp(),
-      });
-
-      await lote.commit();
-
-      estado(mensaje, '');
-      mostrarEnCola();
-
-      id('form-viaje').reset();
-      vista.style.display = 'none';
-      id('texto-foto').textContent = 'Arrastra la captura o haz clic';
-      for (const c of ['origen', 'destino']) id(`${c}-nombre`).textContent = '';
-      campoFecha.value = campoFecha.max;
-    } catch (error) {
-      estado(mensaje, traducirError(error), 'error');
-    } finally {
-      boton.disabled = false;
-      boton.textContent = 'Enviar';
-    }
-  });
-
-  /**
-   * El analisis no es instantaneo: lo hace un proceso programado que se
-   * despierta cada pocos minutos. Conviene decirlo claro para que nadie
-   * reenvie el mismo viaje pensando que no se ha guardado.
-   */
-  function mostrarEnCola() {
-    reemplazar(resultado,
-      el('h3', { texto: 'Viaje recibido' }),
-      el('p', {
-        texto: 'Se esta analizando: comprobamos que las estaciones y el tiempo cuadren con la '
-          + 'captura, que el trayecto sea posible y que la imagen no este retocada.',
-        estilo: { margin: '0 0 8px', fontSize: '.9rem', lineHeight: '1.5' },
-      }),
-      el('p', {
-        texto: 'Suele tardar unos minutos. Puedes seguir el estado en tu perfil.',
-        estilo: { margin: '0 0 12px', fontSize: '.85rem', color: 'var(--text-muted)' },
-      }),
-      el('a', {
-        texto: 'Ver mi historial',
-        attrs: { href: '/profile/' },
-        estilo: {
-          display: 'inline-block', background: 'var(--primary)', color: '#fff',
-          padding: '12px 20px', borderRadius: '10px', textDecoration: 'none', fontWeight: '700',
-        },
-      }));
-
-    resultado.className = 'resultado revision';
-    resultado.style.display = 'block';
-    resultado.focus();
-  }
-</script>
+<script type="module" src="/assets/js/paginas/subir.js"></script>
 </body>
 </html>

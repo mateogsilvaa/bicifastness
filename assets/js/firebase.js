@@ -12,14 +12,16 @@
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {
-  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  initializeAuth, onAuthStateChanged, signInWithEmailAndPassword,
   createUserWithEmailAndPassword, signOut, sendPasswordResetEmail,
-  sendEmailVerification, setPersistence, browserLocalPersistence,
+  sendEmailVerification, browserLocalPersistence,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
-  getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
-  deleteDoc, query, where, orderBy, limit, serverTimestamp, increment,
-  arrayUnion, arrayRemove, writeBatch, Timestamp,
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
+  deleteDoc, query, where, orderBy, limit, startAfter, serverTimestamp, increment,
+  arrayUnion, arrayRemove, writeBatch, Timestamp, onSnapshot, getDocsFromCache,
+  getCountFromServer,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import {
   initializeAppCheck, ReCaptchaV3Provider,
@@ -44,8 +46,56 @@ const configuracion = {
 const RECAPTCHA_SITE_KEY = '__PON_AQUI_TU_CLAVE_DE_RECAPTCHA_V3__';
 
 export const app = initializeApp(configuracion);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+/**
+ * `initializeAuth` y no `getAuth`, y sin resolutor de popup/redirect.
+ *
+ * `getAuth()` arrastra el resolutor de OAuth por defecto, y ese carga
+ * `https://apis.google.com/js/api.js` para montar el iframe de los flujos con
+ * proveedor externo. Aqui NO hay proveedores externos: se entra solo con correo
+ * y contrasena. Consecuencias de dejarlo:
+ *
+ *   - la CSP lo bloquea (y con razon: es un dominio que no necesitamos), y el
+ *     navegador llena la consola de errores en cada carga del login
+ *   - o se mete `apis.google.com` en la CSP para nada
+ *
+ * Al declarar la persistencia aqui tampoco hace falta `setPersistence` despues,
+ * que era una promesa suelta cuyo fallo se tragaba un `.catch(() => {})`.
+ *
+ * Si algun dia se anade "entrar con Google", habra que pasarle
+ * `popupRedirectResolver: browserPopupRedirectResolver` y anadir el dominio.
+ */
+export const auth = initializeAuth(app, {
+  persistence: browserLocalPersistence,
+});
+/**
+ * Firestore con cache local persistente (#37).
+ *
+ * Sin esto, volver a una pantalla ya visitada vuelve a pagar todas sus lecturas.
+ * Con la cache en IndexedDB, una consulta que no ha cambiado se sirve del disco
+ * del propio movil y **no cuenta en la cuota diaria**, que es el limite que de
+ * verdad aprieta en el plan Spark (ver docs/COSTE.md).
+ *
+ * `persistentMultipleTabManager` y no el de una sola pestana: con el sencillo,
+ * abrir la web en dos pestanas deja a la segunda SIN cache y sin aviso. Pasa mas
+ * de lo que parece, porque la app se abre desde enlaces.
+ *
+ * Es `initializeFirestore` y no `getFirestore` porque la cache solo se puede
+ * declarar en la creacion. Y va con try: en modo privado de Safari IndexedDB
+ * puede no estar disponible, y quedarse sin cache es peor que quedarse sin web.
+ */
+function crearFirestore() {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch (error) {
+    console.warn('Sin cache local de Firestore; se leera todo de red.', error);
+    return initializeFirestore(app, {});
+  }
+}
+
+export const db = crearFirestore();
 
 if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('__')) {
   initializeAppCheck(app, {
@@ -56,14 +106,23 @@ if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('__')) {
   console.warn('App Check sin configurar: rellena RECAPTCHA_SITE_KEY en assets/js/firebase.js');
 }
 
-setPersistence(auth, browserLocalPersistence).catch(() => {});
-
 export {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut, sendPasswordResetEmail, sendEmailVerification,
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, increment,
+  query, where, orderBy, limit, startAfter, serverTimestamp, increment,
   arrayUnion, arrayRemove, writeBatch, Timestamp,
+  // `onSnapshot` se usa SOLO sobre documentos sueltos, nunca sobre una
+  // coleccion: cada cambio escuchado es una lectura facturada (ver
+  // assets/js/estado-viaje.js).
+  onSnapshot,
+  // Lee SOLO de la cache local, sin tocar la red ni gastar cuota. Lanza si no
+  // hay nada cacheado, asi que quien lo use tiene que tener un plan B.
+  getDocsFromCache,
+  // Cuenta sin traerse los documentos: Firestore cobra UNA lectura por cada
+  // 1.000 contados. Para poner un numero en pantalla es lo correcto; traerse la
+  // coleccion para hacer `.length` cuesta una lectura por documento.
+  getCountFromServer,
 };
 
 /**
@@ -103,7 +162,57 @@ export function traducirErrorAuth(error) {
   return mensajes[error?.code] || 'No se ha podido completar la operacion.';
 }
 
-/** Avatar por defecto, generado a partir del nombre de piloto. */
+/**
+ * Avatar por defecto: las iniciales sobre el azul de la marca.
+ *
+ * SE DIBUJA AQUI, no se pide fuera, y el motivo es de #55. Antes salia de
+ * `api.dicebear.com`, o sea que cada avatar era una peticion a un tercero — y
+ * no solo cuando entraba esa persona: **cuando cualquiera abria una
+ * clasificacion donde ella salia**. Con el nombre de piloto dentro de la URL:
+ *
+ *     https://api.dicebear.com/7.x/initials/svg?seed=Nombre+Del+Piloto
+ *
+ * Un identificador seudonimo mas la IP de quien mira, en cada carga, a un
+ * servidor que la politica de privacidad no declaraba.
+ *
+ * Y no habia por que: es un circulo con dos letras. Dibujarlo en local quita
+ * el tercero, quita una peticion de red por avatar, quita una entrada de la
+ * CSP y —lo que mas se nota— **hace que los avatares funcionen sin conexion**,
+ * que con la PWA de #52 importa.
+ *
+ * `encodeURIComponent` sobre el SVG entero, no solo sobre el nombre: dentro va
+ * texto que ha escrito un usuario, y un `"` o un `<` sueltos romperian el
+ * data: URI o meterian marcado donde no toca.
+ */
 export function avatarPorDefecto(nombre) {
-  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nombre || 'Piloto')}&backgroundColor=0071c3`;
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">'
+    + '<rect width="80" height="80" rx="40" fill="#0071c3"/>'
+    + '<text x="40" y="40" fill="#fff" font-family="system-ui,sans-serif" font-size="32"'
+    + ' font-weight="600" text-anchor="middle" dominant-baseline="central">'
+    + escaparXml(iniciales(nombre))
+    + '</text></svg>';
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+/** Una o dos letras: "Ana Perez" -> "AP", "Ana" -> "A". */
+function iniciales(nombre) {
+  const palabras = String(nombre || 'Piloto').trim().split(/\s+/).filter(Boolean);
+  if (!palabras.length) return 'P';
+
+  const letras = palabras.length === 1
+    ? palabras[0].slice(0, 1)
+    : palabras[0].slice(0, 1) + palabras[palabras.length - 1].slice(0, 1);
+
+  return letras.toUpperCase();
+}
+
+/** Lo minimo para que un nombre no pueda romper el SVG. */
+function escaparXml(texto) {
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }

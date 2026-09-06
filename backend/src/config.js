@@ -11,8 +11,6 @@
 // --- Limites de subida -------------------------------------------------------
 const LIMITES = {
   VIAJES_POR_DIA: 3,
-  VIAJES_POR_SEMANA: 12,
-  SEGUNDOS_ENTRE_SUBIDAS: 60,
   // Antiguedad maxima de un viaje que se puede reclamar.
   DIAS_MAX_ANTIGUEDAD: 30,
   // Tamano maximo de la captura ya comprimida por el cliente.
@@ -84,8 +82,21 @@ const IMAGEN = {
   // Distancia de Hamming sobre el dHash de 64 bits. 0 = identica.
   // <= 6 sobre capturas de movil distintas es practicamente la misma imagen.
   MAX_DISTANCIA_PERCEPTUAL: 6,
-  // Cuantos hashes recientes comparamos (los mas nuevos primero).
-  VENTANA_COMPARACION: 400,
+  /**
+   * Cuantos hashes recientes comparamos (los mas nuevos primero).
+   *
+   * Esto solo acota la comparacion PERCEPTUAL, la que pilla una captura
+   * recomprimida o recortada. La byte a byte no depende de esta ventana: el id
+   * del documento de `huellas_captura` ES el sha, asi que se busca directa y
+   * pilla el duplicado por viejo que sea.
+   *
+   * 150 y no 400 porque era la lectura mas cara del worker — 400 documentos por
+   * cada viaje procesado, 153.600 al dia con 240 subidas (docs/COSTE.md) — y lo
+   * que se pierde es poco: recomprimir una captura para colarla otra vez se hace
+   * a los pocos dias del original, no meses despues. Y aunque se pierda, es la
+   * comprobacion blanda: el duplicado exacto sigue siendo infalible.
+   */
+  VENTANA_COMPARACION: 150,
 };
 
 // --- Puntuacion de la competicion -------------------------------------------
@@ -97,6 +108,58 @@ const PUNTOS = {
   MULTIPLICADOR_RUTA_HISTORICA: 1.5,
   // Puntos que aporta cada piloto a su clan por dominar una estacion.
   ESTACION_POR_POSICION: [7, 5, 3, 1, 1, 1, 1, 1, 1, 1],
+  /**
+   * Cuantos viajes se leen de una ruta para rehacer su clasificacion.
+   *
+   * Solo puntuan los siete primeros (`POR_POSICION`), y solo cuenta el mejor
+   * tiempo de cada piloto, asi que basta con los mas rapidos: a quien se cae del
+   * podio se le quitan los puntos por la otra consulta, la de quien ya puntuaba.
+   *
+   * Sin tope, esto crecia sin fin — era la lectura mas cara del worker con 240
+   * subidas al dia (docs/COSTE.md). Para que 200 se quedara corto harian falta
+   * seis pilotos con casi doscientos viajes entre ellos, todos mas rapidos que
+   * el septimo: no es un escenario, es una anecdota.
+   */
+  TOPE_CLASIFICACION_RUTA: 200,
+};
+
+// --- Puntos de cada viaje ----------------------------------------------------
+/**
+ * La v1 solo media el tiempo entre dos estaciones, asi que solo puntuaba ir
+ * rapido: quien hacia 40 km tranquilos a la semana no aparecia en ningun sitio
+ * y se iba. Estos numeros reparten los puntos entre distancia y velocidad para
+ * que quepan los dos perfiles. Ver docs/JUEGO.md.
+ *
+ * Comprobacion de que ninguno domina al otro:
+ *   velocista  1,5 km a 20 km/h -> 10 + 9  + 30 = 49
+ *   fondista   6,0 km a 12 km/h -> 10 + 36 + 10 = 56
+ *   diario     2,5 km a 13 km/h -> 10 + 15 + 13 = 38
+ */
+const VIAJE = {
+  BASE: 10,
+  PUNTOS_POR_KM: 6,
+  // Por debajo de esta velocidad no se puntua por ir rapido, pero TAMPOCO se
+  // resta: un trayecto lento sigue sumando por base y por distancia.
+  VELOCIDAD_UMBRAL_KMH: 8,
+  PUNTOS_POR_KMH: 2.5,
+  // Bonus por pedalear en una estacion que controla tu clan. Solo un 10%: mas
+  // alto convertiria el juego en una bola de nieve, porque el clan que domina
+  // puntuaria mas y con ello dominaria mas.
+  MULTIPLICADOR_TERRITORIO: 1.1,
+};
+
+// --- Racha diaria ------------------------------------------------------------
+/**
+ * El escudo no es un regalo: perder una racha de 40 dias por un dia de gripe
+ * hace que la gente ABANDONE, no que se esfuerce mas. Y se gasta solo, porque
+ * si hubiera que entrar en la web a usarlo seria el mismo problema que intenta
+ * evitar.
+ */
+const RACHA = {
+  INCREMENTO_POR_DIA: 0.05,
+  DIAS_TOPE: 10,          // el multiplicador deja de crecer aqui: x1,5
+  DIAS_POR_ESCUDO: 7,
+  MAX_ESCUDOS: 2,
 };
 
 // --- Version vigente de los textos legales ----------------------------------
@@ -106,8 +169,8 @@ const PUNTOS = {
  * hash del documento, que es lo que exige el RGPD para poder demostrarlo.
  */
 const LEGAL = {
-  VERSION_TERMINOS: '1.0.0',
-  VERSION_PRIVACIDAD: '1.0.0',
+  VERSION_TERMINOS: '1.3.0',
+  VERSION_PRIVACIDAD: '1.3.0',
 };
 
-module.exports = { LIMITES, FISICA, TIEMPO, RIESGO, IMAGEN, PUNTOS, LEGAL, HORARIO };
+module.exports = { LIMITES, FISICA, TIEMPO, RIESGO, IMAGEN, PUNTOS, VIAJE, RACHA, LEGAL, HORARIO };

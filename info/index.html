@@ -1,142 +1,172 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Como funciona BiciFastness: subida de tiempos, verificacion automatica, rankings y clanes.">
+<meta name="description" content="Como funciona BiciFastness: subir un trayecto, la verificacion automatica, la puntuacion y los clanes.">
 <title>Como funciona | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
-<style>
-  .container { max-width: 760px; }
-  section { margin-bottom: 36px; }
-  h3 { font-size: 1.05rem; margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
-  h3 i { color: var(--primary); }
-  p, li { line-height: 1.7; color: var(--text-muted); font-size: .92rem; }
-  ul { padding-left: 22px; }
-  li { margin-bottom: 8px; }
-  strong { color: var(--text-main); }
-  a { color: var(--primary); }
-  .destacado { background: var(--bg-card); border-left: 4px solid var(--primary); border-radius: var(--radio-s); padding: 16px 20px; }
-  .aviso { background: rgba(255,187,51,.08); border-left: 4px solid var(--aviso); border-radius: var(--radio-s); padding: 16px 20px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .88rem; }
-  th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); }
-  th { color: var(--text-main); font-size: .8rem; text-transform: uppercase; }
-  td { color: var(--text-muted); }
-</style>
 </head>
 <body>
 <a href="#principal" class="saltar-contenido">Saltar al contenido</a>
 <nav id="nav-principal"></nav>
-<div class="bottom-nav" id="nav-inferior"></div>
 
 <main class="container" id="principal">
-  <h2>Como funciona</h2>
+  <h1 class="d2">Como funciona</h1>
 
-  <section class="aviso">
-    <h3><i class="fi fi-sr-triangle-warning"></i> Antes de nada: la seguridad manda</h3>
-    <p style="margin: 0;">
-      BiciFastness es un juego sobre calles reales, con trafico real. <strong>No es
-      una invitacion a correr.</strong> Respeta siempre las normas de circulacion,
-      los semaforos, los pasos de peatones y los limites de velocidad. Ningun
-      puesto en un ranking justifica un accidente: si un tiempo solo se consigue
-      saltandose las normas, ese tiempo no vale la pena.
-    </p>
-  </section>
-
-  <section>
-    <h3><i class="fi fi-sr-add"></i> Subir un tiempo</h3>
+  <!-- Va lo primero a proposito: es lo unico de esta pagina que importa de verdad. -->
+  <div class="aviso atencion seccion">
+    <p class="etiqueta">Antes de nada</p>
     <p>
-      Al terminar un trayecto, la app de BiciMAD muestra el resumen con las
-      estaciones, las horas y la duracion. Haz una captura de esa pantalla y
-      subela junto con los datos del viaje.
+      BiciFastness es un juego sobre calles reales, con trafico real. <strong>No es
+      una invitacion a correr.</strong> Respeta las normas de circulacion, los
+      semaforos y los pasos de peatones. Ningun puesto en una clasificacion
+      justifica un accidente: si un tiempo solo se consigue saltandose las
+      normas, ese tiempo no vale la pena.
+    </p>
+  </div>
+
+  <section class="seccion">
+    <h2 class="h2">Subir un trayecto</h2>
+    <p>
+      Al terminar, la app de BiciMAD ensena el resumen con las estaciones, las
+      horas y la duracion. Haz una captura de esa pantalla y subela.
+    </p>
+    <p class="menor apagado">
+      Sube la captura original, sin recortar y sin pasarla por ningun editor. Si
+      la mandas por WhatsApp antes de subirla, llega recomprimida y se lee peor.
     </p>
   </section>
 
-  <section>
-    <h3><i class="fi fi-sr-shield-check"></i> Verificacion automatica</h3>
-    <p>Cada captura se analiza en el servidor nada mas subirla. Estas son las comprobaciones que pasa:</p>
-    <ul>
-      <li><strong>Coherencia interna:</strong> la resta entre la hora de llegada y la de salida tiene que dar la duracion del recuadro. Si solo se retoca el numero grande, la resta lo delata.</li>
-      <li><strong>Coincidencia con lo declarado:</strong> las estaciones y el tiempo leidos en la imagen se comparan con lo que has escrito en el formulario.</li>
-      <li><strong>Plausibilidad fisica:</strong> se calcula la distancia real entre las dos estaciones y la velocidad media que implica tu tiempo. Las BiciMAD cortan la asistencia a 25 km/h, asi que hay un suelo de tiempo que ningun trayecto puede bajar.</li>
-      <li><strong>Integridad de la imagen:</strong> se examina el renderizado del texto para detectar cifras superpuestas y se revisan los metadatos en busca de rastros de editores.</li>
-      <li><strong>Reutilizacion:</strong> se guarda una huella de cada captura. La misma imagen no se puede usar dos veces, ni recortandola, ni reescalandola, ni volviendola a comprimir.</li>
-    </ul>
-    <div class="destacado">
-      <p style="margin: 0;">
-        Si todo cuadra, tu tiempo entra al ranking <strong>al instante</strong>. Si
-        hay algo raro pero no concluyente, pasa a revision humana. Solo se rechaza
-        en automatico lo que es demostrablemente imposible o falso.
+  <section class="seccion">
+    <h2 class="h2">Verificacion</h2>
+    <p>Cada captura pasa por estas comprobaciones antes de contar:</p>
+
+    <div class="bloque">
+      <p class="etiqueta">Coherencia interna</p>
+      <p class="menor">
+        La resta entre la hora de llegada y la de salida tiene que dar la
+        duracion del recuadro. Quien retoca una captura cambia el numero grande
+        y se deja las horas: esa resta lo delata.
       </p>
     </div>
-  </section>
 
-  <section>
-    <h3><i class="fi fi-sr-ranking-star"></i> Puntuacion</h3>
-    <p>De cada ruta solo cuenta tu mejor tiempo verificado.</p>
-    <table>
-      <thead><tr><th>Concepto</th><th>Puntos</th></tr></thead>
-      <tbody>
-        <tr><td>Cada viaje verificado</td><td>5</td></tr>
-        <tr><td>1.&ordm; de una ruta</td><td>80</td></tr>
-        <tr><td>2.&ordm; de una ruta</td><td>65</td></tr>
-        <tr><td>3.&ordm; de una ruta</td><td>55</td></tr>
-        <tr><td>4.&ordm; y 5.&ordm;</td><td>35</td></tr>
-        <tr><td>6.&ordm; y 7.&ordm;</td><td>20</td></tr>
-        <tr><td>Ruta destacada de la temporada</td><td>puntos &times;2</td></tr>
-        <tr><td>Rutas que ya fueron destacadas</td><td>puntos &times;1,5</td></tr>
-      </tbody>
-    </table>
-  </section>
+    <div class="bloque">
+      <p class="etiqueta">Plausibilidad fisica</p>
+      <p class="menor">
+        Se calcula la distancia real entre las dos estaciones y la velocidad
+        media que implica tu tiempo. Las BiciMAD cortan la asistencia a 25 km/h,
+        asi que hay un suelo de tiempo que ningun trayecto puede bajar.
+      </p>
+    </div>
 
-  <section>
-    <h3><i class="fi fi-sr-team-check-alt"></i> Clanes y territorio</h3>
-    <p>
-      Puedes fundar un clan o pedir entrar en uno. En cada ruta, los diez mejores
-      tiempos reparten puntos entre los clanes de sus pilotos, y el clan con mas
-      puntos en una estacion la <strong>domina</strong>: se pinta de su color en el mapa.
+    <div class="bloque">
+      <p class="etiqueta">Reutilizacion</p>
+      <p class="menor">
+        Se guarda una huella de cada captura. La misma imagen no se puede usar
+        dos veces, ni recortandola, ni reescalandola, ni volviendola a comprimir.
+      </p>
+    </div>
+
+    <div class="bloque">
+      <p class="etiqueta">Metadatos</p>
+      <p class="menor">
+        Una captura autentica de un movil no ha pasado por un editor de imagen.
+        Si lleva rastros de uno, se nota.
+      </p>
+    </div>
+
+    <p class="menor apagado">
+      La revision tarda unos minutos, no es inmediata. Si algo no cuadra pero no
+      es concluyente, lo mira una persona: solo se rechaza en automatico lo que
+      es demostrablemente imposible. Y si crees que un rechazo es un error,
+      puedes pedir revision humana desde tu perfil.
     </p>
   </section>
 
-  <section>
-    <h3><i class="fi fi-sr-flag"></i> Reportes</h3>
+  <section class="seccion">
+    <h2 class="h2">Puntuacion</h2>
     <p>
-      Si un tiempo te parece imposible, puedes reportarlo desde el ranking. Los
-      reportes estan limitados y quedan registrados: denunciar en falso de forma
-      repetida puede suponer la suspension de la cuenta.
+      Un trayecto suma por tres cosas a la vez, no solo por ir rapido. La idea es
+      que quepan los dos perfiles: quien hace tramos cortos y veloces y quien usa
+      la bici como transporte.
+    </p>
+
+    <div class="tabla-scroll">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th scope="col">Concepto</th>
+            <th scope="col" class="col-marca">Puntos</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Base, por trayecto verificado</td><td class="col-marca"><span class="marca">10</span></td></tr>
+          <tr><td>Distancia</td><td class="col-marca"><span class="marca">6 / km</span></td></tr>
+          <tr><td>Velocidad, por encima de 8 km/h</td><td class="col-marca"><span class="marca">2,5</span></td></tr>
+          <tr><td>Racha diaria</td><td class="col-marca"><span class="marca">hasta &times;1,5</span></td></tr>
+          <tr><td>Ruta del dia</td><td class="col-marca"><span class="marca">&times;2</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="menor apagado">
+      Ir despacio no resta: por debajo de 8 km/h no se puntua por velocidad, pero
+      el trayecto sigue sumando por base y por distancia. De cada ruta cuenta solo
+      tu mejor tiempo verificado, y puntuan como maximo tres trayectos al dia.
     </p>
   </section>
 
-  <section>
-    <h3><i class="fi fi-sr-document"></i> Tus datos y tus derechos</h3>
+  <section class="seccion">
+    <h2 class="h2">Rachas</h2>
     <p>
-      Desde <a href="/profile/">tu perfil</a> puedes descargar todo lo que
-      guardamos sobre ti o eliminar tu cuenta. Consulta la
-      <a href="/legal/privacidad/">Politica de Privacidad</a> y los
-      <a href="/legal/terminos/">Terminos de Uso</a>.
+      Un dia con al menos un trayecto verificado mantiene la racha, y la racha
+      multiplica tus puntos. Cada siete dias activos ganas un <strong>escudo</strong>,
+      y si un dia no puedes salir, el escudo se gasta solo y la racha sobrevive.
+      No hay que entrar aqui a usarlo.
     </p>
   </section>
 
-  <section>
-    <h3><i class="fi fi-sr-info"></i> Sobre BiciMAD</h3>
+  <section class="seccion">
+    <h2 class="h2">Clanes y territorio</h2>
     <p>
-      BiciFastness es un proyecto independiente hecho por aficionados.
-      <strong>No tiene ninguna relacion, patrocinio ni respaldo de BiciMAD, de la
-      EMT de Madrid ni del Ayuntamiento de Madrid.</strong> "BiciMAD" es una marca
-      de sus titulares y se menciona aqui unicamente para describir el servicio
-      publico al que se refieren los tiempos.
+      Puedes fundar un clan o pedir entrar en uno. Los clanes se disputan las
+      estaciones: la influencia de cada uno sale de cuantos trayectos hace, de
+      los tiempos que consigue y de los kilometros que acumula.
+    </p>
+    <p>
+      El territorio <strong>decae</strong>: si un clan deja de pedalear, pierde
+      influencia dia a dia. Mantener una estacion exige seguir usandola, no
+      haberla conquistado una vez.
     </p>
   </section>
+
+  <section class="seccion">
+    <h2 class="h2">Temporadas</h2>
+    <p>
+      Cada mes empieza una temporada nueva y los puntos vuelven a cero. Lo que no
+      se resetea: tus records por tramo, tus kilometros totales y tus insignias.
+      Asi quien llega hoy compite desde el principio en vez de mirar una tabla
+      que no va a alcanzar.
+    </p>
+  </section>
+
+  <p class="menor apagado">
+    Proyecto independiente, sin relacion con BiciMAD, la EMT ni el Ayuntamiento
+    de Madrid.
+  </p>
 </main>
 
 <footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
 
-<script type="module">
-  import { iniciarPagina } from '/assets/js/ui.js';
-  iniciarPagina('info');
-</script>
+<script type="module" src="/assets/js/paginas/info.js"></script>
 </body>
 </html>

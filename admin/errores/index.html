@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Errores registrados en la web de BiciFastness.">
+<meta name="robots" content="noindex">
+<title>Errores | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<main class="container" id="principal">
+  <h1 class="d2">Errores</h1>
+  <p class="menor apagado">
+    Agrupados por huella y ordenados por <strong>a cuanta gente afectan</strong>,
+    no por cuantas veces pasan. Un fallo que le ocurre a treinta personas una vez
+    importa mas que uno que le ocurre treinta veces a la misma.
+  </p>
+
+  <div class="fila" style="flex-wrap: wrap; margin-bottom: var(--e5);">
+    <div class="campo" style="margin: 0;">
+      <label for="filtro-version">Version</label>
+      <select id="filtro-version"></select>
+    </div>
+    <div class="campo" style="margin: 0;">
+      <label for="filtro-pagina">Pagina</label>
+      <select id="filtro-pagina"></select>
+    </div>
+    <button class="btn secundario" id="btn-csv" type="button">Descargar CSV</button>
+  </div>
+
+  <p class="mensaje" id="mensaje" aria-live="polite"></p>
+  <div id="lista"></div>
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/admin-errores.js"></script>
+</body>
+</html>

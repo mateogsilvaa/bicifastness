@@ -1,0 +1,119 @@
+{
+  "name": "BiciFastness",
+  "short_name": "BiciFastness",
+  "description": "Compite contra la ciudad. Registra tus tiempos de BiciMAD y domina el asfalto madrileno.",
+  "lang": "es",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080a0e",
+  "theme_color": "#080a0e",
+  "categories": [
+    "sports",
+    "lifestyle"
+  ],
+  "icons": [
+    {
+      "src": "/images/icono/icono-48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icono/icono-72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icono/icono-96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icono/icono-128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icono/icono-144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icono/icono-152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icono/icono-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icono/icono-256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icono/icono-384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icono/icono-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icono/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/images/icono/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Subir un viaje",
+      "short_name": "Subir",
+      "description": "Registra el tiempo de tu ultimo trayecto",
+      "url": "/subir/",
+      "icons": [
+        {
+          "src": "/images/icono/icono-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Clasificacion",
+      "short_name": "Ranking",
+      "url": "/clasificacion/",
+      "icons": [
+        {
+          "src": "/images/icono/icono-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Territorio",
+      "short_name": "Territorio",
+      "url": "/territorio/",
+      "icons": [
+        {
+          "src": "/images/icono/icono-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}

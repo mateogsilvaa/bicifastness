@@ -2,17 +2,21 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aviso legal | BiciFastness</title>
 <link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
 <link rel="stylesheet" href="/assets/css/app.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-solid-rounded/css/uicons-solid-rounded.css">
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.1.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <link rel="stylesheet" href="/assets/css/legal.css">
 </head>
 <body>
 <nav id="nav-principal"></nav>
-<div class="bottom-nav" id="nav-inferior"></div>
+<div id="nav-inferior"></div>
 
 <main class="legal">
   <h1>Aviso legal</h1>
@@ -148,9 +152,6 @@
 </main>
 
 <footer id="pie-legal"></footer>
-<script type="module">
-  import { iniciarPagina } from '/assets/js/ui.js';
-  iniciarPagina('');
-</script>
+<script type="module" src="/assets/js/paginas/legal-aviso-legal.js"></script>
 </body>
 </html>

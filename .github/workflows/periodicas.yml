@@ -1,0 +1,112 @@
+name: Operaciones periodicas
+
+# Cierre de temporada (mensual) y divisiones (semanal).
+#
+# Van aparte del worker a proposito: el worker procesa una cola cada pocos
+# minutos, esto toca a TODOS los usuarios. Mezclarlas seria arriesgar que un
+# despliegue del worker dispare por accidente un cierre de temporada.
+#
+# LOS CRON ESTAN APAGADOS HASTA EL LANZAMIENTO, igual que el del worker. Cerrar
+# una temporada sobre datos sin migrar archivaria ceros y pondria a cero lo que
+# hay. Reactivarlos es quitar el comentario, y esta anotado en el checklist del
+# README y en el issue #7.
+#
+# ANTES DE LA PRIMERA VEZ DE VERDAD: lanzarlo a mano con `simular: true` y mirar
+# la salida. El cierre de temporada no tiene vuelta atras.
+
+on:
+  workflow_dispatch:
+    inputs:
+      operacion:
+        description: 'Que ejecutar'
+        type: choice
+        options: [temporada, divisiones]
+        required: true
+      aplicar:
+        description: 'Escribir de verdad (sin marcar, solo simula)'
+        type: boolean
+        default: false
+
+  # schedule:
+  #   # Dia 1 a las 01:30 UTC: de madrugada en Madrid con cualquier horario, y
+  #   # ya dentro del dia 1, asi que la temporada a cerrar es la del mes anterior.
+  #   - cron: '30 1 1 * *'
+  #   # Lunes a las 01:45 UTC, despues del cierre por si coinciden.
+  #   - cron: '45 1 * * 1'
+
+concurrency:
+  group: periodicas
+  cancel-in-progress: false
+
+jobs:
+  ejecutar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: npm ci
+
+      - name: Regenerar datos compartidos
+        run: node scripts/build-estaciones.js
+
+      - name: Ejecutar
+        working-directory: backend
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::warning::Sin FIREBASE_SERVICE_ACCOUNT no hay nada que hacer."
+            exit 0
+          fi
+
+          # Que operacion toca.
+          #
+          # En una ejecucion programada se decide por el cron QUE HA DISPARADO
+          # la ejecucion, no por la fecha. Decidirlo por la fecha se rompe el
+          # dia 1 que cae en lunes: los dos cron disparan, los dos ven dia 01 y
+          # los dos ejecutan el cierre de temporada, asi que esa semana las
+          # divisiones no se actualizan y el cierre corre dos veces.
+          #
+          # Un cron que no reconozcamos cae en `divisiones` a proposito: es
+          # reversible. El cierre de temporada no tiene vuelta atras, y no puede
+          # dispararlo un horario que nadie ha mirado.
+          OPERACION="${{ inputs.operacion }}"
+          if [ -z "$OPERACION" ]; then
+            case "${{ github.event.schedule }}" in
+              '30 1 1 * *') OPERACION=temporada ;;
+              '45 1 * * 1') OPERACION=divisiones ;;
+              *)
+                OPERACION=divisiones
+                echo "::warning::Cron no reconocido (${{ github.event.schedule }}): ejecuto divisiones."
+                ;;
+            esac
+            echo "::notice::Ejecucion programada: $OPERACION"
+          fi
+
+          # Escribir o solo simular.
+          #
+          # En `workflow_dispatch` manda la casilla, que viene desmarcada: quien
+          # lanza el cierre a mano tiene que pedir escribir a proposito.
+          #
+          # En una ejecucion programada NO hay `inputs`, asi que `inputs.aplicar`
+          # sale vacio. Con la expresion de antes eso daba `--simular` SIEMPRE:
+          # una vez activados los cron, la temporada no se habria cerrado nunca
+          # y nadie se habria enterado, porque el workflow salia en verde.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            MODO=--aplicar
+          else
+            MODO="${{ inputs.aplicar && '--aplicar' || '--simular' }}"
+          fi
+          echo "::notice::Modo: $MODO"
+
+          node periodicas.js "$OPERACION" "$MODO"

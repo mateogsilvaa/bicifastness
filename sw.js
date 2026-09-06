@@ -11,17 +11,34 @@
  * directo a la red.
  */
 
-const CACHE = 'bicifastness-v3';
+const CACHE = 'bicifastness-v6';
+
+// Pagina que se sirve cuando no hay red y la ruta pedida no esta cacheada.
+const OFFLINE = '/offline/';
 
 const ESTATICOS = [
   '/',
+  OFFLINE,
   '/assets/css/app.css',
   '/assets/js/firebase.js',
   '/assets/js/dom.js',
   '/assets/js/ui.js',
+  '/assets/js/instalar.js',
   '/assets/data/estaciones.js',
   '/images/logo.png',
+  '/images/icono/icono-192.png',
+  '/manifest.webmanifest',
 ];
+
+/**
+ * Paginas cuyo armazon NO se guarda.
+ *
+ * El armazon de una pagina es HTML estatico y no lleva datos de nadie — los
+ * datos llegan despues por Firestore —, pero la administracion no tiene ningun
+ * sentido offline y prefiero que no quede ni su esqueleto en una cache del
+ * origen.
+ */
+const SIN_CACHEAR = ['/admin/', '/statssss/'];
 
 self.addEventListener('install', (evento) => {
   evento.waitUntil(
@@ -52,21 +69,156 @@ self.addEventListener('fetch', (evento) => {
   if (url.origin !== self.location.origin) return;
   if (peticion.credentials === 'include') return;
 
-  const esEstatico = /\.(css|js|png|jpg|jpeg|svg|webp|woff2?|json|geojson|mp3)$/i.test(url.pathname);
+  // El motor y el modelo del OCR (#8) NO pasan por aqui. Son casi seis megas, y
+  // la estrategia de abajo es stale-while-revalidate: responderia rapido, si,
+  // pero volveria a bajarselos por detras en cada subida. De su cache se ocupa
+  // la cabecera `Cache-Control` que pone Vercel, que es una semana.
+  if (url.pathname.startsWith('/assets/ocr/')) return;
+
+  // --- Navegacion: red primero, y si no hay red, algo util ------------------
+  // Sin esto, abrir la app sin cobertura daba el error del navegador. Va red
+  // primero y no cache primero para que nadie se quede con un armazon viejo
+  // despues de un despliegue.
+  if (peticion.mode === 'navigate') {
+    if (SIN_CACHEAR.some((ruta) => url.pathname.startsWith(ruta))) return;
+    evento.respondWith(navegar(peticion));
+    return;
+  }
+
+  const esEstatico = /\.(css|js|png|jpg|jpeg|svg|webp|woff2?|json|geojson|mp3|webmanifest)$/i.test(url.pathname);
   if (!esEstatico) return;
 
-  // Stale-while-revalidate: responde rapido y actualiza por detras.
-  evento.respondWith(
-    caches.match(peticion).then((cacheada) => {
-      const red = fetch(peticion).then((respuesta) => {
-        if (respuesta.ok && respuesta.type === 'basic') {
-          const copia = respuesta.clone();
-          caches.open(CACHE).then((cache) => cache.put(peticion, copia));
-        }
-        return respuesta;
-      }).catch(() => cacheada);
+  // Dos estrategias, y la frontera es la misma que traza `vercel.json`.
+  //
+  // El CODIGO (js, css) no lleva hash en el nombre, y por eso Vercel lo sirve
+  // con `max-age=0, must-revalidate`: la idea es que el navegador compruebe
+  // SIEMPRE si hay una version nueva. Servirlo stale-while-revalidate se
+  // saltaba esa decision — respondia con la copia guardada y bajaba la nueva
+  // por detras — asi que la primera carga despues de un despliegue mezclaba
+  // HTML nuevo, que llega por red, con modulos viejos. Un armazon que importa
+  // algo que ya no esta, o al reves, y que se arregla solo al recargar: el peor
+  // tipo de fallo, porque no se reproduce cuando vas a mirarlo.
+  //
+  // Lo DEMAS (imagenes, fuentes, sonidos, datos generados) va con `immutable` a
+  // un año: si cambia, cambia de nombre. Ahi la copia guardada nunca esta
+  // equivocada y responder al instante es justo lo que se quiere.
+  const esCodigo = /\.(css|js)$/i.test(url.pathname);
 
-      return cacheada || red;
-    })
-  );
+  evento.respondWith(esCodigo ? redPrimero(peticion) : cacheRapido(peticion));
+});
+
+/** Guarda una respuesta si vale la pena. */
+function guardar(peticion, respuesta) {
+  if (!respuesta.ok || respuesta.type !== 'basic') return respuesta;
+  const copia = respuesta.clone();
+  caches.open(CACHE).then((cache) => cache.put(peticion, copia));
+  return respuesta;
+}
+
+/**
+ * Red primero, cache como red de seguridad.
+ *
+ * Sin conexion sigue habiendo app: se responde con lo ultimo que se guardo, que
+ * es lo que hace que `/offline/` pueda pintar algo en vez de un error.
+ */
+async function redPrimero(peticion) {
+  try {
+    return guardar(peticion, await fetch(peticion));
+  } catch (error) {
+    const cacheada = await caches.match(peticion);
+    if (cacheada) return cacheada;
+    throw error;
+  }
+}
+
+/** Stale-while-revalidate: responde ya y actualiza por detras. */
+function cacheRapido(peticion) {
+  return caches.match(peticion).then((cacheada) => {
+    const red = fetch(peticion)
+      .then((respuesta) => guardar(peticion, respuesta))
+      .catch(() => cacheada);
+
+    return cacheada || red;
+  });
+}
+
+/**
+ * Responde a una navegacion.
+ *
+ * Orden: red -> el armazon cacheado de esa misma pagina -> la pagina offline.
+ * Lo ultimo es lo que convierte "no hay internet" en algo que se puede leer.
+ */
+async function navegar(peticion) {
+  try {
+    const respuesta = await fetch(peticion);
+    if (respuesta.ok && respuesta.type === 'basic') {
+      const copia = respuesta.clone();
+      caches.open(CACHE).then((cache) => cache.put(peticion, copia));
+    }
+    return respuesta;
+  } catch {
+    const cache = await caches.open(CACHE);
+    return (await cache.match(peticion))
+      || (await cache.match(OFFLINE))
+      || Response.error();
+  }
+}
+
+// --- Avisos push (#33) ---------------------------------------------------------
+
+/**
+ * Un aviso que llega.
+ *
+ * `userVisibleOnly: true` obliga a enseñar SIEMPRE algo: si este manejador no
+ * muestra notificacion, el navegador enseña una generica ("Este sitio se ha
+ * actualizado en segundo plano") y, si se repite, revoca el permiso.
+ */
+self.addEventListener('push', (evento) => {
+  let datos = {};
+  try {
+    datos = evento.data ? evento.data.json() : {};
+  } catch {
+    // Un aviso con carga ilegible no puede quedarse sin enseñar nada, por lo de
+    // arriba: se enseña el texto por defecto.
+  }
+
+  const titulo = datos.titulo || 'BiciFastness';
+
+  evento.waitUntil(self.registration.showNotification(titulo, {
+    body: datos.cuerpo || '',
+    icon: '/images/icono/icono-192.png',
+    // El icono pequeño monocromo de la barra de estado en Android.
+    badge: '/images/icono/icono-96.png',
+    // Agrupa por tipo: dos avisos de racha el mismo dia se sustituyen en vez de
+    // apilarse. Sin esto, volver tras un rato es encontrarse ocho.
+    tag: datos.tipo || 'general',
+    renotify: false,
+    data: { url: datos.url || '/' },
+  }));
+});
+
+/**
+ * Al pulsar el aviso.
+ *
+ * Si ya hay una pestaña del sitio abierta se le lleva ahi en vez de abrir otra:
+ * acabar con cuatro pestañas de la misma web es lo que hace que la gente deje
+ * de pulsar los avisos.
+ */
+self.addEventListener('notificationclick', (evento) => {
+  evento.notification.close();
+  const destino = evento.notification.data?.url || '/';
+
+  evento.waitUntil((async () => {
+    const abiertas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+    for (const cliente of abiertas) {
+      if (new URL(cliente.url).origin === self.location.origin) {
+        await cliente.focus();
+        if ('navigate' in cliente) await cliente.navigate(destino);
+        return;
+      }
+    }
+
+    await self.clients.openWindow(destino);
+  })());
 });

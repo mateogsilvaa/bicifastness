@@ -1,0 +1,106 @@
+{
+  "_comentario": [
+    "Fuente unica de las cabeceras de seguridad del sitio.",
+    "",
+    "`node scripts/aplicar-cabeceras.js` la vuelca en DOS sitios:",
+    "  1. vercel.json      cabeceras HTTP de verdad, que es lo que aplica el navegador",
+    "  2. cada pagina      la CSP tambien como <meta>, como defensa en profundidad",
+    "",
+    "`npm run validar` falla si alguno de los dos se queda atras.",
+    "",
+    "Por que las dos cosas: la cabecera es la que manda y la unica que puede",
+    "declarar `frame-ancestors`. El <meta> cubre el caso de que el fichero se",
+    "sirva desde otro sitio (abierto en local, un mirror, un despliegue de",
+    "prueba), donde no habria cabecera ninguna. Ambas politicas son la misma,",
+    "asi que su interseccion no rompe nada.",
+    "",
+    "Cada origen esta porque algo lo usa. Si quitas la funcion, quita el origen."
+  ],
+  "csp": {
+    "default-src": [
+      "'self'"
+    ],
+    "script-src": [
+      "'self'",
+      "https://www.gstatic.com",
+      "https://www.google.com",
+      "https://unpkg.com",
+      "'wasm-unsafe-eval'"
+    ],
+    "worker-src": [
+      "'self'",
+      "blob:"
+    ],
+    "style-src": [
+      "'self'",
+      "'unsafe-inline'",
+      "https://unpkg.com"
+    ],
+    "font-src": [
+      "'self'"
+    ],
+    "img-src": [
+      "'self'",
+      "data:",
+      "blob:",
+      "https://*.basemaps.cartocdn.com",
+      "https://*.tile.openstreetmap.org"
+    ],
+    "connect-src": [
+      "'self'",
+      "https://*.googleapis.com",
+      "https://*.firebaseio.com",
+      "wss://*.firebaseio.com"
+    ],
+    "frame-src": [
+      "https://www.google.com",
+      "https://bicifastness.firebaseapp.com"
+    ],
+    "base-uri": [
+      "'self'"
+    ],
+    "form-action": [
+      "'self'"
+    ],
+    "object-src": [
+      "'none'"
+    ],
+    "upgrade-insecure-requests": []
+  },
+  "_csp_worker_src": [
+    "El OCR del navegador (#8) corre en un Worker propio. `blob:` hace falta de",
+    "verdad: tesseract.js se descarga su propio script de worker y lo arranca",
+    "desde un Blob, incluso pasandole `workerPath` de este dominio. Se comprobo",
+    "intentando prohibirlo: el navegador lo bloquea y el OCR no arranca.",
+    "",
+    "Que abre eso: un Worker creado desde un blob solo puede ejecutar codigo que",
+    "haya generado la propia pagina. Quien pueda generarlo ya esta ejecutando",
+    "JavaScript aqui, o sea que ya ha ganado. No le da nada nuevo a un atacante.",
+    "",
+    "Y se declara `worker-src` aparte en vez de dejar que caiga a `script-src`",
+    "porque asi un origen que se anada manana a `script-src` no da permiso de",
+    "worker sin que nadie lo haya decidido."
+  ],
+  "_csp_solo_cabecera": [
+    "Directivas que el navegador IGNORA cuando la CSP llega por <meta>, asi que",
+    "solo tienen efecto en la cabecera HTTP. Es justo lo que se perdia al",
+    "plantearse GitHub Pages."
+  ],
+  "csp_solo_cabecera": {
+    "frame-ancestors": [
+      "'none'"
+    ]
+  },
+  "_otras": [
+    "El resto de cabeceras de seguridad. Ninguna tiene equivalente en <meta>:",
+    "o van por HTTP o no existen."
+  ],
+  "otras": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), payment=(), usb=(), interest-cohort=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    "Cross-Origin-Opener-Policy": "same-origin"
+  }
+}

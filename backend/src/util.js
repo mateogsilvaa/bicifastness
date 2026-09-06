@@ -52,11 +52,6 @@ function distanciaMetros(a, b) {
 }
 
 /**
- * Saneado de texto libre que va a acabar mostrandose a otros usuarios.
- * Quita caracteres de control e invisibles (incluido el bidi override, que se
- * usa para disfrazar texto) y recorta a una longitud maxima.
- */
-/**
  * Rangos de codepoints que nunca deben sobrevivir en texto de usuario:
  * controles C0/C1, espacios de ancho cero, marcas bidi (sirven para colar
  * nombres que se renderizan al reves) y el BOM.
@@ -66,6 +61,19 @@ const INVISIBLES = [
   [0x2060, 0x2064], [0x2066, 0x2069], [0x202a, 0x202e], [0xfeff, 0xfeff],
 ];
 
+/**
+ * Saneado de texto libre que va a acabar mostrandose a otros usuarios.
+ * Quita caracteres de control e invisibles (incluido el bidi override, que se
+ * usa para disfrazar texto) y recorta a una longitud maxima.
+ *
+ * OJO: ahora mismo NO LA LLAMA NADIE. Su unico llamante era `src/clanes.js`,
+ * que se borro por muerto, y con el se fue tambien la unica llamada al filtro
+ * de palabras. O sea que hoy un nombre de piloto o de clan puede llevar dentro
+ * marcas bidi y renderizarse al reves en las clasificaciones. Va en #64, con el
+ * resto del saneado de nombres, porque el arreglo es el mismo sitio y el mismo
+ * momento: el navegador no sirve —no es seguridad— y las reglas no pueden
+ * recorrer rangos de codepoints.
+ */
 function limpiarTexto(raw, maxLongitud = 200) {
   let salida = '';
   for (const ch of String(raw ?? '')) {
@@ -157,6 +165,95 @@ function horaASegundos(texto) {
   return h * 3600 + min * 60 + s;
 }
 
+/**
+ * El dia natural en Madrid, como 'YYYY-MM-DD'.
+ *
+ * Existe para que worker y navegador estén de acuerdo en que dia es. No es
+ * `toISOString().slice(0, 10)`: eso es el dia en UTC, y en horario de verano
+ * Madrid va dos horas por delante, asi que entre las 22:00 y las 00:00 el UTC
+ * todavia dice ayer. Las misiones se publicaban con esa clave y el navegador
+ * las pedia con la suya, de modo que cada noche desaparecian un par de horas.
+ *
+ * Tampoco es la fecha local del dispositivo: quien abra la web desde otro pais
+ * veria las misiones de otro dia. El juego ocurre en Madrid.
+ */
+function diaMadrid(fecha = new Date()) {
+  return diaEnZona(fecha, TZ);
+}
+
+/**
+ * El dia natural en la zona que se le diga, como 'YYYY-MM-DD'.
+ *
+ * Existe porque no todo lo del proyecto ocurre en Madrid: la cuota diaria de
+ * Firestore se reinicia a medianoche del PACIFICO, y contarla por dias de
+ * Madrid o de UTC la parte por la mitad.
+ */
+function diaEnZona(fecha, zona) {
+  // 'sv-SE' da exactamente YYYY-MM-DD, que es lo unico que se le pide.
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: zona }).format(fecha);
+}
+
+/**
+ * El lunes de la semana de una fecha, como 'YYYY-MM-DD' de Madrid.
+ *
+ * Vive AQUI, con el resto de la aritmetica de dias, y no donde se usa. Estaba
+ * en `metricas.js` y hacia esto:
+ *
+ *     const lunes = new Date(fecha);
+ *     lunes.setUTCDate(lunes.getUTCDate() - ((lunes.getUTCDay() + 6) % 7));
+ *     return diaMadrid(lunes);
+ *
+ * Que es la mezcla de siempre: el dia de la semana lo preguntaba al calendario
+ * UTC y la respuesta la daba en el de Madrid. Entre las 00:00 y las 02:00 de
+ * Madrid el dia UTC va uno por detras, asi que preguntaba por AYER y restaba
+ * una semana de mas. Un alta de las 00:30 del lunes 2026-07-06 salia en la
+ * semana '2026-06-30' — que ademas es un martes.
+ *
+ * En las cohortes de retencion eso abria una semana fantasma con una persona
+ * dentro, y como solo se guardan doce, cada fantasma echaba fuera una semana
+ * real. Peor: el corte entre cohortes vivas y congeladas sale de esta misma
+ * funcion, asi que durante esas dos horas retrocedia una semana y las cohortes
+ * ya cerradas se recalculaban desde datos parciales.
+ *
+ * El arreglo es no mezclar. Primero se reduce a un DIA de Madrid; a partir de
+ * ahi ya no hay zonas, solo calendario, y la medianoche UTC se usa de percha
+ * para contar dias porque en UTC todos los dias duran lo mismo.
+ */
+function lunesDe(fecha) {
+  const [año, mes, dia] = diaMadrid(fecha).split('-').map(Number);
+
+  // Date.UTC + getUTCDay: el calendario UTC no tiene cambios de horario, asi
+  // que restar dias aqui es restar dias de verdad.
+  const percha = new Date(Date.UTC(año, mes - 1, dia));
+  percha.setUTCDate(percha.getUTCDate() - ((percha.getUTCDay() + 6) % 7));
+
+  const dosDigitos = (n) => String(n).padStart(2, '0');
+  return [
+    percha.getUTCFullYear(),
+    dosDigitos(percha.getUTCMonth() + 1),
+    dosDigitos(percha.getUTCDate()),
+  ].join('-');
+}
+
+/**
+ * Minutos transcurridos del dia en la zona dada.
+ *
+ * Lo usa la proyeccion de consumo para saber que parte del dia lleva gastada.
+ * Con `getUTCHours()` la respuesta era la del dia UTC, que no es el dia del que
+ * se esta proyectando.
+ */
+function minutosDelDiaEnZona(fecha, zona) {
+  const partes = new Intl.DateTimeFormat('en-GB', {
+    timeZone: zona, hour12: false, hour: '2-digit', minute: '2-digit',
+  }).formatToParts(fecha);
+
+  const p = {};
+  for (const { type, value } of partes) p[type] = value;
+  const hora = p.hour === '24' ? 0 : Number(p.hour);
+
+  return hora * 60 + Number(p.minute);
+}
+
 module.exports = {
   ESTACIONES,
   normalizarEstacion,
@@ -168,5 +265,9 @@ module.exports = {
   exigirAuth,
   exigirAdmin,
   inicioDelDiaMadrid,
+  diaMadrid,
+  diaEnZona,
+  lunesDe,
+  minutosDelDiaEnZona,
   horaASegundos,
 };

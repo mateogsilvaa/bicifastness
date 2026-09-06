@@ -1,0 +1,9 @@
+# El motor y el modelo del OCR del navegador son ficheros de terceros que copia
+# `scripts/build-ocr.js`. Se marcan como binarios para que git no les toque los
+# finales de linea: el motor lleva el wasm incrustado en base64 y no hay ninguna
+# razon para que git reescriba casi cuatro megas al clonar en Windows.
+assets/ocr/** -text
+
+# El banco de capturas son imagenes. Que git no intente ser listo con ellas.
+backend/test/banco/*.png binary
+backend/test/banco/*.jpg binary

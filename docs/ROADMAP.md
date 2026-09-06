@@ -241,7 +241,7 @@ entonces `main` parece la unica que hay.
 | #29 Clanes | **Hecho**, incluida la pantalla, que era lo que faltaba: las doce acciones existian sin nada que las llamara |
 | #59 y #60 Fuga de correos | Codigo hecho. **Falta desplegar las reglas**, que es lo unico que corta la fuga |
 | #61 Denunciar un tiempo | **Hecho y cerrado.** La cola de moderacion ya tiene entrada, sin publicar ningun uid |
-| #62 Escribir sin freno | **Abierto y es tuyo.** La decision de fondo (App Check o contador en reglas) no la puedo tomar yo |
+| #62 Escribir sin freno | **Hecho.** Contador en `cupos/{uid}`, escrito en el mismo lote y comprobado con `getAfter`: el id del viaje TIENE QUE SER el numero nuevo, asi que no cabe mas que un viaje y una captura por lote. `limites.js` borrado. App Check (#4) sigue siendo la complementaria |
 | #64 Nombres sin sanear | **Hecho.** El worker revisa el nombre de cada piloto y clan nuevo, gratis (donde ya se leen los datos) y sin renombrar a nadie: lo que no cuadra va a la cola de moderacion. `badwords` y `limpiarTexto` vuelven a tener llamante |
 | #65 Correo sin reintento | **Hecho.** Cola de reintentos que guarda `{uid, tipo, extra}` y NUNCA el destinatario ni el mensaje montado: los dos se resuelven al enviar. Falta el webhook de rebotes de Resend para que `debeDejarDeIntentar` tenga datos |
 | #66 Señal antifraude muerta | **Hecho.** El navegador lee el EXIF del fichero original antes de comprimir y declara solo `Software` y `Make`. El peso baja de 45 a 15: sola no decide —recortar es legitimo— pero inclina |

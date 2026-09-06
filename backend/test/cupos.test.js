@@ -159,6 +159,19 @@ test('un cupo de ayer no se arrastra a hoy', () => {
     'el navegador reutiliza el contador de otro dia');
 });
 
+// --- El cupo del juego, que lo sigue poniendo el worker -------------------------
+
+test('el cupo del dia se cuenta, no se trae', () => {
+  // De esto solo hace falta el numero. Traerse los viajes del dia costaba una
+  // lectura por viaje —sesenta con una cuenta que inunde— por cada viaje
+  // procesado; el conteo cobra una por cada mil.
+  const worker = leer('backend/worker.js');
+  const cupo = worker.slice(worker.indexOf('// Cupo diario, contado en el servidor'));
+
+  assert.match(cupo.slice(0, 700), /\.count\(\)\s*\n?\s*\.get\(\)/,
+    'el cupo diario se sigue trayendo los documentos');
+});
+
 // --- El modulo que se va --------------------------------------------------------
 
 test('no queda un modulo de limitacion que no llame nadie', () => {

@@ -322,8 +322,10 @@ const WORKER = [
   {
     nombre: 'validarBasico y captura (por viaje procesado)',
     veces: ({ S }) => S,
-    coste: () => min1(60) + min1(1) + min1(1),
-    detalle: 'sus 60 viajes recientes + la captura + la distancia de la ruta',
+    // El cupo del dia sale de una consulta de conteo, que cobra una lectura por
+    // cada mil documentos: antes se traia los viajes del dia uno a uno.
+    coste: () => min1(1) + min1(1) + min1(1),
+    detalle: 'el conteo de su cupo del dia + la captura + la distancia de la ruta',
   },
   {
     nombre: 'cola y bajas (por pasada)',

@@ -271,10 +271,10 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 <!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 10.740 | 21% |
-| u50 | 50 | 3000 | 40.087 | 80% |
-| u200 | 200 | 15.000 | 175.810 | 352% **se agota** |
-| u1000 | 1000 | 90.000 | 1.637.546 | 3275% **se agota** |
+| hoy | 6 | 1022 | 10.150 | 20% |
+| u50 | 50 | 3000 | 36.547 | 73% |
+| u200 | 200 | 15.000 | 161.650 | 323% **se agota** |
+| u1000 | 1000 | 90.000 | 1.566.746 | 3133% **se agota** |
 <!-- fin:escenarios -->
 
 
@@ -320,10 +320,10 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | temporadas.cerrar (UNA vez al mes) | 240 | TODOS los usuarios, para repartir las insignias de la temporada |
 | recalcularEstaciones (una vez por pasada CON viajes) | 179 | el indice de rutas + los clanes (de ahi sale de quien es cada piloto) + los viajes de las rutas que tocan cada estacion |
 | la ventana de huellas (una vez por ejecucion CON viajes) | 150 | las 150 huellas mas recientes, cacheadas para toda la ejecucion |
-| validarBasico y captura (por viaje procesado) | 62 | sus 60 viajes recientes + la captura + la distancia de la ruta |
 | avisarRevisionesLentas (UNA vez al dia, en el trabajo diario) | 50 | los 50 viajes mas antiguos en revision sin avisar |
 | reunirContexto (por viaje procesado) | 42 | el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id |
 | revisarNombresDeClan (UNA vez al dia, en el trabajo diario) | 3 | los clanes creados en los ultimos dos dias |
+| validarBasico y captura (por viaje procesado) | 3 | el conteo de su cupo del dia + la captura + la distancia de la ruta |
 | cola y bajas (por pasada) | 3 | las consultas de cola, recalculo pendiente y bajas |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
 | metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |

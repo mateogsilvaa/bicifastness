@@ -213,14 +213,20 @@ async function validarBasico(viaje, uid) {
 
   // Cupo diario, contado en el servidor. En el navegador se puede saltar
   // cualquier limite abriendo la consola.
+  //
+  // Con la consulta de agregacion, no trayendose los documentos: de esto solo
+  // hace falta el numero, y traerlos costaba una lectura por viaje del dia —
+  // sesenta con una cuenta que inunde — por cada viaje procesado. El conteo
+  // cobra una lectura por cada MIL documentos contados.
   const inicioHoy = inicioDelDiaMadrid(new Date());
-  const hoy = await db.collection('tiempos_viaje')
+  const hoy = (await db.collection('tiempos_viaje')
     .where('uid', '==', uid)
     .where('creado', '>=', admin.firestore.Timestamp.fromMillis(inicioHoy))
-    .get();
+    .count()
+    .get()).data().count;
 
   // El propio viaje que estamos procesando cuenta dentro del resultado.
-  if (hoy.size > LIMITES.VIAJES_POR_DIA) {
+  if (hoy > LIMITES.VIAJES_POR_DIA) {
     return problema('cupo_diario', `Limite de ${LIMITES.VIAJES_POR_DIA} viajes al dia superado.`);
   }
 

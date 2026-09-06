@@ -132,8 +132,31 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > cuenta-servicio.json
           npm install -g firebase-tools
 
-          firebase deploy \
+          # El despliegue puede fallar por PERMISOS de la cuenta de servicio, y
+          # el error que saca la CLI no dice que hacer: habla de la API de
+          # Service Usage, no de las reglas. Se traduce aqui, porque este job
+          # es lo unico que separa el codigo de que las reglas esten puestas.
+          if ! firebase deploy \
             --only firestore:rules,firestore:indexes \
-            --project bicifastness --non-interactive
+            --project bicifastness --non-interactive; then
+            rm -f cuenta-servicio.json
+            {
+              echo "### Las reglas NO se han desplegado"
+              echo ""
+              echo "Si el error habla de \`serviceusage.googleapis.com\` y un **403**,"
+              echo "no es el fichero de reglas: es la cuenta de servicio de"
+              echo "\`FIREBASE_SERVICE_ACCOUNT\`. Antes de desplegar, la CLI comprueba"
+              echo "que la API de Firestore este habilitada, y para eso necesita LEER"
+              echo "el estado del servicio. Le faltan roles en Google Cloud → IAM:"
+              echo ""
+              echo "- \`roles/serviceusage.serviceUsageConsumer\` (Service Usage Consumer)"
+              echo "- \`roles/firebaserules.admin\` (Firebase Rules Admin), si tampoco"
+              echo "  puede escribirlas"
+              echo ""
+              echo "Mientras tanto se pegan a mano en la consola, que las despliega"
+              echo "igual. El detalle esta en docs/LANZAMIENTO.md, apartado 2."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
           rm -f cuenta-servicio.json

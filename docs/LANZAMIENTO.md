@@ -44,6 +44,35 @@ El detalle de cada paso, y el camino de vuelta si sale mal, en
 **Firestore responde aunque la web este en obras.** Es un servicio aparte: el
 modo mantenimiento no protege ni un dato. Lo unico que protege son las reglas.
 
+### El CI no puede desplegarlas todavia
+
+Por eso el primer paso dice pegarlas a mano y que **no espera al CI**. El job
+`reglas` de `ci.yml` existe y corre en cada push a `main`, pero hoy falla asi:
+
+```
+Error: Request to https://serviceusage.googleapis.com/v1/projects/bicifastness/
+services/firestore.googleapis.com had HTTP Error: 403,
+Permission denied to get service [firestore.googleapis.com]
+```
+
+No es el fichero de reglas: es la cuenta de servicio del secreto
+`FIREBASE_SERVICE_ACCOUNT`. Antes de desplegar nada, `firebase deploy` comprueba
+que la API de Firestore este habilitada, y para eso necesita **leer** el estado
+del servicio. Le falta el rol:
+
+- **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`), que es
+  el que da `serviceusage.services.get`
+- y, si tampoco puede escribir las reglas, **Firebase Rules Admin**
+  (`roles/firebaserules.admin`)
+
+Se conceden en Google Cloud Console → IAM, sobre la cuenta de servicio, o con
+`gcloud projects add-iam-policy-binding`.
+
+Va junto a la rotacion de credenciales (#1): si de todas formas hay que crear una
+cuenta de servicio nueva, se crea ya con los dos roles y esto no vuelve a pasar.
+Mientras tanto, pegar las reglas a mano en la consola las despliega igual — el
+CI es comodidad, no es el unico camino.
+
 ## 3. El repositorio, publico
 
 - [ ] Visibilidad cambiada, **solo despues del paso 1**

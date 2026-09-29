@@ -151,24 +151,16 @@
       <h1 id="titulo-datos">Mis datos</h1>
     </div>
 
-    <div class="bloque">
-      <h2 class="h2">Descargar mis datos</h2>
-      <p class="menor apagado">
-        Un fichero JSON con todo lo que guardamos sobre ti (derecho de acceso y
-        portabilidad).
-      </p>
-      <button class="btn tonal" id="btn-exportar" type="button">Descargar</button>
-    </div>
+    <!-- 6f: cada derecho es una tarjeta que se pulsa entera. -->
+    <button class="tarjeta-dato" id="btn-exportar" type="button">
+      <strong>Descargar mis datos</strong>
+      <span>Un JSON con todo lo que guardamos sobre ti (acceso y portabilidad).</span>
+    </button>
 
-    <div class="bloque">
-      <h2 class="h2">Eliminar mi cuenta</h2>
-      <p class="menor apagado">
-        Se borra tu perfil, tu historial y tus capturas. Tus tiempos verificados
-        se anonimizan para no dejar huecos en los rankings de los demás, y dejan
-        de estar vinculados a ti.
-      </p>
-      <button class="btn peligro" id="btn-borrar" type="button">Eliminar mi cuenta</button>
-    </div>
+    <button class="tarjeta-dato peligro" id="btn-borrar" type="button">
+      <strong>Eliminar mi cuenta</strong>
+      <span>Se borra tu perfil, tu historial y tus capturas. No se puede deshacer.</span>
+    </button>
     <p class="mensaje" id="msg-datos" aria-live="polite"></p>
   </section>
 

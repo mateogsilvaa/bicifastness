@@ -1526,6 +1526,23 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 #vista-ajustes > .subcabecera { margin-bottom: -12px; }
 .yo .mensaje:empty { display: none; }
 #ajustes-push:not(.oculto) { display: contents; }
+/* 6f · Mis datos: tarjetas de 16 de relleno a 12 entre si. */
+#vista-datos > .subcabecera { margin-bottom: 0; }
+/* 6f: la hoja de eliminar, sin huecos de mas: texto a 1,45, "Escribe tu
+   nombre" a 13 y Cancelar de 44 al pie. */
+.hoja p { line-height: 1.45; }
+.hoja .mensaje:empty { display: none; }
+.hoja > .btn.plano { min-height: 44px; font-size: 15px; }
+.confirmar-nombre { margin: 0; }
+.confirmar-nombre > span { font-size: 13px; line-height: normal; color: var(--tinta-2); }
+.confirmar-nombre strong { color: var(--tinta); }
+#vista-datos { gap: 12px !important; }
+.tarjeta-dato { display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 16px; border: 0; border-radius: 20px; background: var(--papel-2); color: var(--tinta); font: inherit; text-align: left; cursor: pointer; }
+.tarjeta-dato:hover { background: var(--papel-3); }
+.tarjeta-dato:disabled { opacity: .6; cursor: progress; }
+.tarjeta-dato strong { font-size: 15px; line-height: normal; }
+.tarjeta-dato span { font-size: 13px; line-height: 1.45; color: var(--tinta-2); }
+.tarjeta-dato.peligro strong { color: var(--rojo); }
 
 .temas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--e2); }
 .temas button {

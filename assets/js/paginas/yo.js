@@ -598,7 +598,7 @@ id('btn-borrar').addEventListener('click', () => {
     el('span', { clase: 'asa', attrs: { 'aria-hidden': 'true' } }),
     el('h2', { clase: 'peligro', texto: 'Eliminar mi cuenta', attrs: { id: 'titulo-borrar' } }),
     el('p', { texto: 'Se borra tu perfil, tu historial y tus capturas. Tus tiempos verificados se anonimizan para no dejar huecos en los rankings de los demás y dejan de estar vinculados a ti. No se puede deshacer.' }),
-    el('div', { clase: 'pila', estilo: { gap: '6px' } }, [
+    el('div', { clase: 'pila confirmar-nombre', estilo: { gap: '6px' } }, [
       el('span', { clase: 'menor apagado' }, [
         el('span', { texto: 'Escribe ' }), el('strong', { texto: nombre }), el('span', { texto: ' para confirmar' }),
       ]),

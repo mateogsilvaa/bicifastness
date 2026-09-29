@@ -15,8 +15,29 @@
  *   localStorage.maqueta_perfil = 'salvado' -> hoy ya salvado (2b)
  *   localStorage.maqueta_perfil = 'admin'   -> con permisos de administracion
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
+ *   localStorage.maqueta_hora = '12:00'     -> la app cree que es esa hora de
+ *                                              Madrid (p. ej. '21:30' para 2c)
  * Un viaje subido pasa a verificado a los 6 segundos.
  */
+
+// La hora de mentira: se adelanta o atrasa el reloj entero de la pagina para que
+// la hora de Madrid sea la pedida. Asi se ven los estados que dependen de la hora
+// (misiones de dia, racha en peligro por la noche) a cualquier hora del dia.
+(() => {
+  let pedida = null;
+  try { pedida = localStorage.getItem('maqueta_hora'); } catch { /* sin almacenamiento */ }
+  const m = String(pedida || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return;
+  const Real = Date;
+  const partes = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Real()).split(':');
+  const ahora = Number(partes[0]) * 60 + Number(partes[1]);
+  const delta = ((Number(m[1]) * 60 + Number(m[2])) - ahora) * 60000;
+  class Falsa extends Real {
+    constructor(...args) { if (args.length) super(...args); else super(Real.now() + delta); }
+    static now() { return Real.now() + delta; }
+  }
+  globalThis.Date = Falsa;
+})();
 
 const UID = 'maqueta-uid';
 const hoy = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(new Date());

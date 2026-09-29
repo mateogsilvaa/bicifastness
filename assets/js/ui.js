@@ -96,6 +96,19 @@ export function nombreEstacion(raw) {
   return ESTACIONES[normalizarEstacion(raw)]?.nombre || null;
 }
 
+/** Distancia por calle estimada: la misma formula de respaldo que el worker. */
+export function kmEstimados(origen, destino) {
+  const a = ESTACIONES[normalizarEstacion(origen)];
+  const b = ESTACIONES[normalizarEstacion(destino)];
+  if (!a || !b) return null;
+  const rad = (g) => (g * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  const recta = 2 * 6371 * Math.asin(Math.sqrt(h));
+  return recta * 1.35; // FISICA.FACTOR_CALLEJERO
+}
+
 /** "002-110" -> "Metro Callao → Intercambiador de Moncloa" */
 export function nombreRuta(ruta) {
   const [origen, destino] = String(ruta || '').split('-');
@@ -178,6 +191,11 @@ export function montarNavegacion(activo) {
       }, [icono(d.icono), el('span', { texto: d.texto })]))),
       el('div', { clase: 'lateral-hueco' }),
       fichaLateral());
+    // Se repinta cuando cambia el resumen (al entrar, al cargar el perfil, al
+    // salir), sin esperar a la siguiente pagina.
+    window.addEventListener('bf:resumen', () => {
+      superior.querySelector('.lateral-ficha, .lateral-invitado')?.replaceWith(fichaLateral());
+    });
   }
 
   if (inferior) {

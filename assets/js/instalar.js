@@ -144,6 +144,9 @@ export function guardarResumenOffline(perfil, extra = {}) {
     ...extra,
     guardadoEn: new Date().toISOString(),
   }));
+  // El lateral de escritorio pinta tu ficha con esto: sin avisar, la primera
+  // pantalla tras entrar seguia diciendo "Entra para subir tus tiempos".
+  window.dispatchEvent(new Event('bf:resumen'));
 }
 
 /**
@@ -152,6 +155,7 @@ export function guardarResumenOffline(perfil, extra = {}) {
  */
 export function olvidarResumenOffline() {
   try { localStorage.removeItem(CLAVE_RESUMEN); } catch { /* modo privado */ }
+  window.dispatchEvent(new Event('bf:resumen'));
 }
 
 /** Lee ese resumen. Lo usa /offline/. */

@@ -23,7 +23,7 @@ import {
 } from '/assets/js/firebase.js';
 import {
   iniciarPagina, normalizarEstacion, nombreEstacion, formatearTiempo, formatearFecha,
-  anotarSubidaAbierta, VERSION_LEGAL, pedirReaceptacion,
+  anotarSubidaAbierta, VERSION_LEGAL, pedirReaceptacion, kmEstimados,
 } from '/assets/js/ui.js';
 import { id, el, icono, reemplazar, abrirHoja } from '/assets/js/dom.js';
 import { diaMadrid, diaMadridHace, diaProbableDelViaje } from '/assets/js/dia.js';
@@ -490,18 +490,6 @@ function diaInicial() {
 
 // --- 3c · Confirmar: lo leido, en un billete ------------------------------------------------
 
-/** Distancia por calle estimada: la misma formula de respaldo que el worker. */
-function kmEstimados(origen, destino) {
-  const a = ESTACIONES[origen];
-  const b = ESTACIONES[destino];
-  if (!a || !b) return null;
-  const rad = (g) => (g * Math.PI) / 180;
-  const dLat = rad(b.lat - a.lat);
-  const dLon = rad(b.lon - a.lon);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
-  const recta = 2 * 6371 * Math.asin(Math.sqrt(h));
-  return recta * 1.35; // FISICA.FACTOR_CALLEJERO
-}
 
 function segmentoDia(valor, alCambiar) {
   const hoy = diaMadrid();

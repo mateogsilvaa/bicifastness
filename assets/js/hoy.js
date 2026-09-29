@@ -15,7 +15,7 @@ import {
   db, doc, getDoc, collection, getDocs, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
 import { el, icono, reemplazar, abrirHoja } from '/assets/js/dom.js';
-import { nombreEstacion, formatearTiempo } from '/assets/js/ui.js';
+import { nombreEstacion, formatearTiempo, kmEstimados } from '/assets/js/ui.js';
 import { traerAgregado, puestoPorMarca } from '/assets/js/agregados.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
 import { diaMadrid, minutosMadrid } from '/assets/js/dia.js';
@@ -245,7 +245,11 @@ function pintarRacha(perfil, { enCola = false } = {}) {
       anilloSemana(estados, { tam: 120, numero: String(dias), pie: 'días' }),
       el('div', { clase: 'hoy-racha-texto' }, [
         el('strong', { texto: 'Hoy aún no has salido' }),
-        el('span', { texto: `Un trayecto antes de las 23:59 y llegas a ${dias + 1}.` }),
+        el('span', {}, [
+          `Un trayecto antes de las 23:59 y llegas a ${dias + 1}.`,
+          // 8a: en escritorio el escudo va en la misma frase, sin chip.
+          escudos ? el('span', { clase: 'solo-escritorio-i', texto: ` Tienes ${escudos === 1 ? '1 escudo guardado' : `${escudos} escudos guardados`}.` }) : null,
+        ]),
         chipEscudos(escudos),
         botonSubir('Subir trayecto · o arrastra la captura aquí', { clase: 'solo-escritorio' }),
       ]),
@@ -462,17 +466,26 @@ async function pintarRutaDelDia(perfil) {
     const deHoy = agregado?.hoyDia === diaMadrid() ? (agregado.hoy || []) : [];
     const mia = deHoy.find((f) => f.nombre === perfil.username);
     const [a, b] = ruta.split('-');
+    const distancia = kmEstimados(a, b);
+    const km = distancia ? `${coma(distancia)} km` : null;
 
     reemplazar(destino, el('a', {
       clase: 'tarjeta-ruta-dia', attrs: { href: `/clasificacion/?ruta=${encodeURIComponent(ruta)}` },
     }, [
       el('div', { clase: 'fila-cola' }, [
         el('span', { clase: 'x2', texto: 'Ruta del día · ×2' }),
-        el('span', { clase: 'cierra', texto: `cierra en ${duracion(minutosHastaMedianoche())}` }),
+        el('span', { clase: 'cierra' }, [
+          `cierra en ${Math.floor(minutosHastaMedianoche() / 60)} h`,
+          el('span', { clase: 'solo-movil-i', texto: ` ${minutosHastaMedianoche() % 60} min` }),
+        ]),
       ]),
       el('div', { clase: 'ruta-dia-nombre' }, [
-        el('strong', { texto: nombreEstacion(a) || a }),
-        el('span', { texto: `→ ${nombreEstacion(b) || b}` }),
+        el('strong', {}, [
+          nombreEstacion(a) || a,
+          // 8a: en escritorio, el tramo entero en una linea.
+          el('span', { clase: 'solo-escritorio-i', texto: ` → ${nombreEstacion(b) || b}` }),
+        ]),
+        el('span', { clase: 'solo-movil-i', texto: `→ ${nombreEstacion(b) || b}${km ? ` · ${km}` : ''}` }),
       ]),
       el('div', { clase: 'ruta-dia-filas' }, [
         ...deHoy.slice(0, 3).map((f) => el('div', { clase: 'ruta-dia-fila' }, [
@@ -534,7 +547,7 @@ async function pintarDivision(perfil) {
     reemplazar(destino, el('a', { clase: 'tarjeta-grande hoy-division', attrs: { href: '/clasificacion/' } }, [
       el('div', { clase: 'hoy-seccion' }, [
         el('strong', { texto: nombreGrupo(grupo.clave) }),
-        el('span', { texto: 'se decide el lunes' }),
+        el('span', {}, [el('span', { clase: 'solo-movil-i', texto: 'se decide el ' }), 'lunes']),
       ]),
       el('div', { clase: 'division-puesto' }, [
         el('span', { clase: 'cifra-grande', texto: ordinal(yo.pos) }),
@@ -605,14 +618,25 @@ async function pintarClan(perfil) {
     if (!clan) { reemplazar(destino); return; }
     const suyas = Object.values(mapa.estaciones || {}).filter((e) => e.clan === perfil.clanId);
     const asedio = suyas.filter((e) => e.disputa).length;
-    reemplazar(destino, el('a', { clase: 'tarjeta-grande media hoy-mini', attrs: { href: '/territorio/#mi-clan' } }, [
-      el('span', { clase: 'rotulo con-punto' }, [
-        el('span', { clase: 'punto-clan', estilo: { background: clan.color || 'var(--tinta-3)' } }),
-        el('span', { texto: clan.nombre }),
+    const iniciales = String(clan.nombre || '').split(/\s+/).filter(Boolean).slice(0, 2)
+      .map((p) => [...p][0]).join('').toUpperCase();
+    reemplazar(destino, [
+      el('a', { clase: 'tarjeta-grande media hoy-mini solo-movil', attrs: { href: '/territorio/#mi-clan' } }, [
+        el('span', { clase: 'rotulo con-punto' }, [
+          el('span', { clase: 'punto-clan', estilo: { background: clan.color || 'var(--tinta-3)' } }),
+          el('span', { texto: clan.nombre }),
+        ]),
+        el('span', { clase: 'cifra-media', texto: String(suyas.length) }),
+        el('span', { clase: 'rotulo', texto: `estaciones${asedio ? ` · ${asedio} en asedio` : ''}` }),
       ]),
-      el('span', { clase: 'cifra-media', texto: String(suyas.length) }),
-      el('span', { clase: 'rotulo', texto: `estaciones${asedio ? ` · ${asedio} en asedio` : ''}` }),
-    ]));
+      el('a', { clase: 'hoy-clan-fila solo-escritorio', attrs: { href: '/territorio/#mi-clan' } }, [
+        el('span', { clase: 'insignia-clan', estilo: { background: clan.color || 'var(--tinta-3)' }, texto: iniciales }),
+        el('span', { clase: 'datos' }, [
+          el('strong', { texto: clan.nombre }),
+          el('span', { texto: `${suyas.length} ${suyas.length === 1 ? 'estación' : 'estaciones'}${asedio ? ` · ${asedio} en asedio` : ''}` }),
+        ]),
+      ]),
+    ]);
   } catch (error) {
     console.debug('Sin clan', error);
     reemplazar(destino);

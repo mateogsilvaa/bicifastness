@@ -13,6 +13,8 @@ export default [
       // minificados, que copia `scripts/build-ocr.js`. Analizarlos no dice nada
       // de este proyecto y llena la salida de ruido.
       'assets/ocr/**',
+      // Leaflet, tal cual de su paquete (assets/vendor/leaflet/LEEME.md).
+      'assets/vendor/**', '_site/**',
     ],
   },
   {

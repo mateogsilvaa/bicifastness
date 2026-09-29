@@ -29,7 +29,7 @@ const ESTATICOS = [
   '/assets/js/dia.js',
   '/assets/js/paginas/offline.js',
   '/assets/data/estaciones.js',
-  '/images/logo.png',
+  '/images/icono/icono.svg',
   '/images/icono/icono-192.png',
   '/manifest.webmanifest',
 ];
@@ -118,8 +118,25 @@ self.addEventListener('fetch', (evento) => {
   // equivocada y responder al instante es justo lo que se quiere.
   const esCodigo = /\.(css|js)$/i.test(url.pathname);
 
+  // Lo publicado lleva la version en la URL (`?v=…`, lo pone
+  // scripts/construir-sitio.js en cada despliegue): esa URL no cambia nunca de
+  // contenido, asi que se sirve de la cache sin preguntar. Es lo que hace que
+  // volver a abrir la app no espere a la red por cada modulo. Sin version (en
+  // local), red primero.
+  if (esCodigo && url.searchParams.has('v')) {
+    evento.respondWith(cachePrimero(peticion));
+    return;
+  }
+
   evento.respondWith(esCodigo ? redPrimero(peticion) : cacheRapido(peticion));
 });
+
+/** Cache primero: para URLs con version, que no cambian de contenido. */
+async function cachePrimero(peticion) {
+  const cacheada = await caches.match(peticion);
+  if (cacheada) return cacheada;
+  return guardar(peticion, await fetch(peticion));
+}
 
 /**
  * Guarda la captura compartida para /subir/.
@@ -238,7 +255,7 @@ self.addEventListener('push', (evento) => {
     body: datos.cuerpo || '',
     icon: '/images/icono/icono-192.png',
     // El icono pequeño monocromo de la barra de estado en Android.
-    badge: '/images/icono/icono-96.png',
+    badge: '/images/icono/insignia-96.png',
     // Agrupa por tipo: dos avisos de racha el mismo dia se sustituyen en vez de
     // apilarse. Sin esto, volver tras un rato es encontrarse ocho.
     tag: datos.tipo || 'general',

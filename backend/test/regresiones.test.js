@@ -703,6 +703,36 @@ test('el despliegue no publica el backend ni los scripts', () => {
   fs.rmSync(sitio, { recursive: true, force: true });
 });
 
+test('lo publicado precarga sus modulos y los lleva con version', () => {
+  // Sin precarga, el navegador descubria los modulos por niveles y cada nivel
+  // eran cientos de milisegundos en Pages. Sin version en TODAS las rutas, el
+  // service worker no podria servirlos de su cache sin mezclar despliegues, y
+  // un mismo modulo pedido con y sin version se ejecutaria dos veces.
+  const sitio = montarSitio(true);
+  const portada = fs.readFileSync(path.join(sitio, 'index.html'), 'utf8');
+  assert.match(portada, /<link rel="modulepreload" href="\/assets\/js\/paginas\/portada\.js\?v=/);
+  assert.match(portada, /<link rel="modulepreload" href="https:\/\/www\.gstatic\.com\/firebasejs\//);
+  assert.match(portada, /<script type="module" src="\/assets\/js\/paginas\/portada\.js\?v=/);
+
+  const sinVersion = [];
+  (function recorrer(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const completo = path.join(dir, e.name);
+      if (e.isDirectory()) { if (e.name !== 'vendor' && e.name !== 'ocr') recorrer(completo); continue; }
+      if (!e.name.endsWith('.js')) continue;
+      const codigo = fs.readFileSync(completo, 'utf8');
+      for (const m of codigo.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]((?:\.{1,2}\/|\/assets\/)[^'"]+)['"]/g)) {
+        if (!m[1].includes('?v=')) sinVersion.push(`${e.name}: ${m[1]}`);
+      }
+    }
+  })(path.join(sitio, 'assets'));
+  assert.deepStrictEqual(sinVersion, []);
+
+  // Y el service worker cambia de cache con cada version.
+  assert.match(fs.readFileSync(path.join(sitio, 'sw.js'), 'utf8'), /const CACHE = 'bicifastness-v\d+-[^']+';/);
+  fs.rmSync(sitio, { recursive: true, force: true });
+});
+
 test('el service worker y el codigo no se quedan cacheados', () => {
   // GitHub Pages sirve todo con diez minutos de cache y no deja cambiarlo.
   // Sin esto, la primera carga tras un despliegue mezclaria HTML nuevo con

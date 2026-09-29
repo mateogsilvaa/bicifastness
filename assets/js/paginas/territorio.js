@@ -31,7 +31,13 @@ let ultimasBicis = null;
 
 // --- Mapa --------------------------------------------------------------------
 
-const mapa = L.map('mapa', { zoomControl: false, attributionControl: true }).setView([40.4230, -3.7000], 14);
+// En pantallas tactiles, las 685 estaciones se pintan en un <canvas>: como
+// elementos SVG, cada arrastre del mapa movia 685 nodos y en un movil se notaba
+// a tirones. Con raton se quedan en SVG, que es lo que permite recorrerlas con
+// el teclado.
+const TACTIL = window.matchMedia('(pointer: coarse)').matches;
+const mapa = L.map('mapa', { zoomControl: false, attributionControl: true, preferCanvas: TACTIL })
+  .setView([40.4230, -3.7000], 14);
 
 // Teselas de OpenStreetMap, apagadas en CSS hasta quedar como Positron (y
 // invertidas en oscuro, como Dark Matter). Las de CARTO empezaron a salir con

@@ -77,7 +77,7 @@ const perfilBase = {
   viajesVerificados: 41, metrosTotales: 96400, segundosTotales: 41000,
   puntosTemporada: 322, biciRating: 870, division: 'plata', clanId: 'c1', rolClan: 'miembro',
   puntosPorRuta: { '124-115': 60, '1-102': 30, '102-124': 20 },
-  logros: ['primer_viaje', 'semana_seguida'],
+  logros: ['primer-viaje', 'veterano', 'fondo-50', 'racha-7', 'sprint-cinco-tramos', 'explorador-10', 'temporada-2026-08-constancia'],
   consentimiento: { terminos: { version: '1.4.0' } },
   creado: hace(60 * 24 * 40),
 };

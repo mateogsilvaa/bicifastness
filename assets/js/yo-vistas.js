@@ -183,7 +183,13 @@ export function pintarCifras(perfil, total) {
 /** Cuantas insignias del catalogo tiene. Las de temporada van aparte. */
 export function insigniasConseguidas(perfil) {
   const tiene = new Set(perfil.logros || []);
-  return Object.keys(INSIGNIAS).filter((k) => tiene.has(k)).length;
+  const datos = derivados(perfil);
+  return Object.entries(INSIGNIAS).filter(([k, ins]) => tiene.has(k) || alcanzada(ins, datos)).length;
+}
+
+/** La meta de una insignia con regla, ya cumplida en los datos del perfil. */
+function alcanzada(ins, datos) {
+  return Boolean(ins.regla) && (Number(datos[ins.regla.campo]) || 0) >= ins.regla.minimo;
 }
 
 /**
@@ -226,7 +232,8 @@ function derivados(perfil) {
 
 /** "214 de 250 km", "81 de 100". */
 function progresoTexto(campo, valor, minimo) {
-  if (campo === 'metrosTotales') return `${numero(valor / 1000)} de ${numero(minimo / 1000)} km`;
+  // 6b: "214 de 250"; la unidad ya va en el nombre ("250 km").
+  if (campo === 'metrosTotales') return `${numero(Math.floor(valor / 1000))} de ${numero(minimo / 1000)}`;
   return `${numero(valor)} de ${numero(minimo)}`;
 }
 
@@ -266,13 +273,15 @@ export function pintarInsignias(perfil) {
 
   // Todas, conseguidas o no: cada pendiente, con su progreso real, es una meta.
   reemplazar(document.getElementById('insignias'), Object.entries(INSIGNIAS).map(([clave, ins]) => {
-    const conseguida = tiene.has(clave);
     const regla = ins.regla;
     const valor = regla ? Number(datos[regla.campo]) || 0 : 0;
+    // Alcanzada la meta, conseguida: el logro lo apunta el servidor en el
+    // siguiente recalculo, y "41 de 1" no es un progreso.
+    const conseguida = tiene.has(clave) || alcanzada(ins, datos);
     const pct = conseguida ? 100 : regla ? Math.min(100, (valor / regla.minimo) * 100) : 0;
 
     return el('div', {
-      clase: `insignia ${conseguida ? 'conseguida' : 'pendiente'}`,
+      clase: `insignia ${conseguida ? 'conseguida' : 'bloqueada'}`,
       titulo: ins.descripcion,
     }, [
       el('span', { clase: 'disco' }, [icono(ins.icono)]),

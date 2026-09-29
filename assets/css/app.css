@@ -1379,7 +1379,7 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
   gap: 6px;
   text-align: center;
 }
-.insignia.pendiente { opacity: .8; }
+
 .insignia .disco {
   width: 44px;
   height: 44px;
@@ -1402,7 +1402,7 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 /* La insignia de temporada mas reciente, en negro: es un premio, no una meta. */
 .destacada {
   background: var(--tinta);
-  color: var(--papel);
+  color: var(--papel-2);
   border-radius: 20px;
   padding: 14px var(--e4);
   display: flex;
@@ -1422,7 +1422,14 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 }
 .destacada .texto { display: flex; flex-direction: column; min-width: 0; }
 .destacada strong { font-size: 15px; }
-.destacada .sub { font-size: 12px; opacity: .75; }
+.destacada .sub { font-size: 12px; color: #B3B2AE; }
+/* 6b: el titulo en la franja de la barra de estado, la destacada 4 px debajo
+   y la rejilla a 12. */
+@media (max-width: 899px) {
+  .yo .vista > .subcabecera:first-child { margin-top: -4px; }
+  #vista-insignias > .subcabecera { margin-bottom: -10px; }
+  #insignia-destacada:not(:empty) { margin-bottom: -2px; }
+}
 
 /* Historial: filtros, dias y filas. */
 .filtros { display: flex; gap: var(--e2); overflow-x: auto; padding-bottom: 2px; }

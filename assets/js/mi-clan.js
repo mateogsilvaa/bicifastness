@@ -12,6 +12,7 @@
 
 import { db, doc, getDoc, collection, getDocs, query, where, limit } from '/assets/js/firebase.js';
 import { id, el, icono, estado, reemplazar, avisar, esqueleto, abrirHoja } from '/assets/js/dom.js';
+import { miles } from '/assets/js/ui.js';
 import {
   MAX_MIEMBROS,
   crearClan, solicitarEntrada, retirarSolicitud, responderSolicitud,
@@ -32,7 +33,7 @@ export const COLORES_CLAN = ['#FF5A1F', '#E23D8C', '#13A89E', '#8B5CF6', '#E0A80
 
 const colorSeguro = (c) => (/^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : 'var(--tinta-3)');
 const iniciales = (n) => String(n || '').split(/\s+/).filter(Boolean).map((p) => p[0]).join('').slice(0, 3).toUpperCase();
-const numero = (n) => Number(n || 0).toLocaleString('es-ES');
+const numero = (n) => miles(n);
 
 export function datosMiClan() { return clan; }
 

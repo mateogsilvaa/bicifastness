@@ -2516,7 +2516,7 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
 .reparto-clanes { display: flex; flex-direction: column; gap: var(--e2); margin-bottom: var(--e2); }
 .barra-reparto { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; }
 .barra-reparto .libre { background: var(--linea); }
-.fila-clan { display: grid; grid-template-columns: 26px 36px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 60px; border-bottom: var(--borde); color: var(--tinta); text-decoration: none; }
+.fila-clan { display: grid; grid-template-columns: 26px 36px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 61px; border-bottom: var(--borde); color: var(--tinta); text-decoration: none; }
 .fila-clan:hover { background: var(--papel-2); color: var(--tinta); }
 .fila-clan .pos { font-weight: 800; font-stretch: 80%; font-size: 17px; }
 .escudo-clan { width: 36px; height: 36px; border-radius: 11px; color: var(--blanco); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
@@ -2605,6 +2605,53 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
 }
 @media (min-width: 1200px) {
   .lista-ranking.con-columnas .cabecera-ranking, .lista-ranking.con-columnas .fila-ranking { grid-template-columns: 48px minmax(0, 1fr) 180px 100px 100px 100px 110px; }
+}
+
+/* 8i · Rutas en escritorio: lista y detalle. Un panel de 420 px con el titulo,
+   las pestañas, el buscador y tus rutas, y el detalle al lado, sin margen de
+   pagina. La lista no se va al abrir una ruta. */
+@media (min-width: 900px) {
+  body:has(.lateral) .container.ranking[data-pestana='rutas'] { max-width: none; padding: 0; display: grid; grid-template-columns: 420px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 0; min-height: 100vh; align-items: start; }
+  .ranking[data-pestana='rutas'] > #panel-rutas, .ranking[data-pestana='rutas'] .rutas-rejilla { display: contents; }
+  .ranking[data-pestana='rutas'] .ranking-cabeza { grid-column: 1; grid-row: 1; flex-direction: column; align-items: stretch; gap: 14px; padding: 32px 24px 0; border-right: var(--borde); align-self: stretch; }
+  .ranking[data-pestana='rutas'] .ranking-titulo h1 { font-size: 32px; }
+  .ranking[data-pestana='rutas'] .pestanas-ranking { display: grid; }
+  .ranking[data-pestana='rutas'] .pestanas-ranking button { padding: 8px 0; font-size: 14px; }
+  .ranking[data-pestana='rutas'] .rutas-lista { grid-column: 1; grid-row: 2; position: static; padding: 14px 24px 32px; border-right: var(--borde); align-self: stretch; }
+  .ranking[data-pestana='rutas'] .rutas-lista .campo-buscar input { min-height: 44px; height: 44px; font-size: 15px; }
+  .ranking[data-pestana='rutas'] .rutas-lista .campo-buscar .icono { top: 13px; width: 18px; height: 18px; }
+  .ranking[data-pestana='rutas'] .rutas-lista > .rotulo { margin-top: 0; }
+  .ranking[data-pestana='rutas'] .lista-rutas { margin-top: 0; gap: 14px; }
+  .ranking[data-pestana='rutas'] .fila-ruta { min-height: 56px; }
+  .ranking[data-pestana='rutas'] .tarjeta-ruta-dia.compacta { padding: 12px 14px; border-radius: 18px; gap: 2px 10px; }
+  .ranking[data-pestana='rutas'] .tarjeta-ruta-dia.compacta .x2 { padding: 2px 7px; border-radius: 6px; }
+  .ranking[data-pestana='rutas'] .tarjeta-ruta-dia.compacta .cifra { font-size: 18px; }
+  .ranking[data-pestana='rutas'] .ruta-detalle { grid-column: 2; grid-row: 1 / -1; display: grid !important; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'titulo titulo' 'tarjetas tarjetas' 'segmento boton' 'tabla tabla' 'pie pie'; gap: 18px 12px; align-content: start; padding: 32px 40px; }
+  .ranking[data-pestana='rutas'] .detalle-titulo { grid-area: titulo; }
+  .ranking[data-pestana='rutas'] .detalle-titulo .rotulo { font-size: 13px; }
+  .ranking[data-pestana='rutas'] .detalle-titulo h2 { font-size: 36px; line-height: normal; letter-spacing: -.035em; }
+  .ranking[data-pestana='rutas'] .detalle-barra { top: 32px; right: 40px; min-height: 0; margin: 0; }
+  .ranking[data-pestana='rutas'] .detalle-barra .boton-anclar { width: auto; height: 40px; min-height: 40px; padding: 0 14px; font-size: 14px; }
+  .ranking[data-pestana='rutas'] .detalle-barra .boton-anclar .icono { width: 18px; height: 18px; }
+  .ranking[data-pestana='rutas'] .ruta-detalle > .segmento { grid-area: segmento; display: flex; }
+  .ranking[data-pestana='rutas'] .ruta-detalle > .segmento button { padding: 8px 18px; font-size: 14px; }
+  .ranking[data-pestana='rutas'] .tarjetas-ruta { grid-area: tarjetas; gap: 12px; }
+  .ranking[data-pestana='rutas'] .tarjetas-ruta > div { padding: 16px; border-radius: 18px; }
+  .ranking[data-pestana='rutas'] .tarjetas-ruta span { font-size: 13px; }
+  .ranking[data-pestana='rutas'] .tarjetas-ruta strong { font-size: 36px; }
+  .ranking[data-pestana='rutas'] .tarjetas-ruta small { font-size: 12px; }
+  .ranking[data-pestana='rutas'] .tarjetas-ruta small span { font-size: inherit; }
+  .ranking[data-pestana='rutas'] .barra-subir-aqui { grid-area: boton; justify-self: end; position: static; margin: 0; padding: 0; background: none; }
+  .ranking[data-pestana='rutas'] .barra-subir-aqui .subir-aqui { width: auto; min-height: 44px; padding: 0 18px; border-radius: 12px; font-size: 15px; }
+  .ranking[data-pestana='rutas'] .barra-subir-aqui .subir-aqui .icono { width: 18px; height: 18px; }
+  .ranking[data-pestana='rutas'] .tabla-ruta { grid-area: tabla; padding: 4px 20px; border-radius: 20px; }
+  .ranking[data-pestana='rutas'] .tabla-ruta .fila-ranking.corta { grid-template-columns: 40px minmax(0, 1fr) 160px 80px 80px; gap: 12px; min-height: 49px; border-bottom-color: var(--papel); }
+  .ranking[data-pestana='rutas'] .tabla-ruta .fila-ranking.corta .pos { font-size: 17px; }
+  .ranking[data-pestana='rutas'] .tabla-ruta .dif { font-size: 13px; text-align: right; }
+  .ranking[data-pestana='rutas'] .tabla-ruta .fila-ranking .fecha-ruta { font-size: 13px; }
+  .ranking[data-pestana='rutas'] .tabla-ruta .fila-ranking.corta .valor { width: auto; }
+  .ranking[data-pestana='rutas'] .ruta-detalle > .pie-actualizado { grid-area: pie; }
+  .ranking[data-pestana='rutas'] > .mensaje { display: none; }
 }
 
 /* 8c · Ranking en escritorio, medidas del diseño: 1040 de ancho, cabecera con

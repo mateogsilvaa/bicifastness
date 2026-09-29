@@ -8,11 +8,12 @@
 // una vez y se guarda en la pestaña (`cache.js`).
 
 import { db, doc, getDoc, auth, onAuthStateChanged } from '/assets/js/firebase.js';
-import { iniciarPagina, nombreEstacion, formatearTiempo, normalizarEstacion } from '/assets/js/ui.js';
+import { iniciarPagina, nombreEstacion, formatearTiempo, normalizarEstacion, miles } from '/assets/js/ui.js';
 import { id, el, icono, estado, reemplazar, pedirTexto, avisar, abrirHoja } from '/assets/js/dom.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
 import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 import { diaMadrid } from '/assets/js/dia.js';
+import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
 
 iniciarPagina('clasificacion');
@@ -31,7 +32,7 @@ const MODOS = {
   constancia: { unidad: 'días', formato: (v) => `${v} ${v === 1 ? 'día' : 'días'}`, explica: 'Tu racha más larga. Premia aparecer cada día.' },
 };
 
-const numero = (n) => Number(n || 0).toLocaleString('es-ES');
+const numero = (n) => miles(n);
 const ordinal = (n) => `${n}.º`;
 const $ = id;
 
@@ -516,7 +517,11 @@ async function pintarDetalleRuta(ruta, vista = null) {
     ]),
     el('div', { clase: 'detalle-titulo' }, [
       // 4d: "001 → 102 · 1,9 km".
-      el('span', { clase: 'rotulo', texto: [`${normalizarEstacion(a)} → ${normalizarEstacion(b)}`, km ? `${String(km.toFixed(1)).replace('.', ',')} km` : null].filter(Boolean).join(' · ') }),
+      el('span', { clase: 'rotulo' }, [
+        [`${normalizarEstacion(a)} → ${normalizarEstacion(b)}`, km ? `${String(km.toFixed(1)).replace('.', ',')} km` : null].filter(Boolean).join(' · '),
+        // 8i: en escritorio, tambien cuantos pilotos la han hecho.
+        agregado?.total ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${agregado.total} pilotos` }) : null,
+      ]),
       el('h2', {}, [el('span', { texto: nombreDe(ruta, ORIGEN) }), el('br', { clase: 'solo-movil-inline' }), el('span', { texto: ` → ${nombreDe(ruta, DESTINO)}` })]),
     ]),
     el('div', { clase: 'segmento dos' }, [
@@ -524,9 +529,10 @@ async function pintarDetalleRuta(ruta, vista = null) {
       el('button', { attrs: { type: 'button', 'aria-pressed': String(modoVista === 'siempre') }, texto: 'Siempre', on: { click: () => pintarDetalleRuta(ruta, 'siempre') } }),
     ]),
     record ? el('div', { clase: 'tarjetas-ruta' }, [
-      el('div', { clase: 'tarjeta-record' }, [el('span', { texto: modoVista === 'hoy' ? 'Récord de hoy' : 'Récord' }), el('strong', { texto: mmss(record.marca) }), el('small', { texto: record.nombre })]),
-      mio ? el('div', { clase: 'tarjeta-tuya' }, [el('span', { texto: 'Tu mejor' }), el('strong', { texto: mmss(mio.yo.marca) }), el('small', { texto: `${ordinal(mio.yo.pos)} de ${mio.total}` })]) : null,
-      objetivo ? el('div', { clase: 'tarjeta-objetivo' }, [el('span', { texto: `Para el ${ordinal(objetivo.pos)}` }), el('strong', { texto: menosDe(mio.yo.marca - objetivo.marca) }), el('small', { texto: objetivo.nombre })]) : null,
+      // 8i: en escritorio, cada tarjeta dice ademas cuando o con que marca.
+      el('div', { clase: 'tarjeta-record' }, [el('span', { texto: modoVista === 'hoy' ? 'Récord de hoy' : 'Récord' }), el('strong', { texto: mmss(record.marca) }), el('small', {}, [record.nombre, record.fecha ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${fechaCorta(record.fecha)}` }) : null])]),
+      mio ? el('div', { clase: 'tarjeta-tuya' }, [el('span', { texto: 'Tu mejor' }), el('strong', { texto: mmss(mio.yo.marca) }), el('small', {}, [`${ordinal(mio.yo.pos)} de ${mio.total}`, mio.yo.fecha ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${diaRelativo(mio.yo.fecha)}` }) : null])]) : null,
+      objetivo ? el('div', { clase: 'tarjeta-objetivo' }, [el('span', { texto: `Para el ${ordinal(objetivo.pos)}` }), el('strong', { texto: menosDe(mio.yo.marca - objetivo.marca) }), el('small', {}, [objetivo.nombre, el('span', { clase: 'solo-escritorio-i', texto: ` · ${mmss(objetivo.marca)}` })])]) : null,
     ]) : null,
     filas.length
       ? el('div', { clase: 'lista-ranking tabla-ruta' }, filas.map((f) => {

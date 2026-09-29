@@ -109,6 +109,16 @@ export function kmEstimados(origen, destino) {
   return recta * 1.35; // FISICA.FACTOR_CALLEJERO
 }
 
+/**
+ * "1.412" y "18.402", como en el diseño: con punto de miles tambien en cuatro
+ * cifras (el formato de España del navegador no lo pone hasta las cinco).
+ */
+export function miles(n, decimales = 0) {
+  const valor = Number(n) || 0;
+  const [entera, fraccion] = Math.abs(valor).toFixed(decimales).split('.');
+  return `${valor < 0 ? '-' : ''}${entera.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}${fraccion ? `,${fraccion}` : ''}`;
+}
+
 /** "002-110" -> "Metro Callao → Intercambiador de Moncloa" */
 export function nombreRuta(ruta) {
   const [origen, destino] = String(ruta || '').split('-');

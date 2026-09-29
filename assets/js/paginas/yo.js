@@ -101,6 +101,7 @@ onAuthStateChanged(auth, async (u) => {
 // Lo que completa la cabecera cuando llega: el clan y el grupo de la liga.
 let clanDatos = null;
 let claveGrupo = null;
+let puestoGeneral = null;
 
 async function cargarPerfil() {
   const snap = await getDoc(doc(db, 'usuarios', usuario.uid));
@@ -179,6 +180,7 @@ async function cargarPuestos() {
     buscar('ranking-general'), buscar('ranking-sprint'), buscar('ranking-fondo'), buscar('ranking-constancia'), grupo,
   ]);
   pintarRating(perfil, { general, sprint, fondo, constancia });
+  puestoGeneral = general;
   if (clave) { claveGrupo = clave; pintarCabecera(perfil, clanDatos, claveGrupo); }
 }
 
@@ -272,7 +274,7 @@ function nombreTemporada(temporada) {
 }
 
 async function cargarTemporadas() {
-  pintarTemporadas(perfil, []);
+  pintarTemporadas(perfil, [], puestoGeneral);
   try {
     // Vive en una subcoleccion del propio usuario, asi que se borra con su
     // cuenta sin tener que ir a buscarlo a otro sitio.
@@ -281,7 +283,7 @@ async function cargarTemporadas() {
       .map((d) => d.data())
       .sort((a, b) => ordenTemporada(b.temporada).localeCompare(ordenTemporada(a.temporada)))
       .map((t) => ({ ...t, nombre: nombreTemporada(t.temporada) }));
-    pintarTemporadas(perfil, cerradas);
+    pintarTemporadas(perfil, cerradas, puestoGeneral);
   } catch (error) {
     console.debug('No se han podido cargar las temporadas', error);
   }

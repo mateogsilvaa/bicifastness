@@ -1498,6 +1498,10 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 .temporada-actual .cifra-grande { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .temporada-actual .cifra-grande strong { font-size: 48px; font-weight: 800; font-stretch: 72%; line-height: .9; font-variant-numeric: tabular-nums; }
 .temporada-actual .cifra-grande span { font-size: 14px; opacity: .9; }
+.temporada-actual .cifra-grande { color: inherit; font-size: inherit; font-weight: 400; line-height: normal; }
+#vista-temporadas > .subcabecera { margin-bottom: -10px; }
+#vista-temporadas > #temporadas { margin-top: -2px; }
+.temporada-fila .premio.bronce { color: #8A5A3C; }
 .temporada-actual .pista { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .25); }
 .temporada-actual .pista > span { display: block; height: 100%; border-radius: 3px; background: var(--blanco); }
 

@@ -437,7 +437,7 @@ export function diasQueQuedan(ahora = new Date()) {
  * @param {Array<{temporada, nombre, puntos, posicion, division}>} cerradas
  *   ya ordenadas y con nombre (lo decide la pagina)
  */
-export function pintarTemporadas(perfil, cerradas) {
+export function pintarTemporadas(perfil, cerradas, puesto = null) {
   const actual = perfil.puntosTemporada || 0;
   const mejor = Math.max(actual, ...cerradas.map((t) => t.puntos || 0), 1);
   const quedan = diasQueQuedan();
@@ -450,7 +450,8 @@ export function pintarTemporadas(perfil, cerradas) {
     ]),
     el('div', { clase: 'cifra-grande' }, [
       el('strong', { texto: numero(actual) }),
-      el('span', { texto: ['pts', division].filter(Boolean).join(' · ') }),
+      // 6d: "pts · 184.º · Plata".
+      el('span', { texto: ['pts', puesto?.pos ? ordinal(puesto.pos) : null, division].filter(Boolean).join(' · ') }),
     ]),
     el('div', { clase: 'pista', attrs: { 'aria-hidden': 'true' } }, [
       el('span', { estilo: { width: `${Math.round((actual / mejor) * 100)}%` } }),
@@ -461,7 +462,7 @@ export function pintarTemporadas(perfil, cerradas) {
 
   reemplazar(document.getElementById('temporadas'), cerradas.length
     ? cerradas.map((t) => {
-      const suyos = premios.filter((p) => p.temporada === t.temporada).map((p) => p.titulo);
+      const suyos = premios.filter((p) => p.temporada === t.temporada);
       const sub = [t.posicion ? ordinal(t.posicion) : null, nombreDivision(t.division)].filter(Boolean).join(' · ');
       return el('div', { clase: 'temporada-fila' }, [
         el('span', { clase: 'mes', texto: t.nombre }),
@@ -470,7 +471,8 @@ export function pintarTemporadas(perfil, cerradas) {
           el('span', { estilo: { width: `${Math.round(((t.puntos || 0) / mejor) * 100)}%` } }),
         ]),
         el('span', { clase: 'sub', texto: sub || 'sin puntos' }),
-        el('span', { clase: 'premio', texto: suyos.join(' · ') }),
+        // 6d: el bronce, en su color; el resto, en ambar.
+        el('span', { clase: `premio ${suyos.some((p) => p.clave.endsWith('-bronce')) ? 'bronce' : ''}`, texto: suyos.map((p) => p.titulo).join(' · ') }),
       ]);
     })
     : [el('div', { clase: 'vacio' }, [

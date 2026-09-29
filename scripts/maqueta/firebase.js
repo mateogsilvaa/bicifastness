@@ -77,7 +77,7 @@ const perfilBase = {
   viajesVerificados: 41, metrosTotales: 96400, segundosTotales: 41000,
   puntosTemporada: 322, biciRating: 870, division: 'plata', clanId: 'c1', rolClan: 'miembro',
   puntosPorRuta: { '124-115': 60, '1-102': 30, '102-124': 20 },
-  logros: ['primer-viaje', 'veterano', 'fondo-50', 'racha-7', 'sprint-cinco-tramos', 'explorador-10', 'temporada-2026-08-constancia'],
+  logros: ['primer-viaje', 'veterano', 'fondo-50', 'racha-7', 'sprint-cinco-tramos', 'explorador-10', 'temporada-2026-08-constancia', 'temporada-2026-07-bronce'],
   consentimiento: { terminos: { version: '1.4.0' } },
   creado: hace(60 * 24 * 40),
 };
@@ -154,6 +154,9 @@ const datos = {
 for (const [id, c] of Object.entries(CLANES)) {
   datos[`clanes/${id}`] = { ...c, descripcion: 'Salimos de Chamberí cada mañana.', lider: id === 'c1' ? (variante === 'lider' ? UID : 'otro-uid') : 'x', miembros: id === 'c1' ? ['otro-uid', ...(perfil.clanId ? [UID] : [])] : ['x'], oficiales: [], solicitudes: id === 'c1' && variante === 'lider' ? ['s1', 's2'] : [], numMiembros: 12, biciRating: 5200, creado: hace(60 * 24 * 90) };
 }
+// 6d: temporadas cerradas, con sus premios en `logros`.
+[['2026-08', 1132, 212, 'plata'], ['2026-07', 1214, 3, 'oro'], ['2026-06', 702, 401, 'bronce'], ['2026-05', 388, 688, 'hierro']]
+  .forEach(([temporada, puntos, posicion, division]) => { datos[`usuarios/${UID}/temporadas/${temporada}`] = { temporada, puntos, posicion, division }; });
 datos['agregados/clan-c1'] = {
   clanId: 'c1', nombre: CLANES.c1.nombre, color: CLANES.c1.color,
   miembros: [

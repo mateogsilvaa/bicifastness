@@ -162,7 +162,8 @@ window.addEventListener('pointerup', (e) => {
 });
 id('resumen-mapa').addEventListener('click', (e) => {
   if (e.target.closest('a')) return;
-  if (hoja.dataset.altura === 'asomada') { altura('media'); mostrar(miClanId ? 'miclan' : 'clanes'); }
+  // 5c: Mi clan y Clanes van en la hoja completa.
+  if (hoja.dataset.altura === 'asomada') { altura('completa'); mostrar(miClanId ? 'miclan' : 'clanes'); }
 });
 
 // --- 5b · Estacion ---------------------------------------------------------------------
@@ -357,6 +358,8 @@ function mostrar(pestana, { recordar = true } = {}) {
     url.searchParams.set('tab', activa);
     window.history.replaceState({}, '', url);
   }
+  // 5b es media altura (la estacion); 5c, completa (Clanes y Mi clan).
+  if (activa !== 'estaciones' && hoja.dataset.altura === 'media') altura('completa');
 }
 for (const p of PESTANAS) id(`tab-${p}`).addEventListener('click', () => mostrar(p));
 
@@ -440,7 +443,7 @@ async function cargar() {
     const feature = pedida && estaciones.find((f) => String(f.properties.number) === pedida);
     if (feature) elegir(feature.properties, { centrar: true });
     else mostrar(parametros.get('tab') || (parametros.get('clan') ? 'clanes' : 'estaciones'), { recordar: false });
-    if (parametros.get('tab') || parametros.get('clan')) altura('media');
+    if (parametros.get('tab') || parametros.get('clan')) altura(parametros.get('tab') === 'estaciones' ? 'media' : 'completa');
   } catch (error) {
     console.debug('No se ha podido cargar el territorio', error);
     estado(id('mensaje'), 'No hemos podido cargar el mapa. Vuelve a intentarlo.', 'error');

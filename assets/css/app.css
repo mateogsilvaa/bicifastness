@@ -902,6 +902,8 @@ input[type='checkbox'] {
 .escudo-clan { flex: none; width: 40px; height: 40px; border-radius: 12px; color: var(--blanco); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
 .escudo-clan.vacio { background: var(--papel-3); color: var(--tinta-2); font-size: 20px; }
 .escudo-clan.grande { width: 56px; height: 56px; border-radius: 16px; font-size: 18px; }
+.segmento.pestanas-mapa button { padding: 8px 0; font-size: 14px; }
+.hoja-mapa[data-altura='completa'] .cuerpo-hoja { padding-top: 2px; }
 .pestanas-mapa button[aria-selected='true'] { background: var(--papel-2); color: var(--tinta); }
 [data-theme='dark'] .pestanas-mapa button[aria-selected='true'] { background: var(--linea-fuerte); }
 
@@ -934,7 +936,6 @@ input[type='checkbox'] {
 .mi-clan-cabeza h2, .sin-clan h2 { margin: 0; font-size: 22px; font-weight: 800; font-stretch: 88%; letter-spacing: -.03em; line-height: 1.15; }
 .mi-clan-cabeza .apagado { font-size: 13px; }
 .mi-clan h3, .sin-clan h3 { margin: 0; font-size: 15px; font-weight: 700; }
-.lema { margin: 0; font-size: 14px; }
 .solicitudes, .asedio, .plantilla { display: flex; flex-direction: column; gap: var(--e2); }
 .contador-azul { padding: 3px 9px; border-radius: 999px; background: var(--azul-relleno); color: var(--sobre-azul) !important; font-size: 12px; font-weight: 800; }
 .fila-solicitud { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 10px; align-items: center; padding: 14px; border-radius: 18px; background: var(--papel); }
@@ -945,11 +946,16 @@ input[type='checkbox'] {
 .boton-cuadrado { width: 40px; height: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 12px; background: var(--papel-3); color: var(--tinta); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .boton-cuadrado.azul { background: var(--azul-relleno); color: var(--sobre-azul); }
 .boton-cuadrado .icono { width: 20px; height: 20px; }
-.fila-asedio { display: grid; grid-template-columns: 1fr 90px 36px; gap: 10px; align-items: center; min-height: 48px; border-bottom: var(--borde); font-size: 14px; }
+/* 5c: titulo y filas de 49 pegadas (6 px bajo el titulo). */
+.asedio, .plantilla { gap: 0; }
+.asedio > h3, .plantilla > .hoy-seccion { margin-bottom: 6px; }
+.plantilla .hoy-seccion > span { font-size: 13px; color: var(--tinta-2); }
+.fila-asedio { display: grid; grid-template-columns: 1fr 90px 36px; gap: 10px; align-items: center; min-height: 49px; border-bottom: var(--borde); font-size: 14px; }
 .fila-asedio .nombre { font-weight: 600; }
 .fila-asedio strong { text-align: right; font-variant-numeric: tabular-nums; }
 .barra-asedio { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--linea); }
-.fila-miembro { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 10px; align-items: center; min-height: 48px; border-bottom: var(--borde); }
+.fila-miembro { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 10px; align-items: center; min-height: 49px; border-bottom: var(--borde); }
+.fila-miembro .valor { font-weight: 700; }
 .fila-miembro .quien { display: flex; flex-direction: column; min-width: 0; }
 .fila-miembro .nombre { font-size: 14px; font-weight: 600; }
 .fila-miembro .nombre.tuyo { font-weight: 700; }

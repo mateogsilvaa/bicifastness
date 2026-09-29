@@ -294,14 +294,19 @@ function pintarConClan(destino) {
       el('span', { clase: 'escudo-clan grande', estilo: { background: colorSeguro(clan.color) }, texto: iniciales(clan.nombre) }),
       el('span', { clase: 'datos' }, [
         el('h2', { texto: clan.nombre }),
-        el('span', { clase: 'apagado', texto: [`${clan.numMiembros}/${MAX_MIEMBROS} miembros`, `${numero(clan.biciRating)} BiciRating`, puesto ? `${puesto}.º` : null].filter(Boolean).join(' · ') }),
+        // 5c: "19 miembros · 16.980 BiciRating · 2.º"; 8l: con sus estaciones.
+        el('span', { clase: 'apagado' }, [
+          `${clan.numMiembros} ${clan.numMiembros === 1 ? 'miembro' : 'miembros'} · `,
+          el('span', { clase: 'solo-movil-i', texto: `${numero(clan.biciRating)} BiciRating` }),
+          el('span', { clase: 'solo-escritorio-i', texto: `${[...contexto.estaciones().values()].filter((s) => s.clanDominante === clanId).length} estaciones` }),
+          puesto ? ` · ${puesto}.º` : '',
+        ]),
       ]),
     ]),
-    clan.descripcion ? el('p', { clase: 'apagado lema', texto: clan.descripcion }) : null,
     bloqueCandidatos(),
     asedio.length ? el('section', { clase: 'asedio' }, [
       el('h3', { texto: 'En asedio' }),
-      ...asedio.slice(0, 5).map((a) => el('div', { clase: 'fila-asedio' }, [
+      ...asedio.slice(0, 3).map((a) => el('div', { clase: 'fila-asedio' }, [
         el('span', { clase: 'nombre', texto: a.nombre }),
         el('span', { clase: 'barra-asedio', attrs: { 'aria-hidden': 'true' } }, [
           el('span', { estilo: { width: `${a.mio}%`, background: colorSeguro(clan.color) } }),
@@ -309,16 +314,17 @@ function pintarConClan(destino) {
         ]),
         el('strong', { texto: String(a.mio), attrs: { 'aria-label': `${a.mio} % tuyo` } }),
       ])),
-      asedio.length > 5 ? el('span', { clase: 'pista', texto: `y ${asedio.length - 5} más en juego` }) : null,
     ]) : el('p', { clase: 'nota-territorio', texto: 'Ninguna de vuestras estaciones está en juego ahora mismo.' }),
     el('section', { clase: 'plantilla' }, [
-      el('div', { clase: 'hoy-seccion' }, [el('h3', { texto: 'Plantilla' }), el('span', { texto: 'BiciRating' })]),
+      el('div', { clase: 'hoy-seccion' }, [el('h3', { texto: 'Plantilla' }), el('span', { texto: 'esta semana' })]),
       ...(clan.miembros || []).map(filaMiembro),
     ]),
     el('div', { clase: 'acciones-clan' }, [
+      // 8l: el lider invita (azul); 5c: el resto ve el mismo boton, con borde,
+      // y le explica que el enlace lo crea el lider.
       papel() === 'lider'
-        ? boton([icono('enlace', 'icono peq'), el('span', { texto: 'Invitar' })], abrirInvitacion, { clase: 'btn secundario' })
-        : el('span', { clase: 'apagado menor', texto: 'Para traer a alguien, pídele al líder un enlace.' }),
+        ? boton([icono('enlace', 'icono peq'), el('span', { texto: 'Invitar' })], abrirInvitacion, { clase: 'btn' })
+        : boton([icono('enlace', 'icono peq'), el('span', { texto: 'Invitar' })], () => avisar('Los enlaces de invitación los crea el líder: pídele uno.'), { clase: 'btn secundario' }),
       menu,
     ]),
   ]));

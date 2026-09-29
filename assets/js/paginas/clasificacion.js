@@ -132,10 +132,12 @@ async function claveDeMiGrupo() {
   return indice?.porPiloto?.[perfil.username] || null;
 }
 
-function filaPiloto(f, { yo, zona, valor, clanes, columnas = null }) {
+function filaPiloto(f, { yo, zona, valor, clanes, columnas = null, flecha = false }) {
   const clan = clanes[f.clan];
+  // 4a: puestos ganados o perdidos desde ayer en el grupo (el worker los calcula).
+  const cambio = Number(f.cambio) || 0;
   return el('button', {
-    clase: `fila-ranking ${yo ? 'tuya' : ''}`,
+    clase: `fila-ranking ${yo ? 'tuya' : ''} ${flecha ? 'con-flecha' : ''}`,
     attrs: { type: 'button', 'aria-label': `${f.pos}.º ${f.nombre}, ${valor}` },
     on: { click: () => abrirPiloto(f.nombre) },
   }, [
@@ -154,6 +156,10 @@ function filaPiloto(f, { yo, zona, valor, clanes, columnas = null }) {
     ]),
     ...(columnas || []).map((c) => el('span', { clase: 'col-modo', texto: c })),
     el('strong', { clase: 'valor', texto: valor }),
+    flecha ? el('span', {
+      clase: `flecha-cambio ${cambio > 0 ? 'sube' : cambio < 0 ? 'baja' : ''}`,
+      attrs: { title: cambio ? `${cambio > 0 ? 'Sube' : 'Baja'} ${Math.abs(cambio)} desde ayer` : 'Igual que ayer' },
+    }, [icono(cambio > 0 ? 'sube' : cambio < 0 ? 'baja' : 'mas-h')]) : null,
   ]);
 }
 
@@ -168,14 +174,15 @@ async function pintarPilotos() {
   $('ambito-grupo').classList.toggle('oculto', !clave);
   $('ambito-grupo').textContent = clave ? nombreGrupo(clave) : 'Tu grupo';
   $('ambito-grupo').setAttribute('aria-pressed', String(ambito === 'grupo'));
+  document.querySelector('.ranking')?.classList.toggle('en-grupo', ambito === 'grupo');
   $('ambito-madrid').setAttribute('aria-pressed', String(ambito === 'madrid'));
   for (const b of document.querySelectorAll('.chip-modo')) {
-    b.setAttribute('aria-pressed', String(ambito === 'madrid' && b.value === modo));
+    // 4a: el grupo se ordena por el total, asi que "General" va marcado.
+    b.setAttribute('aria-pressed', String(ambito === 'madrid' ? b.value === modo : b.value === 'general'));
     b.disabled = false;
   }
-  $('explica-modo').textContent = ambito === 'grupo'
-    ? 'Tu grupo de la semana. El lunes suben los primeros y bajan los últimos.'
-    : MODOS[modo].explica;
+  // 4b: la frase de cada modo solo en Madrid; en tu grupo (4a) no hay frase.
+  $('explica-modo').textContent = ambito === 'grupo' ? '' : MODOS[modo].explica;
 
   reemplazar(destino, esqueleto());
   const clanes = await clanesDelMapa();
@@ -193,18 +200,27 @@ async function pintarPilotos() {
     };
     reemplazar(destino, [
       el('div', { clase: 'lista-ranking con-columnas' }, [
-        el('div', { clase: 'cabecera-ranking' }, [
-          el('span', { clase: 'sube', texto: 'Suben el lunes' }),
-          escritorio ? el('span', { clase: 'col-cab', texto: 'Clan' }) : null,
-          ...(escritorio ? ['Sprint', 'Fondo', 'Constancia'].map((t) => el('span', { clase: 'col-cab num', texto: t })) : []),
-          el('span', { clase: 'col-cab num', texto: escritorio ? 'Total ↓' : 'pts' }),
-        ]),
+        // 8c: en escritorio, la cabecera de una tabla de verdad; 4a: en movil,
+        // quien sube el lunes y la unidad.
+        el('div', { clase: 'cabecera-ranking' }, escritorio
+          ? [
+            el('span', { clase: 'col-cab col-pos', texto: '#' }),
+            el('span', { clase: 'col-cab', texto: 'Piloto' }),
+            el('span', { clase: 'col-cab', texto: 'Clan' }),
+            ...['Sprint', 'Fondo', 'Constancia'].map((t) => el('span', { clase: 'col-cab num', texto: t })),
+            el('span', { clase: 'col-cab num', texto: 'Total ↓' }),
+          ]
+          : [
+            el('span', { clase: 'sube', texto: 'Suben el lunes' }),
+            el('span', { clase: 'col-cab num', texto: 'pts' }),
+          ]),
         ...grupo.filas.map((f, i) => filaPiloto(f, {
           yo: f.nombre === perfil?.username,
           zona: mueven && i < mueven ? 'sube' : mueven && i >= grupo.filas.length - mueven ? 'baja' : '',
           valor: numero(f.puntos),
           clanes,
           columnas: escritorio ? [valorDe('sprint', f.nombre), valorDe('fondo', f.nombre), valorDe('constancia', f.nombre)] : null,
+          flecha: !escritorio,
         })),
       ]),
       pieActualizado(grupo),

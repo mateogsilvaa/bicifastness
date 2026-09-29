@@ -275,14 +275,14 @@ p { margin: 0 0 var(--e4); text-wrap: pretty; max-width: 64ch; }
    sistema, no un `.container` redefinido en una pagina suelta. */
 .container.ancho { max-width: 1200px; }
 
+/* En movil, como en el diseño: 6 px bajo la barra de estado y 20 a los lados.
+   Hasta 900 px la vista movil se centra a 560 (08). */
 .container {
   width: 100%;
   max-width: var(--ancho-max);
   margin: 0 auto;
-  padding: var(--e5) var(--margen);
+  padding: calc(6px + env(safe-area-inset-top, 0px)) var(--margen) var(--e5);
 }
-
-@media (min-width: 600px) { .container { padding: var(--e6) var(--e6); } }
 @media (min-width: 900px) { .container { padding: var(--e7) var(--e7); } }
 
 .container.estrecho { max-width: var(--ancho-form); }
@@ -2224,7 +2224,7 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .subir-dia { display: flex; flex-direction: column; gap: var(--e2); }
 .subir-dia .rotulo, .rotulo { font-size: 13px; color: var(--tinta-2); }
 .segmento { display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--papel-3); border-radius: 12px; padding: 3px; }
-.segmento button { min-height: 44px; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 15px; font-weight: 600; color: var(--tinta-2); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.segmento button { min-height: 0; padding: 9px 0; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 15px; font-weight: 600; color: var(--tinta-2); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
 .segmento button[aria-pressed='true'] { background: var(--papel-2); color: var(--tinta); }
 [data-theme='dark'] .segmento button[aria-pressed='true'] { background: var(--linea-fuerte); }
 .pista-dia { font-size: 12px; color: var(--tinta-3); }
@@ -2361,30 +2361,32 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
   .solo-escritorio-inline { display: inline-flex !important; }
 }
 
-.ranking { display: flex; flex-direction: column; gap: 14px; padding-top: var(--e3); }
+.ranking { display: flex; flex-direction: column; gap: 14px; }
 .ranking-invitado { display: flex; align-items: center; justify-content: space-between; }
 .enlace-fuerte { font-size: 15px; font-weight: 700; color: var(--azul); text-decoration: none; }
 .ranking-cabeza { display: flex; flex-direction: column; gap: 14px; }
 .ranking-titulo { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e3); }
-.ranking-titulo h1 { margin: 0; font-size: 30px; font-weight: 800; font-stretch: 88%; letter-spacing: -.035em; }
+.ranking-titulo h1 { margin: 0; font-size: 30px; font-weight: 800; font-stretch: 88%; letter-spacing: -.035em; line-height: normal; }
 .ranking-titulo span { font-size: 13px; color: var(--tinta-2); }
 .pestanas-ranking button[aria-selected='true'] { background: var(--papel-2); color: var(--tinta); }
 [data-theme='dark'] .pestanas-ranking button[aria-selected='true'] { background: var(--linea-fuerte); }
 
-.chips-ranking { display: flex; gap: var(--e2); overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chips-ranking { display: flex; gap: var(--e2); overflow-x: auto; scrollbar-width: none; }
 .chips-ranking::-webkit-scrollbar { display: none; }
-.chip-filtro, .chip-modo { flex: none; min-height: 36px; padding: var(--e2) var(--e3); border: 0; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.chip-filtro, .chip-modo { flex: none; min-height: 0; padding: var(--e2) var(--e3); border: 0; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .chip-filtro { background: var(--papel-2); color: var(--tinta); }
 .chip-filtro[aria-pressed='true'] { background: var(--tinta); color: var(--papel); }
 .chip-modo { background: none; color: var(--tinta-2); }
 .chip-modo[aria-pressed='true'] { box-shadow: inset 0 0 0 1.5px var(--tinta); color: var(--tinta); }
 .separador-chips { flex: none; width: 1px; background: var(--linea); margin: var(--e1) 2px; }
 .explica-modo { margin: 0; font-size: 13px; color: var(--tinta-2); }
+.explica-modo:empty, .ranking .mensaje:empty { display: none; }
 
-.lista-ranking { display: flex; flex-direction: column; }
+/* 4a: la lista empieza 6 px bajo los filtros. */
+.lista-ranking { display: flex; flex-direction: column; padding-top: 6px; }
 .cabecera-ranking { display: flex; justify-content: space-between; padding: var(--e2) 0 var(--e1); font-size: 12px; }
 .cabecera-ranking .sube { color: var(--verde); font-weight: 700; }
-.cabecera-ranking .col-cab { color: var(--tinta-3); }
+.cabecera-ranking .col-cab { color: var(--tinta-3); font-weight: 500; }
 .fila-ranking { display: grid; grid-template-columns: 4px 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 54px; padding: 0; border: 0; border-bottom: var(--borde); background: none; font: inherit; color: var(--tinta); text-align: left; cursor: pointer; width: 100%; }
 .fila-ranking:hover { background: var(--papel-2); }
 .fila-ranking .zona { width: 4px; height: 26px; border-radius: 2px; }
@@ -2397,6 +2399,12 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .fila-ranking .clan .punto-clan { width: 7px; height: 7px; }
 .fila-ranking .valor { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 .fila-ranking .clan-escritorio, .fila-ranking .col-modo { display: none; }
+/* 4a: la flecha de ayer, en su columna de 18 px. */
+.fila-ranking.con-flecha { grid-template-columns: 4px 30px minmax(0, 1fr) auto 18px; }
+.flecha-cambio { display: flex; color: var(--linea-fuerte); }
+.flecha-cambio .icono { width: 16px; height: 16px; stroke-width: 2.2; }
+.flecha-cambio.sube { color: var(--verde); }
+.flecha-cambio.baja { color: var(--rojo); }
 .fila-ranking.tuya { background: var(--azul-tinte); margin: 0 -12px; padding: 0 12px; width: calc(100% + 24px); border-radius: 12px; border-bottom-color: transparent; }
 .fila-ranking.tuya .pos { color: var(--azul); }
 .fila-ranking.tuya .nombre { font-weight: 700; }
@@ -2535,7 +2543,7 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + env(safe-area-inse
   .pestanas-ranking { display: flex; }
   .pestanas-ranking button { padding: 0 20px; }
   .lista-ranking.con-columnas, .lista-ranking.clanes, .tabla-ruta { background: var(--papel-2); border-radius: 24px; padding: var(--e2) var(--e5); }
-  .lista-ranking.con-columnas .cabecera-ranking, .lista-ranking.con-columnas .fila-ranking { display: grid; grid-template-columns: 4px 36px minmax(120px, 1fr) minmax(0, 150px) 80px 80px 90px 90px; gap: 12px; align-items: center; }
+  .lista-ranking.con-columnas .cabecera-ranking, .lista-ranking.con-columnas .fila-ranking { display: grid; grid-template-columns: 48px minmax(120px, 1fr) minmax(0, 150px) 80px 80px 90px 90px; gap: 12px; align-items: center; }
   .lista-ranking.con-columnas .cabecera-ranking { height: 44px; border-bottom: var(--borde); font-size: 13px; }
   .lista-ranking.con-columnas .cabecera-ranking .sube { grid-column: 1 / 4; }
   .lista-ranking.con-columnas .cabecera-ranking .num { text-align: right; }
@@ -2580,7 +2588,29 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + env(safe-area-inse
   .hoja.panel-lateral .asa { display: none; }
 }
 @media (min-width: 1200px) {
-  .lista-ranking.con-columnas .cabecera-ranking, .lista-ranking.con-columnas .fila-ranking { grid-template-columns: 4px 40px minmax(0, 1fr) 180px 100px 100px 100px 110px; }
+  .lista-ranking.con-columnas .cabecera-ranking, .lista-ranking.con-columnas .fila-ranking { grid-template-columns: 48px minmax(0, 1fr) 180px 100px 100px 100px 110px; }
+}
+
+/* 8c · Ranking en escritorio, medidas del diseño: 1040 de ancho, cabecera con
+   las pestañas a la derecha, solo los dos chips de ambito en tu grupo (los
+   modos ya son columnas) y la tabla en una tarjeta blanca. */
+@media (min-width: 900px) {
+  body:has(.lateral) .container.ranking { max-width: calc(1040px + 112px); }
+  .ranking-titulo h1 { line-height: normal; }
+  #fin-temporada { display: none; }
+  .pestanas-ranking button { padding: 9px 20px; }
+  .ranking .chip-filtro, .ranking .chip-modo { padding: 8px 14px; }
+  .ranking.en-grupo .chip-modo, .ranking.en-grupo .separador-chips { display: none; }
+  .lista-ranking.con-columnas { padding: 8px 24px; margin-top: 20px; }
+  .lista-ranking.con-columnas .cabecera-ranking { height: auto; min-height: 45px; padding: 0; font-size: 13px; }
+  .lista-ranking.con-columnas .cabecera-ranking .col-cab { color: var(--tinta-3); font-weight: 400; }
+  .lista-ranking.con-columnas .cabecera-ranking .col-pos { grid-column: 1; }
+  .lista-ranking.con-columnas .cabecera-ranking .num:last-child { color: var(--tinta); font-weight: 700; }
+  .lista-ranking.con-columnas .fila-ranking { min-height: 53px; }
+  /* La franja de zona y el puesto comparten la primera celda (48 px), a 8 px. */
+  .lista-ranking.con-columnas .fila-ranking .zona { grid-column: 1; grid-row: 1; height: 22px; }
+  .lista-ranking.con-columnas .fila-ranking .pos { grid-column: 1; grid-row: 1; padding-left: 12px; font-size: 17px; }
+  .lista-ranking.con-columnas .col-modo, .lista-ranking.con-columnas .valor { font-size: 15px; }
 }
 
 /* --- 07 Sistema -----------------------------------------------------------------

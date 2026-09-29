@@ -75,7 +75,7 @@
   --lima: #E8FF3A;
   /* El del diseño era #1E7F45 y sobre el hueso daba 4,45:1, a un pelo del
      minimo de la WCAG AA. Un punto mas oscuro y pasa en las tres superficies. */
-  --verde: #1C7A42;
+  --verde: #1E7F45;
   --verde-tinte: #E3F1E8;
   --ambar: #9A5B00;
   --ambar-tinte: #F6ECDC;
@@ -1427,7 +1427,8 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
    y la rejilla a 12. */
 @media (max-width: 899px) {
   .yo .vista > .subcabecera:first-child { margin-top: -4px; }
-  #vista-insignias > .subcabecera { margin-bottom: -10px; }
+  #vista-insignias > .subcabecera, #vista-historial > .subcabecera { margin-bottom: -10px; }
+  #vista-historial > #historial { margin-top: -6px; }
   #insignia-destacada:not(:empty) { margin-bottom: -2px; }
 }
 
@@ -1435,8 +1436,8 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 .filtros { display: flex; gap: var(--e2); overflow-x: auto; padding-bottom: 2px; }
 .filtros button {
   flex: none;
-  min-height: 36px;
-  padding: 0 var(--e3);
+  min-height: 42px;
+  padding: 0 12px;
   border: 0;
   border-radius: 999px;
   background: var(--papel-2);
@@ -1446,9 +1447,13 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
   font-weight: 600;
   cursor: pointer;
 }
-.filtros button[aria-pressed='true'] { background: var(--tinta); color: var(--papel); }
+.filtros button[aria-pressed='true'] { background: var(--tinta); color: var(--papel-2); }
 
-.dia-historial { font-size: 12px; color: var(--tinta-3); padding: var(--e2) 0 var(--e1); margin: 0; }
+.dia-historial { font-size: 12px; line-height: normal; color: var(--tinta-3); padding: var(--e2) 0 var(--e1); margin: 0 0 -10px; }
+/* 6c: tarjetas a 10, cada dia pegado a su primera tarjeta; filtros de 42. */
+#historial { display: flex; flex-direction: column; gap: 10px; }
+.fila-viaje { align-items: baseline; }
+.fila-viaje .estado-viaje.pendiente { padding: 0; border-radius: 0; background: none; font-size: 12px; }
 
 .fila-viaje {
   display: grid;
@@ -1465,7 +1470,7 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
   text-align: left;
   cursor: pointer;
 }
-.fila-viaje .ruta-viaje { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fila-viaje .ruta-viaje { line-height: 15px; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fila-viaje .tiempo { font-size: 20px; font-weight: 800; font-stretch: 72%; font-variant-numeric: tabular-nums; text-align: right; }
 .fila-viaje .estado-viaje { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; }
 .fila-viaje .estado-viaje::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }

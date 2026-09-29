@@ -133,7 +133,10 @@
   /* Medidas */
   --ancho-max: 1120px;
   --ancho-form: 440px;
-  --alto-barra: 64px;
+  /* La barra inferior mide 84 como en el diseño (TabBar): 50 de contenido y 34
+     de la zona del indicador de inicio del iPhone. Sin esa zona (Android), 14. */
+  --alto-barra: 50px;
+  --pie-barra: max(env(safe-area-inset-bottom, 0px), 14px);
   --toque: 44px;
 
   --transicion: 160ms ease-out;
@@ -191,7 +194,7 @@ body {
   line-height: normal;
   -webkit-font-smoothing: antialiased;
   /* Sitio para la barra inferior de movil. */
-  padding-bottom: calc(var(--alto-barra) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--alto-barra) + var(--pie-barra));
 }
 
 @media (min-width: 900px) {
@@ -768,8 +771,8 @@ input[type='checkbox'] {
   display: flex;
   align-items: flex-start;
   justify-content: space-around;
-  height: calc(var(--alto-barra) + env(safe-area-inset-bottom, 0px));
-  padding: var(--e2) var(--e2) env(safe-area-inset-bottom, 0px);
+  height: calc(var(--alto-barra) + var(--pie-barra));
+  padding: var(--e2) var(--e2) var(--pie-barra);
   border-top: var(--borde);
   background: var(--papel-2);
 }
@@ -843,7 +846,7 @@ input[type='checkbox'] {
 
 .sin-desplazamiento { overflow: hidden; }
 
-.territorio { position: relative; height: calc(100dvh - var(--alto-barra) - env(safe-area-inset-bottom, 0px)); overflow: hidden; }
+.territorio { position: relative; height: calc(100dvh - var(--alto-barra) - var(--pie-barra)); overflow: hidden; }
 #mapa { position: absolute; inset: 0; background: var(--papel-2); }
 .leaflet-tile-pane { filter: grayscale(.9) brightness(1.12) contrast(.78); }
 [data-mapa='oscuro'] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) grayscale(.8) brightness(.82) contrast(.9); }
@@ -1027,7 +1030,7 @@ input[type='checkbox'] {
  * registro, legales, baja).
  */
 body:has(.nav-inf) .pila-avisos {
-  bottom: calc(var(--alto-barra) + env(safe-area-inset-bottom, 0px) + var(--e2));
+  bottom: calc(var(--alto-barra) + var(--pie-barra) + var(--e2));
 }
 
 @media (min-width: 900px) {
@@ -2381,6 +2384,10 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .separador-chips { flex: none; width: 1px; background: var(--linea); margin: var(--e1) 2px; }
 .explica-modo { margin: 0; font-size: 13px; color: var(--tinta-2); }
 .explica-modo:empty, .ranking .mensaje:empty { display: none; }
+.ranking:not([data-pestana='pilotos']) #fin-temporada { display: none; }
+/* 4c: el buscador de rutas mide 48 y "Tus rutas" lleva 4 px de aire encima. */
+.rutas-lista .campo-buscar input { min-height: 48px; height: 48px; }
+.rutas-lista > .rotulo { margin-top: 4px; }
 
 /* 4a: la lista empieza 6 px bajo los filtros. */
 .lista-ranking { display: flex; flex-direction: column; padding-top: 6px; }
@@ -2425,7 +2432,7 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .podio-2 { height: 104px; }
 .podio-3 { height: 92px; }
 
-.fila-fija { position: sticky; bottom: calc(var(--alto-barra) + env(safe-area-inset-bottom, 0px) + var(--e2)); z-index: 5; margin: 0 -8px; }
+.fila-fija { position: sticky; bottom: calc(var(--alto-barra) + var(--pie-barra) + var(--e2)); z-index: 5; margin: 0 -8px; }
 .tu-fila { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; min-height: 58px; padding: 0 var(--e4); border-radius: 16px; background: var(--azul-relleno); color: var(--sobre-azul); }
 .tu-fila .pos { font-weight: 800; font-stretch: 80%; font-size: 18px; font-variant-numeric: tabular-nums; }
 .tu-fila .quien { display: flex; flex-direction: column; }
@@ -2436,7 +2443,7 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .invitacion-ranking > span > span { opacity: .72; }
 .invitacion-ranking .btn { width: auto; min-height: 40px; padding: 0 14px; }
 [data-theme='dark'] .invitacion-ranking { background: var(--papel-3); color: var(--tinta); }
-body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + env(safe-area-inset-bottom, 0px) + var(--e2)); }
+body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) + var(--e2)); }
 
 .esqueleto-lista { display: flex; flex-direction: column; }
 .esqueleto-fila { display: grid; grid-template-columns: 30px 1fr 56px; gap: 10px; align-items: center; height: 50px; border-bottom: var(--borde); }
@@ -2476,11 +2483,20 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + env(safe-area-inse
 .ruta-puesto.record { color: var(--verde); }
 
 .ruta-detalle { display: flex; flex-direction: column; gap: 14px; }
-.detalle-barra { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin: 0 -8px; }
+/* 4d: barra de 52 pegada arriba (sin el hueco de la pagina) y el titulo justo debajo. */
+.detalle-barra { display: flex; align-items: center; justify-content: space-between; min-height: 52px; margin: -6px -8px -14px; }
 .boton-anclar { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; justify-content: center; padding: 0 var(--e3); border: 0; border-radius: 12px; background: none; font: inherit; font-size: 14px; font-weight: 700; color: var(--tinta-3); cursor: pointer; margin-left: auto; }
 .boton-anclar.activo { color: var(--azul); }
 .detalle-titulo { display: flex; flex-direction: column; gap: 2px; }
-.detalle-titulo .rotulo { font-size: 12px; color: var(--tinta-3); }
+.detalle-titulo .rotulo { font-size: 12px; color: var(--tinta-3); line-height: normal; }
+.detalle-barra .boton-anclar { width: 44px; padding: 0; }
+.detalle-barra .boton-anclar .icono { width: 22px; height: 22px; }
+.detalle-barra .boton-icono .icono { width: 24px; height: 24px; }
+.tabla-ruta { padding-top: 0; }
+.tabla-ruta .fila-ranking.corta { min-height: 49px; }
+.barra-subir-aqui { position: sticky; bottom: calc(var(--alto-barra) + var(--pie-barra)); z-index: 5; margin: 0 calc(var(--margen) * -1); padding: 10px var(--margen) 14px; background: var(--papel); }
+.barra-subir-aqui .subir-aqui { margin: 0; min-height: 52px; border-radius: 14px; gap: 8px; font-size: 16px; }
+.barra-subir-aqui .subir-aqui .icono { width: 20px; height: 20px; }
 .detalle-titulo h2 { margin: 0; font-size: 26px; font-weight: 800; font-stretch: 88%; letter-spacing: -.03em; line-height: 1.1; }
 .segmento.dos { grid-template-columns: 1fr 1fr; }
 .tarjetas-ruta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--e2); }
@@ -2942,7 +2958,7 @@ body.pagina-admin { font-size: 14px; padding: 0; }
 }
 
 /* 11c / 11d · Buscador y ficha. */
-.bici-pagina { display: flex; flex-direction: column; gap: var(--e5); padding-bottom: calc(var(--alto-barra) + var(--e6)); }
+.bici-pagina { display: flex; flex-direction: column; gap: var(--e5); padding-bottom: calc(var(--alto-barra) + var(--pie-barra) + var(--e6)); }
 .bici-columna { display: flex; flex-direction: column; gap: var(--e3); }
 .bici-cabeza { display: flex; align-items: center; gap: var(--e2); }
 .bici-cabeza h1 { margin: 0; font-size: 34px; font-weight: 800; font-stretch: 88%; letter-spacing: -.035em; line-height: 1; }

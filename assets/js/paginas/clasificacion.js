@@ -8,7 +8,7 @@
 // una vez y se guarda en la pestaña (`cache.js`).
 
 import { db, doc, getDoc, auth, onAuthStateChanged } from '/assets/js/firebase.js';
-import { iniciarPagina, nombreEstacion, formatearTiempo } from '/assets/js/ui.js';
+import { iniciarPagina, nombreEstacion, formatearTiempo, normalizarEstacion } from '/assets/js/ui.js';
 import { id, el, icono, estado, reemplazar, pedirTexto, avisar, abrirHoja } from '/assets/js/dom.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
 import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
@@ -476,7 +476,11 @@ async function pintarDetalleRuta(ruta, vista = null) {
   const agregado = await traer(`ruta-${ruta}`);
   const rutaDelDia = (await configGeneral())?.rutaDestacada || null;
   const esDelDia = ruta === rutaDelDia;
-  const deHoy = esDelDia && agregado?.hoyDia === diaMadrid() ? agregado.hoy || [] : [];
+  // "Hoy": en la ruta del dia, su tabla de hoy; en las demas, las marcas que
+  // se han hecho hoy (el agregado guarda el dia de cada una).
+  const deHoy = esDelDia
+    ? (agregado?.hoyDia === diaMadrid() ? agregado.hoy || [] : [])
+    : (agregado?.filas || []).filter((f) => f.fecha === diaMadrid()).map((f, i) => ({ ...f, pos: i + 1 }));
   const modoVista = vista || (esDelDia ? 'hoy' : 'siempre');
   const filas = modoVista === 'hoy' ? deHoy : agregado?.filas || [];
   const km = kmRuta(ruta);
@@ -511,13 +515,14 @@ async function pintarDetalleRuta(ruta, vista = null) {
       pin,
     ]),
     el('div', { clase: 'detalle-titulo' }, [
-      el('span', { clase: 'rotulo', texto: [`${a} → ${b}`, km ? `≈${String(km.toFixed(1)).replace('.', ',')} km` : null, agregado?.total ? `${agregado.total} pilotos` : null].filter(Boolean).join(' · ') }),
+      // 4d: "001 → 102 · 1,9 km".
+      el('span', { clase: 'rotulo', texto: [`${normalizarEstacion(a)} → ${normalizarEstacion(b)}`, km ? `${String(km.toFixed(1)).replace('.', ',')} km` : null].filter(Boolean).join(' · ') }),
       el('h2', {}, [el('span', { texto: nombreDe(ruta, ORIGEN) }), el('br', { clase: 'solo-movil-inline' }), el('span', { texto: ` → ${nombreDe(ruta, DESTINO)}` })]),
     ]),
-    esDelDia ? el('div', { clase: 'segmento dos' }, [
+    el('div', { clase: 'segmento dos' }, [
       el('button', { attrs: { type: 'button', 'aria-pressed': String(modoVista === 'hoy') }, texto: 'Hoy', on: { click: () => pintarDetalleRuta(ruta, 'hoy') } }),
       el('button', { attrs: { type: 'button', 'aria-pressed': String(modoVista === 'siempre') }, texto: 'Siempre', on: { click: () => pintarDetalleRuta(ruta, 'siempre') } }),
-    ]) : null,
+    ]),
     record ? el('div', { clase: 'tarjetas-ruta' }, [
       el('div', { clase: 'tarjeta-record' }, [el('span', { texto: modoVista === 'hoy' ? 'Récord de hoy' : 'Récord' }), el('strong', { texto: mmss(record.marca) }), el('small', { texto: record.nombre })]),
       mio ? el('div', { clase: 'tarjeta-tuya' }, [el('span', { texto: 'Tu mejor' }), el('strong', { texto: mmss(mio.yo.marca) }), el('small', { texto: `${ordinal(mio.yo.pos)} de ${mio.total}` })]) : null,
@@ -538,7 +543,10 @@ async function pintarDetalleRuta(ruta, vista = null) {
         ]);
       }))
       : vacio(modoVista === 'hoy' ? 'Hoy aún no hay tiempos' : 'Esta ruta aún no tiene tiempos', 'El primero que la haga se lleva el récord.'),
-    el('a', { clase: 'btn grande subir-aqui', attrs: { href: '/subir/', 'data-subir': '' } }, [icono('mas', 'icono'), el('span', { texto: 'Subir un tiempo aquí' })]),
+    // 4d: fijo abajo, sobre la barra, con el fondo de la pagina alrededor.
+    el('div', { clase: 'barra-subir-aqui' }, [
+      el('a', { clase: 'btn grande subir-aqui', attrs: { href: '/subir/', 'data-subir': '' } }, [icono('mas', 'icono'), el('span', { texto: 'Subir un tiempo aquí' })]),
+    ]),
     pieActualizado(agregado),
   ]);
 }
@@ -716,6 +724,9 @@ function mostrar(pestana, { recordar = true } = {}) {
     $(`panel-${p}`).classList.toggle('oculto', p !== activa);
   }
   if (recordar) cambiarParametro('tab', activa === 'pilotos' ? null : activa);
+  // "Septiembre · acaba mañana" solo va en Pilotos (4a, 4b); Rutas y Clanes
+  // (4c, 4e) llevan el titulo solo.
+  document.querySelector('.ranking')?.setAttribute('data-pestana', activa);
   $('fila-fija').classList.add('oculto');
   observador?.disconnect();
   if (activa === 'pilotos') pintarPilotos();

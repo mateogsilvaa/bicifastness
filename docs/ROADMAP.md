@@ -22,7 +22,7 @@ subida y convertir un ranking de tiempos en un juego al que apetezca volver.
 
 | Decision | Alternativa descartada | Motivo |
 |---|---|---|
-| Vercel | GitHub Pages, Firebase Hosting | Se empezo por Pages (peticion explicita), pero Pages no permite cabeceras HTTP y eso costaba seis de seguridad. Vercel las da gratis y ya estaba conectado. Ver #3 |
+| GitHub Pages con dominio propio | Vercel, Firebase Hosting | Se paso por Vercel por las cabeceras HTTP, que Pages no permite. En septiembre de 2026 se vuelve a Pages (peticion explicita, con dominio propio): la CSP va por `<meta>`, el antiframing por JS y lo demas esta en `shared/cabeceras.json` → `_sin_cabeceras`, con Cloudflare como salida si algun dia hace falta |
 | Seguir en Firestore | Migrar a Supabase | Migrar son semanas y no hay tiempo. El problema real no es la base de datos, es que se lee mal: se arregla con agregados (H5) |
 | La captura sigue siendo la fuente | Registro por GPS | El viaje ocurre en una app de terceros a la que no tenemos acceso. Lo que se puede arreglar es el **procesado**, no el origen |
 | OCR local, sin IA | Gemini u otro modelo | Quita una clave que rotar, una cuota que agotar y un servicio que puede caerse. Se pierde la deteccion de retoque visual; lo cubren las comprobaciones deterministas. Ver #10 |

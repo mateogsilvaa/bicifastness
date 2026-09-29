@@ -25,10 +25,23 @@
 const { escapar } = require('./correo');
 
 /**
- * La direccion publica del sitio, para los enlaces de los correos. Se puede
- * cambiar sin tocar codigo con el secreto SITIO_URL (docs/PUESTA-EN-MARCHA.md).
+ * La direccion publica del sitio, para los enlaces de los correos.
+ *
+ * Sale del fichero `CNAME` de la raiz del repositorio, que es donde vive el
+ * dominio de GitHub Pages: asi se escribe en un solo sitio. El secreto
+ * SITIO_URL, si existe, manda sobre el fichero (docs/PUESTA-EN-MARCHA.md).
  */
-const SITIO = String(process.env.SITIO_URL || 'https://bicifastness-pi.vercel.app').replace(/\/+$/, '');
+function sitioPublico() {
+  if (process.env.SITIO_URL) return process.env.SITIO_URL;
+  try {
+    const dominio = require('fs')
+      .readFileSync(require('path').join(__dirname, '..', '..', 'CNAME'), 'utf8')
+      .trim().split(/\s+/)[0];
+    if (dominio) return `https://${dominio.replace(/^https?:\/\//, '')}`;
+  } catch { /* sin CNAME: el valor de abajo */ }
+  return 'https://bicifastness.github.io';
+}
+const SITIO = String(sitioPublico()).replace(/\/+$/, '');
 
 const C = {
   papel: '#F3F1EC', blanco: '#FFFFFF', tinta: '#111110', tinta2: '#55534D', tinta3: '#6E6C66',

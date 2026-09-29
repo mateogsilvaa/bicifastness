@@ -178,27 +178,22 @@ test('la CSP no abre la puerta a scripts en linea', () => {
   assert.match(directiva('connect-src'), /googleapis\.com/);
 });
 
-test('las cabeceras que solo existen por HTTP estan puestas', () => {
-  // Es la razon de servir desde Vercel y no desde GitHub Pages: Pages no
-  // permite cabeceras, y estas seis no tienen equivalente en <meta>.
-  const cabeceras = JSON.parse(leer('vercel.json')).headers
-    .flatMap((bloque) => bloque.headers);
-  const valor = (clave) => (cabeceras.find((h) => h.key === clave) || {}).value;
+test('no queda configuracion de Vercel y lo que se pierde esta dicho', () => {
+  // La web se publica en GitHub Pages (ci.yml, trabajo `web`). Un vercel.json
+  // que siguiera ahi haria creer que hay cabeceras y redirecciones que ya no
+  // aplica nadie.
+  assert.ok(!fs.existsSync(path.join(RAIZ, 'vercel.json')), 'queda vercel.json');
+  assert.ok(!fs.existsSync(path.join(RAIZ, '.vercelignore')), 'queda .vercelignore');
 
-  for (const clave of ['X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy',
-    'Permissions-Policy', 'Strict-Transport-Security', 'Cross-Origin-Opener-Policy']) {
-    assert.ok(valor(clave), `falta la cabecera ${clave}`);
-  }
-
-  // `frame-ancestors` es la directiva que el navegador ignora cuando la CSP
-  // llega por <meta>: solo cuenta si viaja en la cabecera.
-  assert.match(valor('Content-Security-Policy'), /frame-ancestors 'none'/);
+  // Pages no deja poner cabeceras: lo que solo existe por HTTP tiene que estar
+  // explicado, con como se suple, donde vive la politica.
+  const conf = JSON.parse(leer('shared/cabeceras.json'));
+  assert.ok(Array.isArray(conf._sin_cabeceras) && conf._sin_cabeceras.join(' ').includes('frame-ancestors'));
+  assert.ok(!('otras' in conf), 'cabeceras HTTP declaradas que no aplica nadie');
 });
 
-test('la CSP de la cabecera y la del <meta> no divergen', () => {
-  // Las dos se generan de shared/cabeceras.json. Si alguien edita una a mano,
-  // el navegador aplicaria la interseccion y algo dejaria de cargar sin que
-  // nadie sepa por que.
+test('la CSP del <meta> es la de shared/cabeceras.json', () => {
+  // Sin cabeceras HTTP, el <meta> es la unica CSP que llega al navegador.
   const { csp } = JSON.parse(leer('shared/cabeceras.json'));
   const esperada = Object.entries(csp)
     .map(([d, origenes]) => [d, ...origenes].join(' ').trim())
@@ -207,12 +202,6 @@ test('la CSP de la cabecera y la del <meta> no divergen', () => {
   const enPagina = leer('clasificacion/index.html')
     .match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
   assert.strictEqual(enPagina, esperada);
-
-  const enCabecera = JSON.parse(leer('vercel.json')).headers
-    .flatMap((b) => b.headers)
-    .find((h) => h.key === 'Content-Security-Policy').value;
-  // La cabecera lleva ademas frame-ancestors, pero todo lo demas es identico.
-  assert.ok(enCabecera.startsWith(esperada), 'la cabecera no contiene la politica base');
 });
 
 test('todas las paginas llevan la CSP escrita', () => {
@@ -388,8 +377,10 @@ test('entrar con Google no es un atajo para saltarse el consentimiento', () => {
 test('el popup de Google no lo rompe la cabecera COOP', () => {
   // Con `same-origin` la pagina pierde la referencia al popup que ella misma
   // abre y el login falla como si la persona lo hubiera cerrado.
+  // Sin cabeceras HTTP (GitHub Pages) no hay COOP y el popup funciona; si algun
+  // dia se pone delante un proxy con cabeceras, la nota dice cual poner.
   const cabeceras = JSON.parse(leer('shared/cabeceras.json'));
-  assert.notStrictEqual(cabeceras.otras['Cross-Origin-Opener-Policy'], 'same-origin');
+  assert.match(cabeceras._sin_cabeceras.join(' '), /same-origin-allow-popups/);
   assert.ok(cabeceras.csp['script-src'].includes('https://apis.google.com'));
   // Y el resolutor NO va en la inicializacion: cargaria apis.google.com en
   // todas las paginas en vez de solo al pulsar el boton.
@@ -526,30 +517,31 @@ test('los avisos fijos no tapan la barra inferior', () => {
   assert.match(css, /body:has\(\.nav-inf\) \.pila-avisos \{\s*bottom: calc\(var\(--alto-barra\)/);
 });
 
-test('las rutas viejas siguen llegando a algun sitio', () => {
-  // Los directorios se han borrado, pero las URLs estan enlazadas desde fuera.
-  // Sin redireccion, cada una es un 404 y se pierde lo que hubiera indexado.
-  const redirecciones = JSON.parse(leer('vercel.json')).redirects || [];
-  const destino = (origen) => (redirecciones.find((r) => r.source === origen) || {}).destination;
+/** Monta la web como la publica GitHub Pages, en una carpeta temporal. */
+function montarSitio(abierta) {
+  const { construir } = require('../../scripts/construir-sitio');
+  const destino = fs.mkdtempSync(path.join(require('os').tmpdir(), 'bf-sitio-'));
+  construir({ destino, abierta });
+  return destino;
+}
 
-  const esperadas = {
-    '/home': '/',
-    '/ranking': '/clasificacion/',
-    '/mapa': '/territorio/',
-    '/profile': '/yo/',
-  };
+test('las rutas viejas siguen llegando a algun sitio', () => {
+  // Las URLs de la v1 estan enlazadas desde fuera. Pages no redirige, asi que
+  // se publica una pagina minima por cada una que salta a la nueva.
+  const sitio = montarSitio(true);
+  const esperadas = { home: '/', ranking: '/clasificacion/', mapa: '/territorio/', profile: '/yo/' };
 
   for (const [vieja, nueva] of Object.entries(esperadas)) {
-    assert.strictEqual(destino(vieja), nueva, `${vieja} no redirige a ${nueva}`);
-    const regla = redirecciones.find((r) => r.source === vieja);
-    assert.strictEqual(regla.permanent, true, `${vieja} deberia ser un 301`);
+    const html = fs.readFileSync(path.join(sitio, vieja, 'index.html'), 'utf8');
+    assert.ok(html.includes(`http-equiv="refresh" content="0; url=${nueva}"`), `/${vieja}/ no salta a ${nueva}`);
+    assert.match(html, /noindex/);
   }
 
-  // Y los directorios ya no existen: si existieran, Vercel serviria el fichero
-  // en vez de redirigir.
+  // Y en el repositorio no existen: son generadas.
   for (const viejo of ['home', 'ranking', 'bicirating', 'mapa', 'clanes', 'profile']) {
     assert.ok(!fs.existsSync(path.join(RAIZ, viejo)), `el directorio ${viejo}/ sigue ahi`);
   }
+  fs.rmSync(sitio, { recursive: true, force: true });
 });
 
 test('el CSS es mobile-first', () => {
@@ -570,16 +562,17 @@ test('los objetivos tactiles llegan al minimo accesible', () => {
 // --- Modo mantenimiento -----------------------------------------------------
 
 test('el modo mantenimiento tapa tambien las paginas que existen', () => {
-  const conf = JSON.parse(leer('vercel.json'));
-  const redir = (conf.redirects || [])[0];
+  // Cerrada, se publica SOLO la pagina de obras, como portada y como 404: asi
+  // /admin/ o /subir/ tampoco se ven, porque no existen en lo publicado.
+  const sitio = montarSitio(false);
+  const obras = leer('mantenimiento/index.html');
 
-  assert.ok(redir, 'sin redirect no hay modo mantenimiento');
-  assert.strictEqual(redir.destination, '/mantenimiento/');
-  // En Vercel los redirects se evaluan ANTES del sistema de ficheros: por eso
-  // tapan /admin/ y /home/, que existen como fichero. Un rewrite no bastaria.
-  assert.match(redir.source, /\(\?!/, 'el patron debe excluir la propia pagina de obras');
-  assert.match(redir.source, /mantenimiento/);
-  assert.strictEqual(redir.permanent, false, 'un 308 se cachearia en el navegador');
+  assert.strictEqual(fs.readFileSync(path.join(sitio, 'index.html'), 'utf8'), obras);
+  assert.strictEqual(fs.readFileSync(path.join(sitio, '404.html'), 'utf8'), obras);
+  for (const pagina of ['subir', 'admin', 'yo', 'assets', 'sw.js']) {
+    assert.ok(!fs.existsSync(path.join(sitio, pagina)), `con la web cerrada se publica ${pagina}`);
+  }
+  fs.rmSync(sitio, { recursive: true, force: true });
 });
 
 test('la pagina de obras no depende de nada del sitio', () => {
@@ -645,7 +638,7 @@ test('el CI regenera todo lo que despues comprueba', () => {
   // en vez de dejarlo fuera sin querer.
   const FUERA = {
     // Escribe el SHA del commit: siempre difiere, asi que no puede entrar en una
-    // comprobacion de "esto no ha cambiado". Lo lanza Vercel al desplegar.
+    // comprobacion de "esto no ha cambiado". Lo lanza el trabajo `web` al desplegar.
     'build-version.js': 'su salida cambia en cada commit',
     // El banco de capturas de prueba vive en `backend/test/banco`, que no es una
     // de las dos carpetas que compara el CI.
@@ -679,54 +672,48 @@ test('solo hay un sitio publicado', () => {
   // y como el modo mantenimiento protege un sitio pero no el otro.
   const ci = leer('.github/workflows/ci.yml');
   assert.ok(!/--only hosting|only hosting,/.test(ci),
-    'el CI no debe desplegar hosting: el sitio vive en Vercel');
+    'el CI no debe desplegar Firebase Hosting: el sitio vive en GitHub Pages');
+  assert.strictEqual((ci.match(/actions\/deploy-pages@/g) || []).length, 1);
 
-  // Pero las reglas de Firestore SI tienen que seguir desplegandose: son el
-  // control de acceso y Vercel no las toca.
+  // Nunca se publica algo que no haya pasado las pruebas y el emulador.
+  const web = ci.slice(ci.indexOf('\n  web:'));
+  assert.match(web, /needs: \[tests, reglas-emulador\]/);
+  assert.match(web, /construir-sitio\.js/);
+  assert.match(web, /build-version\.js/);
+
+  // Las reglas de Firestore SI se siguen desplegando: son el control de acceso.
   assert.match(ci, /firestore:rules/);
-
-  assert.ok(!fs.existsSync(path.join(RAIZ, '.github/workflows/paginas.yml')),
-    'queda el workflow de GitHub Pages');
 });
 
 test('el despliegue no publica el backend ni los scripts', () => {
-  const ignorados = leer('.vercelignore').split('\n').map((l) => l.trim());
-
   // Todo esto acabaria servido por URL, y `firestore.rules` ademas cuenta a
-  // quien deja entrar donde.
-  //
-  // `scripts` se admite de las dos formas: `scripts/` excluye la carpeta y
-  // `scripts/*` su contenido. La segunda es la que hay, porque es la unica que
-  // permite la excepcion de `build-version.js`, que el `buildCommand` necesita
-  // tener subido para poder ejecutarlo.
-  for (const carpeta of ['backend/', 'shared/', '.github/', 'node_modules/']) {
-    assert.ok(ignorados.includes(carpeta), `${carpeta} acabaria publicado en la web`);
+  // quien deja entrar donde. Se comprueba sobre lo que se monta DE VERDAD.
+  const sitio = montarSitio(true);
+  for (const fuera of ['backend', 'scripts', 'shared', 'docs', 'test-reglas', '.github',
+    'node_modules', 'firestore.rules', 'firestore.indexes.json', 'package.json', 'README.md']) {
+    assert.ok(!fs.existsSync(path.join(sitio, fuera)), `${fuera} acabaria publicado en la web`);
   }
-  assert.ok(ignorados.includes('scripts/') || ignorados.includes('scripts/*'),
-    'los scripts de administracion acabarian publicados en la web');
-  assert.ok(ignorados.includes('firestore.rules'));
 
-  // Y de las excepciones, solo la del generador de la version: cualquier otra
-  // estaria publicando una herramienta de administracion.
-  const excepciones = ignorados.filter((l) => l.startsWith('!'));
-  assert.deepStrictEqual(excepciones, ['!scripts/build-version.js'],
-    `hay excepciones nuevas en .vercelignore: ${excepciones.join(', ')}`);
-
-  // El mapa hace fetch('/data/emt.geojson'): eso SI tiene que publicarse.
-  assert.ok(!ignorados.includes('data/'), 'el mapa se quedaria sin estaciones');
+  // Y lo que la web necesita, si. El mapa hace fetch('/data/emt.geojson').
+  for (const dentro of ['index.html', '404.html', 'sw.js', 'manifest.webmanifest',
+    'data/emt.geojson', 'assets/data/version.js', 'subir/index.html', 'bici/index.html', 'cuenta/index.html']) {
+    assert.ok(fs.existsSync(path.join(sitio, dentro)), `falta ${dentro} en lo publicado`);
+  }
   assert.match(leerCodigo('assets/js/paginas/territorio.js'), /\/data\/emt\.geojson/);
+  fs.rmSync(sitio, { recursive: true, force: true });
 });
 
-test('el service worker no se queda cacheado', () => {
-  // /sw.js encaja tambien en la regla de `.js`, y cuando dos reglas definen la
-  // misma cabecera gana la ULTIMA. Si alguien reordena el bloque, el navegador
-  // se queda sirviendo la app vieja para siempre.
-  const bloques = JSON.parse(leer('vercel.json')).headers;
-  const indiceSw = bloques.findIndex((b) => b.source === '/sw.js');
-  const indiceJs = bloques.findIndex((b) => /js\|css\|html/.test(b.source));
+test('el service worker y el codigo no se quedan cacheados', () => {
+  // GitHub Pages sirve todo con diez minutos de cache y no deja cambiarlo.
+  // Sin esto, la primera carga tras un despliegue mezclaria HTML nuevo con
+  // modulos viejos, y el propio service worker podria tardar en actualizarse.
+  assert.match(leerCodigo('assets/js/instalar.js'), /register\('\/sw\.js', \{ updateViaCache: 'none' \}\)/);
 
-  assert.ok(indiceSw > indiceJs, '/sw.js tiene que ir despues de la regla de .js');
-  assert.match(bloques[indiceSw].headers[0].value, /no-store/);
+  const sw = leerCodigo('sw.js');
+  const red = sw.slice(sw.indexOf('async function redPrimero'));
+  assert.match(red.slice(0, 400), /fetch\(peticion, \{ cache: 'no-cache' \}\)/);
+  const nav = sw.slice(sw.indexOf('async function navegar'));
+  assert.match(nav.slice(0, 400), /fetch\(peticion, \{ cache: 'no-cache' \}\)/);
 });
 
 test('un viaje aprobado guarda distancia, velocidad y puntos', () => {
@@ -1823,59 +1810,24 @@ test('el worker no falla cuando todavia no hay credenciales', () => {
 
 // --- Despliegue ----------------------------------------------------------------
 
-test('vercel.json no lleva claves que Vercel no entienda', () => {
-  // Esto tumbo CINCO despliegues seguidos y no se veia en ningun sitio: el
-  // fichero llevaba un comentario con la convencion de la clave "//" — que es
-  // JSON perfectamente valido — y el esquema de Vercel rechaza cualquier clave
-  // que no conozca. El despliegue ni llega a construirse: falla con "should NOT
-  // have additional property `//`" y el sitio se queda con lo ultimo que
-  // funcionase.
-  //
-  // La lista es la de propiedades de configuracion de proyecto de Vercel que
-  // usa este repositorio. Si hace falta una nueva, se añade AQUI a proposito,
-  // que es lo que obliga a comprobar que existe de verdad.
-  const PERMITIDAS = [
-    '$schema', 'cleanUrls', 'trailingSlash', 'redirects', 'rewrites',
-    'headers', 'buildCommand', 'outputDirectory', 'installCommand',
-    'framework', 'regions', 'ignoreCommand',
-  ];
 
-  const vercel = JSON.parse(leer('vercel.json'));
-  for (const clave of Object.keys(vercel)) {
-    assert.ok(PERMITIDAS.includes(clave),
-      `vercel.json tiene la clave "${clave}", que Vercel rechaza. `
-      + 'Los comentarios van al README: ese fichero no los admite.');
-  }
-
-  // Y dentro de cada regla, que es donde se colo la segunda vez: el comentario
-  // no estaba solo en la raiz, tambien dentro de un bloque de `headers`.
-  // Mirando solo las claves de primer nivel, esa se pasaba por alto.
-  const CLAVES_REGLA = ['source', 'headers', 'destination', 'permanent',
-    'has', 'missing', 'statusCode'];
-  for (const regla of [...(vercel.headers || []), ...(vercel.redirects || []), ...(vercel.rewrites || [])]) {
-    for (const clave of Object.keys(regla)) {
-      assert.ok(CLAVES_REGLA.includes(clave),
-        `una regla de vercel.json tiene la clave "${clave}", que Vercel rechaza igual que en la raiz`);
+test('sin la variable WEB_ABIERTA la web sale en obras', () => {
+  // El lado seguro: si alguien borra la variable o la escribe mal, la web se
+  // cierra; nunca se abre sin querer antes de tiempo.
+  const { construir } = require('../../scripts/construir-sitio');
+  const antes = process.env.WEB_ABIERTA;
+  const destino = fs.mkdtempSync(path.join(require('os').tmpdir(), 'bf-sitio-'));
+  try {
+    for (const [valor, abiertaEsperada] of [[undefined, false], ['', false], ['no', false], ['si', true], ['Sí', true]]) {
+      if (valor === undefined) delete process.env.WEB_ABIERTA;
+      else process.env.WEB_ABIERTA = valor;
+      const { abierta } = construir({ destino });
+      assert.strictEqual(abierta, abiertaEsperada, `WEB_ABIERTA=${JSON.stringify(valor)}`);
     }
-  }
-});
-
-test('el modo mantenimiento tapa el sitio pero no las rutas viejas', () => {
-  // El primer redirect es el que pone la web en obras, y el README dice que
-  // para reabrir hay que borrar SOLO ese. Si alguien lo mueve de sitio, esa
-  // instruccion se convierte en "borra las rutas viejas", que estan enlazadas
-  // desde fuera.
-  const { redirects } = JSON.parse(leer('vercel.json'));
-  assert.ok(Array.isArray(redirects) && redirects.length > 1);
-
-  assert.match(redirects[0].destination, /^\/mantenimiento\//,
-    'el primer redirect ya no es el de mantenimiento; revisa el README');
-  assert.strictEqual(redirects[0].permanent, false,
-    'el redirect de mantenimiento tiene que ser temporal, o los navegadores lo cachean para siempre');
-
-  for (const vieja of ['/home', '/ranking', '/mapa']) {
-    assert.ok(redirects.some((r) => r.source === vieja),
-      `falta el redirect de la ruta vieja ${vieja}`);
+  } finally {
+    if (antes === undefined) delete process.env.WEB_ABIERTA;
+    else process.env.WEB_ABIERTA = antes;
+    fs.rmSync(destino, { recursive: true, force: true });
   }
 });
 

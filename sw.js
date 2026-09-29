@@ -85,7 +85,7 @@ self.addEventListener('fetch', (evento) => {
   // El motor y el modelo del OCR (#8) NO pasan por aqui. Son casi seis megas, y
   // la estrategia de abajo es stale-while-revalidate: responderia rapido, si,
   // pero volveria a bajarselos por detras en cada subida. De su cache se ocupa
-  // la cabecera `Cache-Control` que pone Vercel, que es una semana.
+  // la cache HTTP del navegador.
   if (url.pathname.startsWith('/assets/ocr/')) return;
 
   // --- Navegacion: red primero, y si no hay red, algo util ------------------
@@ -101,11 +101,12 @@ self.addEventListener('fetch', (evento) => {
   const esEstatico = /\.(css|js|png|jpg|jpeg|svg|webp|woff2?|json|geojson|mp3|webmanifest)$/i.test(url.pathname);
   if (!esEstatico) return;
 
-  // Dos estrategias, y la frontera es la misma que traza `vercel.json`.
+  // Dos estrategias.
   //
-  // El CODIGO (js, css) no lleva hash en el nombre, y por eso Vercel lo sirve
-  // con `max-age=0, must-revalidate`: la idea es que el navegador compruebe
-  // SIEMPRE si hay una version nueva. Servirlo stale-while-revalidate se
+  // El CODIGO (js, css) no lleva hash en el nombre, asi que el navegador tiene
+  // que comprobar SIEMPRE si hay una version nueva. GitHub Pages lo sirve con
+  // diez minutos de cache y no deja cambiarlo: por eso `redPrimero` pide con
+  // `cache: 'no-cache'`, que revalida (un 304 si no ha cambiado). Servirlo stale-while-revalidate se
   // saltaba esa decision — respondia con la copia guardada y bajaba la nueva
   // por detras — asi que la primera carga despues de un despliegue mezclaba
   // HTML nuevo, que llega por red, con modulos viejos. Un armazon que importa
@@ -169,7 +170,9 @@ function guardar(peticion, respuesta) {
  */
 async function redPrimero(peticion) {
   try {
-    return guardar(peticion, await fetch(peticion));
+    // `no-cache` = preguntar siempre al servidor, aunque la cache HTTP diga que
+    // la copia vale diez minutos mas (GitHub Pages).
+    return guardar(peticion, await fetch(peticion, { cache: 'no-cache' }));
   } catch (error) {
     const cacheada = await caches.match(peticion);
     if (cacheada) return cacheada;
@@ -196,7 +199,8 @@ function cacheRapido(peticion) {
  */
 async function navegar(peticion) {
   try {
-    const respuesta = await fetch(peticion);
+    // Igual que el codigo: el HTML nuevo, no el de hace diez minutos.
+    const respuesta = await fetch(peticion, { cache: 'no-cache' });
     if (respuesta.ok && respuesta.type === 'basic') {
       const copia = respuesta.clone();
       caches.open(CACHE).then((cache) => cache.put(peticion, copia));

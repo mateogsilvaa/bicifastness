@@ -709,7 +709,7 @@ test('el proyecto ya no se conecta a dicebear', () => {
   assert.ok(!cabeceras.includes('dicebear'),
     'la CSP sigue autorizando un tercero que ya no se usa');
 
-  for (const rel of ['assets/js/firebase.js', 'assets/js/paginas/yo.js', 'vercel.json']) {
+  for (const rel of ['assets/js/firebase.js', 'assets/js/paginas/yo.js']) {
     // Sin comentarios: los de estos ficheros explican POR QUE se quito.
     const sinComentarios = leer(rel).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     assert.ok(!sinComentarios.includes('dicebear'), `${rel} sigue pidiendo el avatar fuera`);

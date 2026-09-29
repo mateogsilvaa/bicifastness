@@ -54,7 +54,7 @@ un viaje tarda unos minutos en resolverse en vez de segundos.
 ### Stack
 
 - Frontend: HTML + CSS + JavaScript con modulos ES. Sin framework ni build. Mobile-first.
-- Alojamiento: Vercel, conectado a la rama `main`. El sitio es estatico y habla con Firestore desde el navegador.
+- Alojamiento: GitHub Pages con dominio propio, publicado por `ci.yml` desde `main`. El sitio es estatico y habla con Firestore desde el navegador.
 - Datos: Firebase Auth + Firestore, en el plan Spark (gratis, sin tarjeta).
 - Worker: Node 20 en GitHub Actions, con `sharp` y OCR local (`tesseract.js`). **Sin IA ni servicios externos.**
 - Mapa: Leaflet + GeoJSON de estaciones.
@@ -117,15 +117,16 @@ script suelto en vez de desde la web.
 
 ### 5. Desplegar
 
-Dos caminos, cada uno con lo suyo, y los dos solos en cada push a `main`:
+Todo lo despliega `ci.yml`, solo, en cada push a `main` y **solo si pasan las
+pruebas y las reglas en el emulador**:
 
-| Quien | Que despliega |
+| Trabajo | Que despliega |
 |---|---|
-| Vercel | El sitio, por su integracion con Git. Lo gobierna `vercel.json` |
-| `ci.yml` | Las reglas y los indices de Firestore |
+| `web` | El sitio, en GitHub Pages (`scripts/construir-sitio.js` monta `_site/`) |
+| `reglas` | Las reglas y los indices de Firestore |
 
 Las reglas van aparte a proposito: **no son estaticas**. Son el control de acceso
-del proyecto, porque no hay servidor delante, y Vercel no las toca.
+del proyecto, porque no hay servidor delante.
 
 A mano, solo las reglas:
 
@@ -133,40 +134,39 @@ A mano, solo las reglas:
 firebase deploy --only firestore:rules,firestore:indexes --project bicifastness
 ```
 
-### 5.1. Por que Vercel y no GitHub Pages
+Para ver en local exactamente lo que se publica:
 
-Por una sola razon, pero decisiva: **Pages no permite configurar cabeceras
-HTTP**. Serviria el sitio igual de bien, pero se perderian seis cabeceras de
-seguridad que no tienen equivalente en `<meta>`:
+```bash
+node scripts/construir-sitio.js --abierta
+```
 
-`frame-ancestors` · `Strict-Transport-Security` · `X-Frame-Options` ·
-`X-Content-Type-Options` · `Permissions-Policy` · `Cross-Origin-Opener-Policy`
+### 5.1. GitHub Pages y las cabeceras
 
-Vercel las da gratis, sin tarjeta y sin dominio propio.
-
-Las cabeceras salen de **`shared/cabeceras.json`**, que es la fuente unica. El
-script las vuelca en dos sitios:
+Pages **no permite cabeceras HTTP**. La politica de seguridad (CSP y referrer)
+va por eso en cada pagina como `<meta>`, generada desde
+**`shared/cabeceras.json`**, que es la fuente unica:
 
 ```bash
 npm run cabeceras
 ```
 
-1. `vercel.json`, como cabeceras HTTP de verdad
-2. cada pagina, la CSP tambien como `<meta>`, por si el HTML se sirve desde otro
-   sitio (en local, un mirror, un despliegue de prueba) donde no habria cabecera
+`npm run validar` falla si alguna pagina se queda atras.
 
-`npm run validar` falla si alguno de los dos se queda atras. **No edites el
-bloque `headers` de `vercel.json` a mano.**
+Lo que solo existe como cabecera y se pierde (`frame-ancestors`, HSTS,
+`X-Content-Type-Options`, `Permissions-Policy`) esta explicado en
+`_sin_cabeceras` de ese mismo fichero, con como se suple: el antiframing va en
+`assets/js/ui.js`, y si algun dia hacen falta las demas, se pone Cloudflare
+gratis delante del dominio.
 
-**Consecuencia practica:** la CSP declara `script-src 'self'` sin
+Tampoco deja cambiar la cache (diez minutos para todo). Por eso el service
+worker pide el codigo y el HTML con `cache: 'no-cache'` y se registra con
+`updateViaCache: 'none'`: tras un despliegue nadie mezcla modulos nuevos y
+viejos.
+
+**Consecuencia practica de la CSP:** declara `script-src 'self'` sin
 `'unsafe-inline'`, asi que **el JavaScript de las paginas no puede ir incrustado
 en el HTML**. Vive en `assets/js/paginas/`, un modulo por pagina. Hay un test
 que falla si alguien lo vuelve a meter en linea.
-
-> Esto no era una precaucion teorica: la CSP ya declaraba `script-src 'self'`
-> mientras las 17 paginas llevaban su codigo incrustado, o sea que **la politica
-> bloqueaba todo el JavaScript del sitio**. No se noto porque la unica pagina
-> publicada, la de obras, es la unica sin scripts.
 
 ### 6. Crear el primer administrador
 
@@ -191,32 +191,22 @@ Revisa la salida y, si cuadra, repite con `--aplicar`.
 
 ## Modo mantenimiento
 
-El sitio esta en obras ahora mismo, y lo hace **el PRIMER redirect** de
-`vercel.json`:
+La web esta **en obras mientras la variable del repositorio `WEB_ABIERTA` no
+valga `si`** (Settings → Secrets and variables → Actions → **Variables**).
 
-```json
-{ "source": "/((?!mantenimiento|images/).*)", "destination": "/mantenimiento/", "permanent": false }
-```
+- **Abrir:** `WEB_ABIERTA` = `si` y Actions → «Tests y despliegue» → **Run
+  workflow** en `main`.
+- **Cerrar:** cambia la variable a `no` (o bórrala) y otra vez Run workflow.
 
-En Vercel los redirects se evaluan **antes** del sistema de ficheros, asi que
-tapan tambien las paginas que existen: sin eso, entrar a `/admin/` escribiendo
-la URL seguiria funcionando.
+Con la web cerrada, `scripts/construir-sitio.js` publica SOLO la pagina de
+obras, como portada y como 404: cualquier URL, exista o no, la enseña, asi que
+tampoco se entra a `/admin/` escribiendo la direccion. Sin la variable, cerrada:
+es el lado seguro.
 
-**Para volver a abrir la web, borra SOLO ese primer redirect** (issue #7). Los
-demas NO se tocan: son las rutas viejas del redisenio — `/home/`, `/ranking/`,
-`/bicirating/`, `/mapa/`, `/clanes/` y `/profile/` — que estan enlazadas desde
-fuera y se quedan para siempre.
-
-El sitio es estatico y se sirve desde la RAIZ del repositorio, y por eso
-`vercel.json` declara `"outputDirectory": "."`. No es opcional: en cuanto hay un
-`buildCommand`, Vercel busca la salida en `public/` y falla con "No Output
-Directory named public found".
-
-Y una advertencia que costo cinco despliegues fallidos: **`vercel.json` no
-admite comentarios**, ni siquiera con la convencion de la clave `"//"`. Su
-esquema rechaza cualquier clave que no conozca y el despliegue ni llega a
-construirse ("should NOT have additional property"). Lo que haya que explicar,
-se explica aqui. Hay un test que lo vigila.
+Las rutas viejas del redisenio — `/home/`, `/ranking/`, `/bicirating/`,
+`/mapa/`, `/clanes/` y `/profile/` — estan enlazadas desde fuera: con la web
+abierta, el mismo script publica una pagina minima en cada una que salta a la
+nueva.
 
 La pagina de obras es autocontenida a proposito: sin scripts, sin depender de
 `app.css` ni de ningun modulo. Si algo del sitio se rompe, tiene que seguir en pie.
@@ -392,8 +382,8 @@ backend/
 .github/workflows/
   verificar-viajes.yml      worker cada 5 minutos (cron apagado hasta el lanzamiento)
   periodicas.yml            cierre de temporada y divisiones (cron apagado)
-  ci.yml                    tests y despliegue de reglas de Firestore
-vercel.json                 despliegue del sitio y cabeceras de seguridad
+  ci.yml                    tests, reglas de Firestore y la web en GitHub Pages
+CNAME                       el dominio de la web (lo leen Pages y los correos)
 docs/
   ROADMAP.md                hitos, issues y en que orden
   JUEGO.md                  las reglas del juego y por que son esas

@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # A mano, para abrir o cerrar la web tras cambiar la variable WEB_ABIERTA.
+  workflow_dispatch:
 
 jobs:
   tests:
@@ -46,7 +48,7 @@ jobs:
       #
       # `build-version.js` se queda fuera a proposito: escribe el SHA del commit,
       # asi que siempre difiere y haria fallar la comprobacion. Lo lanza el
-      # `buildCommand` de Vercel en cada despliegue, que es cuando importa.
+      # trabajo `web` en cada despliegue, que es cuando importa.
       - name: Regenerar datos compartidos
         run: npm run datos:fuente
 
@@ -137,10 +139,8 @@ jobs:
           npm ci --no-audit --no-fund
           npm test
 
-  # El sitio lo publica Vercel, conectado a este repositorio. Aqui solo quedan las
-  # REGLAS y los INDICES de Firestore, que no son estaticos: son el control de
-  # acceso del proyecto (no hay servidor delante) y tienen que seguir
-  # desplegandose en cada push, porque Vercel no las toca.
+  # Las REGLAS y los INDICES de Firestore no son estaticos: son el control de
+  # acceso del proyecto (no hay servidor delante) y se despliegan en cada push.
   reglas:
     # Nunca se despliega una regla que no haya pasado por el emulador.
     needs: [tests, reglas-emulador]
@@ -169,3 +169,50 @@ jobs:
             --project bicifastness --non-interactive
 
           rm -f cuenta-servicio.json
+
+  # LA WEB, en GitHub Pages. Solo desde `main` y solo si han pasado las pruebas
+  # y las reglas: nunca se publica algo que no las pasa.
+  #
+  # Settings → Pages → Source: "GitHub Actions". El dominio propio se pone en
+  # Settings → Pages → Custom domain (y en el fichero CNAME, que es de donde lo
+  # sacan los enlaces de los correos).
+  #
+  # Abierta o en obras segun la variable del repositorio WEB_ABIERTA (Settings →
+  # Secrets and variables → Actions → Variables). Sin ella, EN OBRAS. Para
+  # cambiarla sin commit: cambia la variable y Actions → "Tests y despliegue" →
+  # Run workflow (scripts/construir-sitio.js).
+  web:
+    needs: [tests, reglas-emulador]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    # Dos publicaciones a la vez se pisan: la segunda espera.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Montar la web
+        env:
+          WEB_ABIERTA: ${{ vars.WEB_ABIERTA }}
+        run: |
+          node scripts/build-version.js
+          node scripts/construir-sitio.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Publicar
+        id: despliegue
+        uses: actions/deploy-pages@v4

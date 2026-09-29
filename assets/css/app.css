@@ -1553,16 +1553,15 @@ body.sin-navegacion .pila-avisos { bottom: var(--e2); }
 .portada-pie .mensaje:empty { display: none; }
 
 .ruta-publica {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 10px;
-  align-items: center;
+  display: block;
   padding: var(--e3) 14px;
   border-radius: var(--radio-tarjeta);
   background: var(--tinta);
   color: var(--papel);
   text-decoration: none;
 }
+.ruta-publica .rp-movil { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+.ruta-publica .rp-escritorio { display: none; }
 .ruta-publica:hover { color: var(--papel); }
 .ruta-publica .punto-vivo { width: 8px; height: 8px; border-radius: 50%; background: var(--verde-vivo); }
 .ruta-publica .texto { font-size: 13px; line-height: 1.35; }
@@ -1576,6 +1575,8 @@ body.sin-navegacion .pila-avisos { bottom: var(--e2); }
   font-weight: 800;
 }
 
+.portada-cta { display: flex; flex-direction: column; gap: var(--e4); }
+.portada-correo, .idea-corta, .idea-corta-texto, .portada-pie-escritorio { display: none; }
 .portada-enlaces { display: flex; justify-content: space-between; gap: var(--e3); font-size: 15px; font-weight: 600; }
 .portada-enlaces a { text-decoration: none; }
 .portada-enlaces .azul { color: var(--azul); }
@@ -1831,6 +1832,9 @@ section.acceso { padding: calc(var(--e5) + env(safe-area-inset-top, 0px)) var(--
   .solo-escritorio { display: flex !important; }
 }
 
+/* Sin sesion, el contenedor de Hoy va vacio: sin esto sus margenes dejaban un
+   hueco de 100 px debajo de la portada y una barra de desplazamiento. */
+.container:has(> .hoy.oculto):has(> .mensaje:empty) { display: none; }
 .hoy { display: flex; flex-direction: column; gap: 14px; }
 .hoy-cabecera { display: flex; align-items: center; justify-content: space-between; gap: var(--e3); min-height: 44px; }
 .hoy-titulo { display: flex; flex-direction: column; min-width: 0; }
@@ -2688,38 +2692,54 @@ body.sin-navegacion .lateral { display: none; }
 @media (min-width: 900px) {
   body.sin-navegacion:has(.lateral) { padding-left: 0; }
 
-  /* 8d · Portada: texto a la izquierda, el mapa real a la derecha. */
-  .portada-publica { max-width: none; position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr auto; min-height: 100vh; }
+  /* 8d · Portada: texto a la izquierda y el mapa real a la derecha, en un
+     panel con 16 px de margen. Medidas del diseño a 1440 x 900. */
+  .portada-publica { max-width: none; position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr auto auto; row-gap: 28px; min-height: 100vh; }
   .portada-hero { display: contents; }
-  .portada-cabecera { grid-column: 1; grid-row: 1; padding: var(--e6) 64px 0; gap: 28px; }
-  .portada-cabecera .logo-palabra { font-size: 20px; }
+  .portada-cabecera { position: static; grid-column: 1; grid-row: 1; justify-content: flex-start; gap: 28px; min-height: 0; padding: 32px 64px 0; }
+  .portada-cabecera .logo { gap: 10px; }
+  .portada-cabecera .logo-anillo { width: 30px; height: 30px; }
+  .portada-cabecera .logo-palabra { font-size: 19px; }
   .portada-nav { display: flex; gap: 28px; margin-left: auto; font-size: 15px; font-weight: 600; }
-  .portada-nav a { color: var(--tinta-2); text-decoration: none; }
+  .portada-nav a { color: var(--tinta-2); text-decoration: none; white-space: nowrap; }
   .portada-nav a:hover { color: var(--tinta); }
-  .portada-mapa { position: relative; grid-column: 2; grid-row: 1 / -1; height: auto; margin: var(--e4) var(--e4) var(--e4) 0; border-radius: 22px; overflow: hidden; opacity: 1; background: var(--papel-2); }
+  /* "Entrar", sobre el mapa: 20 px dentro del panel. */
+  .portada-cabecera .boton-pastilla { position: absolute; top: 36px; right: 36px; z-index: 3; min-height: 0; padding: 10px 16px; border-radius: 12px; font-size: 15px; box-shadow: 0 2px 12px rgba(0, 0, 0, .08); }
+  .portada-mapa { position: relative; grid-column: 2; grid-row: 1 / -1; height: auto; margin: 16px 16px 16px 0; border-radius: 22px; overflow: hidden; opacity: 1; background: var(--papel-2); }
   .portada-degradado { display: none; }
-  .portada-pie { grid-column: 1; grid-row: 2; position: static; justify-content: center; padding: 0 64px; gap: 28px; margin: 0; }
-  .portada-titulo { font-size: clamp(64px, 6.6vw, 96px); font-stretch: 82%; letter-spacing: -.05em; line-height: .88; }
+  .portada-pie { grid-column: 1; grid-row: 2; align-self: center; position: static; padding: 0 64px; gap: 28px; margin: 0; }
+  .portada-titulo { font-size: clamp(64px, 6.667vw, 96px); font-stretch: 82%; letter-spacing: -.05em; line-height: .88; }
   .portada-texto { font-size: 19px; line-height: 1.5; max-width: 40ch; }
-  .portada-pie .btn.grande { width: auto; align-self: flex-start; padding: 0 26px; }
-  .portada-enlaces { justify-content: flex-start; gap: var(--e5); }
-  .portada-aviso { display: none; }
-  #ruta-publica { position: absolute; left: calc(50% + var(--e5)); bottom: 40px; width: 340px; z-index: 2; }
+  .portada-cta { flex-direction: row; align-items: center; gap: 14px; }
+  .portada-cta .btn.grande { width: auto; min-height: 56px; padding: 0 26px; gap: 12px; font-size: 17px; }
+  .portada-correo { display: inline; font-size: 16px; font-weight: 600; color: var(--azul); text-decoration: none; }
+  .portada-correo:hover { color: var(--azul-osc); }
+  .portada-enlaces, .portada-aviso { display: none; }
+  /* La ruta del dia, abajo a la izquierda del mapa (24 px dentro del panel). */
+  #ruta-publica { position: absolute; left: calc(50% + 24px); bottom: 40px; width: 340px; z-index: 2; }
   .ruta-publica { padding: 18px; border-radius: 20px; }
+  .ruta-publica .rp-movil { display: none; }
+  .ruta-publica .rp-escritorio { display: flex; flex-direction: column; gap: 10px; }
+  .ruta-publica .rp-cabeza { display: flex; align-items: center; justify-content: space-between; }
+  .ruta-publica .rp-etiqueta { display: flex; align-items: center; gap: var(--e2); font-size: 13px; color: #B3B2AE; }
+  .ruta-publica .rp-escritorio strong { font-size: 18px; }
+  .ruta-publica .rp-escritorio .detalle { display: block; font-size: 13px; color: #B3B2AE; opacity: 1; }
   .leyenda-portada { display: none; flex-direction: column; gap: 6px; position: absolute; right: 40px; bottom: 40px; z-index: 2; padding: 12px 14px; border-radius: 14px; background: var(--papel-2); font-size: 12px; color: var(--tinta-2); }
   .leyenda-portada span { display: flex; align-items: center; gap: var(--e2); }
   .leyenda-portada i { width: 10px; height: 10px; border-radius: 50%; }
   .leyenda-portada i.lleno { background: #FF5A1F; }
   .leyenda-portada i.anillo { box-shadow: inset 0 0 0 2px #FF5A1F; }
   .leyenda-portada i.libre { width: 8px; height: 8px; margin: 0 1px; background: var(--mapa-neutro); }
-  .portada-ideas { grid-column: 1; grid-row: 3; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--e5); margin: 0 64px 40px; padding: var(--e5) 0 0; border-top: var(--borde); }
-  .idea { background: none; padding: 0; gap: 6px; }
+  /* Las tres cifras (1b), en una franja con raya encima. */
+  .portada-ideas { grid-column: 1; grid-row: 3; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 0 64px; padding: 24px 0 0; border-top: var(--borde); }
+  .idea { background: none; border-radius: 0; padding: 0; gap: 6px; }
   .idea-cifra { font-size: 40px; }
-  .idea h2 { font-size: 15px; }
-  .idea p { font-size: 13px; }
-  .portada-ideas .btn.grande, .portada-ideas .mensaje, .idea p { display: none; }
-  .portada-nav a { white-space: nowrap; }
-  .portada-legal { grid-column: 1 / -1; justify-content: flex-start; }
+  .idea h2, .idea p, .portada-ideas .btn.grande, .portada-ideas .mensaje, .portada-legal { display: none; }
+  .idea-corta { display: block; font-size: 15px; font-weight: 700; }
+  .idea-corta-texto { display: block; font-size: 13px; color: var(--tinta-2); line-height: 1.45; }
+  .portada-pie-escritorio { display: block; grid-column: 1; grid-row: 4; margin: 0 64px 40px; font-size: 12px; color: var(--tinta-3); }
+  .portada-pie-escritorio a { color: inherit; text-decoration: none; }
+  .portada-pie-escritorio a:hover { color: var(--tinta); }
 
   /* 8e · Entrar, alta y nombre de piloto: panel azul fijo y formulario de 400. */
   body.con-marca .acceso-marca:not(.solo-alta), body.con-marca .acceso-marca.solo-alta { display: flex; }
@@ -2742,7 +2762,7 @@ body.sin-navegacion .lateral { display: none; }
 }
 @media (min-width: 900px) and (max-width: 1199px) {
   .portada-cabecera, .portada-pie { padding-left: 40px; padding-right: 40px; }
-  .portada-ideas { margin-left: 40px; margin-right: 40px; }
+  .portada-ideas, .portada-pie-escritorio { margin-left: 40px; margin-right: 40px; }
   .portada-nav { gap: var(--e4); }
   #ruta-publica { width: calc(50% - 64px); }
 }

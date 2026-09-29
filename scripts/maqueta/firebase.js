@@ -14,6 +14,7 @@
  *   localStorage.maqueta_perfil = 'nuevo'   -> piloto recien llegado (2e)
  *   localStorage.maqueta_perfil = 'salvado' -> hoy ya salvado (2b)
  *   localStorage.maqueta_perfil = 'admin'   -> con permisos de administracion
+ *   localStorage.maqueta_perfil = 'sinclan' -> sin clan (5e)
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
  *   localStorage.maqueta_hora = '12:00'     -> la app cree que es esa hora de
  *                                              Madrid (p. ej. '21:30' para 2c)
@@ -89,6 +90,7 @@ const perfiles = {
     },
   },
   admin: { ...perfilBase, admin: true },
+  sinclan: { ...perfilBase, clanId: null, rolClan: null },
 };
 const perfil = perfiles[variante] || perfilBase;
 
@@ -148,7 +150,7 @@ const datos = {
   },
 };
 for (const [id, c] of Object.entries(CLANES)) {
-  datos[`clanes/${id}`] = { ...c, descripcion: 'Salimos de Chamberí cada mañana.', lider: id === 'c1' ? 'otro-uid' : 'x', miembros: id === 'c1' ? ['otro-uid', UID] : ['x'], oficiales: [], solicitudes: id === 'c1' ? [] : [], numMiembros: 12, biciRating: 5200, creado: hace(60 * 24 * 90) };
+  datos[`clanes/${id}`] = { ...c, descripcion: 'Salimos de Chamberí cada mañana.', lider: id === 'c1' ? 'otro-uid' : 'x', miembros: id === 'c1' ? ['otro-uid', ...(perfil.clanId ? [UID] : [])] : ['x'], oficiales: [], solicitudes: id === 'c1' ? [] : [], numMiembros: 12, biciRating: 5200, creado: hace(60 * 24 * 90) };
 }
 datos['agregados/clan-c1'] = {
   clanId: 'c1', nombre: CLANES.c1.nombre, color: CLANES.c1.color,

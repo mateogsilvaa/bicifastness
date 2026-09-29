@@ -1376,7 +1376,7 @@ test('el unico dia que no es de Madrid es el de la cuota', () => {
   const fuera = [];
 
   for (const fichero of recorrerProyecto(/\.js$/)) {
-    const rel = path.relative(RAIZ, fichero);
+    const rel = path.relative(RAIZ, fichero).split(path.sep).join('/');
     if (!rel.startsWith('backend/src/')) continue;
     if (['backend/src/util.js', 'backend/src/cuota.js'].includes(rel)) continue;
 
@@ -1399,7 +1399,9 @@ test('nadie vuelve a calcular el dia a mano en el navegador', () => {
   const fuera = [];
 
   for (const fichero of recorrerProyecto(/\.js$/)) {
-    const rel = path.relative(RAIZ, fichero);
+    // Con barras normales tambien en Windows: con `\` la prueba no miraba
+    // ningun fichero y pasaba en local lo que el CI rechazaba.
+    const rel = path.relative(RAIZ, fichero).split(path.sep).join('/');
     if (!rel.startsWith('assets/js/')) continue;
     if (rel === 'assets/js/dia.js') continue;
 

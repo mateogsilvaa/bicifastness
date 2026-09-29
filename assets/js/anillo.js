@@ -8,7 +8,11 @@
  */
 
 import { el } from '/assets/js/dom.js';
-import { diaMadrid } from '/assets/js/dia.js';
+import { diaMadrid, sumarDias } from '/assets/js/dia.js';
+
+// Vivia aqui; esta en dia.js, que es donde se calculan los dias. Se sigue
+// exportando desde aqui para quien ya lo importaba.
+export { sumarDias };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const R = 52;
@@ -18,13 +22,6 @@ const HUECO = (C * 5) / 360;
 
 /** 'YYYY-MM-DD' de un instante, en Madrid. */
 const dia = (ms) => diaMadrid(new Date(ms));
-
-/** Suma dias a una fecha 'YYYY-MM-DD' (a mediodia UTC, sin lios de horario). */
-export function sumarDias(fecha, n) {
-  const d = new Date(`${fecha}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
 
 /** Las siete fechas de esta semana, de lunes a domingo, en Madrid. */
 export function semanaDe(hoy = diaMadrid()) {

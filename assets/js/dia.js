@@ -27,6 +27,13 @@ export function diaMadrid(fecha = new Date()) {
   return FORMATO.format(fecha);
 }
 
+/** Suma dias a una fecha 'YYYY-MM-DD' (a mediodia UTC, sin lios de horario). */
+export function sumarDias(fecha, n) {
+  const d = new Date(`${fecha}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * El dia de Madrid de hace `n` dias.
  *

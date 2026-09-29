@@ -50,7 +50,7 @@ const C = {
 
 /** Colores del chip de estado. Los mismos del sistema, en claro. */
 const CHIPS = {
-  verificado: { texto: 'Verificado', color: '#1E7F45', fondo: '#E3F1E8' },
+  verificado: { texto: 'Verificado', color: '#1C7A42', fondo: '#E3F1E8' },
   revision: { texto: 'Lo mira una persona', color: '#9A5B00', fondo: '#F6ECDC' },
   rechazado: { texto: 'No cuenta', color: '#C8322A', fondo: '#F8E3E1' },
   error: { texto: 'No hemos podido leerla', color: '#9A5B00', fondo: '#F6ECDC' },

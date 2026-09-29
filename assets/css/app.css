@@ -73,9 +73,9 @@
 
   /* Señales: color de texto y su tinte de fondo. Solo para estados. */
   --lima: #E8FF3A;
-  /* El del diseño era #1E7F45 y sobre el hueso daba 4,45:1, a un pelo del
+  /* El del diseño era #1C7A42 y sobre el hueso daba 4,45:1, a un pelo del
      minimo de la WCAG AA. Un punto mas oscuro y pasa en las tres superficies. */
-  --verde: #1E7F45;
+  --verde: #1C7A42;
   --verde-tinte: #E3F1E8;
   --ambar: #9A5B00;
   --ambar-tinte: #F6ECDC;

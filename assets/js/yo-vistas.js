@@ -132,13 +132,13 @@ export function pintarRating(perfil, puestos = {}) {
   const valores = valoresModos(perfil);
   reemplazar(document.getElementById('leyenda-modos'), MODOS.map((m) => el('span', {}, [
     el('span', { clase: `nombre-modo ${m.clave}`, texto: m.nombre }),
-    el('strong', { texto: valores[m.clave] }),
-    m.clave === fuerte ? el('span', { clase: 'fuerte', texto: 'tu fuerte' }) : null,
+    // 6a: "527 · tu fuerte", en la misma cifra.
+    el('strong', { texto: m.clave === fuerte ? `${valores[m.clave]} · tu fuerte` : valores[m.clave] }),
   ])));
 }
 
 /** Cabecera: inicial sobre el color del clan, nombre, clan y etiquetas. */
-export function pintarCabecera(perfil, clan) {
+export function pintarCabecera(perfil, clan, grupo = null) {
   const nombre = perfil.username || 'Piloto';
   document.getElementById('nombre').textContent = nombre;
 
@@ -156,7 +156,8 @@ export function pintarCabecera(perfil, clan) {
   const division = nombreDivision(perfil.division);
   const escudos = perfil.escudos || 0;
   reemplazar(document.getElementById('etiquetas'), [
-    division ? el('span', { clase: 'etiqueta-juego', texto: division }) : null,
+    // 6a: "Plata · grupo 4" en cuanto se sabe el grupo de la liga.
+    division ? el('span', { clase: 'etiqueta-juego', texto: grupo ? `${division} · grupo ${String(grupo).split('-')[1]}` : division }) : null,
     // Los escudos, a la vista: son lo que protege la racha.
     el('span', {
       clase: 'etiqueta-juego',

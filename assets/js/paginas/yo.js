@@ -98,6 +98,10 @@ onAuthStateChanged(auth, async (u) => {
 
 // --- Resumen -------------------------------------------------------------------
 
+// Lo que completa la cabecera cuando llega: el clan y el grupo de la liga.
+let clanDatos = null;
+let claveGrupo = null;
+
 async function cargarPerfil() {
   const snap = await getDoc(doc(db, 'usuarios', usuario.uid));
   if (!snap.exists()) {
@@ -111,7 +115,7 @@ async function cargarPerfil() {
 
   // Primero lo que ya esta en el documento, para que la pantalla no espere a
   // nada; despues se completa con lo que cuesta una lectura.
-  pintarCabecera(perfil, null);
+  pintarCabecera(perfil, clanDatos, claveGrupo);
   pintarRating(perfil);
   pintarCifras(perfil, null);
   pintarMenu(perfil);
@@ -129,7 +133,7 @@ async function cargarClan() {
   if (!perfil.clanId) return;
   try {
     const clan = await getDoc(doc(db, 'clanes', perfil.clanId));
-    if (clan.exists()) pintarCabecera(perfil, clan.data());
+    if (clan.exists()) { clanDatos = clan.data(); pintarCabecera(perfil, clanDatos, claveGrupo); }
   } catch (error) {
     console.debug('No se ha podido leer el clan', error);
   }
@@ -170,10 +174,12 @@ async function cargarPuestos() {
       return null;
     }
   };
-  const [general, sprint, fondo, constancia] = await Promise.all([
-    buscar('ranking-general'), buscar('ranking-sprint'), buscar('ranking-fondo'), buscar('ranking-constancia'),
+  const grupo = traerAgregado('grupos').then((g) => g?.porPiloto?.[perfil.username] || null).catch(() => null);
+  const [general, sprint, fondo, constancia, clave] = await Promise.all([
+    buscar('ranking-general'), buscar('ranking-sprint'), buscar('ranking-fondo'), buscar('ranking-constancia'), grupo,
   ]);
   pintarRating(perfil, { general, sprint, fondo, constancia });
+  if (clave) { claveGrupo = clave; pintarCabecera(perfil, clanDatos, claveGrupo); }
 }
 
 // --- Rutas ancladas --------------------------------------------------------------

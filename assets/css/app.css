@@ -1224,6 +1224,14 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
  * volver a leer el perfil.
  */
 .yo { max-width: 560px; padding-top: var(--e2); }
+/* 6a: en el movil la cabecera empieza justo bajo la barra de estado y los
+   ajustes flotan arriba a la derecha, sin fila propia. */
+@media (max-width: 899px) {
+  body .container.yo { position: relative; padding-top: calc(4px + env(safe-area-inset-top, 0px)); }
+  #vista-resumen > .yo-barra { position: absolute; top: calc(env(safe-area-inset-top, 0px) - 6px); right: calc(var(--margen) - 12px); min-height: 0; }
+  #vista-resumen > .yo-barra .boton-icono { margin: 0; }
+  .perfil-cabecera .datos { padding-right: 36px; }
+}
 .yo .vista { display: flex; flex-direction: column; gap: 14px; }
 
 .yo-barra {
@@ -1351,6 +1359,9 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
   cursor: pointer;
 }
 .menu-lista > :last-child { border-bottom: 0; }
+/* 6a: en el menu de Tu, la ultima fila tambien lleva su raya. */
+#menu.menu-lista > :last-child { border-bottom: 1px solid var(--papel); }
+#menu.menu-lista > a { min-height: 55px; }
 .menu-lista a:hover, .menu-lista button:hover { background: var(--papel-3); color: var(--tinta); }
 .menu-lista .detalle { font-size: 13px; font-weight: 400; color: var(--tinta-2); }
 .menu-lista .detalle.atencion { color: var(--ambar); font-weight: 700; }

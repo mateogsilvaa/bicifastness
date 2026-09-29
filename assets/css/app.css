@@ -937,7 +937,12 @@ input[type='checkbox'] {
 .mi-clan-cabeza .apagado { font-size: 13px; }
 .mi-clan h3, .sin-clan h3 { margin: 0; font-size: 15px; font-weight: 700; }
 .solicitudes, .asedio, .plantilla { display: flex; flex-direction: column; gap: var(--e2); }
-.contador-azul { padding: 3px 9px; border-radius: 999px; background: var(--azul-relleno); color: var(--sobre-azul) !important; font-size: 12px; font-weight: 800; }
+/* 5d: las solicitudes se ven primero: titulo de 22 y tarjetas a 14. */
+.mi-clan .solicitudes { gap: 14px; }
+.mi-clan .solicitudes h3 { font-size: 22px; font-weight: 800; font-stretch: 88%; letter-spacing: -.03em; line-height: 1.1; }
+.solicitudes .avatar-mini.grande { font-size: 16px; }
+.hoy-seccion .contador-azul { font-size: 12px; }
+.contador-azul { line-height: normal; padding: 3px 9px; border-radius: 999px; background: var(--azul-relleno); color: var(--sobre-azul) !important; font-size: 12px; font-weight: 800; }
 .fila-solicitud { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 10px; align-items: center; padding: 14px; border-radius: 18px; background: var(--papel); }
 .fila-solicitud .quien { display: flex; flex-direction: column; min-width: 0; font-size: 15px; }
 .fila-solicitud .clan, .fila-miembro .clan { font-size: 12px; color: var(--tinta-3); }
@@ -966,6 +971,24 @@ input[type='checkbox'] {
 .acciones-clan .boton-cuadrado { width: 48px; height: 48px; border-radius: 14px; }
 .dos-botones-hoja { display: flex; gap: 10px; }
 .dos-botones-hoja .btn { flex: 1; min-height: 44px; }
+/* 5f · Confirmaciones del clan: rotulo de 12, titulo de 18, texto de 14,
+   botones de 44 y el selector de 48. */
+.hoja.hoja-confirmar { gap: 10px; }
+.hoja.hoja-confirmar .rotulo { font-size: 12px; color: var(--tinta-3); }
+.hoja.hoja-confirmar h2 { font-size: 18px; font-weight: 700; font-stretch: 100%; letter-spacing: 0; line-height: normal; }
+.hoja.hoja-confirmar p { font-size: 14px; line-height: 1.45; }
+.hoja.hoja-confirmar select { min-height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--papel); font-size: 15px; }
+.hoja.hoja-confirmar .btn { min-height: 44px; border-radius: 12px; font-size: 16px; }
+.hoja.hoja-confirmar .btn.tonal { font-weight: 600; background: var(--papel-3); }
+.hoja.hoja-confirmar .btn:not(.tonal):not(.peligro) { font-weight: 700; }
+.hoja.hoja-confirmar .btn.peligro { font-size: 16px; }
+.hoja.hoja-confirmar .btn.peligro.lleno { min-height: 44px; border-radius: 12px; }
+/* 5d · Invitar: titulo de 22, enlace de 15 y texto de 14. */
+.hoja.hoja-invitar h2 { font-size: 22px; }
+.hoja.hoja-invitar .campo-enlace input { min-height: 52px; border-radius: 12px; font-size: 15px; }
+.hoja.hoja-invitar .campo-enlace .enlace-boton { font-size: 15px; }
+.hoja.hoja-invitar p { font-size: 14px; line-height: 1.45; }
+.hoja.hoja-invitar .btn .icono { width: 20px; height: 20px; }
 .hoja.grave { box-shadow: inset 0 0 0 1.5px var(--rojo); }
 .campo-enlace { position: relative; }
 .campo-enlace input { background: var(--papel); border-color: var(--papel); padding-right: 88px; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
@@ -1494,7 +1517,7 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
   margin: 0 auto;
   background: var(--papel-2);
   border-radius: var(--radio-hoja) var(--radio-hoja) 0 0;
-  padding: var(--e3) var(--margen) calc(var(--e6) + env(safe-area-inset-bottom, 0px));
+  padding: var(--e3) var(--margen) max(28px, env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 14px;

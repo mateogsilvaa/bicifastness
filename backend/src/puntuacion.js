@@ -263,6 +263,10 @@ async function recalcularClan(clanId) {
       puntos: datos.biciRating || 0,
       viajes: datos.viajesVerificados || 0,
       metros: datos.metrosTotales || 0,
+      // 5d: la liga y el clan (el actual, o del que acaba de salir) ya salen
+      // en las clasificaciones; el lider los ve al decidir una solicitud.
+      division: datos.division || 'hierro',
+      clanId: datos.clanId || null,
     };
   };
 

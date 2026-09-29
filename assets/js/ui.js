@@ -260,7 +260,7 @@ export function logoAnillo(tam = 28) {
   return svg;
 }
 
-const NOMBRE_DIVISION = {
+export const NOMBRE_DIVISION = {
   hierro: 'Hierro', bronce: 'Bronce', plata: 'Plata', oro: 'Oro', platino: 'Platino', leyenda: 'Leyenda',
 };
 

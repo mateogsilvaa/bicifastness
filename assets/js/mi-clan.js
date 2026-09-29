@@ -12,9 +12,8 @@
 
 import { db, doc, getDoc, collection, getDocs, query, where, limit } from '/assets/js/firebase.js';
 import { id, el, icono, estado, reemplazar, avisar, esqueleto, abrirHoja } from '/assets/js/dom.js';
-import { miles } from '/assets/js/ui.js';
+import { miles, NOMBRE_DIVISION } from '/assets/js/ui.js';
 import {
-  MAX_MIEMBROS,
   crearClan, solicitarEntrada, retirarSolicitud, responderSolicitud,
   expulsarMiembro, cambiarOficial, cederLiderazgo, abandonarClan, disolverClan,
   crearInvitacion, usarInvitacion, confirmarEntrada,
@@ -72,20 +71,22 @@ function boton(contenido, alPulsar, { clase = 'btn secundario', etiqueta = null 
 }
 
 /** Confirmacion en hoja (5f; en escritorio, dialogo de 480 px). */
-function confirmarEnHoja({ rotulo, titulo, texto, aceptar, peligro = false, grave = false, extra = null }) {
+function confirmarEnHoja({ rotulo, titulo, texto, aceptar, peligro = false, grave = false, extra = null, soloAceptar = false }) {
   return new Promise((resolver) => {
     let hecho = false;
     const fin = (v) => { if (!hecho) { hecho = true; resolver(v); } };
     const { cerrar } = abrirHoja([
       rotulo ? el('span', { clase: 'rotulo', texto: rotulo }) : null,
-      el('h2', { clase: grave ? 'peligro' : '', texto: titulo }),
+      el('h2', { texto: titulo }),
       el('p', { texto }),
       extra,
+      // 5f: el miembro elige entre cancelar y salir; el lider (ceder) y el
+      // ultimo (disolver) solo ven su unica salida, y se cierra deslizando.
       el('div', { clase: 'dos-botones-hoja' }, [
-        el('button', { clase: 'btn tonal', texto: 'Cancelar', attrs: { type: 'button' }, on: { click: () => { cerrar(); fin(false); } } }),
+        soloAceptar ? null : el('button', { clase: 'btn tonal', texto: 'Cancelar', attrs: { type: 'button' }, on: { click: () => { cerrar(); fin(false); } } }),
         el('button', { clase: `btn ${grave ? 'peligro lleno' : peligro ? 'peligro' : ''}`, texto: aceptar, attrs: { type: 'button' }, on: { click: () => { cerrar(); fin(true); } } }),
       ]),
-    ], { etiqueta: titulo, clase: `dialogo-escritorio ${grave ? 'grave' : ''}`, alCerrar: () => fin(false) });
+    ], { etiqueta: titulo, clase: `dialogo-escritorio hoja-confirmar ${grave ? 'grave' : ''}`, alCerrar: () => fin(false) });
   });
 }
 
@@ -180,7 +181,12 @@ function bloqueCandidatos() {
       el('span', { clase: 'avatar-mini grande', texto: [...(c.nombre || 'P')][0].toUpperCase() }),
       el('span', { clase: 'quien' }, [
         el('strong', { texto: c.nombre }),
-        el('span', { clase: 'clan', texto: `${c.viajes || 0} trayectos · ${numero(c.puntos)} BiciRating` }),
+        // 5d: "Plata · 38 trayectos · sin clan" / "… · antes en Retiro Riders".
+        el('span', { clase: 'clan', texto: [
+          NOMBRE_DIVISION[c.division] || null,
+          `${c.viajes || 0} ${c.viajes === 1 ? 'trayecto' : 'trayectos'}`,
+          c.clanId && c.clanId !== clanId ? `antes en ${contexto.clanes().get(c.clanId)?.nombre || 'otro clan'}` : 'sin clan',
+        ].filter(Boolean).join(' · ') }),
       ]),
       boton(icono('cerrar'), async () => { await responderSolicitud(clanId, c.uid, false); await recargar(); }, { clase: 'boton-cuadrado', etiqueta: `Rechazar a ${c.nombre}` }),
       boton(icono('check'), async () => { await responderSolicitud(clanId, c.uid, true); await recargar(); }, { clase: 'boton-cuadrado azul', etiqueta: `Aceptar a ${c.nombre}` }),
@@ -191,7 +197,8 @@ function bloqueCandidatos() {
 /** 5d · Invitar: enlace de un solo uso, compartir o copiar. Solo el lider. */
 async function abrirInvitacion() {
   const { enlace, caduca } = await crearInvitacion(clanId);
-  const campo = el('input', { attrs: { type: 'text', readonly: 'readonly', value: enlace, 'aria-label': 'Enlace de invitación' } });
+  // 5d: se enseña sin el "https://", como en el diseño; se copia entero.
+  const campo = el('input', { attrs: { type: 'text', readonly: 'readonly', value: enlace.replace(/^https?:\/\//, ''), 'aria-label': 'Enlace de invitación' } });
   const copiar = el('button', {
     clase: 'enlace-boton azul', texto: 'Copiar', attrs: { type: 'button' },
     on: {
@@ -205,7 +212,7 @@ async function abrirInvitacion() {
       },
     },
   });
-  const compartir = el('button', { clase: 'btn', attrs: { type: 'button' } }, [icono('compartir', 'icono peq'), el('span', { texto: 'Compartir enlace' })]);
+  const compartir = el('button', { clase: 'btn', attrs: { type: 'button' } }, [icono('compartir', 'icono'), el('span', { texto: 'Compartir enlace' })]);
   compartir.addEventListener('click', async () => {
     if (navigator.share) {
       try { await navigator.share({ title: `Únete a ${clan.nombre}`, text: `Entra en ${clan.nombre} en bicifastness`, url: enlace }); } catch { /* cancelado */ }
@@ -216,9 +223,9 @@ async function abrirInvitacion() {
   abrirHoja([
     el('h2', { texto: `Invitar a ${clan.nombre}` }),
     el('div', { clase: 'campo-enlace' }, [campo, copiar]),
-    el('p', { texto: `El enlace vale una sola vez y caduca el ${caduca.toLocaleDateString('es-ES')}. Quien lo abra entra sin que tengas que aceptarlo.` }),
+    el('p', { attrs: { title: `Caduca el ${caduca.toLocaleDateString('es-ES')}` }, texto: 'El enlace vale una sola vez y caduca. Quien lo abra entra sin que tengas que aceptarlo.' }),
     compartir,
-  ], { etiqueta: `Invitar a ${clan.nombre}`, clase: 'dialogo-escritorio' });
+  ], { etiqueta: `Invitar a ${clan.nombre}`, clase: 'dialogo-escritorio hoja-invitar' });
 }
 
 /**
@@ -240,7 +247,7 @@ function bloqueSalida() {
       const seguro = await confirmarEnHoja({
         rotulo: 'Líder con plantilla', titulo: 'Antes, cede el mando',
         texto: 'Eres el líder. Elige a alguien de la plantilla antes de irte.',
-        extra: elegir, aceptar: 'Ceder y salir',
+        extra: elegir, aceptar: 'Ceder y salir', soloAceptar: true,
       });
       if (!seguro) return;
       await cederLiderazgo(clanId, elegir.value);
@@ -255,7 +262,7 @@ function bloqueSalida() {
       const seguro = await confirmarEnHoja({
         rotulo: 'Único miembro', titulo: 'Irte es disolverlo',
         texto: 'Eres el único que queda. El clan desaparece del mapa y del ranking; su nombre queda libre.',
-        aceptar: `Disolver ${clan.nombre}`, grave: true,
+        aceptar: `Disolver ${clan.nombre}`, grave: true, soloAceptar: true,
       });
       if (!seguro) return;
       await disolverClan(clanId);

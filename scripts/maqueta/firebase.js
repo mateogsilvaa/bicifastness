@@ -15,6 +15,7 @@
  *   localStorage.maqueta_perfil = 'salvado' -> hoy ya salvado (2b)
  *   localStorage.maqueta_perfil = 'admin'   -> con permisos de administracion
  *   localStorage.maqueta_perfil = 'sinclan' -> sin clan (5e)
+ *   localStorage.maqueta_perfil = 'lider'   -> lider con dos solicitudes (5d)
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
  *   localStorage.maqueta_hora = '12:00'     -> la app cree que es esa hora de
  *                                              Madrid (p. ej. '21:30' para 2c)
@@ -91,6 +92,7 @@ const perfiles = {
   },
   admin: { ...perfilBase, admin: true },
   sinclan: { ...perfilBase, clanId: null, rolClan: null },
+  lider: { ...perfilBase, rolClan: 'lider' },
 };
 const perfil = perfiles[variante] || perfilBase;
 
@@ -150,7 +152,7 @@ const datos = {
   },
 };
 for (const [id, c] of Object.entries(CLANES)) {
-  datos[`clanes/${id}`] = { ...c, descripcion: 'Salimos de Chamberí cada mañana.', lider: id === 'c1' ? 'otro-uid' : 'x', miembros: id === 'c1' ? ['otro-uid', ...(perfil.clanId ? [UID] : [])] : ['x'], oficiales: [], solicitudes: id === 'c1' ? [] : [], numMiembros: 12, biciRating: 5200, creado: hace(60 * 24 * 90) };
+  datos[`clanes/${id}`] = { ...c, descripcion: 'Salimos de Chamberí cada mañana.', lider: id === 'c1' ? (variante === 'lider' ? UID : 'otro-uid') : 'x', miembros: id === 'c1' ? ['otro-uid', ...(perfil.clanId ? [UID] : [])] : ['x'], oficiales: [], solicitudes: id === 'c1' && variante === 'lider' ? ['s1', 's2'] : [], numMiembros: 12, biciRating: 5200, creado: hace(60 * 24 * 90) };
 }
 datos['agregados/clan-c1'] = {
   clanId: 'c1', nombre: CLANES.c1.nombre, color: CLANES.c1.color,
@@ -158,7 +160,10 @@ datos['agregados/clan-c1'] = {
     { uid: 'otro-uid', nombre: 'jorge_on_wheels', puntos: 1212, viajes: 44, metros: 120000 },
     { uid: UID, nombre: perfil.username, puntos: 870, viajes: 41, metros: 96400 },
   ],
-  candidatos: [],
+  candidatos: variante === 'lider' ? [
+    { uid: 's1', nombre: 'sergio.bm', puntos: 1400, viajes: 38, metros: 80000, division: 'plata', clanId: null },
+    { uid: 's2', nombre: 'carla_fx', puntos: 300, viajes: 6, metros: 9000, division: 'bronce', clanId: 'c2' },
+  ] : [],
 };
 nombres.slice(0, 8).forEach((n, i) => {
   datos[`tiempos_viaje/${UID}_v${i}`] = {

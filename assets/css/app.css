@@ -2441,7 +2441,10 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .invitacion-ranking { display: flex; align-items: center; gap: 12px; padding: 14px var(--e4); border-radius: 18px; background: var(--tinta); color: var(--papel); font-size: 14px; line-height: 1.35; }
 .invitacion-ranking > span { flex: 1; }
 .invitacion-ranking > span > span { opacity: .72; }
-.invitacion-ranking .btn { width: auto; min-height: 40px; padding: 0 14px; }
+.invitacion-ranking .btn { width: auto; min-height: 0; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: normal; }
+.invitacion-ranking > span > span { color: #B3B2AE; opacity: 1; }
+/* 4g: sin sesion, logo arriba y 12 px entre bloques. */
+.ranking:has(> .ranking-invitado:not(.oculto)) { gap: 12px; }
 [data-theme='dark'] .invitacion-ranking { background: var(--papel-3); color: var(--tinta); }
 body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) + var(--e2)); }
 

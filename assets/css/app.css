@@ -1521,7 +1521,11 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 .temporada-fila .premio { font-size: 12px; font-weight: 700; color: var(--ambar); }
 
 /* Ajustes. */
-.seccion-ajustes { font-size: 13px; color: var(--tinta-2); margin: 6px 0 0; }
+.seccion-ajustes { font-size: 13px; font-weight: 400; line-height: normal; color: var(--tinta-2); margin: 2px 0 -4px; }
+/* 6e: 4 px bajo el titulo, 10 entre rotulo y bloque, 16 entre bloques. */
+#vista-ajustes > .subcabecera { margin-bottom: -12px; }
+.yo .mensaje:empty { display: none; }
+#ajustes-push:not(.oculto) { display: contents; }
 
 .temas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--e2); }
 .temas button {
@@ -1530,7 +1534,7 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
   align-items: center;
   gap: var(--e2);
   padding: 10px;
-  border: 2px solid transparent;
+  border: 0;
   border-radius: 16px;
   background: var(--papel-2);
   color: var(--tinta);
@@ -1539,7 +1543,7 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
   font-weight: 600;
   cursor: pointer;
 }
-.temas button[aria-pressed='true'] { border-color: var(--azul-relleno); font-weight: 700; }
+.temas button[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--azul-relleno); font-weight: 700; }
 .temas .muestra {
   width: 100%;
   height: 48px;
@@ -1559,8 +1563,8 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
   display: flex;
   align-items: center;
   gap: var(--e3);
-  min-height: 52px;
-  padding: var(--e2) var(--e4);
+  min-height: 53px;
+  padding: 15px var(--e4);
   border-bottom: 1px solid var(--papel);
   cursor: pointer;
 }
@@ -1568,12 +1572,12 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 .lista-ajustes .texto { flex: 1; display: flex; flex-direction: column; font-size: 15px; }
 .lista-ajustes .texto small { font-size: 12px; color: var(--tinta-3); }
 
-.dos-botones { display: flex; gap: 10px; margin-top: 6px; }
+.dos-botones { display: flex; gap: 10px; margin-top: 2px; }
 .dos-botones .btn { flex: 1; width: auto; min-height: 48px; padding: 0 var(--e3); white-space: nowrap; background: var(--papel-2); border-color: var(--papel-2); color: var(--tinta); font-size: 15px; font-weight: 600; }
 .dos-botones .btn:hover { background: var(--papel-3); border-color: var(--papel-3); color: var(--tinta); }
 .dos-botones .btn .icono { width: 18px; height: 18px; }
 
-.pie-version { font-size: 11px; color: var(--tinta-3); text-align: center; margin: 0; }
+.pie-version { line-height: normal; font-size: 11px; color: var(--tinta-3); margin: -4px 0 0; }
 .pie-version a { color: var(--tinta-3); }
 
 /* Hoja inferior: la unica superficie que se levanta sobre la pagina. Se

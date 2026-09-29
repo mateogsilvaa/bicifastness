@@ -447,7 +447,9 @@ test('el sistema de diseno no admite sombras', () => {
   // separa de la tabla de detras.
   // Y lo que flota sobre el mapa (05, 8k): controles, hoja y panel.
   const DEL_DISEÑO = ['box-shadow: 0 2px 12px rgba(0, 0, 0, .08);', 'box-shadow: -12px 0 40px rgba(0, 0, 0, .10);',
-    'box-shadow: 0 2px 10px rgba(0, 0, 0, .08);', 'box-shadow: 0 -8px 32px rgba(0, 0, 0, .12);', 'box-shadow: 0 8px 32px rgba(0, 0, 0, .12);'];
+    'box-shadow: 0 2px 10px rgba(0, 0, 0, .08);', 'box-shadow: 0 -8px 32px rgba(0, 0, 0, .12);', 'box-shadow: 0 8px 32px rgba(0, 0, 0, .12);',
+    // 8l: la tarjeta de invitar, flotando junto al panel del mapa.
+    'box-shadow: 0 8px 32px rgba(0, 0, 0, .14);'];
   const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none') && !DEL_DISEÑO.includes(s));
   assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
 });

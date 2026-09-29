@@ -157,8 +157,8 @@ for (const [id, c] of Object.entries(CLANES)) {
 datos['agregados/clan-c1'] = {
   clanId: 'c1', nombre: CLANES.c1.nombre, color: CLANES.c1.color,
   miembros: [
-    { uid: 'otro-uid', nombre: 'jorge_on_wheels', puntos: 1212, viajes: 44, metros: 120000 },
-    { uid: UID, nombre: perfil.username, puntos: 870, viajes: 41, metros: 96400 },
+    { uid: 'otro-uid', nombre: 'jorge_on_wheels', puntos: 1212, viajes: 44, metros: 120000, semana: 212 },
+    { uid: UID, nombre: perfil.username, puntos: 870, viajes: 41, metros: 96400, semana: 188 },
   ],
   candidatos: variante === 'lider' ? [
     { uid: 's1', nombre: 'sergio.bm', puntos: 1400, viajes: 38, metros: 80000, division: 'plata', clanId: null },

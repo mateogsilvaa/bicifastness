@@ -959,12 +959,19 @@ input[type='checkbox'] {
 .fila-asedio .nombre { font-weight: 600; }
 .fila-asedio strong { text-align: right; font-variant-numeric: tabular-nums; }
 .barra-asedio { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--linea); }
-.fila-miembro { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 10px; align-items: center; min-height: 49px; border-bottom: var(--borde); }
+.fila-miembro { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 49px; border-bottom: var(--borde); }
 .fila-miembro .valor { font-weight: 700; }
+/* 5c/8l: la fila entera abre las opciones sobre ese miembro; sin boton a la
+   vista, como en el diseño, pero con su foco. */
+.fila-miembro { position: relative; }
+.fila-miembro > .boton-icono { position: absolute; inset: 0; width: auto; height: auto; min-height: 0; border-radius: 0; background: transparent; color: transparent; }
+.fila-miembro > .boton-icono .icono { display: none; }
+.fila-miembro > .boton-icono:hover { background: color-mix(in srgb, var(--tinta) 4%, transparent); }
 .fila-miembro .quien { display: flex; flex-direction: column; min-width: 0; }
 .fila-miembro .nombre { font-size: 14px; font-weight: 600; }
 .fila-miembro .nombre.tuyo { font-weight: 700; }
 .fila-miembro .valor { font-size: 14px; font-variant-numeric: tabular-nums; }
+.aviso-solicitudes { display: none; }
 .acciones-clan { display: flex; gap: 10px; align-items: center; padding-bottom: var(--e3); }
 .acciones-clan > .btn { flex: 1; min-height: 48px; gap: var(--e2); }
 .acciones-clan > .apagado { flex: 1; }
@@ -1042,6 +1049,42 @@ input[type='checkbox'] {
   .hoja-mapa .ficha-estacion > .btn.grande { margin-top: auto; }
   .hoja-mapa .ficha-cabeza h2 { font-size: 28px; }
   .ficha-cabeza h2 { font-size: 28px; }
+
+  /* 8l · Mi clan en el panel: escudo de 52, solicitudes en un aviso de una
+     linea, filas sin raya (44 el asedio, 48 la plantilla) y los botones al pie. */
+  .hoja-mapa[data-altura='completa'] .cuerpo-hoja { padding-top: 0; }
+  .hoja-mapa #panel-miclan:not(.oculto) { flex: 1; display: flex; flex-direction: column; }
+  .hoja-mapa .mi-clan { flex: 1; }
+  .hoja-mapa .mi-clan-cabeza .escudo-clan.grande { width: 52px; height: 52px; font-size: 17px; }
+  .hoja-mapa .mi-clan-cabeza h2 { line-height: 24px; }
+  .hoja-mapa .mi-clan-cabeza .apagado { color: var(--tinta-2); }
+  .hoja-mapa .solicitudes > .hoy-seccion { display: none; }
+  .hoja-mapa .solicitudes:not(.abierta) > .fila-solicitud { display: none; }
+  .hoja-mapa .solicitudes { gap: 10px; }
+  .aviso-solicitudes { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 0; padding: 10px 12px; border: 0; border-radius: 14px; background: var(--azul-tinte); font: inherit; text-align: left; cursor: pointer; }
+  .aviso-solicitudes .contador-azul { padding: 2px 8px; }
+  .aviso-solicitudes .texto { flex: 1; font-size: 14px; font-weight: 600; color: var(--azul-osc); }
+  .aviso-solicitudes .ver { font-size: 13px; font-weight: 700; color: var(--azul); }
+  .hoja-mapa .asedio > h3, .hoja-mapa .plantilla > .hoy-seccion { margin-bottom: 4px; }
+  .hoja-mapa .fila-asedio { grid-template-columns: minmax(0, 1fr) 90px 30px; min-height: 44px; border-bottom: 0; }
+  .hoja-mapa .fila-asedio strong { text-align: right; }
+  .hoja-mapa .plantilla .hoy-seccion > span { font-size: 12px; }
+  .hoja-mapa .plantilla { margin-top: -4px; }
+  .hoja-mapa .fila-miembro { grid-template-columns: 30px minmax(0, 1fr) auto; min-height: 48px; border-bottom: 0; }
+  .hoja-mapa .fila-miembro .avatar-mini { width: 30px; height: 30px; font-size: 12px; }
+  .hoja-mapa .fila-miembro .clan { font-size: 11px; }
+  .hoja-mapa .acciones-clan { margin-top: auto; padding: 0; }
+  .hoja-mapa .acciones-clan > .btn { min-height: 46px; border-radius: 14px; font-size: 15px; }
+  .hoja-mapa .acciones-clan > .btn .icono { width: 18px; height: 18px; }
+  .hoja-mapa .acciones-clan .boton-cuadrado { width: 46px; height: 46px; min-height: 46px; }
+  /* La invitacion, en una tarjeta al lado del panel y sin velar el mapa. */
+  .hoja.dialogo-escritorio.hoja-invitar { top: auto; bottom: 20px; left: 680px; transform: none; width: 412px; padding: 16px; gap: 10px; border-radius: 18px; box-shadow: 0 8px 32px rgba(0, 0, 0, .14); }
+  .velo:has(+ .hoja-invitar) { background: transparent; }
+  .hoja.hoja-invitar h2 { font-size: 15px; font-weight: 700; font-stretch: 100%; letter-spacing: 0; }
+  .hoja.hoja-invitar .campo-enlace input { min-height: 44px; height: 44px; border-radius: 10px; padding-left: 12px; font-size: 14px; }
+  .hoja.hoja-invitar .campo-enlace .enlace-boton { right: 12px; font-size: 14px; }
+  .hoja.hoja-invitar p { font-size: 12px; line-height: normal; color: var(--tinta-3); }
+  .hoja.hoja-invitar > .btn { display: none; }
 }
 
 /* Cuadrado del color del clan. El color se valida antes de asignarlo. */

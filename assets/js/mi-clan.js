@@ -123,9 +123,10 @@ function filaMiembro(m) {
     el('span', { clase: 'avatar-mini', texto: [...(m.nombre || 'P')][0].toUpperCase() }),
     el('span', { clase: 'quien' }, [
       el('span', { clase: `nombre ${soyYo ? 'tuyo' : ''}`, texto: soyYo ? `Tú · ${m.nombre}` : m.nombre }),
-      el('span', { clase: 'clan', texto: `${cargo} · ${m.viajes || 0} trayectos` }),
+      el('span', { clase: 'clan', texto: cargo }),
     ]),
-    el('strong', { clase: 'valor', texto: numero(m.puntos) }),
+    // 5c/8l: lo que lleva cada uno esta semana ("+212"; "0" si no ha salido).
+    el('strong', { clase: 'valor', texto: m.semana ? `+${numero(m.semana)}` : '0' }),
     puedeActuar ? el('button', {
       clase: 'boton-icono', attrs: { type: 'button', 'aria-label': `Opciones sobre ${m.nombre}` },
       on: { click: () => menuMiembro(m, { esLider, esOficial, soyYo }) },
@@ -175,7 +176,20 @@ function menuMiembro(m, { esLider, esOficial, soyYo }) {
 function bloqueCandidatos() {
   const candidatos = clan.candidatos || [];
   if (!mandaEnPlantilla() || !candidatos.length) return null;
-  return el('section', { clase: 'solicitudes' }, [
+  // 8l: en escritorio, un aviso de una linea; "Ver" despliega las tarjetas.
+  const seccion = el('section', { clase: 'solicitudes' });
+  const aviso = el('button', { clase: 'aviso-solicitudes', attrs: { type: 'button', 'aria-expanded': 'false' } }, [
+    el('span', { clase: 'contador-azul', texto: String(candidatos.length) }),
+    el('span', { clase: 'texto', texto: 'Solicitudes para entrar' }),
+    el('span', { clase: 'ver', texto: 'Ver' }),
+  ]);
+  aviso.addEventListener('click', () => {
+    const abierta = seccion.classList.toggle('abierta');
+    aviso.setAttribute('aria-expanded', String(abierta));
+    aviso.querySelector('.ver').textContent = abierta ? 'Ocultar' : 'Ver';
+  });
+  return reemplazar(seccion, [
+    aviso,
     el('div', { clase: 'hoy-seccion' }, [el('h3', { texto: 'Solicitudes' }), el('span', { clase: 'contador-azul', texto: String(candidatos.length) })]),
     ...candidatos.map((c) => el('div', { clase: 'fila-solicitud' }, [
       el('span', { clase: 'avatar-mini grande', texto: [...(c.nombre || 'P')][0].toUpperCase() }),
@@ -223,7 +237,11 @@ async function abrirInvitacion() {
   abrirHoja([
     el('h2', { texto: `Invitar a ${clan.nombre}` }),
     el('div', { clase: 'campo-enlace' }, [campo, copiar]),
-    el('p', { attrs: { title: `Caduca el ${caduca.toLocaleDateString('es-ES')}` }, texto: 'El enlace vale una sola vez y caduca. Quien lo abra entra sin que tengas que aceptarlo.' }),
+    // 5d en el movil; 8l, en la tarjeta flotante del escritorio, mas corto.
+    el('p', { attrs: { title: `Caduca el ${caduca.toLocaleDateString('es-ES')}` } }, [
+      el('span', { clase: 'solo-movil-i', texto: 'El enlace vale una sola vez y caduca. Quien lo abra entra sin que tengas que aceptarlo.' }),
+      el('span', { clase: 'solo-escritorio-i', texto: 'Vale una sola vez y caduca. Quien lo abra entra directamente.' }),
+    ]),
     compartir,
   ], { etiqueta: `Invitar a ${clan.nombre}`, clase: 'dialogo-escritorio hoja-invitar' });
 }

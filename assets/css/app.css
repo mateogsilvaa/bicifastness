@@ -1908,6 +1908,8 @@ section.acceso { padding: calc(var(--e5) + env(safe-area-inset-top, 0px)) var(--
 
 .chip-escudo { white-space: nowrap; display: inline-flex; align-self: flex-start; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 8px; background: var(--papel-3); font-size: 12px; font-weight: 700; color: var(--tinta); }
 .chip-escudo .icono { width: 14px; height: 14px; }
+/* Hijo directo del texto de la racha: sin esto heredaba sus 14 px. */
+.hoy-racha-texto > .chip-escudo { font-size: 12px; line-height: normal; color: var(--tinta); }
 .hoy-dias { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; font-weight: 600; color: var(--tinta-3); }
 .hoy-dias .es-hoy { color: var(--azul); font-weight: 800; }
 .hoy-racha .btn.solo-escritorio { align-self: flex-start; width: auto; min-height: 52px; padding: 0 var(--e5); margin-top: var(--e1); }
@@ -1930,7 +1932,7 @@ section.acceso { padding: calc(var(--e5) + env(safe-area-inset-top, 0px)) var(--
 }
 
 .hoy-subir { display: flex; flex-direction: column; gap: var(--e2); }
-.hoy-pista { font-size: 12px; color: var(--tinta-3); text-align: center; line-height: 1.45; }
+.hoy-pista { font-size: 12px; color: var(--tinta-3); text-align: center; }
 .btn.grande.secundario { background: transparent; border: 1.5px solid var(--tinta); color: var(--tinta); min-height: 52px; }
 .btn.grande.secundario:hover { background: var(--tinta); color: var(--papel); }
 
@@ -1952,7 +1954,9 @@ section.acceso { padding: calc(var(--e5) + env(safe-area-inset-top, 0px)) var(--
 .hoy-seccion h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: 0; font-stretch: 100%; }
 .hoy-seccion > span { font-size: 13px; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
 .hoy-misiones { display: flex; flex-direction: column; gap: var(--e1); }
-.lista-misiones { display: flex; flex-direction: column; }
+/* 2a: 6 px mas de aire encima y 4 entre fila y fila. */
+.hoy-misiones { margin-top: 6px; }
+.lista-misiones { display: flex; flex-direction: column; gap: 4px; }
 .mision { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: var(--borde); }
 .mision-icono { width: 36px; height: 36px; border-radius: 11px; background: var(--papel-2); display: flex; align-items: center; justify-content: center; }
 .mision-icono .icono { width: 20px; height: 20px; }
@@ -2011,7 +2015,7 @@ section.acceso { padding: calc(var(--e5) + env(safe-area-inset-top, 0px)) var(--
 .ruta-dia-nombre strong { font-size: 19px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
 .ruta-dia-nombre span { font-size: 14px; opacity: .72; }
 .ruta-dia-filas { display: flex; flex-direction: column; }
-.ruta-dia-fila { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; min-height: 34px; font-size: 14px; border-top: 1px solid rgba(128, 128, 128, .28); }
+.ruta-dia-fila { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; min-height: 35px; font-size: 14px; border-top: 1px solid rgba(128, 128, 128, .28); }
 .ruta-dia-fila .pos { font-weight: 800; font-stretch: 80%; opacity: .6; }
 .ruta-dia-fila strong { font-weight: 700; font-variant-numeric: tabular-nums; }
 .ruta-dia-fila.tuya { color: var(--azul-inverso); }
@@ -3029,7 +3033,7 @@ body.pagina-admin { font-size: 14px; padding: 0; }
   /* El boton de subir de movil va dentro de la tarjeta en escritorio: su hueco
      vacio sumaba otros 18 px de separacion. */
   #bloque-subir:has(> .solo-movil:only-child) { display: none; }
-  .hoy-misiones { gap: 18px; }
+  .hoy-misiones { gap: 18px; margin-top: 0; }
   .hoy-clan-fila { display: flex; align-items: center; gap: 12px; padding: 20px; border-radius: 24px; background: var(--papel-2); color: var(--tinta); text-decoration: none; }
   .hoy-clan-fila:hover { color: var(--tinta); }
   .hoy-clan-fila .insignia-clan { flex: none; width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--blanco); font-size: 13px; font-weight: 800; }

@@ -7,12 +7,13 @@
  * cada error, la respuesta es mirar fechas y adivinar.
  *
  * De donde sale el identificador, por orden:
- *   1. `VERCEL_GIT_COMMIT_SHA`, que Vercel pone en cada despliegue
+ *   1. `GITHUB_SHA`, que GitHub Actions pone en cada despliegue
  *   2. `git rev-parse`, para desarrollo local
  *   3. 'desconocida', que tambien es informacion: significa que se sirvio algo
  *      generado fuera de los dos caminos previstos
  *
- * Lo lanza el `buildCommand` de vercel.json.
+ * Lo lanza el trabajo `web` de .github/workflows/ci.yml antes de montar el
+ * sitio (scripts/construir-sitio.js).
  */
 
 const fs = require('fs');
@@ -23,8 +24,8 @@ const RAIZ = path.join(__dirname, '..');
 const DESTINO = path.join(RAIZ, 'assets/data/version.js');
 
 function version() {
-  if (process.env.VERCEL_GIT_COMMIT_SHA) {
-    return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 8);
+  if (process.env.GITHUB_SHA) {
+    return process.env.GITHUB_SHA.slice(0, 8);
   }
 
   try {

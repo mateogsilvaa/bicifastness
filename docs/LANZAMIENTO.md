@@ -67,19 +67,19 @@ modo mantenimiento no protege ni un dato. Lo unico que protege son las reglas.
 
 ## 4. El sitio se sirve (#2)
 
-- [ ] El proyecto de Vercel apunta a `main`
-- [ ] Un despliegue llega a **READY**, no a ERROR. Comprobarlo de verdad, en el
-      panel: el proyecto tuvo seis despliegues seguidos en ERROR sin que nadie
-      se enterara
-- [ ] Las cabeceras de seguridad llegan al navegador (pestaña Red → cualquier
-      documento → Cabeceras de respuesta). La CSP es la que importa
+- [ ] Settings → Pages → Source: **GitHub Actions**, y el dominio propio en
+      Custom domain con **Enforce HTTPS** marcado
+- [ ] El trabajo `web` de «Tests y despliegue» termina en verde. Comprobarlo de
+      verdad, en Actions: un despliegue que falla no avisa a nadie
+- [ ] La CSP llega en cada pagina (ver codigo fuente → `<meta
+      http-equiv="Content-Security-Policy">`)
 - [ ] `/assets/ocr/` se sirve: sin el motor y el modelo, la subida no puede leer
       la captura
 
 ## 5. El acceso funciona desde el dominio nuevo (#4)
 
 - [ ] Firebase Console → Authentication → Settings → Dominios autorizados:
-      anadido el dominio de Vercel
+      anadido el dominio propio
 - [ ] Google Cloud Console → reCAPTCHA: anadido el dominio a la clave de sitio
 - [ ] `RECAPTCHA_SITE_KEY` puesta en `assets/js/firebase.js`
 - [ ] App Check en modo obligatorio para Firestore, **despues** de comprobar que
@@ -131,14 +131,14 @@ se salta, **el login no funciona** y no hay mensaje que lo explique.
 
 ## 9. Abrir
 
-- [ ] Borrado el bloque `redirects` de `vercel.json`
-- [ ] Push a `main`
+- [ ] Variable del repositorio `WEB_ABIERTA` = `si`
+- [ ] Actions → «Tests y despliegue» → Run workflow en `main`
 - [ ] Comprobado que `/`, `/subir/` y `/clasificacion/` responden
 
 ## El camino de vuelta
 
-**Anade el bloque `redirects` a `vercel.json` y haz push.** Menos de cinco
-minutos, y no hace falta tocar nada mas. El detalle esta en
+**`WEB_ABIERTA` = `no` y Run workflow.** Menos de cinco minutos, y no hace
+falta tocar nada mas. El detalle esta en
 [MANTENIMIENTO.md](MANTENIMIENTO.md#volver-a-modo-mantenimiento).
 
 ## Lo que hay que asumir al abrir

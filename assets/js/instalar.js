@@ -37,7 +37,7 @@ window.addEventListener('appinstalled', () => {
 export function registrarServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((error) => {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch((error) => {
       console.debug('El service worker no se ha registrado', error);
     });
   });

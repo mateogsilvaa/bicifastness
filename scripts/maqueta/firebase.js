@@ -7,7 +7,7 @@
  * grupo de division, una ruta del dia, un clan y un mapa. Sirve para ver y
  * probar TODAS las pantallas con sesion sin cuenta, sin red y sin gastar cuota.
  *
- * Nunca se despliega: vercel.json sirve el `assets/js/firebase.js` de verdad.
+ * Nunca se despliega: scripts/construir-sitio.js no publica `scripts/`.
  *
  * Trucos en la consola del navegador:
  *   localStorage.maqueta_sesion = 'fuera'   -> sin sesion

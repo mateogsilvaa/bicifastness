@@ -170,31 +170,26 @@ no lo pregunta dos veces.
 
 ### Los correos no llegan
 
-Resend, en `/admin/`. El worker registra cada entrega y reintenta las que
-fallan. Si fallan todas, mira si la clave sigue viva y si el dominio sigue
-verificado.
+Mira el log de «Verificar viajes» en Actions: dice por que no ha salido cada
+uno. El worker reintenta los que fallan por algo pasajero. Si fallan todos, la
+contraseña de aplicacion de Gmail (secreto `GMAIL_CLAVE_APLICACION`) se ha
+revocado o ha caducado: crea otra (PUESTA-EN-MARCHA.md, paso 7.1). Gmail deja
+unos 500 destinatarios al dia; el worker se para en 400.
 
 Que fallen los correos no para la verificacion de viajes: esta a proposito en su
 propio try.
 
 ## Volver a modo mantenimiento
 
-**Anade el bloque `redirects` a `vercel.json` y haz push.** Tarda lo que tarde
-el despliegue, alrededor de un minuto.
+1. GitHub → Settings → Secrets and variables → Actions → **Variables** →
+   `WEB_ABIERTA` → cambia `si` por `no`.
+2. Actions → «Tests y despliegue» → **Run workflow** (rama `main`).
 
-```json
-"redirects": [
-  { "source": "/((?!mantenimiento|images/).*)", "destination": "/mantenimiento/", "permanent": false }
-]
-```
+Tarda lo que tarden las pruebas y la publicacion, unos cuatro minutos. Se
+publica solo la pagina de obras, como portada y como 404, asi que tapa tambien
+las paginas que existen: `/admin/` escribiendo la URL tampoco se ve.
 
-Para abrir otra vez: borra ese bloque y haz push.
-
-En Vercel los redirects se evaluan **antes** que el sistema de ficheros, asi que
-tapan tambien las paginas que existen: sin eso, entrar a `/admin/` escribiendo
-la URL seguiria funcionando. Y `permanent: false` es un 307 a proposito: un 301
-se queda cacheado en los navegadores de la gente y los seguiria mandando a la
-pagina de obras despues de abrir.
+Para abrir otra vez: la variable a `si` y Run workflow.
 
 Ojo: **esto tapa la web, no los datos.** Si el problema es una fuga, lo que hay
 que desplegar son las reglas.
@@ -210,7 +205,8 @@ hace fallar el build:
 |---|---|---|
 | `assets/data/estaciones.js` | `scripts/build-estaciones.js` | en cada CI |
 | `backend/lib/estaciones.json` | `scripts/build-estaciones.js` | en cada CI |
-| `assets/data/version.js` | `scripts/build-version.js` | en cada despliegue |
+| `assets/data/version.js` | `scripts/build-version.js` | en cada despliegue (trabajo `web`) |
+| `_site/` | `scripts/construir-sitio.js` | en cada despliegue; no se commitea |
 | Las CSP de cada pagina | `scripts/aplicar-cabeceras.js` | a mano, desde `shared/cabeceras.json` |
 | `assets/data/insignias.js` y `backend/lib/insignias.json` | `scripts/build-insignias.js` | en cada CI |
 | `assets/data/push-tipos.js` | `scripts/build-push.js` | en cada CI |
@@ -235,7 +231,7 @@ Sin necesidad de acordarse, `npm test` falla si:
 - Un campo de formulario se queda sin etiqueta, explicita o envolviendolo.
 - Un agregado publica un campo que no sale en pantalla.
 - Una consulta compuesta se queda sin su indice declarado.
-- `vercel.json` lleva una clave que su esquema rechazaria.
+- Lo que se publica en Pages lleva el backend, los scripts o las reglas.
 - Un enlace entre documentos de `docs/` apunta a algo que no existe.
 
 Lo que **no** comprueba nadie y hay que hacer a mano: probar con un lector de

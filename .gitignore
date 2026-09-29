@@ -104,3 +104,6 @@ backend/.tesseract/
 # Logs del emulador de Firestore (test-reglas/)
 firestore-debug.log*
 ui-debug.log*
+
+# Lo que monta scripts/construir-sitio.js para GitHub Pages.
+_site/

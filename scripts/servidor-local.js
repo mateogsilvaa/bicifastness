@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Servidor estatico para desarrollo. Imita el `trailingSlash` de Vercel: sirve
- * `/home/` desde `/home/index.html`.
+ * Servidor estatico para desarrollo. Sirve como GitHub Pages: `/home/` desde
+ * `/home/index.html`, y 404.html para lo que no existe. La CSP va por <meta>
+ * en cada pagina, asi que en local se aplica igual que en produccion.
  *
- * OJO: no aplica las cabeceras de `vercel.json`. Lo que si se ve en local es la
- * CSP por <meta>, que es justo para lo que esta puesta ademas de la cabecera.
- * Para probar cabeceras de verdad hace falta un despliegue de vista previa.
+ * Para ver exactamente lo que se publica: `node scripts/construir-sitio.js
+ * --abierta` y servir `_site/`.
  *
  * Uso: node scripts/servidor-local.js [puerto]
  */

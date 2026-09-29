@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 /**
- * Vuelca las cabeceras de seguridad de `shared/cabeceras.json` en los dos
- * sitios donde hacen falta:
+ * Vuelca la politica de seguridad de `shared/cabeceras.json` en cada pagina,
+ * como <meta http-equiv="Content-Security-Policy"> y <meta name="referrer">.
  *
- *   1. `vercel.json`  las cabeceras HTTP de verdad, que son las que aplica el
- *                     navegador y las unicas que pueden declarar
- *                     `frame-ancestors` o HSTS
- *   2. cada pagina    la CSP tambien como <meta>, como defensa en profundidad
- *                     por si el HTML se sirve desde otro sitio
+ * GitHub Pages no deja poner cabeceras HTTP, asi que el <meta> es la unica
+ * CSP que llega al navegador. Lo que el <meta> no puede dar (frame-ancestors,
+ * HSTS...) esta explicado en el propio cabeceras.json.
  *
  * Existe por dos motivos. El primero, que 18 paginas con la politica copiada a
  * mano divergen el mismo dia que alguien anade un origen. El segundo, mas
@@ -34,7 +32,6 @@ const MARCA_REFERRER = /^[ \t]*<meta name="referrer"[^>]*>\r?\n?/m;
 
 const config = () => JSON.parse(fs.readFileSync(path.join(RAIZ, 'shared/cabeceras.json'), 'utf8'));
 
-/** Convierte un objeto de directivas en la cadena de la politica. */
 /**
  * Las claves que empiezan por `_` son comentarios, no directivas.
  *
@@ -84,52 +81,6 @@ function aplicarAPagina(html, cspMeta) {
   return limpio.replace(charset[0], `${charset[0]}${etiqueta}\n${REFERRER}\n`);
 }
 
-/** Bloque `headers` completo de vercel.json. */
-function bloqueVercel({ csp, csp_solo_cabecera: soloCabecera, otras }) {
-  const politica = serializar({ ...csp, ...soloCabecera });
-
-  return [
-    {
-      source: '/(.*)',
-      headers: [
-        { key: 'Content-Security-Policy', value: politica },
-        ...Object.entries(otras).map(([key, value]) => ({ key, value })),
-      ],
-    },
-    {
-      // Sin hash en el nombre, `immutable` dejaria a la gente con el CSS viejo
-      // para siempre.
-      source: '/(.*).(js|css|html)',
-      headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }],
-    },
-    {
-      source: '/(.*).(png|jpg|jpeg|svg|webp|woff2|mp3|geojson)',
-      headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
-    },
-    {
-      // El motor y el modelo del OCR del navegador (#8): casi seis megas que,
-      // con la regla de `.js` de arriba, se revalidarian en cada subida, y el
-      // modelo (`.traineddata.gz`) ni siquiera encaja en ninguna regla, asi que
-      // se lo bajaria entero cada vez. Es codigo de terceros que solo cambia
-      // cuando alguien ejecuta `build-ocr.js` a proposito.
-      //
-      // Una semana y no `immutable`: los ficheros no llevan la version en el
-      // nombre, asi que `immutable` dejaria a la gente con el motor viejo hasta
-      // que cambiase de navegador. Revalidar una vez por semana cuesta un 304.
-      source: '/assets/ocr/(.*)',
-      headers: [{ key: 'Cache-Control', value: 'public, max-age=604800' }],
-    },
-    {
-      // ESTE BLOQUE VA EL ULTIMO A PROPOSITO. `/sw.js` encaja tambien en la
-      // regla de `.js` de arriba, y cuando dos reglas definen la misma cabecera
-      // gana la ultima. Subirlo dejaria el service worker cacheado, que es como
-      // se queda un navegador sirviendo la app vieja para siempre.
-      source: '/sw.js',
-      headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
-    },
-  ];
-}
-
 // --- Ejecucion ---------------------------------------------------------------
 
 const soloComprobar = process.argv.includes('--comprobar');
@@ -163,33 +114,11 @@ for (const pagina of paginas(RAIZ)) {
   cambios++;
 }
 
-// 2. vercel.json.
-const rutaVercel = path.join(RAIZ, 'vercel.json');
-if (!fs.existsSync(rutaVercel)) {
-  console.error('ERROR    falta vercel.json');
-  errores++;
-} else {
-  const vercel = JSON.parse(fs.readFileSync(rutaVercel, 'utf8'));
-  const esperado = bloqueVercel(cabeceras);
-
-  if (JSON.stringify(vercel.headers) !== JSON.stringify(esperado)) {
-    if (soloComprobar) {
-      console.error('CABECERA vercel.json no tiene las cabeceras al dia');
-      errores++;
-    } else {
-      vercel.headers = esperado;
-      fs.writeFileSync(rutaVercel, `${JSON.stringify(vercel, null, 2)}\n`, 'utf8');
-      console.log('ok       vercel.json');
-      cambios++;
-    }
-  }
-}
-
 if (errores) {
   console.error(`\n${errores} sitios con las cabeceras mal. Lanza: node scripts/aplicar-cabeceras.js`);
   process.exit(1);
 }
 
 console.log(soloComprobar
-  ? 'Cabeceras al dia en las paginas y en vercel.json.'
+  ? 'Cabeceras al dia en las paginas.'
   : `Cabeceras aplicadas — ${cambios} ficheros actualizados.`);

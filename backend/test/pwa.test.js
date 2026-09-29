@@ -112,9 +112,8 @@ test('el service worker sirve algo util sin red, y sigue sin cachear lo autentic
 });
 
 test('el codigo no se sirve de la cache antes de preguntar', () => {
-  // `vercel.json` sirve js y css con `max-age=0, must-revalidate` a proposito:
-  // no llevan hash en el nombre, asi que el navegador tiene que comprobar
-  // siempre si hay version nueva. Un service worker que responda
+  // js y css no llevan hash en el nombre, asi que el navegador tiene que
+  // comprobar siempre si hay version nueva. Un service worker que responda
   // stale-while-revalidate se salta esa decision, y la primera carga despues de
   // un despliegue mezcla HTML nuevo —que llega por red— con modulos viejos.
   //

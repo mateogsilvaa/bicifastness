@@ -136,7 +136,7 @@ async function main() {
 
   comprobarDestino();
 
-  const admin = require('firebase-admin');
+  const admin = require('./lib/firebase-admin');
   admin.initializeApp(process.env.FIRESTORE_EMULATOR_HOST
     ? { projectId: PROYECTO }
     : { credential: admin.credential.applicationDefault(), projectId: PROYECTO });

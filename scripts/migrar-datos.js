@@ -46,7 +46,7 @@
  */
 
 const fs = require('fs');
-const admin = require('firebase-admin');
+const admin = require('./lib/firebase-admin');
 
 // El mismo modulo que usa el worker: si algun dia cambia la forma de medir, los
 // viajes migrados y los nuevos siguen contando lo mismo.

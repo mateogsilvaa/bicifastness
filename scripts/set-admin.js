@@ -14,7 +14,7 @@
  * El fichero de credenciales NO debe subirse al repositorio.
  */
 
-const admin = require('firebase-admin');
+const admin = require('./lib/firebase-admin');
 
 async function main() {
   const email = process.argv[2];

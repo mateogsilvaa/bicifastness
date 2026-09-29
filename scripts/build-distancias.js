@@ -70,7 +70,7 @@ function rutasDeFichero(fichero) {
 
 /** Arranca el Admin SDK. Comun a los dos modos que hablan con Firestore. */
 function firestore() {
-  const admin = require('firebase-admin');
+  const admin = require('./lib/firebase-admin');
   const credenciales = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!credenciales) {
     console.error('Falta FIREBASE_SERVICE_ACCOUNT para leer las rutas.');

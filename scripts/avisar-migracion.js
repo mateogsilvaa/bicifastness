@@ -32,7 +32,7 @@
  *   node scripts/avisar-migracion.js --enviar
  */
 
-const admin = require('firebase-admin');
+const admin = require('./lib/firebase-admin');
 
 const correo = require('../backend/src/correo');
 const plantillas = require('../backend/src/plantillas');

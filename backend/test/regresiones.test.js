@@ -445,7 +445,9 @@ test('el sistema de diseno no admite sombras', () => {
   // boton blanco sin sombra se pierde contra las calles (8d, "Entrar").
   // Y el panel lateral que se abre sobre la pagina (8j), que sin ella no se
   // separa de la tabla de detras.
-  const DEL_DISEÑO = ['box-shadow: 0 2px 12px rgba(0, 0, 0, .08);', 'box-shadow: -12px 0 40px rgba(0, 0, 0, .10);'];
+  // Y lo que flota sobre el mapa (05, 8k): controles, hoja y panel.
+  const DEL_DISEÑO = ['box-shadow: 0 2px 12px rgba(0, 0, 0, .08);', 'box-shadow: -12px 0 40px rgba(0, 0, 0, .10);',
+    'box-shadow: 0 2px 10px rgba(0, 0, 0, .08);', 'box-shadow: 0 -8px 32px rgba(0, 0, 0, .12);', 'box-shadow: 0 8px 32px rgba(0, 0, 0, .12);'];
   const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none') && !DEL_DISEÑO.includes(s));
   assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
 });

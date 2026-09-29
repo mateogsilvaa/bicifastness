@@ -440,7 +440,11 @@ test('el sistema de diseno no admite sombras', () => {
   // `inset` en la fila propia es un borde de 3 px, no una sombra: es la unica
   // forma de pintar un borde dentro de una celda de tabla sin descuadrar la
   // rejilla de columnas.
-  const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none'));
+  //
+  // Y las que pone el propio diseño, con su valor exacto: sobre el mapa, un
+  // boton blanco sin sombra se pierde contra las calles (8d, "Entrar").
+  const DEL_DISEÑO = ['box-shadow: 0 2px 12px rgba(0, 0, 0, .08);'];
+  const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none') && !DEL_DISEÑO.includes(s));
   assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
 });
 

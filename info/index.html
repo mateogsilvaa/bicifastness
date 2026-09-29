@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Como funciona BiciFastness: subir un trayecto, la verificacion automatica, la puntuacion y los clanes.">
+<title>Cómo funciona | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<main class="container info" id="principal">
+  <div class="subcabecera">
+    <a class="boton-icono" href="/" aria-label="Volver">
+      <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#atras"></use></svg>
+    </a>
+    <h1>Cómo funciona</h1>
+  </div>
+
+  <nav class="anclas-info" aria-label="En esta página">
+    <a href="#subir">Subir</a>
+    <a href="#verificacion">Verificación</a>
+    <a href="#puntos">Puntos</a>
+    <a href="#rachas">Rachas</a>
+    <a href="#misiones">Misiones</a>
+    <a href="#clanes">Clanes</a>
+    <a href="#temporadas">Temporadas</a>
+  </nav>
+
+  <!-- Va lo primero a proposito: es lo unico de esta pagina que importa de verdad. -->
+  <div class="aviso atencion antes-de-nada">
+    <strong>Antes de nada</strong>
+    <p>Es un juego sobre calles reales, con tráfico real. No es una invitación a correr. Respeta semáforos y pasos de peatones: ningún puesto justifica un accidente.</p>
+  </div>
+
+  <section id="subir" class="seccion-info">
+    <h2>Subir un trayecto</h2>
+    <p>Al terminar, la app de BiciMAD enseña el resumen con las estaciones, las horas y la duración. Haz una captura de esa pantalla y súbela: leemos los datos por ti en tu propio navegador, y tú solo los confirmas.</p>
+    <p class="apagado">Sube la captura original, entera y sin pasarla por ningún editor. Si la mandas por WhatsApp antes, llega recomprimida y se lee peor. Una captura con varios trayectos vale: eliges cuáles subir. Cuenta el día del trayecto, no el de la subida, y tienes 30 días.</p>
+  </section>
+
+  <section id="verificacion" class="seccion-info">
+    <h2>Verificación</h2>
+    <p>Cada captura pasa por estas comprobaciones antes de contar:</p>
+    <div class="tarjeta-grande media lista-info">
+      <div><strong>Coherencia interna</strong><span>La hora de llegada menos la de salida tiene que dar la duración. Quien retoca una captura cambia el número grande y se deja las horas.</span></div>
+      <div><strong>Plausibilidad física</strong><span>Se calcula la distancia entre las dos estaciones y la velocidad media que implica tu tiempo. Las BiciMAD cortan la asistencia a 25 km/h.</span></div>
+      <div><strong>Reutilización</strong><span>Se guarda una huella de cada captura: la misma imagen no vale dos veces, ni recortada, ni reescalada, ni recomprimida.</span></div>
+      <div><strong>Metadatos</strong><span>Una captura auténtica no ha pasado por un editor de imagen. Si lleva rastros de uno, se nota.</span></div>
+    </div>
+    <p class="apagado">Tarda unos diez minutos. Si algo no cuadra pero no es concluyente, lo mira una persona: solo se rechaza en automático lo que es demostrablemente imposible. Si crees que un rechazo es un error, pide revisión humana desde el propio trayecto.</p>
+  </section>
+
+  <section id="puntos" class="seccion-info">
+    <h2>Puntos por trayecto</h2>
+    <div class="tabla-info">
+      <table>
+        <caption class="solo-lectores">Cómo se calculan los puntos de un trayecto</caption>
+        <tbody>
+          <tr><th scope="row">Base, por trayecto verificado</th><td>10</td></tr>
+          <tr><th scope="row">Distancia</th><td>6 / km</td></tr>
+          <tr><th scope="row">Velocidad, por encima de 8 km/h</th><td>2,5 / km/h</td></tr>
+          <tr><th scope="row">Racha diaria</th><td>hasta ×1,5</td></tr>
+          <tr><th scope="row">Ruta del día</th><td>×2</td></tr>
+          <tr><th scope="row">Estación de tu clan</th><td>×1,1</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="apagado">Ir despacio no resta: por debajo de 8 km/h no se puntúa por velocidad, pero el trayecto sigue sumando por base y distancia. Puntúan como máximo tres trayectos al día; del cuarto al sexto se verifican igual y suman a tus kilómetros y a tu racha, pero sin puntos. De cada ruta, en su clasificación, cuenta tu mejor tiempo.</p>
+  </section>
+
+  <section id="rachas" class="seccion-info">
+    <h2>Rachas y escudos</h2>
+    <p>Un día con al menos un trayecto verificado mantiene la racha, y cada día seguido multiplica tus puntos un 5 %, hasta ×1,5. Cada siete días activos ganas un escudo (máximo dos): si un día no puedes salir, se gasta solo y la racha sobrevive.</p>
+  </section>
+
+  <section id="misiones" class="seccion-info">
+    <h2>Misiones del día</h2>
+    <p>Tres cada día, las mismas para todo el mundo: una de distancia, una de ritmo y otra que cambia. Cada una da sus puntos una sola vez, sumados al trayecto que la completa.</p>
+  </section>
+
+  <section id="clanes" class="seccion-info">
+    <h2>Clanes y territorio</h2>
+    <p>Los clanes se disputan las estaciones. La influencia de cada uno sale de cuántos trayectos tocan la estación, de los tiempos en sus tramos y de los kilómetros. Un clan con más del 50 % la controla, y sus trayectos que la tocan suman un 10 % más.</p>
+    <p class="apagado">El territorio decae: cada día se pierde un 3 %. Sin pedalear, en tres semanas se va la mitad.</p>
+  </section>
+
+  <section id="temporadas" class="seccion-info">
+    <h2>Divisiones y temporadas</h2>
+    <p>Compites en un grupo de 30 de tu división. Cada lunes suben los primeros y bajan los últimos (quien no ha salido en toda la semana no baja). Cada mes empieza una temporada nueva y los puntos vuelven a cero; tus récords, tus kilómetros y tus insignias se quedan.</p>
+  </section>
+
+  <p class="apagado menor">Proyecto independiente, sin relación con BiciMAD, la EMT ni el Ayuntamiento de Madrid.</p>
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/info.js"></script>
+</body>
+</html>

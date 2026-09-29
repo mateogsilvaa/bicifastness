@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Tu perfil de piloto en BiciFastness: historial, insignias, clan y ajustes.">
+<meta name="robots" content="noindex">
+<title>Tú | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<!--
+  Tu (06 Perfil). Una pagina corta con entradas a subpantallas en vez de un
+  scroll infinito. Todas las vistas estan aqui y se cambian por el hash
+  (#insignias, #historial...): sin recargar y sin volver a leer el perfil, o sea
+  sin gastar ni una lectura mas de Firestore por moverse entre ellas.
+-->
+<main class="container yo" id="principal">
+
+  <!-- 6a · Resumen -->
+  <section class="vista" id="vista-resumen" aria-labelledby="nombre">
+    <div class="yo-barra">
+      <span></span>
+      <!-- 8m: en escritorio, Historial y Ajustes a mano en la cabecera. -->
+      <a class="boton-pastilla solo-escritorio-inline" href="#historial">Historial</a>
+      <a class="boton-icono" href="#ajustes" aria-label="Ajustes" id="ir-ajustes"></a>
+    </div>
+
+    <div class="perfil-cabecera">
+      <div class="avatar-inicial" id="avatar" aria-hidden="true"></div>
+      <div class="datos">
+        <h1 id="nombre">…</h1>
+        <span class="sub" id="clan"></span>
+        <span class="etiquetas" id="etiquetas"></span>
+      </div>
+    </div>
+
+    <div class="tarjeta-grande" id="tarjeta-rating">
+      <div class="cabeza"><span>BiciRating</span><span id="puesto-global"></span></div>
+      <span class="rating" id="rating">0</span>
+      <div class="barra-modos" id="barra-modos" aria-hidden="true"></div>
+      <div class="leyenda-modos" id="leyenda-modos"></div>
+    </div>
+
+    <div class="cifras-tres">
+      <div><strong id="total-viajes">—</strong><span id="verificados">trayectos</span></div>
+      <div><strong id="km-total">0 km</strong><span>en total</span></div>
+      <div><strong id="mejor-racha">0 días</strong><span>mejor racha</span></div>
+    </div>
+
+    <nav class="menu-lista" id="menu" aria-label="Tu perfil"></nav>
+    <p class="mensaje" id="msg-perfil" aria-live="polite"></p>
+  </section>
+
+  <!-- 6b · Insignias -->
+  <section class="vista oculto" id="vista-insignias" aria-labelledby="titulo-insignias">
+    <div class="subcabecera">
+      <a class="boton-icono" href="#" aria-label="Volver"></a>
+      <h1 id="titulo-insignias">Insignias</h1>
+    </div>
+    <div id="insignia-destacada"></div>
+    <div class="insignias-rejilla" id="insignias"></div>
+  </section>
+
+  <!-- 6c · Historial -->
+  <section class="vista oculto" id="vista-historial" aria-labelledby="titulo-historial">
+    <div class="subcabecera">
+      <a class="boton-icono" href="#" aria-label="Volver"></a>
+      <h1 id="titulo-historial">Historial</h1>
+    </div>
+    <div class="filtros" id="filtros" role="group" aria-label="Filtrar por estado"></div>
+    <div id="historial"></div>
+    <p class="mensaje" id="msg-historial" aria-live="polite"></p>
+  </section>
+
+  <!-- 6d · Temporadas -->
+  <section class="vista oculto" id="vista-temporadas" aria-labelledby="titulo-temporadas">
+    <div class="subcabecera">
+      <a class="boton-icono" href="#" aria-label="Volver"></a>
+      <h1 id="titulo-temporadas">Temporadas</h1>
+    </div>
+    <div id="temporada-actual"></div>
+    <div class="pila" id="temporadas"></div>
+  </section>
+
+  <!-- Rutas ancladas -->
+  <section class="vista oculto" id="vista-rutas" aria-labelledby="titulo-rutas">
+    <div class="subcabecera">
+      <a class="boton-icono" href="#" aria-label="Volver"></a>
+      <h1 id="titulo-rutas">Rutas ancladas</h1>
+    </div>
+    <p class="menor apagado">
+      Hasta tres tramos que quieres tener a mano. Salen de los que ya has hecho.
+    </p>
+    <div id="favoritas"></div>
+  </section>
+
+  <!-- 6e · Ajustes -->
+  <section class="vista oculto" id="vista-ajustes" aria-labelledby="titulo-ajustes">
+    <div class="subcabecera">
+      <a class="boton-icono" href="#" aria-label="Volver"></a>
+      <h1 id="titulo-ajustes">Ajustes</h1>
+    </div>
+
+    <h2 class="seccion-ajustes">Apariencia</h2>
+    <div class="temas" id="temas" role="group" aria-label="Tema"></div>
+
+    <!-- Avisos push (#33). Toda la seccion se oculta si el navegador no puede:
+         enseñar interruptores que no hacen nada es peor que no enseñarlos. -->
+    <div id="ajustes-push" class="oculto">
+      <h2 class="seccion-ajustes">Avisos en el móvil</h2>
+      <div class="lista-ajustes" id="lista-avisos"></div>
+      <p class="mensaje" id="msg-push" aria-live="polite"></p>
+    </div>
+
+    <h2 class="seccion-ajustes">Otros</h2>
+    <div class="lista-ajustes">
+      <label>
+        <span class="texto">Correo sobre mis trayectos<small>Rechazos, anulaciones y verificados</small></span>
+        <input type="checkbox" class="interruptor" id="avisos-correo">
+      </label>
+      <label>
+        <span class="texto">Sonido al verificarse<small>Solo con la app abierta</small></span>
+        <input type="checkbox" class="interruptor" id="sonido">
+      </label>
+    </div>
+    <p class="mensaje" id="msg-avisos" aria-live="polite"></p>
+
+    <div class="dos-botones">
+      <button class="btn" id="btn-salir" type="button">Cerrar sesión</button>
+      <a class="btn" href="#datos">Mis datos</a>
+    </div>
+    <p class="pie-version" id="pie-version"></p>
+  </section>
+
+  <!-- 6f · Mis datos. Derechos del RGPD juntos. -->
+  <section class="vista oculto" id="vista-datos" aria-labelledby="titulo-datos">
+    <div class="subcabecera">
+      <a class="boton-icono" href="#ajustes" aria-label="Volver a ajustes"></a>
+      <h1 id="titulo-datos">Mis datos</h1>
+    </div>
+
+    <div class="bloque">
+      <h2 class="h2">Descargar mis datos</h2>
+      <p class="menor apagado">
+        Un fichero JSON con todo lo que guardamos sobre ti (derecho de acceso y
+        portabilidad).
+      </p>
+      <button class="btn tonal" id="btn-exportar" type="button">Descargar</button>
+    </div>
+
+    <div class="bloque">
+      <h2 class="h2">Eliminar mi cuenta</h2>
+      <p class="menor apagado">
+        Se borra tu perfil, tu historial y tus capturas. Tus tiempos verificados
+        se anonimizan para no dejar huecos en los rankings de los demás, y dejan
+        de estar vinculados a ti.
+      </p>
+      <button class="btn peligro" id="btn-borrar" type="button">Eliminar mi cuenta</button>
+    </div>
+    <p class="mensaje" id="msg-datos" aria-live="polite"></p>
+  </section>
+
+  <!-- Despues de eliminar: pantalla final antes de cerrar la sesion. -->
+  <section class="vista oculto" id="vista-adios" aria-labelledby="titulo-adios">
+    <div class="vacio" style="margin-top: var(--e7);">
+      <h3 id="titulo-adios">Tu cuenta se está eliminando</h3>
+      <p>En unos minutos no quedará nada tuyo aquí. Gracias por pedalear con nosotros.</p>
+    </div>
+  </section>
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/yo.js"></script>
+</body>
+</html>

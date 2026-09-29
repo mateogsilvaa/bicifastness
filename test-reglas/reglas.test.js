@@ -1,0 +1,382 @@
+/**
+ * firestore.rules, EJECUTADAS.
+ *
+ * El resto de pruebas del repositorio leen las reglas como texto: comprueban
+ * que una linea esta o no esta. Eso vigila que nadie deshaga un arreglo, pero no
+ * dice si la regla FUNCIONA, y aqui eso importa mas que en ningun otro sitio:
+ * no hay servidor delante, las reglas son el control de acceso.
+ *
+ * Y hay reglas que, si estan mal, no fallan "un poco". El freno de #62 gatea
+ * CADA subida de viaje; una expresion mal escrita no deja pasar mas de la
+ * cuenta, deja a todo el mundo sin poder subir nada. Por eso estas pruebas
+ * reproducen EXACTAMENTE los lotes que escriben `crearViajes` (subir.js) y
+ * `crearPerfil` (acciones.js): si alguien cambia uno de los dos lados sin el
+ * otro, falla aqui y no en produccion.
+ *
+ * Corren contra el emulador de Firestore, que necesita Java 21. Por eso van en
+ * su propio paquete y su propio trabajo del CI, y no dentro de `npm test`:
+ *
+ *     cd test-reglas && npm ci && npm test
+ */
+
+const { test, before, after, beforeEach } = require('node:test');
+const fs = require('fs');
+const path = require('path');
+const {
+  initializeTestEnvironment, assertSucceeds, assertFails,
+} = require('@firebase/rules-unit-testing');
+const {
+  doc, getDoc, setDoc, updateDoc, writeBatch, serverTimestamp, increment,
+} = require('firebase/firestore');
+
+let entorno;
+
+const UID = 'piloto1';
+const OTRO = 'piloto2';
+const diaUTC = () => Math.floor(Date.now() / 86400000);
+const hoyISO = () => new Date().toISOString().slice(0, 10);
+
+before(async () => {
+  entorno = await initializeTestEnvironment({
+    projectId: 'demo-bicifastness',
+    firestore: { rules: fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8') },
+  });
+});
+
+after(async () => { await entorno?.cleanup(); });
+beforeEach(async () => { await entorno.clearFirestore(); });
+
+const como = (uid, claims = {}) => entorno.authenticatedContext(uid, claims).firestore();
+const anonimo = () => entorno.unauthenticatedContext().firestore();
+
+// --- Perfil ------------------------------------------------------------------
+
+/** Lo mismo que escribe `crearPerfil`, campo por campo. */
+function perfilNuevo(uid, nombre = 'Piloto Uno') {
+  const ahora = new Date().toISOString();
+  return {
+    uid,
+    username: nombre,
+    usernameLower: nombre.toLowerCase(),
+    avatarUrl: 'data:image/svg+xml,x',
+    biciRating: 0,
+    viajesVerificados: 0,
+    puntosPorRuta: {},
+    logros: [],
+    clanId: null,
+    favoritas: [],
+    suspendido: false,
+    bienvenidaEnviada: false,
+    creado: serverTimestamp(),
+    consentimiento: {
+      terminos: { version: '2026-08', aceptadoEn: ahora },
+      privacidad: { version: '2026-08', aceptadoEn: ahora },
+    },
+  };
+}
+
+async function altaDePerfil(db, uid, nombre) {
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'usuarios', uid), perfilNuevo(uid, nombre));
+  lote.set(doc(db, 'nombres_usuario', nombre.toLowerCase()), { uid, creado: serverTimestamp() });
+  return lote.commit();
+}
+
+test('el alta de perfil que escribe crearPerfil pasa', async () => {
+  await assertSucceeds(altaDePerfil(como(UID), UID, 'Piloto Uno'));
+});
+
+test('nadie nace con puntos ni con rol de administracion', async () => {
+  const db = como(UID);
+  await assertFails(setDoc(doc(db, 'usuarios', UID), { ...perfilNuevo(UID), biciRating: 9000 }));
+  await assertFails(setDoc(doc(db, 'usuarios', UID), { ...perfilNuevo(UID), isAdmin: true }));
+  await assertFails(setDoc(doc(db, 'usuarios', UID), { ...perfilNuevo(UID), email: 'a@b.es' }));
+});
+
+test('no se puede crear el perfil de otra persona', async () => {
+  await assertFails(setDoc(doc(como(UID), 'usuarios', OTRO), perfilNuevo(OTRO)));
+});
+
+test('el perfil ajeno no se lee: lleva datos que no son publicos', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', OTRO), { uid: OTRO, username: 'Otro' });
+  });
+  await assertFails(getDoc(doc(como(UID), 'usuarios', OTRO)));
+  await assertFails(getDoc(doc(anonimo(), 'usuarios', OTRO)));
+  await assertSucceeds(getDoc(doc(como(OTRO), 'usuarios', OTRO)));
+});
+
+test('el piloto no puede tocarse la puntuacion', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), perfilNuevo(UID));
+  });
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { biciRating: 500 }));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { viajesVerificados: 50 }));
+  await assertSucceeds(updateDoc(doc(como(UID), 'usuarios', UID), { favoritas: ['001-002'] }));
+});
+
+// --- Subida de viajes: el freno de #62 ------------------------------------------
+
+function viaje(uid, extra = {}) {
+  return {
+    uid,
+    username: 'Piloto Uno',
+    ruta: '001-002',
+    tiempoSegundos: 600,
+    tiempoFormateado: '10m 00s',
+    fechaViaje: hoyISO(),
+    estado: 'pendiente',
+    verificado: false,
+    capturaId: `${uid}_${diaUTC()}_c1`,
+    creado: serverTimestamp(),
+    ...extra,
+  };
+}
+
+const captura = (uid) => ({
+  uid, datos: 'data:image/jpeg;base64,AAAA', creado: serverTimestamp(),
+});
+
+/**
+ * Reproduce `crearViajes` de subir.js: un lote por viaje, la captura con el
+ * primero y el contador en el mismo lote.
+ */
+async function subir(db, uid, cupo, { conCaptura = true } = {}) {
+  const dia = diaUTC();
+  const viajes = cupo.viajes + 1;
+  const capturas = cupo.capturas + (conCaptura ? 1 : 0);
+
+  const lote = writeBatch(db);
+  if (conCaptura) lote.set(doc(db, 'capturas', `${uid}_${dia}_c${capturas}`), captura(uid));
+  lote.set(doc(db, 'cupos', uid), { dia, viajes, capturas });
+  lote.set(doc(db, 'tiempos_viaje', `${uid}_${dia}_${viajes}`),
+    viaje(uid, { capturaId: `${uid}_${dia}_c${capturas}` }));
+  await lote.commit();
+
+  return { viajes, capturas };
+}
+
+test('la primera subida del dia, con su captura, pasa', async () => {
+  await assertSucceeds(subir(como(UID), UID, { viajes: 0, capturas: 0 }));
+});
+
+test('tres trayectos de la misma captura pasan, uno por lote', async () => {
+  const db = como(UID);
+  let cupo = await subir(db, UID, { viajes: 0, capturas: 0 });
+  cupo = await assertSucceeds(subir(db, UID, cupo, { conCaptura: false }));
+  await assertSucceeds(subir(db, UID, cupo, { conCaptura: false }));
+});
+
+test('el cupo de ayer se reinicia al escribir el dia nuevo', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'cupos', UID), { dia: diaUTC() - 1, viajes: 10, capturas: 10 });
+  });
+  await assertSucceeds(subir(como(UID), UID, { viajes: 0, capturas: 0 }));
+});
+
+test('sin contador en el mismo lote, el viaje no entra', async () => {
+  const db = como(UID);
+  await assertFails(setDoc(doc(db, 'tiempos_viaje', `${UID}_${diaUTC()}_1`), viaje(UID)));
+});
+
+test('dos viajes en un mismo lote no entran', async () => {
+  const db = como(UID);
+  const dia = diaUTC();
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'cupos', UID), { dia, viajes: 1, capturas: 0 });
+  lote.set(doc(db, 'tiempos_viaje', `${UID}_${dia}_1`), viaje(UID));
+  lote.set(doc(db, 'tiempos_viaje', `${UID}_${dia}_x`), viaje(UID));
+  await assertFails(lote.commit());
+});
+
+test('el contador no salta de dos en dos', async () => {
+  const db = como(UID);
+  const dia = diaUTC();
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'cupos', UID), { dia, viajes: 2, capturas: 0 });
+  lote.set(doc(db, 'tiempos_viaje', `${UID}_${dia}_2`), viaje(UID));
+  await assertFails(lote.commit());
+});
+
+test('pasado el tope diario, ni un viaje mas', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'cupos', UID), { dia: diaUTC(), viajes: 10, capturas: 10 });
+  });
+  await assertFails(subir(como(UID), UID, { viajes: 10, capturas: 10 }));
+});
+
+test('el contador no se puede borrar ni bajar', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'cupos', UID), { dia: diaUTC(), viajes: 5, capturas: 5 });
+  });
+  const db = como(UID);
+  await assertFails(setDoc(doc(db, 'cupos', UID), { dia: diaUTC(), viajes: 0, capturas: 0 }));
+  await assertFails(require('firebase/firestore').deleteDoc(doc(db, 'cupos', UID)));
+});
+
+test('un viaje no nace verificado ni a nombre de otro', async () => {
+  const db = como(UID);
+  const dia = diaUTC();
+  for (const trampa of [{ verificado: true }, { estado: 'aprobado' }, { uid: OTRO }]) {
+    const lote = writeBatch(db);
+    lote.set(doc(db, 'cupos', UID), { dia, viajes: 1, capturas: 0 });
+    lote.set(doc(db, 'tiempos_viaje', `${UID}_${dia}_1`), viaje(UID, trampa));
+    await assertFails(lote.commit());
+  }
+});
+
+test('los metadatos admiten el dia del fichero y nada que no sea eso', async () => {
+  const db = como(UID);
+  const dia = diaUTC();
+  const conMetadatos = async (metadatos) => {
+    const lote = writeBatch(db);
+    lote.set(doc(db, 'cupos', UID), { dia, viajes: 1, capturas: 0 });
+    lote.set(doc(db, 'tiempos_viaje', `${UID}_${dia}_1`), viaje(UID, { metadatos }));
+    return lote.commit();
+  };
+  await assertFails(conMetadatos({ capturadaEn: '2026-07-15T10:00:00Z' }));
+  await assertFails(conMetadatos({ gps: '40.4,-3.7' }));
+  await assertSucceeds(conMetadatos({ software: 'Snapseed', capturadaEn: '2026-07-15' }));
+});
+
+test('el viaje ajeno no se lee, ni con sesion ni sin ella', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'tiempos_viaje', 'v1'), { uid: OTRO, verificado: true });
+  });
+  await assertFails(getDoc(doc(como(UID), 'tiempos_viaje', 'v1')));
+  await assertFails(getDoc(doc(anonimo(), 'tiempos_viaje', 'v1')));
+});
+
+test('las capturas no las lee nadie desde el navegador, ni su autor', async () => {
+  await subir(como(UID), UID, { viajes: 0, capturas: 0 });
+  await assertFails(getDoc(doc(como(UID), 'capturas', `${UID}_${diaUTC()}_c1`)));
+});
+
+// --- Analitica y errores sin sesion (#67) ----------------------------------------
+
+const sesion = () => ({
+  dia: hoyISO(), version: 'abc12345', creado: serverTimestamp(),
+  pagina_vista: increment(1),
+});
+
+test('la analitica sin sesion se sigue pudiendo escribir: mide el registro', async () => {
+  await assertSucceeds(setDoc(doc(anonimo(), 'sesiones_web', `${hoyISO()}_abc123`), sesion(), { merge: true }));
+});
+
+test('una sesion de analitica no se reescribe: una escritura por visita', async () => {
+  const id = `${hoyISO()}_abc123`;
+  await setDoc(doc(anonimo(), 'sesiones_web', id), sesion(), { merge: true });
+  await assertFails(setDoc(doc(anonimo(), 'sesiones_web', id), sesion(), { merge: true }));
+});
+
+test('la analitica no admite ids ni contadores inventados', async () => {
+  const db = anonimo();
+  await assertFails(setDoc(doc(db, 'sesiones_web', 'cualquier-cosa'), sesion()));
+  await assertFails(setDoc(doc(db, 'sesiones_web', `${hoyISO()}_abc123`),
+    { ...sesion(), pagina_vista: 100000 }));
+  await assertFails(setDoc(doc(db, 'sesiones_web', `${hoyISO()}_abc123`),
+    { ...sesion(), inventado: 1 }));
+});
+
+/** Lo mismo que escribe `errores.registrar`. */
+const error = (sesiones = increment(1)) => ({
+  mensaje: 'x', pila: '', pagina: '/entrar/', navegador: 'Chrome 130',
+  version: 'abc12345', ancho: 390, conSesion: false, sesiones,
+  visto: serverTimestamp(),
+});
+
+test('los errores del cliente se recogen sin sesion, y el mismo suma de uno en uno', async () => {
+  const ref = doc(anonimo(), 'errores_cliente', 'eabc123');
+  await assertSucceeds(setDoc(ref, error(), { merge: true }));
+  await assertSucceeds(setDoc(ref, error(), { merge: true }));
+});
+
+test('nadie pone un error en el primer puesto de un solo golpe', async () => {
+  const ref = doc(anonimo(), 'errores_cliente', 'eabc123');
+  await assertFails(setDoc(ref, error(50000), { merge: true }));
+  await setDoc(ref, error(), { merge: true });
+  await assertFails(setDoc(ref, error(increment(1000)), { merge: true }));
+});
+
+test('la configuracion y los agregados solo los escribe el worker', async () => {
+  const db = como(UID);
+  await assertFails(setDoc(doc(db, 'config', 'general'), { rutaDestacada: '001-002' }));
+  await assertFails(setDoc(doc(db, 'agregados', 'pilotos'), { filas: [] }));
+});
+
+// --- Correos que pide alguien --------------------------------------------------
+
+/** Lo mismo que escribe `escribirAPiloto` (acciones.js). */
+const mensaje = (por, extra = {}) => ({
+  uid: OTRO, tipo: 'mensaje_equipo', asunto: 'Sobre tu trayecto',
+  texto: 'Hola, te escribimos por lo de ayer.', sobre: 'Trayecto Sol → Ópera',
+  firma: 'El equipo de bicifastness', por, creado: serverTimestamp(), ...extra,
+});
+
+test('solo la administracion escribe a un piloto, y firmando como ella', async () => {
+  const { addDoc, collection } = require('firebase/firestore');
+  const admin = como('jefa', { admin: true });
+  await assertSucceeds(addDoc(collection(admin, 'mensajes_equipo'), mensaje('jefa')));
+  await assertSucceeds(addDoc(collection(admin, 'mensajes_equipo'),
+    { uid: OTRO, tipo: 'cuenta_suspendida', motivo: 'Capturas editadas', hasta: null, por: 'jefa', creado: serverTimestamp() }));
+  await assertFails(addDoc(collection(admin, 'mensajes_equipo'), mensaje('otra-persona')));
+  await assertFails(addDoc(collection(admin, 'mensajes_equipo'), mensaje('jefa', { tipo: 'bienvenida' })));
+  await assertFails(addDoc(collection(como(UID), 'mensajes_equipo'), mensaje(UID)));
+});
+
+test('el aviso de contraseña cambiada, cada uno el suyo y una vez', async () => {
+  const aviso = { tipo: 'clave_cambiada', dispositivo: 'Chrome en Android', creado: serverTimestamp() };
+  const db = como(UID);
+  await assertSucceeds(setDoc(doc(db, 'avisos_seguridad', UID), aviso));
+  await assertFails(setDoc(doc(db, 'avisos_seguridad', UID), aviso));
+  await assertFails(setDoc(doc(db, 'avisos_seguridad', OTRO), aviso));
+  await assertFails(getDoc(doc(db, 'avisos_seguridad', UID)));
+});
+
+// --- Bicirating -------------------------------------------------------------------
+
+/** Lo mismo que escribe `guardarValoracion` (assets/js/encuesta-bici.js). */
+const valoracion = (extra = {}) => ({
+  bici: '2471', uid: UID, dia: diaUTC(), nota: 2, fallos: ['frenos'], comentario: '',
+  viajeId: 'v1', estacion: '001', procesada: false, creado: serverTimestamp(), ...extra,
+});
+
+async function conViaje(uid = UID) {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'tiempos_viaje', 'v1'), { uid, ruta: '001-002', estado: 'pendiente' });
+  });
+}
+
+test('se valora la bici de un trayecto propio, una vez al dia y se puede cambiar', async () => {
+  await conViaje();
+  const db = como(UID);
+  const ref = doc(db, 'valoraciones_bici', `2471_${UID}_${diaUTC()}`);
+  await assertSucceeds(setDoc(ref, valoracion()));
+  await assertSucceeds(setDoc(ref, valoracion({ nota: 3, comentario: 'Frena poco' })));
+  await assertSucceeds(getDoc(ref));
+  // Otro id para la misma bici y dia no cuadra con lo que dice el documento.
+  await assertFails(setDoc(doc(db, 'valoraciones_bici', `2471_${UID}_${diaUTC() - 1}`), valoracion()));
+});
+
+test('no se valora una bici con el viaje de otro ni con datos inventados', async () => {
+  await conViaje(OTRO);
+  const db = como(UID);
+  const ref = doc(db, 'valoraciones_bici', `2471_${UID}_${diaUTC()}`);
+  await assertFails(setDoc(ref, valoracion()));
+});
+
+test('la valoracion no admite notas, fallos ni estaciones fuera de lo previsto', async () => {
+  await conViaje();
+  const db = como(UID);
+  const ref = doc(db, 'valoraciones_bici', `2471_${UID}_${diaUTC()}`);
+  await assertFails(setDoc(ref, valoracion({ nota: 6 })));
+  await assertFails(setDoc(ref, valoracion({ fallos: ['inventado'] })));
+  await assertFails(setDoc(ref, valoracion({ estacion: '099' })));
+  await assertFails(setDoc(ref, valoracion({ procesada: true })));
+  await assertFails(getDoc(doc(como(OTRO), 'valoraciones_bici', `2471_${UID}_${diaUTC()}`)));
+});
+
+test('la ficha de una bici la lee cualquiera y no la escribe nadie', async () => {
+  await assertSucceeds(getDoc(doc(anonimo(), 'bicis', '2471')));
+  await assertFails(setDoc(doc(como(UID), 'bicis', '2471'), { media: 5 }));
+});

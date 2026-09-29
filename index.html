@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Compite con tus tiempos de BiciMAD en Madrid. Rankings por ruta, clanes y dominio de estaciones.">
+<title>BiciFastness | El circuito urbano de Madrid</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<main id="principal">
+
+  <!--
+    Dos versiones de la misma ruta. Sin sesion, lo que hay que contar es que es
+    esto; con sesion, en que punto estas. Antes eran dos pantallas: `/` explicaba
+    el proyecto y `/home/` era un indice de enlaces a las demas.
+  -->
+
+  <!-- SIN SESION (01 Acceso · 1a y 1b). Sin barra de navegacion: aqui solo
+       hay una cosa que hacer. -->
+  <section id="landing" class="portada-publica oculto" aria-labelledby="titulo-portada">
+    <div class="portada-hero">
+      <!-- El mapa real de fondo cuenta el juego sin texto (mapa-fondo.js). -->
+      <div class="portada-mapa" id="mapa-fondo"></div>
+      <div class="portada-degradado" aria-hidden="true"></div>
+
+      <header class="portada-cabecera">
+        <a class="logo" href="/" aria-label="bicifastness">
+          <svg class="logo-anillo" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false">
+            <rect width="24" height="24" rx="6.5"></rect>
+            <path d="M12 5 A7 7 0 1 1 5.94 8.5"></path>
+            <circle cx="5.94" cy="8.5" r="2.1"></circle>
+          </svg>
+          <span class="logo-palabra">bicifastness</span>
+        </a>
+        <nav class="portada-nav" aria-label="Explorar">
+          <a href="/clasificacion/">Ranking</a>
+          <a href="/territorio/">Mapa</a>
+          <a href="/info/">Cómo funciona</a>
+        </nav>
+        <a class="boton-pastilla" href="/entrar/">Entrar</a>
+      </header>
+      <div class="leyenda-portada" aria-hidden="true">
+        <span><i class="lleno"></i>Controlada por un clan</span>
+        <span><i class="anillo"></i>En disputa</span>
+        <span><i class="libre"></i>Libre</span>
+      </div>
+
+      <div class="portada-pie">
+        <h1 class="portada-titulo" id="titulo-portada">Madrid es<br>el circuito.</h1>
+        <p class="portada-texto">
+          Haz tu trayecto de siempre en BiciMAD y sube la captura. Suma por
+          distancia, por ritmo y por constancia: no hace falta correr.
+        </p>
+
+        <!-- La ruta del dia en vivo: prueba de que esto esta vivo hoy. -->
+        <div id="ruta-publica"></div>
+
+        <!--
+          Empezar con Google aqui mismo, sin pasar por /register/: es un paso
+          menos entre "me interesa" y "estoy dentro", que es donde mas gente se
+          cae. El nombre de piloto y los consentimientos se piden igual, justo
+          despues.
+        -->
+        <button type="button" class="btn grande" id="btn-google">
+          <span class="disco-google"><img src="/images/google.svg" alt="" width="16" height="16"></span>
+          <span>Empezar con Google</span>
+        </button>
+        <p class="mensaje" id="mensaje-google" aria-live="polite"></p>
+        <div class="portada-enlaces">
+          <a class="azul" href="/register/">Crear cuenta con correo</a>
+          <a class="gris" href="/clasificacion/">Ver el ranking</a>
+        </div>
+        <p class="portada-aviso">Proyecto independiente. Sin relación con BiciMAD, la EMT ni el Ayuntamiento de Madrid.</p>
+      </div>
+    </div>
+
+    <!-- 1b · Al desplazar: tres ideas, cada una con su cifra real del juego. -->
+    <div class="portada-ideas">
+      <div class="idea">
+        <span class="idea-cifra">3</span>
+        <h2>Tres formas de ganar</h2>
+        <p>Sprint si vas rápido, Fondo si haces kilómetros, Constancia si sales cada día. Cada una tiene su ranking.</p>
+      </div>
+      <div class="idea">
+        <span class="idea-cifra">30</span>
+        <h2>Compites contra 30, no contra todos</h2>
+        <p>Grupos por división que se reordenan cada lunes. Cada mes, temporada nueva desde cero.</p>
+      </div>
+      <div class="idea">
+        <span class="idea-cifra" id="cifra-estaciones">631</span>
+        <h2>Estaciones por conquistar</h2>
+        <p>Con tu clan. Y se pierden si dejáis de pedalear.</p>
+      </div>
+      <button type="button" class="btn grande" id="btn-google-2">Empezar con Google</button>
+      <p class="mensaje" id="mensaje-google-2" aria-live="polite"></p>
+      <nav class="portada-legal" aria-label="Información legal">
+        <a href="/info/">Cómo funciona</a>
+        <a href="/legal/privacidad/">Privacidad</a>
+        <a href="/legal/terminos/">Términos</a>
+        <a href="/legal/cookies/">Cookies</a>
+      </nav>
+    </div>
+  </section>
+
+  <!-- CON SESION (02 Hoy). Responde a una sola pregunta: ¿que hago hoy?
+       Orden fijo: lo que esta en el aire (viaje en cola) -> lo que puedo perder
+       (racha) -> lo que puedo hacer (subir, misiones, ruta del dia) -> donde
+       estoy (division) -> lo que ya paso. En escritorio (8a), dos columnas:
+       640 px con lo primero y 340 px con lo secundario. -->
+  <div class="container">
+  <section id="panel" class="hoy oculto" aria-labelledby="hoy-saludo">
+    <header class="hoy-cabecera">
+      <div class="hoy-titulo">
+        <span class="hoy-fecha" id="hoy-fecha"></span>
+        <h1 id="hoy-saludo">Hola</h1>
+      </div>
+      <a class="avatar-inicial hoy-avatar" id="hoy-avatar" href="/yo/" aria-label="Tu perfil"></a>
+    </header>
+
+    <div class="hoy-rejilla">
+      <div class="hoy-principal">
+        <div id="viaje-en-curso"></div>
+        <div id="racha"></div>
+        <div id="bloque-subir"></div>
+        <!-- Instalar y avisos (07 · 7b): debajo de subir, solo tras el primer viaje. -->
+        <div id="invitacion-instalar" class="oculto"></div>
+        <div id="misiones"></div>
+      </div>
+      <aside class="hoy-lateral" aria-label="Tu semana">
+        <div id="ruta-del-dia"></div>
+        <div id="division"></div>
+        <div class="hoy-dos">
+          <div id="ultima-marca"></div>
+          <div id="estado-clan"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <p class="mensaje" id="mensaje" aria-live="polite"></p>
+  </div>
+
+  <!--
+    01 Acceso · 1c. La cuenta existe en Auth pero no hay perfil de piloto. Pasa
+    tras entrar con Google, tras el paso 1 del alta con correo (/register/) y si
+    un alta se corto a medias. Los tres necesitan lo mismo.
+
+    Las casillas van separadas y sin premarcar: ningun camino de entrada puede
+    ser un atajo para saltarse el consentimiento. El boton no se activa hasta
+    tener nombre valido y las tres.
+  -->
+<!-- 08 · 8e: en escritorio, panel azul fijo a la izquierda y el formulario
+     de 400 px a la derecha. En movil no se ve. -->
+<aside class="acceso-marca solo-alta" aria-hidden="true">
+  <span class="logo">
+    <svg class="logo-anillo blanco" viewBox="0 0 24 24" width="30" height="30" focusable="false">
+      <rect width="24" height="24" rx="6.5"></rect>
+      <path d="M12 5 A7 7 0 1 1 5.94 8.5"></path>
+      <circle cx="5.94" cy="8.5" r="2.1"></circle>
+    </svg>
+    <span class="logo-palabra">bicifastness</span>
+  </span>
+  <svg class="acceso-marca-anillo" viewBox="0 0 24 24" width="220" height="220" focusable="false"><path d="M12 5 A7 7 0 1 1 5.94 8.5"></path><circle cx="5.94" cy="8.5" r="2.1"></circle></svg>
+  <span class="acceso-marca-titulo">Una vuelta<br>cada día.</span>
+  <span class="acceso-marca-texto">Cada día que subes un trayecto, tu racha crece y tus puntos se multiplican hasta ×1,5.</span>
+  <span class="acceso-marca-aviso">Proyecto independiente. Sin relación con BiciMAD ni la EMT.</span>
+</aside>
+  <section id="recuperar-perfil" class="acceso oculto" aria-labelledby="titulo-nombre">
+    <p class="acceso-paso">Paso 2 de 2</p>
+    <h1 class="acceso-titulo" id="titulo-nombre">¿Cómo te llamamos en el ranking?</h1>
+    <p class="acceso-sub">Tu nombre real no se publica en ningún sitio.</p>
+
+    <div class="pila" style="gap: 6px;">
+      <label class="solo-lectores" for="rec-username">Nombre de piloto</label>
+      <div class="campo-nombre">
+        <input id="rec-username" type="text" autocomplete="nickname" maxlength="20"
+               autocapitalize="off" spellcheck="false" aria-describedby="rec-estado rec-pistas">
+        <span class="estado-nombre" id="rec-estado" aria-live="polite"></span>
+      </div>
+      <div class="pistas-nombre" id="rec-pistas"></div>
+    </div>
+
+    <div class="casillas">
+      <label class="casilla">
+        <input type="checkbox" id="rec-edad">
+        <span>Tengo 14 años o más.</span>
+      </label>
+      <label class="casilla">
+        <input type="checkbox" id="rec-terminos">
+        <span>He leído y acepto los <a href="/legal/terminos/">términos de uso</a>.</span>
+      </label>
+      <label class="casilla">
+        <input type="checkbox" id="rec-legal">
+        <span>He leído la <a href="/legal/privacidad/">política de privacidad</a>.</span>
+      </label>
+    </div>
+
+    <div class="acceso-hueco"></div>
+    <button class="btn grande" id="rec-enviar" type="button" disabled>Empezar a competir</button>
+    <p class="acceso-error" id="rec-mensaje" aria-live="polite"></p>
+  </section>
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/portada.js"></script>
+</body>
+</html>

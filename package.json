@@ -1,0 +1,20 @@
+{
+  "name": "bicifastness",
+  "private": true,
+  "description": "Utillaje del repositorio: generacion de datos compartidos y analisis estatico.",
+  "scripts": {
+    "datos:fuente": "node scripts/build-estaciones.js && node scripts/build-insignias.js && node scripts/build-push.js",
+    "datos": "npm run datos:fuente && node scripts/build-version.js",
+    "lint": "eslint .",
+    "test": "npm run datos && npm run lint && npm run validar && cd backend && npm test",
+    "validar": "node scripts/validar-paginas.js",
+    "cabeceras": "node scripts/aplicar-cabeceras.js",
+    "dev": "node scripts/servidor-local.js 5000",
+    "maqueta": "node scripts/servidor-local.js 5001 --maqueta",
+    "correos": "node scripts/exportar-correos.js"
+  },
+  "devDependencies": {
+    "eslint": "^9.15.0",
+    "globals": "^15.12.0"
+  }
+}

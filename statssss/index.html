@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Estadisticas publicas de BiciFastness.">
+<title>Estadisticas | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+<div id="nav-inferior"></div>
+
+<main class="container" id="principal">
+  <p class="etiqueta">El circuito, en numeros</p>
+  <h1 class="d2">Estadisticas</h1>
+  <p class="mensaje" id="mensaje" aria-live="polite">Cargando...</p>
+
+  <div class="rejilla cuatro seccion" id="rejilla" hidden>
+    <div class="bloque">
+      <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#perfil"></use></svg>
+      <p class="cifra" id="c-pilotos" style="margin: var(--e2) 0 0;">-</p>
+      <p class="etiqueta">Pilotos registrados</p>
+    </div>
+    <div class="bloque">
+      <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#ruta"></use></svg>
+      <p class="cifra" id="c-viajes" style="margin: var(--e2) 0 0;">-</p>
+      <p class="etiqueta">Tiempos verificados</p>
+    </div>
+    <div class="bloque">
+      <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#clan"></use></svg>
+      <p class="cifra" id="c-clanes" style="margin: var(--e2) 0 0;">-</p>
+      <p class="etiqueta">Clanes activos</p>
+    </div>
+    <div class="bloque">
+      <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#mapa"></use></svg>
+      <p class="cifra" id="c-estaciones" style="margin: var(--e2) 0 0;">-</p>
+      <p class="etiqueta">Estaciones conquistadas</p>
+    </div>
+  </div>
+</main>
+
+<footer id="pie-legal"></footer>
+
+<script type="module" src="/assets/js/paginas/statssss.js"></script>
+</body>
+</html>

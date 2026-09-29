@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Busca una bici de BiciMAD por su número y mira su nota media, los fallos que más se repiten y lo que cuentan otros pilotos.">
+<title>Buscar bici | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<!--
+  11 · Bicis: el buscador (11c/11g) y la ficha de cada bici (11d/11e/11i).
+  /bici/?n=2471 abre la ficha. Se entra desde el mapa ("Buscar bici") y desde
+  la encuesta de Subido. Las valoraciones son anonimas: nunca se ve quien.
+-->
+<main class="container ancho bici-pagina" id="principal">
+  <div class="bici-columna">
+    <div class="bici-cabeza">
+      <a class="bici-atras" href="/territorio/" aria-label="Volver al mapa"></a>
+      <h1>Buscar bici</h1>
+    </div>
+    <form class="campo-buscar bici-buscar" id="form-bici" role="search" novalidate>
+      <label class="solo-lectores" for="numero-bici">Número de la bici</label>
+      <input id="numero-bici" name="n" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5"
+             autocomplete="off" placeholder="0000" aria-describedby="pista-bici">
+    </form>
+    <p class="encuesta-pista" id="pista-bici" aria-live="polite"></p>
+    <div id="bici-recientes" class="bici-recientes"></div>
+  </div>
+  <section class="bici-ficha" id="bici-ficha" aria-live="polite"></section>
+</main>
+
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/bici.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "bicifastness-backend",
+  "description": "Worker de verificacion. Corre en GitHub Actions, no en Cloud Functions.",
+  "version": "2.0.0",
+  "main": "worker.js",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "worker": "node worker.js",
+    "worker:simular": "node worker.js --simular"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "nodemailer": "^10.0.12",
+    "sharp": "^0.33.5",
+    "tesseract.js": "^7.0.0",
+    "web-push": "^3.6.7"
+  },
+  "engines": {
+    "node": "20"
+  }
+}

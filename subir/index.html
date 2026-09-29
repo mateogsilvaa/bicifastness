@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Sube el tiempo de tu trayecto en BiciMAD con la captura de la app.">
+<meta name="robots" content="noindex">
+<title>Subir tiempo | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<!--
+  03 Subir. De "acabo de dejar la bici" a "subido" en dos toques y sin escribir:
+  el + abre el selector de fotos, la lectura en el navegador rellena todo y la
+  persona solo confirma. Cada paso es una seccion; se ve una cada vez. Todo el
+  contenido lo pinta subir.js: aqui solo estan los huecos.
+-->
+<main class="subir" id="principal">
+  <h1 class="solo-lectores">Subir trayecto</h1>
+  <section id="s-inicio" class="subir-paso" aria-label="Subir trayecto"></section>
+  <section id="s-avisos" class="subir-paso oculto" aria-label="Antes de leerla"></section>
+  <section id="s-leyendo" class="subir-paso leyendo oculto" aria-label="Leyendo la captura" aria-live="polite"></section>
+  <section id="s-confirmar" class="subir-paso oculto" aria-label="Revisa y sube"></section>
+  <section id="s-manual" class="subir-paso oculto" aria-label="Complétalo tú"></section>
+  <section id="s-varios" class="subir-paso oculto" aria-label="Varios trayectos"></section>
+  <section id="s-subido" class="subir-paso oculto" aria-label="Subido" aria-live="polite"></section>
+  <input id="foto" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple class="solo-lectores" tabindex="-1" aria-label="Elegir captura">
+  <img id="vista-lectura" class="oculto" alt="">
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/subir.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "bicifastness-test-reglas",
+  "private": true,
+  "description": "Pruebas de firestore.rules contra el emulador. Necesitan Java 21: van aparte para no hacer pesada la suite normal.",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-bicifastness \"node --test\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0",
+    "firebase-tools": "^14.0.0"
+  }
+}

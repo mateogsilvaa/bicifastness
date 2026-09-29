@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sitio",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/servidor-local.js", "5000"],
+      "port": 5000
+    },
+    {
+      "name": "maqueta",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/servidor-local.js", "5001", "--maqueta"],
+      "port": 5001
+    }
+  ]
+}

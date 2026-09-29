@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="BiciFastness esta en obras. Volvemos pronto.">
+<!-- Mientras dure el mantenimiento no queremos que se indexe esta pagina en
+     lugar del sitio real. -->
+<meta name="robots" content="noindex">
+<title>Volvemos pronto | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<style>
+  /* Pagina autocontenida a proposito: no depende de app.css, ni de Firebase, ni
+     de ningun modulo. Si algo del sitio se rompe, esta tiene que seguir en pie.
+     Mismos colores que el sistema (07 · 7e), fuente del sistema como respaldo. */
+  :root { --papel: #F3F1EC; --papel-2: #FFFFFF; --tinta: #111110; --tinta-2: #55534D; --azul: #1B80E5; --verde: #1C7A42; --verde-tinte: #E3F1E8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --papel: #0E0F10; --papel-2: #18191B; --tinta: #F2F1EE; --tinta-2: #B3B2AE; --verde: #4CC47F; --verde-tinte: #14291D; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; min-height: 100dvh;
+    background: var(--papel); color: var(--tinta);
+    font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+    display: flex; flex-direction: column; padding: 24px 20px;
+  }
+  .logo { display: inline-flex; align-items: center; gap: 9px; color: var(--tinta); text-decoration: none; }
+  .logo svg rect { fill: var(--azul); }
+  .logo svg path { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; }
+  .logo svg circle { fill: #fff; }
+  .logo span { font-size: 17px; font-weight: 800; letter-spacing: -.035em; }
+  main { flex: 1; display: flex; align-items: center; justify-content: center; }
+  .tarjeta { width: 100%; max-width: 480px; background: var(--papel-2); border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+  .estado { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--verde-tinte); color: var(--verde); font-size: 13px; font-weight: 700; }
+  .estado::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+  p { margin: 0; font-size: 16px; color: var(--tinta-2); }
+  a.accion { align-self: flex-start; margin-top: 6px; padding: 12px 20px; border-radius: 14px; background: var(--azul); color: #fff; font-weight: 700; text-decoration: none; }
+  @media (min-width: 900px) { body { padding: 32px 40px; } .tarjeta { background: none; padding: 0; } h1 { font-size: 40px; } }
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="/" aria-label="bicifastness">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6.5"></rect><path d="M12 5 A7 7 0 1 1 5.94 8.5"></path><circle cx="5.94" cy="8.5" r="2.1"></circle></svg>
+    <span>bicifastness</span>
+  </a>
+</header>
+<main>
+  <div class="tarjeta">
+    <span class="estado">En obras</span>
+    <h1>Estamos ajustando los radios</h1>
+    <p>Volvemos en unos minutos. Tus trayectos y tu racha están a salvo: si hoy has salido, súbelo en cuanto volvamos.</p>
+    <a class="accion" href="/">Probar otra vez</a>
+  </div>
+</main>
+</body>
+</html>

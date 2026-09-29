@@ -1,0 +1,263 @@
+/**
+ * Punto unico de arranque de Firebase.
+ *
+ * Antes la configuracion estaba copiada literalmente en 8 ficheros HTML, junto
+ * con un cliente de PocketBase apuntando a un tunel de ngrok.
+ *
+ * Nota sobre la apiKey: en Firebase Web NO es un secreto, es un identificador
+ * publico del proyecto. Lo que protege los datos son las reglas de Firestore
+ * (que en este montaje SON el control de acceso, porque no hay servidor HTTP
+ * delante) mas App Check.
+ */
+
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import {
+  initializeAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signOut, sendPasswordResetEmail,
+  sendEmailVerification, browserLocalPersistence,
+  GoogleAuthProvider, signInWithPopup, browserPopupRedirectResolver,
+  getAdditionalUserInfo, verifyPasswordResetCode, confirmPasswordReset, applyActionCode,
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
+  deleteDoc, query, where, orderBy, limit, startAfter, serverTimestamp, increment,
+  arrayUnion, arrayRemove, writeBatch, Timestamp, onSnapshot, getDocsFromCache,
+  getCountFromServer,
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import {
+  initializeAppCheck, ReCaptchaV3Provider,
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js';
+
+const configuracion = {
+  apiKey: 'AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk',
+  authDomain: 'bicifastness.firebaseapp.com',
+  projectId: 'bicifastness',
+  messagingSenderId: '656116731421',
+  appId: '1:656116731421:web:a4154d028fe9721c5800f4',
+};
+
+/**
+ * Clave de sitio de reCAPTCHA v3 para App Check.
+ *
+ * Aqui importa mas que en un montaje con servidor: como el cliente escribe
+ * directamente en Firestore, App Check es lo que impide que alguien use la
+ * apiKey desde un script suelto en vez de desde la web.
+ * Se rellena desde la consola de Firebase (Compilacion > App Check).
+ */
+const RECAPTCHA_SITE_KEY = '__PON_AQUI_TU_CLAVE_DE_RECAPTCHA_V3__';
+
+export const app = initializeApp(configuracion);
+
+/**
+ * `initializeAuth` y no `getAuth`, y sin resolutor de popup/redirect.
+ *
+ * `getAuth()` arrastra el resolutor de OAuth por defecto, y ese carga
+ * `https://apis.google.com/js/api.js` para montar el iframe de los flujos con
+ * proveedor externo. Aqui NO hay proveedores externos: se entra solo con correo
+ * y contrasena. Consecuencias de dejarlo:
+ *
+ *   - la CSP lo bloquea (y con razon: es un dominio que no necesitamos), y el
+ *     navegador llena la consola de errores en cada carga del login
+ *   - o se mete `apis.google.com` en la CSP para nada
+ *
+ * Al declarar la persistencia aqui tampoco hace falta `setPersistence` despues,
+ * que era una promesa suelta cuyo fallo se tragaba un `.catch(() => {})`.
+ *
+ * "Entrar con Google" NO cambia esto, y es a proposito: el resolutor se le
+ * pasa a `signInWithPopup` en la propia llamada (ver `entrarConGoogle`), asi
+ * que `apis.google.com` solo se carga cuando alguien pulsa el boton, y solo en
+ * las dos pantallas que lo tienen. Pasarlo aqui lo cargaria en cada pagina de
+ * la web, en movil nada mas abrirla.
+ */
+export const auth = initializeAuth(app, {
+  persistence: browserLocalPersistence,
+});
+/**
+ * Firestore con cache local persistente (#37).
+ *
+ * Sin esto, volver a una pantalla ya visitada vuelve a pagar todas sus lecturas.
+ * Con la cache en IndexedDB, una consulta que no ha cambiado se sirve del disco
+ * del propio movil y **no cuenta en la cuota diaria**, que es el limite que de
+ * verdad aprieta en el plan Spark (ver docs/COSTE.md).
+ *
+ * `persistentMultipleTabManager` y no el de una sola pestana: con el sencillo,
+ * abrir la web en dos pestanas deja a la segunda SIN cache y sin aviso. Pasa mas
+ * de lo que parece, porque la app se abre desde enlaces.
+ *
+ * Es `initializeFirestore` y no `getFirestore` porque la cache solo se puede
+ * declarar en la creacion. Y va con try: en modo privado de Safari IndexedDB
+ * puede no estar disponible, y quedarse sin cache es peor que quedarse sin web.
+ */
+function crearFirestore() {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch (error) {
+    console.warn('Sin cache local de Firestore; se leera todo de red.', error);
+    return initializeFirestore(app, {});
+  }
+}
+
+export const db = crearFirestore();
+
+if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('__')) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled: true,
+  });
+} else {
+  console.warn('App Check sin configurar: rellena RECAPTCHA_SITE_KEY en assets/js/firebase.js');
+}
+
+/**
+ * Entrar (o registrarse, es lo mismo) con una cuenta de Google.
+ *
+ * Es la forma de quitar la mayor friccion del alta: sin contraseña que
+ * inventar, sin repetirla y sin esperar un correo de verificacion, porque el
+ * correo de Google ya viene verificado.
+ *
+ * POPUP y no redireccion. La redireccion pasa por `bicifastness.firebaseapp.com`
+ * y vuelve; con los navegadores bloqueando el almacenamiento de terceros, al
+ * volver a un dominio distinto (el de Vercel) la sesion se pierde por el
+ * camino. El popup no depende de eso. Lo que SI necesita es que la cabecera
+ * `Cross-Origin-Opener-Policy` sea `same-origin-allow-popups` y no
+ * `same-origin`: con la estricta, la pagina pierde el contacto con el popup y
+ * el login falla como si la persona lo hubiera cerrado (ver
+ * shared/cabeceras.json).
+ *
+ * Una cuenta nueva de Google entra SIN perfil de piloto. No se crea aqui: la
+ * portada lo detecta y pide el nombre y los consentimientos (`recuperar-perfil`
+ * en index.html), igual que con un alta que se quedo a medias. Asi el nombre
+ * publico lo elige la persona, y nunca se publica su nombre real de Google.
+ */
+export function entrarConGoogle() {
+  const proveedor = new GoogleAuthProvider();
+  // Que pregunte con que cuenta, en vez de entrar sin mas con la ultima usada:
+  // en un movil compartido, o con cuenta personal y de trabajo, es lo que evita
+  // registrarse con la que no era.
+  proveedor.setCustomParameters({ prompt: 'select_account' });
+  return signInWithPopup(auth, proveedor, browserPopupRedirectResolver);
+}
+
+export {
+  onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signOut, sendPasswordResetEmail, sendEmailVerification, getAdditionalUserInfo,
+  verifyPasswordResetCode, confirmPasswordReset, applyActionCode,
+  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  query, where, orderBy, limit, startAfter, serverTimestamp, increment,
+  arrayUnion, arrayRemove, writeBatch, Timestamp,
+  // `onSnapshot` se usa SOLO sobre documentos sueltos, nunca sobre una
+  // coleccion: cada cambio escuchado es una lectura facturada (ver
+  // assets/js/estado-viaje.js).
+  onSnapshot,
+  // Lee SOLO de la cache local, sin tocar la red ni gastar cuota. Lanza si no
+  // hay nada cacheado, asi que quien lo use tiene que tener un plan B.
+  getDocsFromCache,
+  // Cuenta sin traerse los documentos: Firestore cobra UNA lectura por cada
+  // 1.000 contados. Para poner un numero en pantalla es lo correcto; traerse la
+  // coleccion para hacer `.length` cuesta una lectura por documento.
+  getCountFromServer,
+};
+
+/**
+ * Traduce los errores de Firestore a algo que una persona entienda.
+ *
+ * `permission-denied` es el caso interesante: con este modelo significa que las
+ * reglas han rechazado la escritura, casi siempre por intentar mandar un campo
+ * que el cliente no puede tocar.
+ */
+export function traducirError(error) {
+  const mensajes = {
+    'permission-denied': 'No tienes permiso para hacer esto.',
+    unauthenticated: 'Tienes que iniciar sesion.',
+    'not-found': 'No se ha encontrado.',
+    'already-exists': 'Esto ya existe.',
+    'resource-exhausted': 'Se ha alcanzado el limite de uso. Intentalo mas tarde.',
+    'failed-precondition': 'Falta algun requisito previo.',
+    'invalid-argument': 'Los datos enviados no son validos.',
+    'deadline-exceeded': 'La operacion ha tardado demasiado.',
+    unavailable: 'No hay conexion con el servidor. Revisa tu red.',
+  };
+  return mensajes[error?.code] || error?.message || 'Ha ocurrido un error.';
+}
+
+/** Errores de Firebase Auth, tambien en castellano. */
+export function traducirErrorAuth(error) {
+  const mensajes = {
+    'auth/invalid-credential': 'Correo o contrasena incorrectos.',
+    'auth/invalid-email': 'El correo no tiene un formato valido.',
+    'auth/user-disabled': 'Esta cuenta esta deshabilitada.',
+    'auth/email-already-in-use': 'Ese correo ya tiene cuenta.',
+    'auth/weak-password': 'La contrasena es demasiado debil.',
+    'auth/too-many-requests': 'Demasiados intentos. Espera unos minutos.',
+    'auth/network-request-failed': 'Sin conexion. Revisa tu red.',
+    'auth/requires-recent-login': 'Por seguridad, vuelve a iniciar sesion antes de hacer esto.',
+    // Los del popup de Google.
+    'auth/popup-closed-by-user': 'Has cerrado la ventana de Google antes de terminar.',
+    'auth/cancelled-popup-request': 'Has cerrado la ventana de Google antes de terminar.',
+    'auth/popup-blocked': 'El navegador ha bloqueado la ventana de Google. Permite las ventanas emergentes para esta web y vuelve a pulsar.',
+    'auth/account-exists-with-different-credential': 'Ese correo ya tiene cuenta con contrasena. Entra con tu correo y tu contrasena.',
+    // Estos dos son de configuracion, no de la persona: Google sin activar en
+    // la consola, o el dominio sin autorizar. Ver docs/PUESTA-EN-MARCHA.md.
+    'auth/operation-not-allowed': 'El acceso con Google todavia no esta activado. Usa tu correo por ahora.',
+    'auth/unauthorized-domain': 'El acceso con Google todavia no esta activado en esta direccion. Usa tu correo por ahora.',
+  };
+  return mensajes[error?.code] || 'No se ha podido completar la operacion.';
+}
+
+/**
+ * Avatar por defecto: las iniciales sobre el azul de la marca.
+ *
+ * SE DIBUJA AQUI, no se pide fuera, y el motivo es de #55. Antes salia de
+ * `api.dicebear.com`, o sea que cada avatar era una peticion a un tercero — y
+ * no solo cuando entraba esa persona: **cuando cualquiera abria una
+ * clasificacion donde ella salia**. Con el nombre de piloto dentro de la URL:
+ *
+ *     https://api.dicebear.com/7.x/initials/svg?seed=Nombre+Del+Piloto
+ *
+ * Un identificador seudonimo mas la IP de quien mira, en cada carga, a un
+ * servidor que la politica de privacidad no declaraba.
+ *
+ * Y no habia por que: es un circulo con dos letras. Dibujarlo en local quita
+ * el tercero, quita una peticion de red por avatar, quita una entrada de la
+ * CSP y —lo que mas se nota— **hace que los avatares funcionen sin conexion**,
+ * que con la PWA de #52 importa.
+ *
+ * `encodeURIComponent` sobre el SVG entero, no solo sobre el nombre: dentro va
+ * texto que ha escrito un usuario, y un `"` o un `<` sueltos romperian el
+ * data: URI o meterian marcado donde no toca.
+ */
+export function avatarPorDefecto(nombre) {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">'
+    + '<rect width="80" height="80" rx="40" fill="#0071c3"/>'
+    + '<text x="40" y="40" fill="#fff" font-family="system-ui,sans-serif" font-size="32"'
+    + ' font-weight="600" text-anchor="middle" dominant-baseline="central">'
+    + escaparXml(iniciales(nombre))
+    + '</text></svg>';
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+/** Una o dos letras: "Ana Perez" -> "AP", "Ana" -> "A". */
+function iniciales(nombre) {
+  const palabras = String(nombre || 'Piloto').trim().split(/\s+/).filter(Boolean);
+  if (!palabras.length) return 'P';
+
+  const letras = palabras.length === 1
+    ? palabras[0].slice(0, 1)
+    : palabras[0].slice(0, 1) + palabras[palabras.length - 1].slice(0, 1);
+
+  return letras.toUpperCase();
+}
+
+/** Lo minimo para que un nombre no pueda romper el SVG. */
+function escaparXml(texto) {
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}

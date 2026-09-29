@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de cookies | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<nav id="nav-principal"></nav>
+<div id="nav-inferior"></div>
+
+<main class="legal">
+  <a class="logo logo-legal" href="/" aria-label="bicifastness">
+    <svg class="logo-anillo" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+      <rect width="24" height="24" rx="6.5"></rect>
+      <path d="M12 5 A7 7 0 1 1 5.94 8.5"></path>
+      <circle cx="5.94" cy="8.5" r="2.1"></circle>
+    </svg>
+    <span class="logo-palabra">bicifastness</span>
+  </a>
+  <p class="version">Versión 1.2.0 &middot; Última actualización: 23 de agosto de 2026</p>
+  <h1>Política de cookies</h1>
+  <div class="resumen-legal">
+    <strong>En resumen</strong>
+    <p>Solo usamos cookies y almacenamiento técnicos: tu sesión y la protección contra bots. Nada de publicidad ni analítica de terceros, así que no hace falta pedirte permiso.</p>
+  </div>
+
+  <h2>1. Que usamos</h2>
+  <div class="recuadro">
+    <p>
+      <strong>BiciFastness no utiliza cookies publicitarias, de analitica de terceros ni de
+      seguimiento.</strong> No hay Google Analytics, ni pixeles de redes sociales,
+      ni perfilado de ningun tipo.
+    </p>
+    <p>
+      Lo unico que guardamos en tu navegador es lo estrictamente necesario para
+      que puedas mantener la sesion iniciada y para recordar si prefieres el modo
+      claro u oscuro.
+    </p>
+  </div>
+
+  <h2>2. Detalle de lo que se almacena</h2>
+  <p>
+    Tecnicamente, la mayor parte no son cookies sino <em>almacenamiento local</em>
+    e <em>IndexedDB</em>, pero se documentan igualmente por transparencia:
+  </p>
+
+  <div class="tabla-scroll">
+    <table>
+      <thead>
+        <tr><th>Nombre</th><th>Tipo</th><th>Finalidad</th><th>Duracion</th><th>Titular</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>firebase:authUser:*</code></td>
+          <td>IndexedDB</td>
+          <td>Mantener tu sesion iniciada para que no tengas que escribir la contrasena en cada visita.</td>
+          <td>Hasta que cierres sesion</td>
+          <td>Propia (Firebase)</td>
+        </tr>
+        <tr>
+          <td><code>firebase-heartbeat-*</code></td>
+          <td>IndexedDB</td>
+          <td>Control interno de versiones del SDK de Firebase.</td>
+          <td>30 dias</td>
+          <td>Propia (Firebase)</td>
+        </tr>
+        <tr>
+          <td><code>firebase-app-check-*</code></td>
+          <td>IndexedDB</td>
+          <td>Testigo de App Check: acredita que la peticion procede de esta web y no de un script automatizado.</td>
+          <td>Sesion</td>
+          <td>Propia (Firebase)</td>
+        </tr>
+        <tr>
+          <td><code>theme</code></td>
+          <td>localStorage</td>
+          <td>Recordar si prefieres el modo claro u oscuro.</td>
+          <td>Persistente</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>bf_cookies_v1</code></td>
+          <td>localStorage</td>
+          <td>Recordar que ya has visto el aviso de cookies para no volver a mostrartelo.</td>
+          <td>Persistente</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>viaje-en-curso</code></td>
+          <td>sessionStorage</td>
+          <td>Recordar que trayecto acabas de subir, para seguir enseñandote su estado si cambias de pagina mientras se verifica.</td>
+          <td>Hasta que cierres la pestaña</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>bf_agregado:*</code></td>
+          <td>sessionStorage</td>
+          <td>Guardar unos minutos las clasificaciones ya descargadas, para no volver a pedirlas al ir y venir entre pantallas. Son datos publicos: nombre, avatar y puntos.</td>
+          <td>Hasta que cierres la pestaña</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>bf_primer_viaje_subido</code>, <code>bf_instalar_rechazado</code></td>
+          <td>localStorage</td>
+          <td>Saber si ya has subido un trayecto y si ya dijiste que no a instalar la app, para no volver a proponertelo.</td>
+          <td>Persistente</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>bf_ultimo_resumen</code></td>
+          <td>localStorage</td>
+          <td>Tu puntuacion y tus viajes, para poder enseñartelos cuando abras la app sin conexion. No sale de este dispositivo.</td>
+          <td>Persistente</td>
+          <td>Propia</td>
+        </tr>
+        <tr>
+          <td><code>firestore/*</code></td>
+          <td>IndexedDB</td>
+          <td>Copia local de lo que ya has consultado, para que volver a una pantalla no tenga que descargarlo otra vez. Es lo que hace que la app funcione sin cobertura.</td>
+          <td>Hasta que borres los datos del sitio</td>
+          <td>Propia (Firebase)</td>
+        </tr>
+        <tr>
+          <td><code>_GRECAPTCHA</code></td>
+          <td>Cookie</td>
+          <td>reCAPTCHA de Google, empleado por App Check para distinguir personas de bots. Es una medida de seguridad, no de seguimiento.</td>
+          <td>6 meses</td>
+          <td>Terceros (Google)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>3. Por que no te pedimos consentimiento previo</h2>
+  <p>
+    El articulo 22.2 de la Ley 34/2002 (LSSI-CE) exime del consentimiento previo a
+    aquellos elementos <strong>estrictamente necesarios para prestar un servicio
+    expresamente solicitado por la persona usuaria</strong>. Todos los elementos
+    de la tabla anterior son tecnicos o de seguridad y encajan en esa excepcion,
+    tal y como interpreta la <em>Guia sobre el uso de las cookies</em> de la
+    Agencia Espanola de Proteccion de Datos.
+  </p>
+  <p>
+    Por eso el aviso que ves al entrar es <strong>informativo</strong> y no
+    bloquea la navegacion: no hay nada que rechazar, porque no cargamos nada
+    opcional.
+  </p>
+
+  <h3>Si medimos el uso de la web, ¿por que no hay banner?</h3>
+  <p>
+    Porque <strong>esa medicion no usa cookies ni identificadores que
+    sobrevivan a la pestaña</strong>, y el articulo 22.2 de la LSSI habla
+    precisamente de almacenar o recuperar informacion en tu dispositivo.
+  </p>
+  <p>
+    Lo que hacemos es contar cuantas veces ocurre cada paso de subir un
+    trayecto. Cada sesion escribe <strong>un unico documento con contadores</strong>,
+    identificado por un numero aleatorio que se genera al abrir la pestaña y
+    desaparece al cerrarla. No queda nada en tu dispositivo, no se lee nada de
+    el, y dos visitas tuyas en dias distintos no se pueden relacionar. Esta
+    contado con detalle en la
+    <a href="/legal/privacidad/#medicion">politica de privacidad</a>.
+  </p>
+  <p>
+    Con analitica de terceros — Google Analytics y companía — la respuesta
+    seria otra: ahi si hay cookie, si hay identificador persistente y si haria
+    falta un consentimiento real. Es una de las razones de no usarla.
+  </p>
+
+  <div class="recuadro">
+    <p>
+      Si en el futuro incorporasemos analitica de terceros o cualquier elemento
+      no imprescindible, cambiariamos este aviso por un sistema de
+      consentimiento real, con la opcion de <strong>rechazar tan accesible como
+      la de aceptar</strong> y sin carga previa de nada hasta obtenerlo.
+    </p>
+  </div>
+
+  <h2>4. Como eliminarlos</h2>
+  <p>
+    Puedes borrar el almacenamiento de este sitio desde la configuracion de tu
+    navegador. Ten en cuenta que al hacerlo se cerrara tu sesion y se olvidara tu
+    preferencia de tema.
+  </p>
+  <ul>
+    <li><strong>Chrome:</strong> Configuracion &rarr; Privacidad y seguridad &rarr; Cookies y otros datos de sitios.</li>
+    <li><strong>Firefox:</strong> Ajustes &rarr; Privacidad y seguridad &rarr; Cookies y datos del sitio.</li>
+    <li><strong>Safari:</strong> Ajustes &rarr; Privacidad &rarr; Gestionar datos de sitios web.</li>
+    <li><strong>Edge:</strong> Configuracion &rarr; Cookies y permisos del sitio.</li>
+  </ul>
+
+  <h2>5. Mas informacion</h2>
+  <p>
+    Consulta la <a href="/legal/privacidad/">politica de privacidad</a> para saber
+    como tratamos tus datos personales.
+  </p>
+</main>
+
+<footer id="pie-legal"></footer>
+<script type="module" src="/assets/js/paginas/legal-cookies.js"></script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel de administracion | BiciFastness</title>
+<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png">
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+  /* Estilos propios del panel de administracion.
+   *
+   * Solo lo que NO esta en el sistema de diseno. Aqui no se redefine ninguna
+   * clase de `app.css`: la version anterior pisaba `.rejilla` y `.vacio`, o sea
+   * que esta pantalla se llevaba por delante dos piezas comunes y nadie sabia
+   * por que se veian distintas aqui.
+   *
+   * Y todo con los tokens del sistema: ni un pixel ni un color a mano.
+   */
+  /* Contador de cola, al lado del titulo. Cifras monoespaciadas para que no
+   * baile el ancho al pasar de 9 a 10. */
+  .contador {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 13px;
+    background: var(--azul);
+    color: var(--sobre-azul);
+    border-radius: 999px;
+    padding: var(--e1) var(--e3);
+  }
+  /* Scoped al panel: `.seccion` es una clase comun y un selector de
+     descendencia sobre ella acaba afectando a lo que no debe. */
+  .titulo-cola { display: flex; align-items: center; gap: var(--e3); }
+
+  /* Rejilla propia: las tarjetas de reporte piden un ancho minimo mayor que el
+   * de la rejilla comun, que reparte en columnas fijas. */
+  .rejilla-admin {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: var(--e4);
+    margin-top: var(--e4);
+  }
+
+  .tarjeta {
+    background: var(--papel);
+    border: var(--borde);
+    padding: var(--e4);
+    transition: border-color var(--transicion);
+  }
+  /* El tinte sale del propio token, no de un rgba escrito a mano: asi sigue
+   * cuadrando si el color de la señal cambia. */
+  .tarjeta.riesgo-alto {
+    border-color: var(--rojo);
+    background: color-mix(in srgb, var(--rojo) 7%, var(--papel));
+  }
+  .tarjeta.riesgo-medio {
+    border-color: var(--ambar);
+    background: color-mix(in srgb, var(--ambar) 7%, var(--papel));
+  }
+
+  .cabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--e3);
+    font-weight: 700;
+    margin-bottom: var(--e2);
+  }
+  .meta { font-size: 13px; color: var(--tinta-3); line-height: 1.6; }
+
+  .veredicto {
+    margin: var(--e3) 0;
+    padding: var(--e3);
+    border: var(--borde);
+    background: var(--papel-2);
+    font-size: 13px;
+  }
+  .veredicto ul { margin: var(--e2) 0 0; padding-left: var(--e5); line-height: 1.6; }
+  .veredicto li { margin-bottom: var(--e1); }
+
+  .acciones { display: flex; gap: var(--e3); margin-top: var(--e4); }
+  .acciones .btn { margin: 0; }
+
+  /* Buscador de piloto o clan. */
+  .buscador { position: relative; }
+  .resultados {
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    z-index: 50;
+    display: none;
+    max-height: 260px;
+    overflow-y: auto;
+    background: var(--papel);
+    border: var(--borde);
+  }
+  .resultados div {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--e3) var(--e4);
+    cursor: pointer;
+  }
+  .resultados div:hover { background: var(--papel-2); }
+
+  .insignias {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--e2);
+    margin-top: var(--e4);
+  }
+  .fila-insignia {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--papel-2);
+    padding: var(--e3) var(--e4);
+    font-size: 14px;
+  }
+
+  /* Captura a pantalla completa. */
+  #visor {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: var(--e5);
+    background: color-mix(in srgb, var(--tinta) 92%, transparent);
+  }
+  #visor img { max-width: 92%; max-height: 88vh; }
+
+  /* --- Cola de revision (#15) ---------------------------------------------
+   * Dos columnas en cuanto hay sitio: la captura a la izquierda y todo lo que
+   * hace falta para decidir a la derecha. En movil se apilan.
+   */
+  .caso { display: grid; gap: var(--e5); align-items: start; }
+  @media (min-width: 900px) {
+    .caso { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); }
+    /* La captura sigue a la vista mientras se lee el resto. */
+    .caso-captura { position: sticky; top: var(--e4); }
+  }
+  .caso-captura img { display: block; width: 100%; border: var(--borde); }
+
+  .cotejo { width: 100%; border-collapse: collapse; margin: var(--e4) 0; font-size: 14px; }
+  .cotejo th, .cotejo td { padding: var(--e2) var(--e3); border-bottom: var(--borde); text-align: left; }
+  .cotejo thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--tinta-3); }
+  .cotejo tbody th { font-weight: 600; color: var(--tinta-3); width: 30%; }
+  /* La fila que no cuadra es LA informacion de esta pantalla: se ve sola. */
+  .cotejo tr.difiere td:last-child { color: var(--rojo); font-weight: 800; }
+  .cotejo tr.difiere th { color: var(--rojo); }
+
+  .atajos { margin-top: var(--e4); }
+  .atajos kbd {
+    font-family: var(--mono);
+    font-size: 12px;
+    border: var(--borde);
+    border-bottom-width: 2px;
+    padding: var(--e1) var(--e2);
+    margin: 0 var(--e1);
+  }
+
+  /* --- 09 · 9a Cola de revision ----------------------------------------------
+   * Lista a la izquierda (riesgo por el color del borde) y el caso a la derecha:
+   * captura grande, cotejo leido/declarado, señales con sus numeros (solo
+   * aqui) y los ocho motivos cerrados. 14 px de base y filas de 40.
+   */
+  .adm-rejilla { display: grid; grid-template-columns: 380px minmax(0, 1fr); min-height: calc(100vh - 60px); }
+  .adm-cola { background: var(--papel-2); border-right: var(--borde); display: flex; flex-direction: column; min-height: 0; }
+  .adm-filtros { display: flex; gap: 6px; padding: 14px var(--e4); border-bottom: var(--borde); }
+  .adm-filtros button { padding: 6px 10px; border: 0; border-radius: 999px; background: var(--papel); font: inherit; font-size: 13px; font-weight: 600; color: var(--tinta); cursor: pointer; }
+  .adm-filtros button[aria-pressed='true'] { background: var(--tinta); color: var(--papel); }
+  .adm-lista { overflow-y: auto; flex: 1; }
+  .adm-item { display: grid; grid-template-columns: 3px minmax(0, 1fr) auto; gap: 12px; width: 100%; padding: 12px var(--e4) 12px 0; border: 0; border-bottom: 1px solid var(--papel); background: var(--papel-2); font: inherit; font-size: 14px; color: var(--tinta); text-align: left; cursor: pointer; }
+  .adm-item:hover { background: var(--papel); }
+  .adm-item[aria-current='true'] { background: var(--azul-tinte); }
+  .adm-riesgo { align-self: stretch; }
+  .adm-riesgo.alto { background: var(--rojo); }
+  .adm-riesgo.medio { background: var(--ambar); }
+  .adm-riesgo.bajo { background: var(--linea-fuerte); }
+  .adm-item-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .adm-item-texto strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .adm-item-texto small { font-size: 12px; color: var(--tinta-3); }
+  .adm-item-texto em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--tinta-2); }
+  .adm-item-texto em.alto { color: var(--rojo); }
+  .adm-item-texto em.medio { color: var(--ambar); }
+  .adm-item-tiempo { font-size: 17px; font-weight: 800; font-stretch: 80%; font-variant-numeric: tabular-nums; }
+  .adm-detalle { padding: var(--e5) 28px; min-width: 0; }
+  .adm-caso { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: var(--e5); align-items: start; }
+  .adm-captura { position: sticky; top: var(--e4); display: flex; flex-direction: column; gap: 10px; }
+  .adm-captura-marco { background: var(--papel-2); border-radius: 16px; padding: var(--e2); }
+  .adm-captura-marco img { display: block; width: 100%; border-radius: 10px; cursor: zoom-in; }
+  .adm-etiquetas { display: flex; flex-wrap: wrap; gap: var(--e2); font-size: 12px; color: var(--tinta-2); }
+  .adm-etiquetas span { padding: var(--e1) var(--e2); border-radius: 6px; background: var(--papel-3); }
+  .adm-datos { display: flex; flex-direction: column; gap: var(--e4); font-size: 14px; }
+  .adm-titulo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--e3); }
+  .adm-titulo h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+  .adm-titulo p { margin: 2px 0 0; color: var(--tinta-2); }
+  .adm-bloque { background: var(--papel-2); border-radius: 16px; padding: var(--e1) var(--e4); }
+  .adm-bloque.relleno { padding: 14px var(--e4); display: flex; flex-direction: column; gap: var(--e2); }
+  .adm-rotulo { font-size: 12px; color: var(--tinta-3); }
+  .adm-cotejo { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .adm-cotejo th, .adm-cotejo td { text-align: left; padding: 0 var(--e3) 0 0; height: 40px; border-bottom: 1px solid var(--papel); }
+  .adm-cotejo thead th { height: 36px; font-size: 12px; font-weight: 400; color: var(--tinta-3); border-bottom: var(--borde); }
+  .adm-cotejo tbody th { font-weight: 400; color: var(--tinta-2); width: 140px; }
+  .adm-cotejo .ok { color: var(--verde); font-weight: 700; }
+  .adm-cotejo tr.difiere td { color: var(--rojo); font-weight: 700; }
+  .adm-senal { display: flex; justify-content: space-between; gap: var(--e3); }
+  .adm-senal strong { color: var(--ambar); white-space: nowrap; }
+  .adm-motivos { display: flex; flex-wrap: wrap; gap: 6px; }
+  .adm-motivos button { padding: 6px 10px; border: 0; border-radius: 8px; background: var(--papel-2); font: inherit; font-size: 13px; font-weight: 600; color: var(--tinta); cursor: pointer; }
+  .adm-motivos button[aria-pressed='true'] { background: var(--tinta); color: var(--papel); }
+  .adm-motivos kbd { font-family: var(--tipo); opacity: .6; margin-right: 6px; }
+  .adm-decidir { display: flex; gap: 10px; align-items: center; }
+  .adm-decidir .btn { width: auto; min-height: 44px; padding: 0 22px; gap: var(--e2); }
+  .adm-decidir .aprobar { background: var(--verde); border-color: var(--verde); }
+  .adm-decidir kbd { font-family: var(--tipo); font-size: 12px; opacity: .7; }
+  .adm-decidir .hueco { flex: 1; }
+  .adm-decidir .pista { color: var(--tinta-3); font-size: 13px; }
+  .adm-seccion-normal { padding: var(--e5) 28px; max-width: 1200px; }
+</style>
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<main id="principal">
+  <p id="cargando" class="adm-seccion-normal apagado">Comprobando permisos…</p>
+
+  <div id="panel" class="oculto">
+    <!-- 9a · Cola de revision -->
+    <section id="seccion-revision" aria-label="Cola de revisión">
+      <div class="adm-rejilla">
+        <div class="adm-cola">
+          <div class="adm-filtros" id="filtros-cola" role="group" aria-label="Filtrar la cola"></div>
+          <div class="adm-lista" id="lista-cola"></div>
+        </div>
+        <div class="adm-detalle">
+          <p class="aviso error oculto" id="aviso-cola" role="status"></p>
+          <span class="solo-lectores" id="cuenta-revision">0</span>
+          <div id="caso"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Denuncias de la comunidad -->
+    <section id="seccion-denuncias" class="adm-seccion-normal oculto" aria-labelledby="titulo-reportes">
+      <h2 class="titulo-cola" id="titulo-reportes">Denuncias de la comunidad <span class="contador" id="cuenta-reportes">0</span></h2>
+      <div class="rejilla-admin" id="rejilla-reportes"></div>
+    </section>
+
+    <!-- Pilotos y clanes: insignias, ruta destacada y administradores -->
+    <section id="seccion-pilotos" class="adm-seccion-normal oculto" aria-label="Pilotos y clanes">
+      <section class="seccion">
+        <h2>Insignias</h2>
+        <div class="bloque">
+          <div class="campo buscador">
+            <label for="busca-objetivo">Buscar piloto o clan</label>
+            <input type="text" id="busca-objetivo" autocomplete="off" placeholder="Escribe un nombre">
+            <div class="resultados" id="resultados-busqueda"></div>
+          </div>
+          <p id="objetivo-actual" class="meta"></p>
+          <div class="insignias" id="rejilla-insignias"></div>
+        </div>
+      </section>
+
+      <section class="seccion">
+        <h2>Ruta destacada</h2>
+        <div class="bloque">
+          <div class="rejilla dos">
+            <div class="campo">
+              <label for="ruta-origen">Salida</label>
+              <input type="text" id="ruta-origen" maxlength="4" placeholder="002">
+            </div>
+            <div class="campo">
+              <label for="ruta-destino">Meta</label>
+              <input type="text" id="ruta-destino" maxlength="4" placeholder="110">
+            </div>
+          </div>
+          <button id="btn-destacar" class="btn" type="button">Destacar ruta</button>
+          <p class="mensaje" id="msg-destacar" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="seccion">
+        <h2>Administradores</h2>
+        <div class="bloque">
+          <p class="meta">
+            El rol de administrador es un custom claim de Firebase Auth y solo se
+            puede conceder con credenciales de servicio, que nunca deben llegar al
+            navegador. Se hace desde tu ordenador:
+          </p>
+          <pre class="meta" style="background:var(--papel); padding:12px; border-radius:8px; overflow-x:auto;">GOOGLE_APPLICATION_CREDENTIALS=./clave.json node scripts/set-admin.js correo@ejemplo.com</pre>
+          <p class="meta">Quien lo reciba debe cerrar sesión y volver a entrar.</p>
+        </div>
+      </section>
+    </section>
+  </div>
+</main>
+
+<div id="visor" role="dialog" aria-modal="true" aria-label="Captura ampliada"></div>
+
+<script type="module" src="/assets/js/paginas/admin.js"></script>
+</body>
+</html>

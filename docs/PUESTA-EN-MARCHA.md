@@ -154,7 +154,7 @@ Private.
 La web se publicaba en Vercel. El cambio a GitHub Pages está en un PR del repo
 nuevo, **«Publicar la web en GitHub Pages con dominio propio»**:
 
-1. Abre https://github.com/mateogsilvaa/bicifastness/pulls y entra en ese PR.
+1. Abre https://github.com/mateogsilvaa/bicifastness/pull/1.
 2. Espera a que las comprobaciones estén en verde (tests y reglas en el
    emulador; unos 3 minutos).
 3. **Merge pull request** → **Confirm merge**.

@@ -995,7 +995,13 @@ input[type='checkbox'] {
   .mapa-zoom .boton-mapa + .boton-mapa { border-top: var(--borde); }
   .hoja-mapa, .hoja-mapa[data-altura] { left: 20px; top: 20px; bottom: 20px; right: auto; width: 400px; height: auto; border: 0; border-radius: var(--radio-grande); padding-top: 20px; box-shadow: 0 8px 32px rgba(0, 0, 0, .12); }
   .asa-mapa, .hoja-mapa .resumen-mapa { display: none !important; }
-  .hoja-mapa .cuerpo-hoja { display: flex !important; padding: 0 22px var(--e5); }
+  .hoja-mapa .cuerpo-hoja { display: flex !important; padding: 0 22px 20px; gap: 16px; }
+  /* 8k: la estacion llena el panel y "Competir aqui" va al pie; 8l, a 14. */
+  .hoja-mapa:has(#panel-miclan:not(.oculto)) .cuerpo-hoja { gap: 14px; }
+  .hoja-mapa #panel-estaciones:not(.oculto), .hoja-mapa #ficha-estacion { flex: 1; display: flex; flex-direction: column; }
+  .hoja-mapa .ficha-estacion { flex: 1; gap: 16px; }
+  .hoja-mapa .ficha-estacion > .btn.grande { margin-top: auto; }
+  .hoja-mapa .ficha-cabeza h2 { font-size: 28px; }
   .ficha-cabeza h2 { font-size: 28px; }
 }
 

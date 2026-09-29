@@ -2551,6 +2551,30 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
 .fila-cara.pie { min-height: 0; padding-top: 6px; border: 0; font-size: 11px; color: var(--tinta-3); }
 .btn.plano.denunciar { color: var(--tinta-3); font-size: 14px; font-weight: 500; }
 
+/* 4f · En movil, pantalla de pagina (fondo hueso, tarjetas blancas) que deja
+   ver la barra inferior; barra de 52 con volver y el menu; filas de 53. */
+.hoja.panel-lateral { background: var(--papel); bottom: calc(var(--alto-barra) + var(--pie-barra)); padding: env(safe-area-inset-top, 0px) var(--margen) 0; gap: 16px; display: flex; flex-direction: column; }
+.hoja.panel-lateral .panel-cabeza { min-height: 52px; margin: 0 -8px -16px; }
+.hoja.panel-lateral .panel-cabeza .boton-icono .icono { width: 24px; height: 24px; }
+.hoja.panel-lateral .cifras-piloto div { background: var(--papel-2); }
+.hoja.panel-lateral .fila-cara { min-height: 53px; border-bottom-color: var(--linea); }
+.hoja.panel-lateral .denunciar { margin-top: auto; align-self: center; min-height: 0; padding: 0 0 12px; font-size: 14px; }
+
+@media (min-width: 900px) {
+  /* 8j · Panel de 420 a la derecha: fondo blanco, tarjetas hueso, filas de 49. */
+  .hoja.panel-lateral { background: var(--papel-2); bottom: 0; padding: 24px 28px; gap: 18px; box-shadow: -12px 0 40px rgba(0, 0, 0, .10); }
+  .hoja.panel-lateral .panel-cabeza { min-height: 36px; margin: 0; }
+  .hoja.panel-lateral .acciones-panel .boton-icono { width: 36px; height: 36px; min-width: 36px; min-height: 36px; border-radius: 10px; background: var(--papel); }
+  .hoja.panel-lateral .acciones-panel .boton-icono .icono { width: 20px; height: 20px; stroke-width: 2.4; }
+  .hoja.panel-lateral .acciones-panel .boton-icono:last-child .icono { width: 18px; height: 18px; stroke-width: 1.8; }
+  /* Como en el diseño: rotulo y cifra en dos lineas de texto, no en columna. */
+  .hoja.panel-lateral .cifras-piloto div { display: block; background: var(--papel); }
+  .hoja.panel-lateral .cifras-piloto span::after { content: '\A'; white-space: pre; }
+  .hoja.panel-lateral .cifras-piloto strong { font-weight: 700; }
+  .hoja.panel-lateral .fila-cara { grid-template-columns: 1fr 60px 60px; min-height: 49px; border-bottom-color: var(--papel); }
+  .hoja.panel-lateral .denunciar { align-self: flex-start; padding: 0; font-size: 13px; }
+}
+
 @media (min-width: 900px) {
   .ranking { max-width: 1040px; gap: 20px; }
   .ranking-cabeza { flex-direction: row; align-items: flex-end; justify-content: space-between; }
@@ -2605,6 +2629,16 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
 }
 @media (min-width: 1200px) {
   .lista-ranking.con-columnas .cabecera-ranking, .lista-ranking.con-columnas .fila-ranking { grid-template-columns: 48px minmax(0, 1fr) 180px 100px 100px 100px 110px; }
+}
+
+/* 8j · Clanes en escritorio: columna de 760, 32 px arriba, tabla en tarjeta. */
+@media (min-width: 900px) {
+  body:has(.lateral) .container.ranking[data-pestana='clanes'] { max-width: calc(760px + 112px); padding: 32px 56px; }
+  .ranking[data-pestana='clanes'] { gap: 18px; }
+  .ranking[data-pestana='clanes'] .ranking-titulo h1 { font-size: 32px; }
+  .ranking[data-pestana='clanes'] .pestanas-ranking button { padding: 8px 18px; font-size: 14px; }
+  .ranking[data-pestana='clanes'] .lista-ranking.clanes { padding: 4px 20px; border-radius: 20px; margin-top: 18px; }
+  .ranking[data-pestana='clanes'] #tabla-clanes { max-width: none; }
 }
 
 /* 8i · Rutas en escritorio: lista y detalle. Un panel de 420 px con el titulo,

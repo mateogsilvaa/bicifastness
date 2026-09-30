@@ -2314,7 +2314,18 @@ section.acceso { padding: calc(var(--e5) + env(safe-area-inset-top, 0px)) var(--
   .pantalla-veredicto { inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; max-height: calc(100vh - 64px); padding: 28px; border-radius: var(--radio-hoja); gap: 20px; }
   .veredicto-cerrar { top: 20px; right: 20px; }
   .veredicto-hueco { display: none; }
+  /* 8h · Verificado: dialogo de 536 con sombra, desglose de filas de 32, los
+     logros como dos pastillas y "Seguir" de 52. */
+  .pantalla-veredicto.verificado { width: 536px; box-shadow: 0 24px 64px rgba(0, 0, 0, .25); }
+  .pantalla-veredicto .veredicto-desglose { padding: 4px 16px; border-radius: 18px; }
+  .pantalla-veredicto .veredicto-fila { padding: 8px 0; }
+  .pantalla-veredicto .veredicto-logros { flex-direction: row; gap: 10px; }
+  .pantalla-veredicto .veredicto-logros > div { flex: 1; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .14); font-size: 14px; }
+  .pantalla-veredicto .veredicto-marca, .pantalla-veredicto .logro-movil { display: none; }
+  .pantalla-veredicto .logro-escritorio { display: inline; line-height: normal; }
+  .pantalla-veredicto.verificado > .btn { min-height: 52px; border-radius: 14px; font-size: 16px; }
 }
+.logro-escritorio { display: none; }
 
 /* --- 03 Subir ---------------------------------------------------------------------
  * Cada paso es una pantalla entera en movil (sin barra inferior) y, en

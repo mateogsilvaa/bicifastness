@@ -126,10 +126,11 @@ export function abrirVerificado(viaje, contexto = {}) {
     el('span', { texto: t }), el('strong', { texto: v }),
   ]));
 
+  // [marca, texto del movil (3e), cifra y resto del escritorio (8h)]
   const logros = [
-    contexto.racha ? [String(contexto.racha), `Racha de ${contexto.racha} días. Hoy salvado.`] : null,
-    contexto.rutaDelDia ? [contexto.rutaDelDia.puesto, contexto.rutaDelDia.texto] : null,
-    contexto.mision ? [icono('ruta'), contexto.mision] : null,
+    contexto.racha ? [String(contexto.racha), `Racha de ${contexto.racha} días. Hoy salvado.`, `${contexto.racha} días`, ' de racha'] : null,
+    contexto.rutaDelDia ? [contexto.rutaDelDia.puesto, contexto.rutaDelDia.texto, contexto.rutaDelDia.puesto, ' en la ruta del día'] : null,
+    contexto.mision ? [icono('ruta'), contexto.mision, '', contexto.mision] : null,
   ].filter(Boolean);
 
   let cerrar = null;
@@ -156,8 +157,9 @@ export function abrirVerificado(viaje, contexto = {}) {
         el('div', { clase: 'veredicto-fila total' }, [el('strong', { texto: 'Total' }), el('strong', { texto: String(total) })]),
       ]),
     logros.length
-      ? el('div', { clase: 'veredicto-logros' }, logros.map(([marca, texto]) => el('div', {}, [
-        el('span', { clase: 'veredicto-marca' }, [marca]), el('span', { texto }),
+      ? el('div', { clase: 'veredicto-logros' }, logros.map(([marca, texto, cifra, resto]) => el('div', {}, [
+        el('span', { clase: 'veredicto-marca' }, [marca]), el('span', { clase: 'logro-movil', texto }),
+        el('span', { clase: 'logro-escritorio' }, [cifra ? el('strong', { texto: cifra }) : null, resto]),
       ])))
       : null,
     el('div', { clase: 'veredicto-hueco' }),

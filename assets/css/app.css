@@ -2106,7 +2106,11 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 .hoy-racha .btn.solo-escritorio { align-self: flex-start; width: auto; min-height: 52px; padding: 0 var(--e5); margin-top: var(--e1); }
 
 .hoy-racha-2f { gap: var(--e3); }
-.hoy-racha-2f .fila-dato { display: flex; justify-content: space-between; gap: var(--e3); padding-top: var(--e3); border-top: var(--borde); font-size: 13px; }
+/* 2f: titulo de 16 y texto de 13, como la variante del escudo. */
+.hoy-racha-2f .hoy-racha-texto { gap: 4px; }
+.hoy-racha-2f .hoy-racha-texto strong { font-size: 16px; font-weight: 700; font-stretch: 100%; letter-spacing: 0; line-height: normal; }
+.hoy-racha-2f .hoy-racha-texto span { font-size: 13px; line-height: 1.4; }
+.hoy-racha-2f .fila-dato { display: flex; justify-content: space-between; gap: 0; white-space: nowrap; padding-top: var(--e3); border-top: var(--borde); font-size: 13px; }
 .hoy-racha-2f .fila-dato span { color: var(--tinta-2); }
 .hoy-racha-2f .btn.solo-escritorio { align-self: flex-start; width: auto; }
 .hoy-sin-racha { flex-direction: row; align-items: center; gap: 14px; font-size: 14px; line-height: 1.4; }

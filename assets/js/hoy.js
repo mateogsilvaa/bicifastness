@@ -18,7 +18,8 @@ import { el, icono, reemplazar, abrirHoja } from '/assets/js/dom.js';
 import { nombreEstacion, formatearTiempo, kmEstimados } from '/assets/js/ui.js';
 import { traerAgregado, puestoPorMarca } from '/assets/js/agregados.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
-import { diaMadrid, minutosMadrid } from '/assets/js/dia.js';
+import { diaMadrid, diaMadridHace, minutosMadrid } from '/assets/js/dia.js';
+import { INSIGNIAS } from '/assets/data/insignias.js';
 import { destacar } from '/assets/js/celebrar.js';
 import { anilloSemana, estadosSemana, activoHoy } from '/assets/js/anillo.js';
 import { seguirViaje, viajeRecordado, olvidarViaje } from '/assets/js/estado-viaje.js';
@@ -131,6 +132,17 @@ function diasSemana() {
     })));
 }
 
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const nombreDia = (dia) => DIAS[new Date(`${dia}T12:00:00Z`).getUTCDay()];
+
+/** 2f: la mejor insignia de racha que da esa marca: 'insignia "Una semana seguida"'. */
+function insigniaDeRacha(dias) {
+  const ganadas = Object.values(INSIGNIAS)
+    .filter((i) => i.regla?.campo === 'mejorRacha' && dias >= i.regla.minimo)
+    .sort((a, b) => b.regla.minimo - a.regla.minimo);
+  return ganadas[0] ? `insignia "${ganadas[0].titulo}"` : null;
+}
+
 /**
  * La tarjeta de la racha, en el estado que toque (2a, 2b, 2c, 2d, 2f).
  * @returns {'pendiente'|'en-cola'|'salvado'|'riesgo'}
@@ -185,12 +197,13 @@ function pintarRacha(perfil, { enCola = false } = {}) {
         anilloSemana(estados, { tam: 84, numero: '0' }),
         el('div', { clase: 'hoy-racha-texto' }, [
           el('strong', { texto: 'Empieza otra hoy' }),
-          el('span', { texto: `Tu racha de ${cierre.rachaPrevia} días terminó. ${cierre.rachaPrevia >= (perfil.mejorRacha || 0) ? 'Sigue siendo tu mejor marca.' : ''}`.trim() }),
+          // 2f: "Tu racha de 23 días terminó el domingo. Sigue siendo tu mejor marca."
+          el('span', { texto: `Tu racha de ${cierre.rachaPrevia} días terminó el ${nombreDia(diaMadridHace(1))}. ${cierre.rachaPrevia >= (perfil.mejorRacha || 0) ? 'Sigue siendo tu mejor marca.' : ''}`.trim() }),
         ]),
       ]),
       el('div', { clase: 'fila-dato' }, [
         el('span', { texto: 'Mejor racha' }),
-        el('strong', { texto: `${perfil.mejorRacha || cierre.rachaPrevia} días` }),
+        el('strong', { texto: [`${perfil.mejorRacha || cierre.rachaPrevia} días`, insigniaDeRacha(perfil.mejorRacha || cierre.rachaPrevia)].filter(Boolean).join(' · ') }),
       ]),
       botonSubir('Subir trayecto', { clase: 'solo-escritorio' }),
     ]));

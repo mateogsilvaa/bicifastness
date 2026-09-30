@@ -51,6 +51,26 @@ const UMBRAL_OSCURO = 110;
 const NIVELES = { DESDE: 140, HASTA: 240 };
 
 /** Aplica NIVELES a un buffer de un canal, en el sitio. Gemela de la del navegador. */
+/**
+ * Franjas oscuras (la barra azul del tiempo, "11m. 00s.   0.00 €"). Tesseract
+ * lee muy mal el blanco sobre oscuro: se comia el tiempo o lo leia "Tm. 44s.".
+ * Cada fila oscura en mas de la mitad de su ancho se invierte y se estira, y el
+ * texto queda negro sobre casi blanco. Gemela de la del navegador.
+ */
+const FRANJA = { OSCURO: 130, PROPORCION: 0.55 };
+function invertirFranjas(pixeles, ancho, alto) {
+  for (let y = 0; y < alto; y++) {
+    const fila = y * ancho;
+    let oscuros = 0;
+    for (let x = 0; x < ancho; x++) if (pixeles[fila + x] < FRANJA.OSCURO) oscuros++;
+    if (oscuros / ancho <= FRANJA.PROPORCION) continue;
+    for (let x = 0; x < ancho; x++) {
+      pixeles[fila + x] = Math.min(255, Math.round(((255 - pixeles[fila + x]) * 255) / 170));
+    }
+  }
+  return pixeles;
+}
+
 function aclararGrises(pixeles) {
   const { DESDE, HASTA } = NIVELES;
   for (let i = 0; i < pixeles.length; i++) {
@@ -200,6 +220,7 @@ async function preparar(entrada) {
       .toColourspace('b-w')
       .raw()
       .toBuffer({ resolveWithObject: true });
+    invertirFranjas(crudo.data, crudo.info.width, crudo.info.height);
     aclararGrises(crudo.data);
 
     // Sin `sharpen()`: con el gris ya oscurecido, el enfoque se comia el numero
@@ -221,6 +242,8 @@ module.exports = {
   margenesUniformes,
   luminanciaMedia,
   aclararGrises,
+  invertirFranjas,
+  FRANJA,
   ANCHO,
   UMBRAL_OSCURO,
   NIVELES,

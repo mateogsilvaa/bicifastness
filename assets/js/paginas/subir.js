@@ -223,6 +223,40 @@ function pintarInicio() {
   }, [icono('pegar'), el('span', {}, [el('strong', { texto: 'Pegar' }), el('small', { texto: 'Hay una imagen copiada' })])]);
   hayImagenCopiada().then((si) => pegar.classList.toggle('oculto', !si));
 
+  // 8b: en escritorio, la pagina de subir ES la zona de soltar del diseño
+  // (el mismo marco que sale al arrastrar una captura sobre cualquier pagina).
+  // Toda ella es clicable para elegir la captura.
+  if (!b && window.matchMedia('(min-width: 900px)').matches) {
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+    reemplazar(id('s-inicio'), el('div', {
+      clase: 'subir-8b', attrs: { role: 'button', tabindex: '0', 'aria-label': 'Elegir captura' },
+      on: {
+        click: () => entradaFoto.click(),
+        keydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); entradaFoto.click(); } },
+      },
+    }, [
+      el('div', { clase: 'capa-soltar-marco' }, [
+        el('div', { clase: 'capa-soltar-dibujo' }, [
+          el('span', { clase: 'capa-soltar-fondo' }),
+          el('span', { clase: 'capa-soltar-captura' }, [el('img', { attrs: { src: '/images/ejemplo.jpg', alt: '' } })]),
+          el('span', { clase: 'capa-soltar-mas' }, [icono('mas', 'icono')]),
+        ]),
+        el('strong', { texto: 'Suéltala para leerla' }),
+        el('span', { texto: 'Leemos estaciones, tiempo y horas en tu navegador. Puedes soltar varias a la vez: cada una es un trayecto.' }),
+        el('span', { clase: 'capa-soltar-chips' }, [
+          el('span', { texto: 'JPG · PNG · WebP · HEIC' }),
+          el('span', { texto: 'Hasta 30 días atrás' }),
+          el('span', { texto: `Hoy puntúan ${CUPO} · llevas ${usados}` }),
+        ]),
+      ]),
+      el('div', { clase: 'capa-soltar-teclas' }, [
+        el('kbd', { texto: 'Clic' }), 'elegir captura', el('span', { clase: 'hueco' }),
+        el('kbd', { texto: mac ? '⌘ V' : 'Ctrl V' }), 'también pega una captura copiada',
+      ]),
+    ]));
+    return;
+  }
+
   reemplazar(id('s-inicio'), el('div', { clase: 'subir-inicio' }, [
     el('div', { clase: 'subir-inicio-cabeza' }, [
       el('h2', { texto: 'Subir trayecto' }),
@@ -1049,7 +1083,7 @@ async function irAElegir(candidatos) {
                 el('strong', {}, [nombreEstacion(c.origen), el('span', { clase: 'solo-escritorio-i', texto: ` → ${nombreEstacion(c.destino).split(' - ')[0]}` })]),
                 el('span', { clase: 'solo-movil-i', texto: `→ ${nombreEstacion(c.destino)}` }),
                 el('small', {}, repetido ? ['Ya lo tienes subido'] : [
-                  el('span', { clase: 'solo-escritorio-i', texto: `${dia === diaMadrid() ? 'hoy' : dia === diaMadridHace(1) ? 'ayer' : formatearFecha(dia)} ` }),
+                  el('span', { clase: 'solo-escritorio-i', texto: `${dia === diaMadrid() ? 'hoy' : dia === diaMadridHace(1) ? 'ayer' : new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} ` }),
                   [c.horaSalida, c.horaLlegada].filter(Boolean).join(' → '),
                   kmEstimados(c.origen, c.destino) ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${String(kmEstimados(c.origen, c.destino).toFixed(1)).replace('.', ',')} km` }) : null,
                 ]),

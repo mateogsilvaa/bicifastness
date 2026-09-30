@@ -218,3 +218,13 @@ test('la captura actual de BiciMAD se lee entera: estaciones, tiempo, bici y fec
 test('un parentesis suelto (el icono del reloj) no es una estacion', () => {
   assert.deepStrictEqual(ocr.extraerEstaciones(ACTUAL_PEOR), ['124', '115']);
 });
+
+test('en el historial de la app cada tarjeta se lleva su bici', () => {
+  // Texto real de tesseract sobre una captura con dos tarjetas (bici arriba de cada una).
+  const texto = '30 viajes realizados\n\n7 18853 O\n\nEP 47 - Estación de tren de Embajadores (47)\n30/09/26 21:22:13\n\n235 - Sodio - Embajadores (235)\n30/09/26 21:33:13\n\n(O) 11m. 00s. 0.00 €\n\n75 19461 O\n\nO 235 - Sodio - Embajadores (235)\ne 30/09/26 17:24:13\n\no 47 - Estación de tren de Embajadores 47)\n30/09/26 17:35:57\n\n(5) 11m. 44s. 0.00 €\n';
+  const [a, b, ...resto] = ocr.extraerTrayectos(texto);
+  assert.strictEqual(resto.length, 0);
+  assert.deepStrictEqual([a.origen, a.destino, a.segundosDuracion, a.numeroBici], ['47', '235', 660, '18853']);
+  // "Embajadores 47)": el OCR se comio el "(" y la estacion vale igual.
+  assert.deepStrictEqual([b.origen, b.destino, b.segundosDuracion, b.numeroBici], ['235', '47', 704, '19461']);
+});

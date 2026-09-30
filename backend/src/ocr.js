@@ -187,7 +187,7 @@ function extraerHoras(texto) {
 function extraerEstaciones(texto) {
   // Solo el "(124)" que cierra "124 - Nombre (124)": un parentesis suelto (el
   // icono del reloj leido como "(5)") no es una estacion.
-  const conParentesis = [...texto.matchAll(/-[^\n()]*\S\s*\((\d{1,3}[a-zA-Z]?)\)/g)].map((m) => m[1]);
+  const conParentesis = [...texto.matchAll(/-[^\n()]*?\S\s*\(?(\d{1,3}[a-zA-Z]?)\)/g)].map((m) => m[1]);
   if (conParentesis.length >= 2) return conParentesis;
 
   // Respaldo: numero al principio de linea seguido de guion.
@@ -235,6 +235,17 @@ function extraerBici(texto) {
  * corrige lo que el OCR confunde en ese gris claro (l, I, | por 1; o, O por 0:
  * "lo310" es la 10310).
  */
+/** El numero de bici de una linea suelta ("7 18853 O", "— 75 lo310"), o ''. */
+function biciDeLinea(linea) {
+  if (/[:/€]/.test(linea)) return '';
+  for (const trozo of String(linea || '').split(/\s+/)) {
+    if (!/^[0-9lIioO|]{4,6}$/.test(trozo) || (trozo.match(/\d/g) || []).length < 3) continue;
+    const numero = trozo.replace(/[lIi|]/g, '1').replace(/[oO]/g, '0');
+    if (/^\d{4,5}$/.test(numero)) return numero;
+  }
+  return '';
+}
+
 function biciSuelta(texto) {
   const lineas = String(texto || '').split(/\r?\n/);
   const primera = lineas.findIndex((l) => /\(\d{1,3}[a-zA-Z]?\)/.test(l));
@@ -315,13 +326,22 @@ function extraerTrayectos(texto) {
     origen: '', destino: '', horaSalida: '', horaLlegada: '', segundosDuracion: null, numeroBici: '', fecha: '',
   });
 
+  let biciPendiente = '';
   for (const linea of String(texto || '').split(/\r?\n/)) {
     const estaciones = extraerEstaciones(linea);
+
+    // En el historial cada tarjeta empieza con su bici ("18853"), antes de sus
+    // estaciones: se guarda y se da al trayecto que empieza despues.
+    if (!estaciones.length && !extraerBici(linea)) {
+      const suelta = biciDeLinea(linea);
+      if (suelta && (!actual || (actual.origen && actual.destino))) biciPendiente = suelta;
+    }
 
     for (const estacion of estaciones) {
       if (!actual) actual = nuevo();
       // Ya tenia las dos: esta estacion abre el siguiente trayecto.
       if (actual.origen && actual.destino) { guardar(); actual = nuevo(); }
+      if (biciPendiente && !actual.origen && !actual.numeroBici) { actual.numeroBici = biciPendiente; biciPendiente = ''; }
 
       if (!actual.origen) actual.origen = estacion;
       else actual.destino = estacion;
@@ -600,6 +620,7 @@ module.exports = {
   extraerDuracion,
   extraerBici,
   extraerFechas,
+  biciDeLinea,
   biciSuelta,
   extraerRelojBarra,
   releerCaptura,

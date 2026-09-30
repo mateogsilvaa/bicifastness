@@ -3102,7 +3102,15 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
 .anclas-info { display: flex; gap: var(--e2); overflow-x: auto; scrollbar-width: none; position: sticky; top: 0; z-index: 5; padding: var(--e2) 0; background: var(--papel); }
 .anclas-info::-webkit-scrollbar { display: none; }
 .anclas-info a { flex: none; padding: 7px var(--e3); border-radius: 999px; background: var(--papel-2); color: var(--tinta); font-size: 13px; font-weight: 600; text-decoration: none; }
-.anclas-info a:hover { background: var(--tinta); color: var(--papel); }
+.anclas-info a:hover, .anclas-info a[aria-current] { background: var(--tinta); color: var(--papel-2); }
+/* 7f: el titulo en la franja de 52 bajo la barra de estado, las anclas 4 px bajo el titulo y el aviso a 14 de ellas. */
+@media (max-width: 899px) {
+  body .container.info { padding-top: env(safe-area-inset-top, 0px); }
+  .info > .subcabecera { margin-bottom: -10px; }
+  .info > .anclas-info { margin-top: -8px; }
+  .info > .anclas-info + * { margin-top: -8px; }
+}
+.info .aviso strong { line-height: normal; }
 .antes-de-nada { display: flex; flex-direction: column; gap: 6px; border-radius: 20px; padding: var(--e4); }
 .antes-de-nada strong { font-size: 15px; }
 .antes-de-nada p { line-height: 1.5; }

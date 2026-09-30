@@ -762,7 +762,7 @@ input[type='checkbox'] {
 .capa-soltar-dibujo { position: relative; width: 180px; height: 210px; margin-bottom: 8px; }
 .capa-soltar-fondo { position: absolute; left: 10px; top: 18px; width: 150px; height: 190px; border-radius: 18px; background: var(--papel-2); transform: rotate(-7deg); box-shadow: 0 6px 20px rgba(0, 0, 0, .08); }
 .capa-soltar-captura { position: absolute; left: 18px; top: 0; width: 164px; padding: 7px; border-radius: 18px; background: var(--papel-2); transform: rotate(4deg); box-shadow: 0 18px 40px rgba(17, 17, 16, .22); }
-.capa-soltar-captura img { display: block; width: 100%; border-radius: 12px; }
+.capa-soltar-captura img { display: block; width: 100%; aspect-ratio: 1179 / 1015; border-radius: 12px; }
 .capa-soltar-dibujo .capa-soltar-mas { position: absolute; right: -6px; bottom: 4px; width: 44px; height: 44px; outline: 4px solid var(--papel); }
 .capa-soltar-teclas { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--tinta-2); white-space: nowrap; }
 .capa-soltar-teclas kbd { padding: 2px 8px; border-radius: 6px; background: var(--papel-2); font-family: var(--tipo); font-size: 13px; font-weight: 700; color: var(--tinta); }
@@ -2124,6 +2124,9 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 
 .hoy-subir { display: flex; flex-direction: column; gap: var(--e2); }
 .hoy-principal > #bloque-subir:has(.hoy-subir.salvado) { order: 2; }
+/* 2e: el aviso de seguridad, a 16 del boton, de 13 y en tinta-2. */
+.hoy-subir.primero { gap: 16px; }
+.hoy-subir.primero .hoy-pista { font-size: 13px; line-height: 1.45; color: var(--tinta-2); text-align: left; }
 .hoy-subir.salvado .btn { min-height: 54px; height: 54px; border-radius: 14px; font-size: 16px; }
 .hoy-pista { font-size: 12px; color: var(--tinta-3); text-align: center; }
 .btn.grande.secundario { background: transparent; border: 1.5px solid var(--tinta); color: var(--tinta); min-height: 52px; }
@@ -2144,7 +2147,7 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 .paso-nuevo { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start; font-size: 14px; line-height: 1.4; }
 .paso-numero { width: 24px; height: 24px; border-radius: 50%; background: var(--azul-relleno); color: var(--sobre-azul); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 .ejemplo-captura { margin-left: 36px; padding: var(--e2); border-radius: 14px; background: var(--papel-3); }
-.ejemplo-captura img { display: block; width: 100%; border-radius: 10px; }
+.ejemplo-captura img { display: block; width: 100%; aspect-ratio: 1179 / 1015; border-radius: 10px; }
 
 /* Misiones. */
 .hoy-seccion { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e3); }
@@ -2390,7 +2393,7 @@ body:has(.subir) #pie-legal { display: none; }
 .subir-opcion.tonal { background: var(--papel-3); color: var(--tinta); }
 .subir-opcion.tonal:hover { background: var(--linea); }
 .subir-ejemplo { background: var(--papel-2); border-radius: 18px; padding: 14px; display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: center; }
-.subir-ejemplo img { width: 112px; border-radius: 10px; display: block; }
+.subir-ejemplo img { width: 112px; aspect-ratio: 1179 / 1015; border-radius: 10px; display: block; }
 .subir-ejemplo-texto { display: flex; flex-direction: column; gap: 7px; font-size: 13px; line-height: 1.3; }
 .subir-ejemplo-texto strong { font-size: 14px; }
 .subir-ejemplo-texto .bien, .subir-ejemplo-texto .mal { display: flex; gap: 6px; align-items: center; }

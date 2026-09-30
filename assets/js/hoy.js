@@ -302,7 +302,7 @@ function pintarNuevo() {
     ]),
     paso(3, 'Súbela aquí. Leemos las estaciones y el tiempo por ti.'),
   ]));
-  reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir' }, [
+  reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir primero' }, [
     botonSubir('Subir mi primer trayecto'),
     el('span', { clase: 'hoy-pista', texto: 'Respeta semáforos y pasos de peatones: ningún puesto vale un susto.' }),
   ]));

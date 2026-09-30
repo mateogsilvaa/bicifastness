@@ -1799,18 +1799,19 @@ body.sin-navegacion .pila-avisos { bottom: var(--e2); }
   display: flex;
   flex-direction: column;
 }
-section.acceso { padding: calc(var(--e5) + env(safe-area-inset-top, 0px)) var(--margen) var(--e5); gap: 18px; }
+section.acceso { padding: calc(20px + env(safe-area-inset-top, 0px)) var(--margen) var(--e5); gap: 18px; }
+section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 .acceso-barra { min-height: 52px; padding: env(safe-area-inset-top, 0px) var(--e3) 0; display: flex; align-items: center; }
 .acceso-cuerpo { flex: 1; padding: var(--e2) var(--margen) var(--e5); display: flex; flex-direction: column; gap: var(--e4); }
 .acceso-paso { margin: 0; font-size: 13px; line-height: normal; color: var(--tinta-2); }
 .acceso-paso + .acceso-titulo { margin-top: 0; }
 .acceso-titulo {
-  margin: 3px 0 0;
+  margin: 4px 0 0;
   font-size: 32px;
   font-weight: 800;
   font-stretch: 88%;
   letter-spacing: -.035em;
-  line-height: normal;
+  line-height: 1.02;
 }
 .acceso-sub { margin: -6px 0 0; font-size: 15px; color: var(--tinta-2); line-height: 1.45; }
 .acceso-hueco { flex: 1; }

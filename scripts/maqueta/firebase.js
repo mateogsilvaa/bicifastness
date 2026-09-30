@@ -17,6 +17,7 @@
  *   localStorage.maqueta_perfil = 'sinclan' -> sin clan (5e)
  *   localStorage.maqueta_perfil = 'lider'   -> lider con dos solicitudes (5d)
  *   localStorage.maqueta_perfil = 'cupo'    -> ya ha subido los 3 que puntuan hoy (3n)
+ *   localStorage.maqueta_perfil = 'sinperfil' -> con sesion pero sin nombre de piloto (1c)
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
  *   localStorage.maqueta_hora = '12:00'     -> la app cree que es esa hora de
  *                                              Madrid (p. ej. '21:30' para 2c)
@@ -118,7 +119,8 @@ ids.forEach((id, i) => {
 const rankingPilotos = (valor) => nombres.map((n, i) => ({ pos: i + 1, nombre: n, clan: ['c1', 'c2', 'c3'][i % 3], puntos: valor(i), viajes: 40 - i }));
 
 const datos = {
-  [`usuarios/${UID}`]: perfil,
+  // Sin documento de perfil: la sesion esta, pero falta el nombre (1c).
+  ...(variante === 'sinperfil' ? {} : { [`usuarios/${UID}`]: perfil }),
   [`nombres_usuario/${perfil.username.toLowerCase()}`]: { uid: UID },
   [`cupos/${UID}`]: { dia: Math.floor(Date.now() / 864e5), viajes: variante === 'salvado' ? 1 : variante === 'cupo' ? 3 : 0, capturas: variante === 'cupo' ? 3 : 0 },
   'config/general': { rutaDestacada: '124-115', mantenimiento: false },

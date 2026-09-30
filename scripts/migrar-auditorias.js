@@ -38,7 +38,7 @@
  * saben leer las dos formas. Lo que no se cierra hasta el final es la fuga.
  */
 
-const admin = require('firebase-admin');
+const admin = require('./lib/firebase-admin');
 
 const SIMULAR = !process.argv.includes('--aplicar');
 

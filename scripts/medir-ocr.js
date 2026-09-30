@@ -47,7 +47,7 @@ async function principal() {
     process.exit(1);
   }
 
-  const admin = require('firebase-admin');
+  const admin = require('./lib/firebase-admin');
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(credenciales)) });
   const db = admin.firestore();
 

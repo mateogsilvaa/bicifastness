@@ -32,8 +32,6 @@
   <section class="vista" id="vista-resumen" aria-labelledby="nombre">
     <div class="yo-barra">
       <span></span>
-      <!-- 8m: en escritorio, Historial y Ajustes a mano en la cabecera. -->
-      <a class="boton-pastilla solo-escritorio-inline" href="#historial">Historial</a>
       <a class="boton-icono" href="#ajustes" aria-label="Ajustes" id="ir-ajustes"></a>
     </div>
 
@@ -43,6 +41,11 @@
         <h1 id="nombre">…</h1>
         <span class="sub" id="clan"></span>
         <span class="etiquetas" id="etiquetas"></span>
+      </div>
+      <!-- 8m: en escritorio, Historial y Ajustes a mano en la cabecera. -->
+      <div class="acciones-yo">
+        <a class="boton-blanco" href="#historial" id="ir-historial-e">Historial</a>
+        <a class="boton-blanco" href="#ajustes" id="ir-ajustes-e">Ajustes</a>
       </div>
     </div>
 
@@ -57,7 +60,14 @@
       <div><strong id="total-viajes">—</strong><span id="verificados">trayectos</span></div>
       <div><strong id="km-total">0 km</strong><span>en total</span></div>
       <div><strong id="mejor-racha">0 días</strong><span>mejor racha</span></div>
+      <div class="cifra-escritorio"><strong id="estaciones-distintas">0</strong><span>estaciones distintas</span></div>
     </div>
+
+    <!-- 8m: en escritorio, las temporadas como barras por mes. -->
+    <section class="temporadas-barras" aria-labelledby="titulo-barras">
+      <div class="cabeza"><h2 id="titulo-barras">Temporadas</h2><span id="mejor-temporada"></span></div>
+      <div class="barras" id="barras-temporadas"></div>
+    </section>
 
     <nav class="menu-lista" id="menu" aria-label="Tu perfil"></nav>
     <p class="mensaje" id="msg-perfil" aria-live="polite"></p>
@@ -68,9 +78,11 @@
     <div class="subcabecera">
       <a class="boton-icono" href="#" aria-label="Volver"></a>
       <h1 id="titulo-insignias">Insignias</h1>
+      <span class="cuenta-insignias" id="cuenta-insignias"></span>
     </div>
     <div id="insignia-destacada"></div>
     <div class="insignias-rejilla" id="insignias"></div>
+    <a class="ver-insignias" href="#insignias" id="ver-insignias">Ver todas las insignias</a>
   </section>
 
   <!-- 6c · Historial -->

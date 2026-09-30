@@ -46,6 +46,8 @@ let perfil = null;
 // va en `aria-label`, en el HTML.
 for (const volver of document.querySelectorAll('.subcabecera .boton-icono')) volver.append(icono('atras'));
 id('ir-ajustes').append(icono('ajustes'));
+id('ir-historial-e').prepend(icono('reloj'));
+id('ir-ajustes-e').prepend(icono('ajustes'));
 id('btn-salir').prepend(icono('salir'));
 
 // --- Vistas ------------------------------------------------------------------
@@ -63,7 +65,7 @@ function mostrarVista() {
   // 8m: en escritorio ancho no hace falta entrar a subpantallas para ver
   // insignias y temporadas: van en la columna lateral del resumen.
   const ancho = vista === 'resumen' && window.matchMedia('(min-width: 1200px)').matches;
-  const lateral = ancho ? ['insignias', 'temporadas'] : [];
+  const lateral = ancho ? ['insignias'] : [];
   for (const v of VISTAS) id(`vista-${v}`).classList.toggle('oculto', v !== vista && !lateral.includes(v));
   id('principal').classList.toggle('yo-ancho', ancho);
   window.scrollTo(0, 0);
@@ -71,6 +73,8 @@ function mostrarVista() {
   if (perfil) {
     cargarVista(vista);
     for (const v of lateral) cargarVista(v);
+    // Las barras de temporadas del resumen (8m) salen de la misma lectura.
+    if (ancho) cargarVista('temporadas');
   }
 }
 

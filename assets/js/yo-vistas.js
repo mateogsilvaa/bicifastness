@@ -112,9 +112,10 @@ export function pintarRating(perfil, puestos = {}) {
   document.getElementById('rating').textContent = numero(perfil.biciRating || 0);
 
   const general = puestos.general;
-  document.getElementById('puesto-global').textContent = general?.pos
-    ? `${ordinal(general.pos)} de ${numero(general.total)}`
-    : '';
+  // 8m: en escritorio, "184.º de 1.207 en Madrid".
+  reemplazar(document.getElementById('puesto-global'), general?.pos
+    ? [`${ordinal(general.pos)} de ${numero(general.total)}`, el('span', { clase: 'solo-escritorio-i', texto: ' en Madrid' })]
+    : []);
 
   const fuerzas = Object.fromEntries(MODOS.map((m) => [m.clave, fuerzaModo(puestos[m.clave])]));
   const alguna = Object.values(fuerzas).some((f) => f > 0);
@@ -131,9 +132,9 @@ export function pintarRating(perfil, puestos = {}) {
 
   const valores = valoresModos(perfil);
   reemplazar(document.getElementById('leyenda-modos'), MODOS.map((m) => el('span', {}, [
-    el('span', { clase: `nombre-modo ${m.clave}`, texto: m.nombre }),
-    // 6a: "527 · tu fuerte", en la misma cifra.
-    el('strong', { texto: m.clave === fuerte ? `${valores[m.clave]} · tu fuerte` : valores[m.clave] }),
+    // 6a: "527 · tu fuerte", en la cifra; 8m: "Constancia · tu fuerte", en el nombre.
+    el('span', { clase: `nombre-modo ${m.clave}` }, [m.nombre, m.clave === fuerte ? el('span', { clase: 'solo-escritorio-i', texto: ' · tu fuerte' }) : null]),
+    el('strong', {}, [valores[m.clave], m.clave === fuerte ? el('span', { clase: 'solo-movil-i', texto: ' · tu fuerte' }) : null]),
   ])));
 }
 
@@ -151,13 +152,19 @@ export function pintarCabecera(perfil, clan, grupo = null) {
   const desde = creado
     ? `desde ${MESES[creado.getMonth()]}${creado.getFullYear() === new Date().getFullYear() ? '' : ` de ${creado.getFullYear()}`}`
     : '';
-  document.getElementById('clan').textContent = [clan?.nombre || 'Sin clan', desde].filter(Boolean).join(' · ');
-
   const division = nombreDivision(perfil.division);
+  const liga = division ? (grupo ? `${division} · grupo ${String(grupo).split('-')[1]}` : division) : null;
+  // 8m: en escritorio la liga va en esta linea, sin etiquetas debajo.
+  reemplazar(document.getElementById('clan'), [
+    clan?.nombre || 'Sin clan',
+    liga ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${liga}` }) : null,
+    desde ? ` · ${desde}` : null,
+  ]);
+
   const escudos = perfil.escudos || 0;
   reemplazar(document.getElementById('etiquetas'), [
     // 6a: "Plata · grupo 4" en cuanto se sabe el grupo de la liga.
-    division ? el('span', { clase: 'etiqueta-juego', texto: grupo ? `${division} · grupo ${String(grupo).split('-')[1]}` : division }) : null,
+    liga ? el('span', { clase: 'etiqueta-juego', texto: liga }) : null,
     // Los escudos, a la vista: son lo que protege la racha.
     el('span', {
       clase: 'etiqueta-juego',
@@ -178,6 +185,7 @@ export function pintarCifras(perfil, total) {
   document.getElementById('km-total').textContent = `${km >= 10 ? numero(km) : km.toFixed(1).replace('.', ',')} km`;
   const racha = perfil.mejorRacha || 0;
   document.getElementById('mejor-racha').textContent = `${numero(racha)} ${racha === 1 ? 'día' : 'días'}`;
+  document.getElementById('estaciones-distintas').textContent = numero(derivados(perfil).estacionesVisitadas);
 }
 
 /** Cuantas insignias del catalogo tiene. Las de temporada van aparte. */
@@ -257,8 +265,11 @@ export function pintarInsignias(perfil) {
   const datos = derivados(perfil);
   const total = Object.keys(INSIGNIAS).length;
 
-  document.getElementById('titulo-insignias').textContent =
-    `Insignias · ${insigniasConseguidas(perfil)} de ${total}`;
+  // 6b: "Insignias · 7 de 16"; 8m: "Insignias" y la cuenta a la derecha.
+  const cuenta = `${insigniasConseguidas(perfil)} de ${total}`;
+  reemplazar(document.getElementById('titulo-insignias'), ['Insignias', el('span', { clase: 'solo-movil-i', texto: ` · ${cuenta}` })]);
+  document.getElementById('cuenta-insignias').textContent = cuenta;
+  document.getElementById('ver-insignias').textContent = `Ver las ${total} insignias`;
 
   const [ultima] = insigniasDeTemporada(perfil.logros);
   reemplazar(document.getElementById('insignia-destacada'), ultima
@@ -266,7 +277,10 @@ export function pintarInsignias(perfil) {
       el('span', { clase: 'disco' }, [icono('medalla')]),
       el('span', { clase: 'texto' }, [
         el('strong', { texto: `${ultima.titulo} · ${nombreMes(ultima.temporada).split(' ')[0].toLowerCase()}` }),
-        el('span', { clase: 'sub', texto: ultima.descripcion }),
+        el('span', { clase: 'sub' }, [
+          el('span', { clase: 'solo-movil-i', texto: ultima.descripcion }),
+          el('span', { clase: 'solo-escritorio-i', texto: 'De temporada' }),
+        ]),
       ]),
     ])
     : null);
@@ -437,6 +451,30 @@ export function diasQueQuedan(ahora = new Date()) {
  * @param {Array<{temporada, nombre, puntos, posicion, division}>} cerradas
  *   ya ordenadas y con nombre (lo decide la pagina)
  */
+/**
+ * 8m: las ultimas cinco temporadas como barras (80 px la mejor), la actual en
+ * azul, y la mejor posicion a la derecha del titulo.
+ */
+function pintarBarrasTemporadas(actual, cerradas) {
+  const destino = document.getElementById('barras-temporadas');
+  if (!destino) return;
+  const meses = [
+    ...cerradas.filter((t) => /^\d{4}-\d{2}$/.test(t.temporada)).slice(0, 4).reverse()
+      .map((t) => ({ mes: t.temporada, puntos: t.puntos || 0 })),
+    { mes: diaMadrid().slice(0, 7), puntos: actual, actual: true },
+  ];
+  const tope = Math.max(...meses.map((m) => m.puntos), 1);
+  reemplazar(destino, meses.map((m) => el('div', { clase: `barra-mes${m.actual ? ' actual' : ''}` }, [
+    el('span', { clase: 'valor', texto: String(m.puntos) }),
+    el('span', { clase: 'columna', estilo: { height: `${Math.max(4, Math.round((m.puntos / tope) * 80))}px` } }),
+    el('span', { clase: 'mes', texto: MESES_CORTOS[Number(m.mes.slice(5, 7)) - 1] }),
+  ])));
+  const mejor = cerradas.filter((t) => t.posicion).sort((a, b) => a.posicion - b.posicion)[0];
+  document.getElementById('mejor-temporada').textContent = mejor
+    ? `mejor: ${ordinal(mejor.posicion)} en ${nombreMes(mejor.temporada).split(' ')[0].toLowerCase()}`
+    : '';
+}
+
 export function pintarTemporadas(perfil, cerradas, puesto = null) {
   const actual = perfil.puntosTemporada || 0;
   const mejor = Math.max(actual, ...cerradas.map((t) => t.puntos || 0), 1);
@@ -457,6 +495,8 @@ export function pintarTemporadas(perfil, cerradas, puesto = null) {
       el('span', { estilo: { width: `${Math.round((actual / mejor) * 100)}%` } }),
     ]),
   ]));
+
+  pintarBarrasTemporadas(actual, cerradas);
 
   const premios = insigniasDeTemporada(perfil.logros);
 

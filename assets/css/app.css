@@ -3076,18 +3076,70 @@ body.sin-navegacion .lateral { display: none; }
 /* 8m · Tu en escritorio ancho: el resumen a la izquierda (640) e insignias y
    temporadas a la derecha (340), sin entrar en subpantallas. 8o: ajustes y mis
    datos en una columna de 640. */
+.acciones-yo, .cifras-tres > .cifra-escritorio, .temporadas-barras, .cuenta-insignias, .ver-insignias { display: none; }
 @media (min-width: 900px) {
   .yo { max-width: 640px; }
-  .yo-barra .boton-pastilla { margin-left: auto; margin-right: var(--e2); }
+  /* Cabecera: avatar de 80, nombre de 36 con la liga en la linea de abajo e
+     Historial y Ajustes como botones blancos a la derecha. */
+  #vista-resumen { gap: 18px; }
+  #vista-resumen > .yo-barra, .perfil-cabecera .etiquetas { display: none; }
+  .perfil-cabecera { gap: 18px; }
+  .perfil-cabecera .avatar-inicial { width: 80px; height: 80px; font-size: 32px; }
+  .perfil-cabecera .datos { flex: 1; gap: 4px; }
+  .perfil-cabecera h1 { font-size: 36px; font-stretch: 88%; letter-spacing: -.035em; line-height: normal; }
+  .perfil-cabecera .sub { font-size: 14px; }
+  .acciones-yo { display: flex; gap: 8px; }
+  .boton-blanco { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; background: var(--papel-2); color: var(--tinta); font-size: 14px; font-weight: 600; text-decoration: none; }
+  .boton-blanco:hover { background: var(--papel-3); color: var(--tinta); }
+  .boton-blanco .icono { width: 18px; height: 18px; }
+  /* BiciRating de 80 en una tarjeta de 24 de relleno. */
+  #tarjeta-rating { border-radius: 28px; padding: 24px; gap: 14px; }
+  #tarjeta-rating .cabeza span:first-child { font-size: 14px; }
+  #tarjeta-rating .cabeza span:last-child { font-size: 13px; }
+  #tarjeta-rating .rating { font-size: 80px; line-height: .85; }
+  #tarjeta-rating .barra-modos { height: 12px; border-radius: 6px; }
+  #tarjeta-rating .leyenda-modos { gap: 12px; font-size: 13px; }
+  #tarjeta-rating .leyenda-modos .nombre-modo { gap: 6px; }
+  #tarjeta-rating .leyenda-modos .nombre-modo::before { width: 9px; height: 9px; }
+  #tarjeta-rating .leyenda-modos strong { font-size: 22px; font-stretch: 80%; }
+  /* Cuatro cifras de 80. */
+  #vista-resumen .cifras-tres { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  #vista-resumen .cifras-tres > div { display: block; min-height: 80px; padding: 16px; border-radius: 18px; }
+  #vista-resumen .cifras-tres strong { display: block; font-size: 28px; font-weight: 700; line-height: normal; }
+  #vista-resumen .cifras-tres span { display: block; margin-top: 3px; font-size: 13px; }
+  /* Temporadas: barras de hasta 80 px, la actual en azul. */
+  .temporadas-barras { display: flex; flex-direction: column; gap: 12px; }
+  .temporadas-barras .cabeza { display: flex; justify-content: space-between; align-items: baseline; }
+  .temporadas-barras h2 { margin: 0; font-size: 19px; line-height: normal; }
+  .temporadas-barras .cabeza span { font-size: 13px; color: var(--tinta-2); }
+  .temporadas-barras .barras { display: flex; align-items: flex-end; gap: 10px; height: 120px; }
+  .barra-mes { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; height: 100%; text-align: center; font-size: 12px; }
+  .barra-mes .valor { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .barra-mes .columna { border-radius: 8px; background: var(--linea-fuerte); }
+  .barra-mes.actual .columna { background: var(--azul-relleno); }
+  .barra-mes .mes { color: var(--tinta-3); }
+  #menu a[href='#temporadas'] { display: none; }
 }
 @media (min-width: 1200px) {
   .yo.yo-ancho { max-width: 1012px; display: grid; grid-template-columns: minmax(0, 640px) 340px; grid-template-rows: auto 1fr; gap: 14px var(--e6); align-items: start; }
   .yo.yo-ancho #vista-resumen { grid-column: 1; grid-row: 1 / span 2; }
-  .yo.yo-ancho #vista-insignias { grid-column: 2; grid-row: 1; padding-top: 52px; }
+  .yo.yo-ancho #vista-insignias { grid-column: 2; grid-row: 1; }
   .yo.yo-ancho #vista-temporadas { grid-column: 2; grid-row: 2; }
   .yo.yo-ancho #vista-insignias .subcabecera a, .yo.yo-ancho #vista-temporadas .subcabecera a { display: none; }
   .yo.yo-ancho #vista-insignias .subcabecera h1, .yo.yo-ancho #vista-temporadas .subcabecera h1 { font-size: 17px; }
   .yo.yo-ancho .insignias-rejilla { grid-template-columns: repeat(3, 1fr); }
+  /* 8m: sin menu; insignias en la columna, compactas, y el enlace a todas. */
+  .yo.yo-ancho #menu { display: none; }
+  .yo.yo-ancho #vista-insignias > .subcabecera { min-height: 0; margin: 0; align-items: baseline; }
+  .yo.yo-ancho .cuenta-insignias { display: block; margin-left: auto; font-size: 13px; color: var(--tinta-2); }
+  .yo.yo-ancho .destacada { padding: 12px 14px; border-radius: 18px; gap: 12px; }
+  .yo.yo-ancho .destacada .disco { width: 40px; height: 40px; border-radius: 12px; }
+  .yo.yo-ancho .destacada strong { font-size: 14px; }
+  .yo.yo-ancho #vista-insignias .insignia { padding: 10px 8px; border-radius: 16px; }
+  .yo.yo-ancho #vista-insignias .insignia .disco { width: 38px; height: 38px; }
+  .yo.yo-ancho #vista-insignias .insignia .titulo { font-size: 11px; }
+  .yo.yo-ancho #vista-insignias .estado-insignia { display: none; }
+  .yo.yo-ancho .ver-insignias { display: block; font-size: 14px; font-weight: 600; color: var(--azul); text-decoration: none; }
   /* Nueve a la vista; las demas, desde "Insignias" en el menu (8m). */
   .yo.yo-ancho #vista-insignias .insignias-rejilla > :nth-child(n+10) { display: none; }
   .yo.yo-ancho #menu a[href='#temporadas'] { display: none; }

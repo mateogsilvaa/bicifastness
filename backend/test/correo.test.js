@@ -185,8 +185,9 @@ test('todos los correos llevan enlace de baja, en HTML y en texto', () => {
   // Quien no encuentra como darse de baja marca el correo como spam, y eso
   // hunde la reputacion del dominio para todo el mundo.
   const token = 'a'.repeat(43);
+  // La bienvenida (10c) no va aqui: el diseño la marca como transaccional,
+  // sin enlace de baja.
   const casos = [
-    plantillas.bienvenida({ nombre: 'Ana', tokenBaja: token }),
     plantillas.viajeRechazado({ nombre: 'Ana', ruta: '002-110', motivo: 'x', tokenBaja: token }),
     plantillas.viajeAnulado({ nombre: 'Ana', ruta: '002-110', motivo: 'x', tokenBaja: token }),
     plantillas.viajesVerificados({ nombre: 'Ana', viajes: [{ ruta: 'a', puntos: 1, distanciaMetros: 1 }], tokenBaja: token }),
@@ -200,7 +201,7 @@ test('todos los correos llevan enlace de baja, en HTML y en texto', () => {
 });
 
 test('el token viaja escapado en la URL', () => {
-  const { html } = plantillas.bienvenida({ nombre: 'Ana', tokenBaja: 'a b&c' });
+  const { html } = plantillas.viajeRechazado({ nombre: 'Ana', ruta: '002-110', motivo: 'x', tokenBaja: 'a b&c' });
   assert.ok(!html.includes('t=a b&c'), 'el token va crudo en la URL');
   assert.ok(html.includes('a%20b%26c'));
 });

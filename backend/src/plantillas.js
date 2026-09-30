@@ -171,118 +171,154 @@ function boton(texto, url, { color = C.azul } = {}) {
 /** El enlace tambien en texto, para clientes que bloquean botones. */
 const enlaceSuelto = (url) => parrafo(`Si el botón no funciona, copia este enlace en el navegador:<br><a href="${url}" style="color:${C.azulTexto};word-break:break-all;">${url}</a>`);
 
-/** "Metro Bilbao → Ferraz" a partir de "124-115", si el llamante no lo trae ya. */
-function nombreTramo(ruta) {
+// --- Plantillas del diseño (10 · Correos) -------------------------------------
+//
+// Los siete correos de 10 son los HTML de `backend/correos/`, copiados tal cual
+// del diseño. Aqui solo se rellenan sus `{{variables}}` (siempre escapadas), se
+// cambia el dominio de ejemplo por el de verdad y se quitan los bloques
+// opcionales marcados con `<!--si:nombre-->…<!--/si:nombre-->` cuando no tocan.
+
+const fs = require('fs');
+const path = require('path');
+
+const CARPETA_CORREOS = path.join(__dirname, '..', 'correos');
+const DOMINIO = SITIO.replace(/^https?:\/\//, '');
+const cacheCorreos = new Map();
+
+function leerCorreo(fichero) {
+  if (!cacheCorreos.has(fichero)) {
+    cacheCorreos.set(fichero, fs.readFileSync(path.join(CARPETA_CORREOS, fichero), 'utf8')
+      .split('https://bicifastness.app').join(SITIO)
+      .split('bicifastness.app').join(DOMINIO)
+      .replace(/src="logo-email\.png"/g, `src="${SITIO}/images/correo/logo-email.png"`));
+  }
+  return cacheCorreos.get(fichero);
+}
+
+/**
+ * Rellena una plantilla. `quitar` son los bloques opcionales que no van. Los
+ * valores se escapan; los que ya vienen montados (enlaces codificados, el
+ * cuerpo con sus <br>, los `%LINK%` de Firebase) van en `crudos`.
+ */
+function rellenar(fichero, valores, { quitar = [], crudos = {} } = {}) {
+  let html = leerCorreo(fichero);
+  for (const bloque of quitar) {
+    html = html.replace(new RegExp(`<!--si:${bloque}-->[\\s\\S]*?<!--/si:${bloque}-->`, 'g'), '');
+  }
+  html = html.replace(/<!--\/?si:[a-z_]+-->/g, '');
+  return html.replace(/\{\{(\w+)\}\}/g, (todo, clave) => {
+    if (clave in crudos) return crudos[clave];
+    if (clave in valores) return escapar(valores[clave] ?? '');
+    return '';
+  });
+}
+
+/** "124-115" -> ["Metro Bilbao", "Ferraz"]; si no se reconoce, la ruta tal cual. */
+function estacionesDe(ruta) {
   const r = String(ruta || '');
-  if (!/^\w+-\w+$/.test(r)) return r;
+  if (!/^\w+-\w+$/.test(r)) return [r, ''];
   try {
     const { buscarEstacion } = require('./util');
     const [a, b] = r.split('-');
     const n = (id) => buscarEstacion(id)?.nombre || id;
-    return `${n(a)} → ${n(b)}`;
+    return [n(a), n(b)];
   } catch {
-    return r;
+    return r.split('-');
   }
+}
+
+/** "Metro Bilbao → Ferraz" a partir de "124-115", si el llamante no lo trae ya. */
+function nombreTramo(ruta) {
+  const r = String(ruta || '');
+  if (!/^\w+-\w+$/.test(r)) return r;
+  return estacionesDe(r).join(' → ');
 }
 
 const mmss = (s) => (Number.isFinite(s) ? `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : null);
 
-// --- Plantillas --------------------------------------------------------------
+/** "2026-09-29" o un Date -> "29 de septiembre". */
+function diaLegible(fecha) {
+  const d = fecha instanceof Date ? fecha : new Date(`${String(fecha || '').slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', day: 'numeric', month: 'long' });
+}
+
+const enDias = (dias, desde = new Date()) => new Date(desde.getTime() + dias * 86400000);
+const limpio = (t) => String(t ?? '').replace(/[<>"&]/g, '');
 
 /**
  * 10c · Bienvenida. Si la cuenta es de correo y no esta verificada, el mismo
- * correo lleva el enlace para verificarla: un correo en vez de dos.
+ * correo lleva el enlace para verificarla; si no, ese bloque no va.
  */
-function bienvenida({ tokenBaja = null, nombre, enlaceVerificacion = null }) {
-  const piloto = escapar(nombre);
+function bienvenida({ tokenBaja = null, nombre, correo = '', enlaceVerificacion = null }) {
   return {
-    asunto: `Bienvenida a bicifastness, ${String(nombre ?? '').replace(/[<>"&]/g, '')}`,
-    html: envolver({
-      tokenBaja,
-      preheader: 'Tu primer trayecto, en tres pasos.',
-      titulo: `Hola, ${piloto}`,
-      subtitulo: 'Ya tienes tu nombre de piloto. Esto es lo que viene ahora.',
-      contenido:
-        (enlaceVerificacion
-          ? recuadro('Confirma tu correo', 'Así podremos avisarte de tus trayectos y recuperar tu cuenta si olvidas la contraseña.')
-            + boton('Confirmar mi correo', enlaceVerificacion)
-          : '')
-        + datos([
-          ['1', 'Haz tu trayecto de siempre en BiciMAD.'],
-          ['2', 'Al terminar, captura la pantalla del viaje en la app.'],
-          ['3', 'Súbela: leemos las estaciones y el tiempo por ti.'],
-        ])
-        + parrafo('Cada trayecto suma por <strong>distancia</strong>, por <strong>ritmo</strong> y por <strong>constancia</strong>: no hace falta correr. Respeta semáforos y pasos de peatones: ningún puesto vale un susto.')
-        + boton('Subir mi primer trayecto', `${SITIO}/subir/`),
+    asunto: `Bienvenida a bicifastness, ${limpio(nombre)}`,
+    html: rellenar('03-bienvenida.html', { piloto: nombre, correo }, {
+      quitar: enlaceVerificacion ? [] : ['verificacion'],
+      crudos: { enlace_verificacion: escapar(enlaceVerificacion || '') },
     }),
-    texto: `Hola, ${nombre}\n\n`
-      + (enlaceVerificacion ? `Confirma tu correo: ${enlaceVerificacion}\n\n` : '')
-      + '1. Haz tu trayecto de siempre en BiciMAD.\n2. Al terminar, captura la pantalla del viaje en la app.\n'
-      + '3. Subela: leemos las estaciones y el tiempo por ti.\n\n'
-      + `Cada trayecto suma por distancia, por ritmo y por constancia.\n\n${SITIO}/subir/\n` + pieTexto(tokenBaja),
+    texto: `Ya estás dentro, ${nombre}\n\n`
+      + (enlaceVerificacion ? `Primero, confirma que este correo es tuyo: ${enlaceVerificacion}\nEl enlace caduca en 72 horas.\n\n` : '')
+      + 'Tu primer trayecto, en tres pasos:\n1. Haz tu trayecto de siempre en BiciMAD.\n'
+      + '2. Al terminar, haz una captura de la pantalla del viaje en la app.\n'
+      + '3. Súbela. Leemos las estaciones y el tiempo por ti.\n\n'
+      + `Abrir bicifastness: ${SITIO}/\n` + pieTexto(tokenBaja),
   };
 }
 
 /**
  * 10a · Trayecto rechazado. El motivo y que hacer salen de los mismos textos
- * que la app. Si lo escribio una persona, se dice. La revision humana solo se
- * ofrece si el rechazo fue automatico.
+ * que la app. Si lo escribio una persona, la etiqueta lo dice. La revision
+ * humana solo se ofrece si el rechazo fue automatico.
  */
 function viajeRechazado({
   tokenBaja = null, nombre, ruta, motivo, queHacer = null, tiempoSegundos = null, fecha = null,
-  dePersona = false, puedePedirRevision = true,
+  distanciaMetros = null, viajeId = '', dePersona = false, puedePedirRevision = true,
 }) {
-  const piloto = escapar(nombre);
-  const tramo = escapar(nombreTramo(ruta));
-  const porQue = escapar(motivo || 'No hemos podido verificar la captura.');
-  const hacer = escapar(queHacer || 'Casi siempre se arregla volviendo a subir la captura original de la app, sin recortar y sin pasarla por ningún editor.');
-  const linea = [tramo, mmss(tiempoSegundos), fecha ? escapar(fecha) : null].filter(Boolean).join(' · ');
+  const [salida, meta] = estacionesDe(ruta);
+  const porQue = motivo || 'No hemos podido verificar la captura.';
+  const hacer = queHacer || 'Casi siempre se arregla volviendo a subir la captura original de la app, sin recortar y sin pasarla por ningún editor.';
+  const km = Number.isFinite(distanciaMetros) && distanciaMetros > 0
+    ? (distanciaMetros / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 }) : null;
+  const revision = puedePedirRevision && !dePersona;
+
+  let html = rellenar('01-trayecto-rechazado.html', {
+    piloto: nombre, estacion_salida: salida, estacion_meta: meta, tiempo: mmss(tiempoSegundos) || '',
+    fecha_viaje: diaLegible(fecha), distancia: km || '', motivo_texto: porQue, motivo_accion: hacer,
+  }, {
+    quitar: [...(km ? [] : ['distancia']), ...(revision ? [] : ['revision'])],
+    crudos: { token_baja: encodeURIComponent(tokenBaja || ''), viaje_id: encodeURIComponent(viajeId || '') },
+  });
+  // 10a: "Si lo rechazó un admin, la etiqueta pasa a «Lo que dice quien lo ha revisado»".
+  if (dePersona) html = html.replace('Qué hemos visto', 'Lo que dice quien lo ha revisado');
 
   return {
-    asunto: `Tu trayecto ${String(nombreTramo(ruta)).replace(/[<>"&]/g, '')} no cuenta`,
-    html: envolver({
-      tokenBaja,
-      chip: 'rechazado',
-      preheader: String(motivo || 'No hemos podido verificar la captura.').slice(0, 90),
-      titulo: 'No hemos podido dar por bueno tu trayecto',
-      subtitulo: linea,
-      // 07 · 7h: el motivo y que hacer en un recuadro, el boton y una nota.
-      contenido:
-        recuadro(porQue, hacer, dePersona ? { etiqueta: 'Lo que dice quien lo ha revisado' } : {})
-        + boton('Ver mi trayecto', `${SITIO}/yo/#historial`)
-        + (puedePedirRevision && !dePersona
-          ? parrafo('Si crees que es un error, puedes pedir que lo revise una persona desde el propio trayecto.')
-          : parrafo(`Si tienes dudas, ${piloto}, responde a este correo.`)),
-    }),
+    asunto: `Tu trayecto ${limpio(nombreTramo(ruta))} no cuenta`,
+    html,
     texto: `Hola, ${nombre}\n\nEl trayecto ${nombreTramo(ruta)} no se ha podido verificar.\n\n`
-      + `${dePersona ? 'Lo que dice quien lo ha revisado' : 'Motivo'}: ${motivo || 'No hemos podido verificar la captura.'}\n`
-      + `Que hacer: ${queHacer || 'volviendo a subir la captura original de la app, sin recortar, suele bastar.'}\n\n`
-      + (puedePedirRevision && !dePersona ? `Si crees que es un error, puedes reclamarlo desde el trayecto: ${SITIO}/yo/#historial\n` : '')
+      + `${dePersona ? 'Lo que dice quien lo ha revisado' : 'Qué hemos visto'}: ${porQue}\n`
+      + `Qué puedes hacer: ${hacer}\n\n`
+      + (revision ? `¿Crees que es un error? Pide que lo revise una persona: ${SITIO}/yo/?viaje=${encodeURIComponent(viajeId || '')}&revision=1\n` : '')
       + pieTexto(tokenBaja),
   };
 }
 
 /**
  * 10b · Error al procesar. Fallo nuestro (lectura, almacenamiento, worker), no
- * un rechazo: ambar, y sin que parezca que la persona ha hecho algo mal.
+ * un rechazo: ambar, y sin que parezca que la persona ha hecho algo mal. El
+ * trayecto pasa a revision humana (worker.js), asi que el correo lo dice en vez
+ * de pedir que se vuelva a subir: la misma imagen se rechazaria por duplicada.
  */
-function errorAlProcesar({ tokenBaja = null, nombre, ruta }) {
-  const piloto = escapar(nombre);
+function errorAlProcesar({ tokenBaja = null, nombre, ruta, subido = null }) {
+  const cuando = subido instanceof Date ? subido : new Date();
+  const errorTexto = `No hemos podido terminar de leer la captura del trayecto ${nombreTramo(ruta)}.`;
   return {
     asunto: 'No hemos podido leer tu captura',
-    html: envolver({
-      tokenBaja,
-      chip: 'error',
-      preheader: 'No es cosa tuya. Lo va a mirar una persona.',
-      titulo: 'No hemos podido leer tu captura',
-      subtitulo: escapar(nombreTramo(ruta)),
-      contenido:
-        recuadro('No es cosa tuya.', 'Algo ha fallado de nuestro lado al leer la imagen. El trayecto no se pierde: pasa a que lo mire una persona y te avisamos en cuanto se resuelva.')
-        + parrafo(`Hola, ${piloto}: no hace falta que lo vuelvas a subir. Si en un par de días sigue sin resolverse, responde a este correo.`)
-        + boton('Ver mi trayecto', `${SITIO}/yo/#historial`),
-    }),
-    texto: `Hola, ${nombre}\n\nNo hemos podido leer la captura del trayecto ${nombreTramo(ruta)}. No es cosa tuya: `
-      + 'lo va a mirar una persona y te avisamos en cuanto se resuelva. No hace falta volver a subirlo.\n\n'
+    html: rellenar('02-error-al-procesar.html', {
+      piloto: nombre, fecha_subida: diaLegible(cuando), error_texto: errorTexto,
+    }, { crudos: { token_baja: encodeURIComponent(tokenBaja || '') } }),
+    texto: `Hola, ${nombre}\n\n${errorTexto} El fallo es nuestro, no de tu trayecto.\n\n`
+      + 'Una persona del equipo revisará tu captura a mano. No hace falta que la vuelvas a subir: te avisaremos en cuanto se resuelva.\n\n'
       + `${SITIO}/yo/#historial\n` + pieTexto(tokenBaja),
   };
 }
@@ -292,100 +328,74 @@ function errorAlProcesar({ tokenBaja = null, nombre, ruta }) {
  * "Sobre" (un trayecto, un clan o el nombre de piloto) es opcional. Se contesta
  * al buzon del equipo (Reply-To lo pone el worker).
  */
-function mensajeEquipo({ tokenBaja = null, nombre, asunto, texto, firma = 'El equipo de bicifastness', sobre = null }) {
-  const piloto = escapar(nombre);
-  const cuerpo = escapar(texto || '').split(/\n{2,}/).map((p) => parrafo(p.replace(/\n/g, '<br>'))).join('');
+function mensajeEquipo({ tokenBaja = null, nombre, asunto, texto, firma = 'El equipo de bicifastness', sobre = null, sobreDetalle = '', sobreEnlace = null }) {
+  const titulo = asunto || 'Un mensaje del equipo';
+  const cuerpo = escapar(texto || '').replace(/\n/g, '<br>');
   return {
-    asunto: `${String(asunto || 'Un mensaje del equipo').replace(/[<>"&]/g, '').slice(0, 90)} · bicifastness`,
-    html: envolver({
-      tokenBaja,
-      chip: 'equipo',
-      preheader: String(texto || '').slice(0, 90),
-      titulo: escapar(asunto || 'Un mensaje del equipo'),
-      contenido:
-        parrafo(`Hola, ${piloto}:`)
-        + cuerpo
-        + (sobre ? recuadro(escapar(sobre), '', { etiqueta: 'Sobre' }) : '')
-        + parrafo(`— ${escapar(firma)}`)
-        + parrafo('Puedes responder directamente a este correo.'),
+    asunto: `${limpio(titulo).slice(0, 90)} · bicifastness`,
+    html: rellenar('04-mensaje-del-equipo.html', {
+      piloto: nombre, asunto: titulo, extracto_mensaje: String(texto || '').slice(0, 90),
+      firma_admin: firma, referencia_titulo: sobre || '', referencia_detalle: sobreDetalle || '',
+    }, {
+      quitar: sobre ? [] : ['sobre'],
+      crudos: { mensaje: cuerpo, referencia_enlace: escapar(sobreEnlace || `${SITIO}/`) },
     }),
-    texto: `Hola, ${nombre}:\n\n${texto || ''}\n\n${sobre ? `Sobre: ${sobre}\n\n` : ''}— ${firma}\n\n`
-      + 'Puedes responder directamente a este correo.\n' + pieTexto(tokenBaja),
+    texto: `Hola, ${nombre}:\n\n${texto || ''}\n\n${sobre ? `Sobre: ${sobre}\n\n` : ''}${firma}\nEquipo de bicifastness\n\n`
+      + 'Puedes contestar a este correo: lo lee una persona del equipo.\n' + pieTexto(tokenBaja),
   };
 }
 
 /**
- * 10e · Cuenta suspendida. Tono sobrio, sin azul: motivo, fechas, que implica y
- * como recurrir. Sin enlace de baja: no es un correo de producto.
+ * 10e · Cuenta suspendida. Tono sobrio, sin azul. Sin enlace de baja. Se
+ * recurre respondiendo al correo: el boton "Recurrir la suspensión" abre esa
+ * respuesta dirigida al buzon del equipo (el mismo Reply-To que pone el worker).
  */
 function cuentaSuspendida({ nombre, motivo, desde = null, hasta = null }) {
-  const piloto = escapar(nombre);
-  const fin = hasta ? escapar(hasta) : 'Sin fecha de fin';
+  const plazo = diaLegible(enDias(30));
+  const buzon = process.env.CORREO_RESPUESTA || process.env.GMAIL_USUARIO || '';
+  const recurso = buzon ? `mailto:${buzon}?subject=${encodeURIComponent('Recurso de suspensión')}` : `${SITIO}/`;
+  const html = rellenar('05-cuenta-suspendida.html', {
+    piloto: nombre, motivo_suspension: motivo || 'Incumplimiento de los términos de uso.',
+    fecha_inicio: desde || diaLegible(new Date()), fecha_fin_o_indefinida: hasta || 'Sin fecha de fin',
+    duracion_corta: hasta ? `hasta el ${hasta}` : 'por ahora', fecha_limite_recurso: plazo,
+  }).split(`${SITIO}/recurso/?t=`).join(escapar(recurso));
   return {
     asunto: 'Tu cuenta de bicifastness está suspendida',
-    html: envolver({
-      chip: 'suspendida',
-      preheader: 'Qué significa y cómo recurrir.',
-      titulo: 'Tu cuenta está suspendida',
-      subtitulo: `Hola, ${piloto}.`,
-      contenido:
-        recuadro(escapar(motivo || 'Incumplimiento de los términos de uso.'), '', { etiqueta: 'Motivo' })
-        + datos([
-          ['Desde', escapar(desde || 'hoy')],
-          ['Hasta', fin],
-        ])
-        + parrafo('Mientras dure no puedes subir trayectos ni aparecer en las clasificaciones. Tus datos no se borran y puedes seguir entrando para verlos o descargarlos.')
-        + parrafo('Si crees que es un error, responde a este correo en los próximos 30 días contando lo que ha pasado. Lo revisa una persona distinta de quien tomó la decisión.'),
-    }),
-    texto: `Hola, ${nombre}.\n\nTu cuenta de bicifastness esta suspendida.\n\nMotivo: ${motivo || 'Incumplimiento de los terminos de uso.'}\n`
-      + `Desde: ${desde || 'hoy'}\nHasta: ${hasta || 'Sin fecha de fin'}\n\n`
-      + 'Mientras dure no puedes subir trayectos ni aparecer en las clasificaciones. Tus datos no se borran.\n\n'
-      + 'Si crees que es un error, responde a este correo en los proximos 30 dias.\n' + pieTexto(null),
+    html,
+    texto: `Hola, ${nombre}.\n\nUn administrador ha suspendido tu cuenta de bicifastness.\n\n`
+      + `Motivo: ${motivo || 'Incumplimiento de los términos de uso.'}\n`
+      + `Desde: ${desde || diaLegible(new Date())}\nHasta: ${hasta || 'Sin fecha de fin'}\n\n`
+      + 'No puedes subir trayectos ni unirte a un clan, y tu nombre no aparece en los rankings mientras dure. Tus datos se conservan.\n\n'
+      + `Si crees que es un error, responde a este correo hasta el ${plazo}.\n` + pieTexto(null),
   };
 }
 
 /**
- * 10g · Contraseña cambiada. Aviso de seguridad, siempre (sin baja). Datos del
- * dispositivo desde el user agent; la ciudad no se sabe y no se inventa.
+ * 10g · Contraseña cambiada. Aviso de seguridad, siempre (sin baja). El
+ * dispositivo sale del user agent; la ciudad no se sabe y no se inventa, asi
+ * que esa fila no va.
  */
-function contrasenaCambiada({ nombre, cuando = null, dispositivo = null }) {
-  const piloto = escapar(nombre);
+function contrasenaCambiada({ nombre, correo = '', cuando = null, dispositivo = null }) {
+  const fecha = cuando || 'hace un momento';
   return {
     asunto: 'Tu contraseña ha cambiado',
-    html: envolver({
-      chip: 'seguridad',
-      preheader: 'Si no has sido tú, cámbiala ahora.',
-      titulo: 'Tu contraseña ha cambiado',
-      subtitulo: `Hola, ${piloto}. Te lo contamos por si no has sido tú.`,
-      contenido:
-        datos([
-          ['Cuándo', escapar(cuando || 'hace un momento')],
-          dispositivo ? ['Desde', escapar(dispositivo)] : null,
-        ])
-        + parrafo('Si has sido tú, no tienes que hacer nada.')
-        + recuadro('¿No has sido tú?', 'Cambia la contraseña ahora desde «¿Has olvidado la contraseña?» y responde a este correo para que revisemos tu cuenta.')
-        + boton('Cambiar la contraseña', `${SITIO}/entrar/#recuperar`),
+    html: rellenar('07-contrasena-cambiada.html', { piloto: nombre, fecha_cambio: fecha, dispositivo: dispositivo || '' }, {
+      quitar: ['ciudad', ...(dispositivo ? [] : ['dispositivo'])],
+      crudos: { correo_url: encodeURIComponent(correo || '') },
     }),
-    texto: `Hola, ${nombre}.\n\nTu contraseña de bicifastness ha cambiado${cuando ? ` (${cuando})` : ''}`
-      + `${dispositivo ? ` desde ${dispositivo}` : ''}.\n\nSi has sido tu, no tienes que hacer nada. `
-      + `Si no, cambiala ahora: ${SITIO}/entrar/#recuperar y responde a este correo.\n` + pieTexto(null),
+    texto: `Hola, ${nombre}.\n\nLa contraseña de tu cuenta de bicifastness se ha cambiado (${fecha})`
+      + `${dispositivo ? ` desde ${dispositivo}` : ''}.\n\nSi has sido tú, no tienes que hacer nada. `
+      + `Si no, recupera tu cuenta ahora: ${SITIO}/entrar/?recuperar=1&correo=${encodeURIComponent(correo || '')}\n` + pieTexto(null),
   };
 }
 
 /**
  * 10f · Restablecer contraseña, para PEGAR en Firebase Auth (Authentication →
  * Plantillas → Restablecimiento de contraseña → Mensaje). Firebase sustituye
- * %LINK% y %EMAIL% al enviarla. Va como texto, no como funcion: la envia
- * Firebase, no el worker (`npm run correos` la deja en correos/).
+ * %LINK%, %EMAIL% y %DISPLAY_NAME% al enviarla (`npm run correos` la deja en correos/).
  */
-const PLANTILLA_FIREBASE_RESTABLECER = envolver({
-  preheader: 'El enlace caduca en una hora.',
-  titulo: 'Elige una contraseña nueva',
-  subtitulo: 'Alguien (seguramente tú) ha pedido cambiar la contraseña de %EMAIL%.',
-  contenido:
-    boton('Elegir contraseña nueva', '%LINK%')
-    + parrafo('El enlace caduca en una hora y solo sirve una vez. Si no lo has pedido tú, ignora este correo: tu contraseña no cambia.')
-    + enlaceSuelto('%LINK%'),
+const PLANTILLA_FIREBASE_RESTABLECER = rellenar('06-restablecer-contrasena.html', {}, {
+  crudos: { piloto: '%DISPLAY_NAME%', correo: '%EMAIL%', enlace_restablecer: '%LINK%' },
 });
 
 function viajeAnulado({ tokenBaja = null, nombre, ruta, motivo }) {

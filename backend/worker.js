@@ -705,7 +705,7 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
   // reutilizar la imagen, asi que el fichero en si sobra.
   if (veredicto.decision === 'rechazado') {
     await borrarCapturaSiSobra(doc, viaje);
-    await avisarRechazo(viaje, veredicto);
+    await avisarRechazo(viaje, veredicto, doc.id);
   }
 }
 
@@ -828,8 +828,10 @@ async function avisarPorCorreo(uid, tipo, extra = {}, yaLeido = null, { encolar 
     // OJO con el nombre: `correo` es el modulo de envio importado arriba. Una
     // variable local con ese nombre lo taparia y `correo.enviar(...)` reventaria.
     let destinatario = null;
+    let cuenta = null;
     try {
-      destinatario = (await admin.auth().getUser(uid)).email || null;
+      cuenta = await admin.auth().getUser(uid);
+      destinatario = cuenta.email || null;
     } catch {
       return false;   // cuenta borrada: no hay a quien avisar
     }
@@ -844,7 +846,18 @@ async function avisarPorCorreo(uid, tipo, extra = {}, yaLeido = null, { encolar 
       if (!SIMULAR) await refUsuario.update({ tokenBaja });
     }
 
-    const mensaje = plantilla({ nombre: datos.username || 'piloto', tokenBaja, ...extra });
+    // 10c une la verificacion con la bienvenida: si la cuenta es de correo y
+    // no esta verificada, el mismo correo lleva el enlace.
+    let enlaceVerificacion = null;
+    if (tipo === 'bienvenida' && !cuenta.emailVerified) {
+      enlaceVerificacion = await admin.auth()
+        .generateEmailVerificationLink(destinatario, { url: `${plantillas.SITIO}/` })
+        .catch(() => null);
+    }
+
+    const mensaje = plantilla({
+      nombre: datos.username || 'piloto', tokenBaja, correo: destinatario, enlaceVerificacion, ...extra,
+    });
 
     const resultado = await correo.enviar({
       ...mensaje,
@@ -853,7 +866,8 @@ async function avisarPorCorreo(uid, tipo, extra = {}, yaLeido = null, { encolar 
       apiKey: process.env.RESEND_API_KEY,
       // Un mensaje del equipo se contesta; si hay buzon aparte, las respuestas
       // van alli. Con Gmail, sin esto, vuelven a la propia cuenta, que tambien vale.
-      responderA: tipo === 'mensaje_equipo' ? (process.env.CORREO_RESPUESTA || null) : null,
+      // Una suspension se recurre respondiendo (10e), asi que igual.
+      responderA: ['mensaje_equipo', 'cuenta_suspendida'].includes(tipo) ? (process.env.CORREO_RESPUESTA || null) : null,
       simular: SIMULAR,
     });
 
@@ -900,9 +914,13 @@ const SIEMPRE_SE_AVISA = new Set(['cuenta_suspendida', 'clave_cambiada', 'mensaj
  *
  * Que falle el correo no puede afectar al veredicto: el viaje ya esta resuelto.
  */
-async function avisarRechazo(viaje, veredicto) {
+async function avisarRechazo(viaje, veredicto, viajeId = '') {
   await avisarPorCorreo(viaje.uid, 'viaje_rechazado', {
     ruta: viaje.ruta,
+    viajeId,
+    fecha: viaje.fechaViaje || null,
+    tiempoSegundos: viaje.tiempoSegundos ?? null,
+    distanciaMetros: viaje.distanciaMetros ?? null,
     // `resumen` es el texto para la persona. Las señales con sus pesos se
     // quedan en la auditoria: no salen en el correo.
     motivo: veredicto.resumen,
@@ -1380,6 +1398,9 @@ async function aplicarDecisionesManuales() {
         ruta: viaje.ruta,
         motivo: viaje.motivoRevision || 'Quien lo ha revisado no ha podido darlo por bueno.',
         tiempoSegundos: viaje.tiempoSegundos ?? null,
+        viajeId: doc.id,
+        fecha: viaje.fechaViaje || null,
+        distanciaMetros: viaje.distanciaMetros ?? null,
         dePersona: true,
         puedePedirRevision: false,
       });
@@ -2488,7 +2509,11 @@ async function procesarCola(cuenta) {
         // sin saber por que. El texto dice que es cosa nuestra y que no lo
         // vuelva a subir; el error de verdad no sale del worker.
         const subido = doc.data();
-        if (subido?.uid) await avisarPorCorreo(subido.uid, 'error_procesar', { ruta: subido.ruta });
+        if (subido?.uid) {
+          await avisarPorCorreo(subido.uid, 'error_procesar', {
+            ruta: subido.ruta, subido: subido.creado?.toDate?.() || null,
+          });
+        }
       }
     }
   }

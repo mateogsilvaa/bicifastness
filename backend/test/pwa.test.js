@@ -56,7 +56,8 @@ test('todos los iconos y destinos del manifiesto existen', () => {
     ...(m.shortcuts || []).flatMap((a) => (a.icons || []).map((i) => i.src)),
   ];
   for (const ruta of iconos) {
-    assert.ok(fs.existsSync(path.join(RAIZ, ruta)),
+    // `?v=N` solo obliga a volver a bajar el icono; el fichero es el mismo.
+    assert.ok(fs.existsSync(path.join(RAIZ, ruta.split('?')[0])),
       `${ruta} no existe: el navegador descarta el manifiesto entero`);
   }
 

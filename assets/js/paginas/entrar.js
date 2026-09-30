@@ -203,7 +203,10 @@ id('btn-recuperar').addEventListener('click', async () => {
 });
 
 // Desde el correo de "tu contraseña ha cambiado" (10g): directo a recuperarla.
-if (window.location.hash === '#recuperar') {
+// El de 10g enlaza como `?recuperar=1&correo=…`, con el correo ya puesto.
+const deCorreo = new URLSearchParams(window.location.search);
+if (window.location.hash === '#recuperar' || deCorreo.get('recuperar') === '1') {
+  if (deCorreo.get('correo')) campoCorreo.value = deCorreo.get('correo');
   mensaje.textContent = 'Escribe tu correo y pulsa «He olvidado mi contraseña».';
   campoCorreo.focus();
 }

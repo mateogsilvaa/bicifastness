@@ -355,12 +355,30 @@ async function preparar(fichero) {
     preparada.metadatos.capturadaEn = diaMadrid(new Date(fichero.lastModified));
   }
 
-  if (preparada.avisos.length) {
+  // 8g: en escritorio, los avisos que no impiden van encima de lo leido, sin
+  // pantalla propia; en el movil, antes de leer (3h).
+  const soloAvisan = !preparada.avisos.some((a) => IMPIDEN.includes(a.codigo)) && preparada.dataUrl;
+  if (preparada.avisos.length && !(soloAvisan && enEscritorio())) {
     pintarAvisos(preparada.avisos);
     mostrar('avisos');
     return;
   }
   leer();
+}
+
+const enEscritorio = () => window.matchMedia('(min-width: 900px)').matches;
+
+/** 8g: los avisos previos, encima de la lista o del billete, con "Elegir otra". */
+function avisosEncima() {
+  if (!enEscritorio() || !preparada?.avisos?.length) return null;
+  return el('div', { clase: 'pila avisos-previos' }, preparada.avisos.map((a) => el('div', { clase: 'aviso atencion con-icono' }, [
+    icono('aviso', 'icono'),
+    el('p', {}, [
+      el('strong', { texto: `${TITULO_AVISO[a.codigo] || 'Ojo.'} ` }),
+      el('span', { texto: `${a.texto} ` }),
+      el('button', { clase: 'enlace-boton', texto: 'Elegir otra', attrs: { type: 'button' }, on: { click: () => entradaFoto.click() } }),
+    ]),
+  ])));
 }
 
 function pintarAvisos(avisos) {
@@ -903,6 +921,7 @@ async function irAElegir(candidatos) {
       el('div', { clase: 'subir-cuerpo varios' }, [
         el('div', { clase: 'confirmar-imagen solo-escritorio' }, [el('img', { attrs: { src: preparada.url, alt: 'Tu captura' } })]),
         el('div', { clase: 'varios-lista' }, [
+          avisosEncima(),
           el('p', { clase: 'apagado' }, quedan
             ? ['Hoy te quedan ', el('strong', { texto: quedan === 1 ? '1 que puntúa' : `${quedan} que puntúan` }), '. Elige cuáles.']
             : ['Hoy ya no te quedan trayectos que puntúen. Puedes subirlos igual, sin puntos, de uno en uno.']),
@@ -915,10 +934,16 @@ async function irAElegir(candidatos) {
               on: { click: () => { if (marcado) elegidos.delete(i); else elegidos.add(i); pintar(); } },
             }, [
               el('span', { clase: 'casilla-visual' }, [icono('check', 'icono peq')]),
+              // 3g: salida arriba y "→ meta" debajo; 8g: "Salida → Meta" en una
+              // linea y debajo "hoy 18:51 → 19:08 · 2,1 km".
               el('span', { clase: 'trayecto-texto' }, [
-                el('strong', { texto: nombreEstacion(c.origen) }),
-                el('span', { texto: `→ ${nombreEstacion(c.destino)}` }),
-                el('small', { texto: repetido ? 'Ya lo tienes subido' : [c.horaSalida, c.horaLlegada].filter(Boolean).join(' → ') }),
+                el('strong', {}, [nombreEstacion(c.origen), el('span', { clase: 'solo-escritorio-i', texto: ` → ${nombreEstacion(c.destino).split(' - ')[0]}` })]),
+                el('span', { clase: 'solo-movil-i', texto: `→ ${nombreEstacion(c.destino)}` }),
+                el('small', {}, repetido ? ['Ya lo tienes subido'] : [
+                  el('span', { clase: 'solo-escritorio-i', texto: `${dia === diaMadrid() ? 'hoy' : dia === diaMadridHace(1) ? 'ayer' : formatearFecha(dia)} ` }),
+                  [c.horaSalida, c.horaLlegada].filter(Boolean).join(' → '),
+                  kmEstimados(c.origen, c.destino) ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${String(kmEstimados(c.origen, c.destino).toFixed(1)).replace('.', ',')} km` }) : null,
+                ]),
               ]),
               el('span', { clase: 'trayecto-tiempo', texto: formatearTiempo(c.tiempoSegundos) }),
             ]);
@@ -927,9 +952,11 @@ async function irAElegir(candidatos) {
             clase: 'menor apagado',
             texto: `${noCaben.length === 1 ? `El de las ${noCaben[0].c.horaSalida || 'otra hora'} no cabe` : 'Los demás no caben'} hoy: ya llevas ${llevaHoy()} y puntúan ${CUPO} al día.`,
           }) : null,
-          segmentoDia(dia, (d) => { dia = d; elegidos.clear(); pintar(); }, { rotulo: 'Día de los trayectos' }),
-          el('div', { clase: 'subir-hueco' }),
-          el('div', { clase: 'subir-enviar' }, [boton]),
+          el('div', { clase: 'varios-pie' }, [
+            segmentoDia(dia, (d) => { dia = d; elegidos.clear(); pintar(); }, { rotulo: 'Día de los trayectos' }),
+            el('div', { clase: 'subir-hueco' }),
+            el('div', { clase: 'subir-enviar' }, [boton]),
+          ]),
         ]),
       ]),
     ]);

@@ -2594,7 +2594,25 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
   .subir-dia .segmento button { min-height: 0; height: 34px; }
   .subir-dia .pista-dia { display: none; }
   .subir-enviar .hoy-pista { width: 72px; max-width: none; font-size: 13px; }
+  /* 8g · Varios: avisos encima, filas de 68 con "Salida → Meta" y el dia y
+     el boton en la misma fila al pie. */
+  .varios-lista { gap: 12px; }
+  .varios-lista .aviso { margin: 0; }
+  .varios-lista .aviso p { font-size: 14px; }
+  .varios-lista .aviso .enlace-boton { font-weight: 400; }
+  .trayecto-opcion { min-height: 68px; padding: 12px 18px; border-radius: 18px; }
+  .trayecto-opcion .casilla-visual { border-radius: 7px; }
+  .trayecto-opcion .trayecto-texto strong { font-size: 16px; }
+  .trayecto-opcion small { font-size: 13px; }
+  .trayecto-opcion .trayecto-tiempo { font-size: 32px; }
+  .varios .varios-pie { display: flex; align-items: center; gap: 16px; margin-top: 20px; }
+  .varios-pie .subir-dia { flex: none; width: 266px; }
+  .varios-pie .subir-dia .rotulo { display: none; }
+  .varios .varios-pie .segmento .solo-escritorio-i { display: none; }
+  .varios-pie .subir-hueco { display: none; }
+  .varios-pie .subir-enviar { flex: 1; }
 }
+.varios-pie { display: contents; }
 .subir-barra-esc { display: none; }
 
 /* --- 04 Ranking -------------------------------------------------------------------

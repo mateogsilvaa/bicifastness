@@ -18,6 +18,7 @@
  *   localStorage.maqueta_perfil = 'lider'   -> lider con dos solicitudes (5d)
  *   localStorage.maqueta_perfil = 'cupo'    -> ya ha subido los 3 que puntuan hoy (3n)
  *   localStorage.maqueta_perfil = 'sinperfil' -> con sesion pero sin nombre de piloto (1c)
+ *   localStorage.maqueta_perfil = 'peligro' -> sin escudos (2c, con maqueta_hora >= '20:00')
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
  *   localStorage.maqueta_hora = '12:00'     -> la app cree que es esa hora de
  *                                              Madrid (p. ej. '21:30' para 2c)
@@ -94,6 +95,7 @@ const perfiles = {
   },
   admin: { ...perfilBase, admin: true },
   sinclan: { ...perfilBase, clanId: null, rolClan: null },
+  peligro: { ...perfilBase, escudos: 0 },
   lider: { ...perfilBase, rolClan: 'lider' },
 };
 const perfil = perfiles[variante] || perfilBase;

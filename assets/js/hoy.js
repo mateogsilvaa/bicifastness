@@ -90,9 +90,10 @@ function pintarSubir(perfil, modo) {
     ]));
     return;
   }
+  // 2c: con la racha en peligro, el boton solo; la ayuda va debajo.
   reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir solo-movil' }, [
     botonSubir('Subir trayecto'),
-    el('span', { clase: 'hoy-pista', texto: `Hoy puntúan ${CUPO} · llevas ${lleva} · también desde Fotos → Compartir` }),
+    modo === 'riesgo' ? null : el('span', { clase: 'hoy-pista', texto: `Hoy puntúan ${CUPO} · llevas ${lleva} · también desde Fotos → Compartir` }),
   ]));
 }
 
@@ -261,14 +262,23 @@ function pintarRacha(perfil, { enCola = false } = {}) {
 }
 
 /** 2c · Lo que sale debajo cuando la racha esta en peligro. */
-function pintarAyudaRiesgo() {
+function pintarAyudaRiesgo(perfil) {
+  // La estacion que mas aparece en sus tramos: la que tiene mas a mano.
+  const veces = new Map();
+  for (const ruta of Object.keys(perfil?.puntosPorRuta || {})) {
+    for (const e of ruta.split('-')) veces.set(e, (veces.get(e) || 0) + 1);
+  }
+  const [habitual] = [...veces.entries()].sort((a, b) => b[1] - a[1])[0] || [];
   reemplazar($('misiones'), el('div', { clase: 'pila hoy-ayuda' }, [
     el('div', { clase: 'tarjeta-grande media' }, [
       el('strong', { texto: 'Lo más corto que te salva' }),
-      el('span', {
-        clase: 'apagado',
-        texto: 'Cualquier trayecto verificado cuenta, aunque sea corto y lento. Recuerda: vale la hora de llegada de la captura, no la de subida; puedes subirla mañana.',
-      }),
+      el('span', { clase: 'apagado' }, [
+        'Cualquier trayecto verificado cuenta, aunque sea corto y lento. ',
+        habitual ? 'Tu estación más usada: ' : null,
+        habitual ? el('strong', { texto: nombreEstacion(habitual) || habitual }) : null,
+        habitual ? '. ' : null,
+        'Recuerda: vale la hora de llegada de la captura, no la de subida; puedes subirla mañana.',
+      ]),
     ]),
     el('div', { clase: 'aviso tonal' }, [
       icono('escudo', 'icono'),
@@ -711,7 +721,7 @@ export async function pintarHoy(usuario, perfil) {
   const modo = pintarRacha(perfil, { enCola });
   pintarSubir(perfil, modo);
 
-  if (modo === 'riesgo') pintarAyudaRiesgo();
+  if (modo === 'riesgo') pintarAyudaRiesgo(perfil);
   else await pintarMisiones(perfil, { conBarras: !enCola });
 
   avisarCambioDivision(perfil);

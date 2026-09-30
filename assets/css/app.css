@@ -2094,7 +2094,7 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 .hoy-racha.salvado { flex-direction: row; align-items: center; gap: 18px; background: var(--azul-relleno); color: var(--sobre-azul); }
 .hoy-racha.salvado .hoy-racha-texto > span { color: inherit; opacity: .9; }
 .hoy-racha.riesgo.sin-escudos { box-shadow: inset 0 0 0 2px var(--rojo); }
-.rotulo-rojo { font-size: 13px; font-weight: 700; color: var(--rojo); }
+.rotulo-rojo, .hoy-racha-texto .rotulo-rojo { font-size: 13px; font-weight: 700; line-height: normal; color: var(--rojo); }
 .hoy-racha-texto .cuenta-atras { font-size: 30px; font-weight: 800; font-stretch: 72%; line-height: 1; color: var(--tinta); font-variant-numeric: tabular-nums; }
 
 .chip-escudo { white-space: nowrap; display: inline-flex; align-self: flex-start; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 8px; background: var(--papel-3); font-size: 12px; font-weight: 700; color: var(--tinta); }
@@ -2130,8 +2130,12 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 .btn.grande.secundario:hover { background: var(--tinta); color: var(--papel); }
 
 .hoy-ayuda { gap: 14px; }
-.hoy-ayuda .tarjeta-grande { gap: 10px; font-size: 14px; line-height: 1.45; }
-.aviso.tonal { display: flex; gap: 10px; align-items: center; background: var(--papel-3); color: var(--tinta-2); border-radius: 20px; }
+.hoy-ayuda .tarjeta-grande { gap: 10px; padding: 16px; border-radius: 20px; font-size: 14px; line-height: 1.45; }
+.hoy-ayuda .tarjeta-grande > strong { font-size: 15px; line-height: normal; }
+.hoy-ayuda .tarjeta-grande .apagado { color: var(--tinta-2); }
+.hoy-ayuda .tarjeta-grande .apagado strong { color: var(--tinta); }
+.aviso.tonal { display: flex; gap: 10px; align-items: center; margin: 0; padding: 14px 16px; background: var(--papel-3); color: var(--tinta-2); border-radius: 20px; }
+.aviso.tonal p { font-size: 14px; line-height: 1.4; }
 .aviso.tonal .icono { flex: none; width: 20px; height: 20px; }
 
 /* 2e · Piloto nuevo. */

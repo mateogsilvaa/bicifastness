@@ -372,25 +372,37 @@ function montarAtajosDeSubida(enSubir) {
   let capa = null;
   let dentro = 0;
   const conImagen = (e) => [...(e.dataTransfer?.items || [])].some((i) => i.kind === 'file');
-  const quitar = () => { capa?.remove(); capa = null; dentro = 0; };
+  const quitar = () => { capa?.remove(); capa = null; dentro = 0; document.body.classList.remove('soltando'); };
 
   window.addEventListener('dragenter', (e) => {
     if (!conImagen(e)) return;
     dentro += 1;
     if (capa) return;
+    // 8b: la pantalla de detras se apaga y se desenfoca; delante, una captura
+    // de ejemplo con el + y lo que se puede soltar.
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     capa = el('div', { clase: 'capa-soltar', attrs: { 'aria-hidden': 'true' } }, [
       el('div', { clase: 'capa-soltar-marco' }, [
-        el('span', { clase: 'capa-soltar-mas' }, [icono('mas')]),
+        el('div', { clase: 'capa-soltar-dibujo' }, [
+          el('span', { clase: 'capa-soltar-fondo' }),
+          el('span', { clase: 'capa-soltar-captura' }, [el('img', { attrs: { src: '/images/ejemplo.jpg', alt: '' } })]),
+          el('span', { clase: 'capa-soltar-mas' }, [icono('mas')]),
+        ]),
         el('strong', { texto: 'Suéltala para leerla' }),
         el('span', { texto: 'Leemos estaciones, tiempo y horas en tu navegador. Puedes soltar varias a la vez: cada una es un trayecto.' }),
         el('span', { clase: 'capa-soltar-chips' }, [
-          el('span', { texto: 'JPG · PNG · WebP' }),
+          el('span', { texto: 'JPG · PNG · WebP · HEIC' }),
           el('span', { texto: 'Hasta 30 días atrás' }),
           el('span', { texto: 'Hoy puntúan 3' }),
         ]),
       ]),
+      el('div', { clase: 'capa-soltar-teclas' }, [
+        el('kbd', { texto: 'Esc' }), 'cancelar', el('span', { clase: 'hueco' }),
+        el('kbd', { texto: mac ? '⌘ V' : 'Ctrl V' }), 'también pega una captura copiada',
+      ]),
     ]);
     document.body.append(capa);
+    document.body.classList.add('soltando');
   });
   window.addEventListener('dragover', (e) => { if (capa) e.preventDefault(); });
   window.addEventListener('dragleave', () => { dentro -= 1; if (dentro <= 0) quitar(); });

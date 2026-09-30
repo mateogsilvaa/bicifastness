@@ -752,12 +752,24 @@ input[type='checkbox'] {
   text-align: center;
 }
 .capa-soltar-marco strong { font-size: clamp(30px, 5vw, 44px); font-weight: 800; font-stretch: 88%; letter-spacing: -.04em; line-height: 1; }
-.capa-soltar-marco > span:not(.capa-soltar-mas):not(.capa-soltar-chips) { font-size: 17px; color: var(--tinta-2); line-height: 1.5; max-width: 44ch; }
+.capa-soltar-marco > span:not(.capa-soltar-chips) { font-size: 17px; color: var(--tinta-2); line-height: 1.5; max-width: 44ch; }
 .capa-soltar-mas {
   width: 56px; height: 56px; border-radius: 50%;
   background: var(--azul-relleno); color: var(--sobre-azul);
   display: flex; align-items: center; justify-content: center;
 }
+/* 8b: dos capturas apiladas y el + en la esquina, con un anillo del papel. */
+.capa-soltar-dibujo { position: relative; width: 180px; height: 210px; margin-bottom: 8px; }
+.capa-soltar-fondo { position: absolute; left: 10px; top: 18px; width: 150px; height: 190px; border-radius: 18px; background: var(--papel-2); transform: rotate(-7deg); box-shadow: 0 6px 20px rgba(0, 0, 0, .08); }
+.capa-soltar-captura { position: absolute; left: 18px; top: 0; width: 164px; padding: 7px; border-radius: 18px; background: var(--papel-2); transform: rotate(4deg); box-shadow: 0 18px 40px rgba(17, 17, 16, .22); }
+.capa-soltar-captura img { display: block; width: 100%; border-radius: 12px; }
+.capa-soltar-dibujo .capa-soltar-mas { position: absolute; right: -6px; bottom: 4px; width: 44px; height: 44px; outline: 4px solid var(--papel); }
+.capa-soltar-teclas { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--tinta-2); white-space: nowrap; }
+.capa-soltar-teclas kbd { padding: 2px 8px; border-radius: 6px; background: var(--papel-2); font-family: var(--tipo); font-size: 13px; font-weight: 700; color: var(--tinta); }
+.capa-soltar-teclas .hueco { width: 4px; }
+body.soltando .container, body.soltando main { opacity: .35; filter: blur(2px); }
+body.soltando .capa-soltar { background: none; }
+body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-offset: 3px; }
 .capa-soltar-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--e2); font-size: 13px; font-weight: 600; }
 .capa-soltar-chips span { padding: 6px var(--e3); border-radius: 999px; background: var(--papel-2); }
 

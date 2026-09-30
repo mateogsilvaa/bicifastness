@@ -3660,3 +3660,16 @@ body.pagina-admin { font-size: 14px; padding: 0; }
      `animation: none` la regla de arriba dejaria el `opacity: 0` puesto. */
   .aparece { opacity: 1; }
 }
+
+/* --- Pantallas anchas ----------------------------------------------------------
+ * El diseño de escritorio esta dibujado a 1440: columna de ancho fijo a 56 px del
+ * lateral. En un monitor de 1920 o mas, esa columna se quedaba pegada a la
+ * izquierda con media pantalla vacia a la derecha. A partir de 1600 se centra en
+ * el hueco que deja el lateral. Las paginas a todo el ancho (mapa, rutas) no
+ * tienen tope de ancho, asi que el margen automatico no les cambia nada.
+ */
+@media (min-width: 1600px) {
+  html body:has(.lateral) .container,
+  html body:has(.lateral) .container > .hoy { margin-inline: auto; }
+  html body:has(.lateral) .subir { max-width: 1200px; margin-inline: auto; }
+}

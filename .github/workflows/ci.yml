@@ -144,7 +144,10 @@ jobs:
   reglas:
     # Nunca se despliega una regla que no haya pasado por el emulador.
     needs: [tests, reglas-emulador]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Tambien al lanzarlo a mano (Run workflow): si no, un despliegue fallido
+    # solo se podia reintentar con un commit nuevo, y los indices que necesita
+    # el worker se quedaban sin crear.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

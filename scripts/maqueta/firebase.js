@@ -16,6 +16,7 @@
  *   localStorage.maqueta_perfil = 'admin'   -> con permisos de administracion
  *   localStorage.maqueta_perfil = 'sinclan' -> sin clan (5e)
  *   localStorage.maqueta_perfil = 'lider'   -> lider con dos solicitudes (5d)
+ *   localStorage.maqueta_perfil = 'cupo'    -> ya ha subido los 3 que puntuan hoy (3n)
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
  *   localStorage.maqueta_hora = '12:00'     -> la app cree que es esa hora de
  *                                              Madrid (p. ej. '21:30' para 2c)
@@ -119,7 +120,7 @@ const rankingPilotos = (valor) => nombres.map((n, i) => ({ pos: i + 1, nombre: n
 const datos = {
   [`usuarios/${UID}`]: perfil,
   [`nombres_usuario/${perfil.username.toLowerCase()}`]: { uid: UID },
-  [`cupos/${UID}`]: { dia: Math.floor(Date.now() / 864e5), viajes: variante === 'salvado' ? 1 : 0, capturas: 0 },
+  [`cupos/${UID}`]: { dia: Math.floor(Date.now() / 864e5), viajes: variante === 'salvado' ? 1 : variante === 'cupo' ? 3 : 0, capturas: variante === 'cupo' ? 3 : 0 },
   'config/general': { rutaDestacada: '124-115', mantenimiento: false },
   [`config/misiones/dias/${hoy}`]: {
     fecha: hoy,

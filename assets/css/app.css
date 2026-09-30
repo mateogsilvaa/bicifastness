@@ -2426,12 +2426,12 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .aviso-ruta-dia .x2 { padding: 3px var(--e2); border-radius: 7px; background: var(--azul-relleno); color: var(--sobre-azul); font-size: 12px; font-weight: 800; }
 
 /* 3n · Cupo lleno. */
-.cupo-lleno { gap: 12px; }
+.cupo-lleno { gap: 12px; padding: 16px; }
 .cupo-barras { display: flex; align-items: center; gap: var(--e2); font-size: 13px; }
 .cupo-barras .barras { display: flex; gap: var(--e1); }
 .cupo-barras .barras span { width: 18px; height: 6px; border-radius: 3px; background: var(--azul-relleno); }
 .cupo-titulo { font-size: 16px; line-height: 1.3; }
-.cupo-lleno .apagado { font-size: 14px; line-height: 1.45; }
+.cupo-lleno .apagado { font-size: 14px; line-height: 1.45; color: var(--tinta-2); }
 
 /* 3f · Buscador de estaciones. */
 .hoja-alta { max-height: calc(100vh - 96px); overflow-y: auto; }

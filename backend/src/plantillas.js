@@ -305,21 +305,21 @@ function viajeRechazado({
 
 /**
  * 10b · Error al procesar. Fallo nuestro (lectura, almacenamiento, worker), no
- * un rechazo: ambar, y sin que parezca que la persona ha hecho algo mal.
+ * un rechazo: ambar, y sin que parezca que la persona ha hecho algo mal. El
+ * trayecto pasa a revision humana (worker.js), asi que el correo lo dice en vez
+ * de pedir que se vuelva a subir: la misma imagen se rechazaria por duplicada.
  */
-function errorAlProcesar({ tokenBaja = null, nombre, ruta, subido = null, fecha = null }) {
+function errorAlProcesar({ tokenBaja = null, nombre, ruta, subido = null }) {
   const cuando = subido instanceof Date ? subido : new Date();
-  const base = fecha ? new Date(`${String(fecha).slice(0, 10)}T12:00:00Z`) : cuando;
-  const dias = require('./config').LIMITES?.DIAS_MAX_ANTIGUEDAD ?? 30;
-  const limite = diaLegible(enDias(dias, Number.isNaN(base.getTime()) ? cuando : base));
   const errorTexto = `No hemos podido terminar de leer la captura del trayecto ${nombreTramo(ruta)}.`;
   return {
     asunto: 'No hemos podido leer tu captura',
     html: rellenar('02-error-al-procesar.html', {
-      piloto: nombre, fecha_subida: diaLegible(cuando), error_texto: errorTexto, fecha_limite: limite,
+      piloto: nombre, fecha_subida: diaLegible(cuando), error_texto: errorTexto,
     }, { crudos: { token_baja: encodeURIComponent(tokenBaja || '') } }),
     texto: `Hola, ${nombre}\n\n${errorTexto} El fallo es nuestro, no de tu trayecto.\n\n`
-      + `Sube otra vez la misma captura (tienes hasta el ${limite}): ${SITIO}/subir/\n` + pieTexto(tokenBaja),
+      + 'Una persona del equipo revisará tu captura a mano. No hace falta que la vuelvas a subir: te avisaremos en cuanto se resuelva.\n\n'
+      + `${SITIO}/yo/#historial\n` + pieTexto(tokenBaja),
   };
 }
 
@@ -346,9 +346,9 @@ function mensajeEquipo({ tokenBaja = null, nombre, asunto, texto, firma = 'El eq
 }
 
 /**
- * 10e · Cuenta suspendida. Tono sobrio, sin azul. Sin enlace de baja. El boton
- * "Recurrir la suspensión" abre una respuesta al buzon del equipo: la web no
- * tiene pagina de recursos, y es ahi donde llegan hoy.
+ * 10e · Cuenta suspendida. Tono sobrio, sin azul. Sin enlace de baja. Se
+ * recurre respondiendo al correo: el boton "Recurrir la suspensión" abre esa
+ * respuesta dirigida al buzon del equipo (el mismo Reply-To que pone el worker).
  */
 function cuentaSuspendida({ nombre, motivo, desde = null, hasta = null }) {
   const plazo = diaLegible(enDias(30));

@@ -866,7 +866,8 @@ async function avisarPorCorreo(uid, tipo, extra = {}, yaLeido = null, { encolar 
       apiKey: process.env.RESEND_API_KEY,
       // Un mensaje del equipo se contesta; si hay buzon aparte, las respuestas
       // van alli. Con Gmail, sin esto, vuelven a la propia cuenta, que tambien vale.
-      responderA: tipo === 'mensaje_equipo' ? (process.env.CORREO_RESPUESTA || null) : null,
+      // Una suspension se recurre respondiendo (10e), asi que igual.
+      responderA: ['mensaje_equipo', 'cuenta_suspendida'].includes(tipo) ? (process.env.CORREO_RESPUESTA || null) : null,
       simular: SIMULAR,
     });
 
@@ -2510,7 +2511,7 @@ async function procesarCola(cuenta) {
         const subido = doc.data();
         if (subido?.uid) {
           await avisarPorCorreo(subido.uid, 'error_procesar', {
-            ruta: subido.ruta, fecha: subido.fechaViaje || null, subido: subido.creado?.toDate?.() || null,
+            ruta: subido.ruta, subido: subido.creado?.toDate?.() || null,
           });
         }
       }

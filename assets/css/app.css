@@ -2994,7 +2994,7 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
  * Tarjetas de instalar y avisos, "Como funciona" y la plantilla legal.
  */
 .cabeza-mensaje { padding: var(--e5) var(--margen) 0; }
-.pagina-mensaje { width: 100%; max-width: 560px; margin: 0 auto; min-height: calc(100dvh - 60px); padding: var(--e6) var(--margen) var(--e5); display: flex; flex-direction: column; gap: var(--e4); }
+.pagina-mensaje { width: 100%; max-width: 560px; margin: 0 auto; min-height: calc(100dvh - 60px); padding: calc(24px + env(safe-area-inset-top, 0px)) var(--margen) var(--e5); display: flex; flex-direction: column; gap: var(--e4); }
 .pagina-mensaje h1 { margin: 0; font-size: 34px; font-weight: 800; font-stretch: 88%; letter-spacing: -.035em; line-height: 1; }
 .pagina-mensaje .chip { align-self: flex-start; }
 .texto-mensaje { margin: 0; font-size: 15px; line-height: 1.45; color: var(--tinta-2); }
@@ -3071,15 +3071,17 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
 /* 7g · Plantilla legal: medida de 64 caracteres, 16/1.6, version y fecha
    arriba, y el resumen antes del texto completo. */
 body:has(main.legal) { background: var(--papel-2); }
-.legal { max-width: calc(64ch + 2 * var(--margen)); margin: 0 auto; padding: var(--e5) var(--margen) var(--e7); display: flex; flex-direction: column; }
-.logo-legal { margin-bottom: var(--e5); align-self: flex-start; }
-.legal .version { margin: 0 0 var(--e2); font-size: 12px; color: var(--tinta-3); }
+.legal { max-width: calc(64ch + 48px); margin: 0 auto; padding: calc(12px + env(safe-area-inset-top, 0px)) 24px var(--e7); display: flex; flex-direction: column; }
+/* 7g: logo en tinta y de 15, version a 12 y el texto un punto mas suave. */
+.logo-legal { margin-bottom: var(--e5); align-self: flex-start; color: var(--tinta); }
+.logo-legal .logo-palabra { font-size: 15px; }
+.legal .version { margin: 0 0 14px; font-size: 12px; line-height: normal; color: var(--tinta-3); }
 .legal h1 { margin: 0 0 var(--e4); font-size: 32px; font-weight: 800; font-stretch: 88%; letter-spacing: -.035em; line-height: 1; }
 .resumen-legal { background: var(--papel); border-radius: 16px; padding: 14px var(--e4); display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--e4); font-size: 14px; line-height: 1.5; }
 .legal .resumen-legal p, .legal .recuadro p { margin: 0; font-size: 14px; line-height: 1.5; }
 .legal h2 { margin: var(--e6) 0 var(--e2); font-size: 18px; font-weight: 700; letter-spacing: 0; font-stretch: 100%; scroll-margin-top: var(--e4); }
 .legal h3 { margin: var(--e5) 0 var(--e2); font-size: 16px; font-weight: 700; }
-.legal p, .legal li { font-size: 16px; line-height: 1.6; color: var(--tinta); }
+.legal p, .legal li { font-size: 16px; line-height: 1.6; color: color-mix(in srgb, var(--tinta) 88%, var(--papel)); }
 .legal p { margin: 0 0 var(--e3); }
 .legal ul, .legal ol { padding-left: var(--e5); margin: 0 0 var(--e3); }
 .legal li { margin-bottom: var(--e2); }

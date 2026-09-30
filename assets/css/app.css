@@ -1159,6 +1159,9 @@ body:has(.nav-inf) .pila-avisos {
 
 @media (min-width: 900px) {
   .pila-avisos { left: auto; right: var(--e5); bottom: var(--e5); width: 380px; }
+  /* 8q: tarjetas flotantes con sombra hacia abajo y botones a su ancho, de 36. */
+  .aviso-flotante { box-shadow: 0 8px 32px rgba(0, 0, 0, .1); }
+  .aviso-flotante .btn { align-self: flex-start; width: auto; min-height: 36px; padding: 0 14px; border-radius: 10px; }
   body:has(.nav-inf) .pila-avisos { bottom: var(--e5); }
 }
 
@@ -3060,11 +3063,13 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
 .resumen-offline strong.estado.ok { color: var(--verde); }
 @media (min-width: 900px) {
   .cabeza-mensaje { padding: var(--e6) 40px 0; }
-  .pagina-mensaje.centrada { max-width: 480px; min-height: calc(100dvh - 120px); justify-content: center; padding-top: 0; }
-  .pagina-mensaje.centrada h1 { font-size: 36px; }
-  .pagina-mensaje .texto-mensaje { font-size: 17px; }
-  .acciones-mensaje { flex-direction: row; }
-  .acciones-mensaje .btn.grande { width: auto; padding: 0 var(--e5); }
+  /* 8q: bloque de 480 centrado, 14 entre piezas y botones de 52 a su ancho. */
+  .pagina-mensaje.centrada { max-width: 520px; min-height: calc(100dvh - 128px); justify-content: center; padding-top: 0; gap: 14px; }
+  .pagina-mensaje.centrada h1 { font-size: 36px; line-height: normal; }
+  .pagina-mensaje .texto-mensaje { font-size: 17px; line-height: normal; }
+  .acciones-mensaje { flex-direction: row; margin-top: 8px; }
+  .acciones-mensaje .btn.grande { width: auto; min-height: 52px; padding: 0 22px; border-radius: 14px; font-size: 16px; }
+  .acciones-mensaje .btn.grande.secundario { font-size: 15px; }
   .pagina-mensaje:not(.centrada) { max-width: 480px; }
 }
 

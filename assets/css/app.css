@@ -1721,6 +1721,11 @@ body.sin-navegacion .pila-avisos { bottom: var(--e2); }
   padding: calc(var(--e2) + env(safe-area-inset-top, 0px)) var(--margen) var(--e1);
   min-height: 56px;
 }
+/* 1a: logo y "Entrar" (31 de alto) 4 px bajo la barra de estado. */
+@media (max-width: 899px) {
+  .portada-cabecera { align-items: flex-start; min-height: 0; padding-top: calc(4px + env(safe-area-inset-top, 0px)); }
+  .portada-cabecera .boton-pastilla { min-height: 0; padding: 8px 12px; }
+}
 .portada-pie {
   position: relative;
   margin-top: auto;

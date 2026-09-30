@@ -95,7 +95,8 @@ async function pintarPortadaPublica() {
         el('span', { clase: 'punto-vivo', attrs: { 'aria-hidden': 'true' } }),
         el('span', { clase: 'texto' }, [
           el('span', { texto: 'Ruta del día: ' }),
-          el('strong', { texto: nombre }),
+          // 1a: en una fila, sin la segunda parte de cada estacion.
+          el('strong', { texto: nombre.replace(/ - [^→]*/g, ' ').replace(/\s+→/, ' →').trim() }),
           el('span', { clase: 'detalle', texto: `${cuantos} · ${marca}` }),
         ]),
         el('span', { clase: 'x2', texto: '×2' }),

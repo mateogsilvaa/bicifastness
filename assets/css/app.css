@@ -1547,6 +1547,10 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 .hoja > .btn.plano { min-height: 44px; font-size: 15px; }
 /* 3m: titulo de 22, rotulo de 13 y el texto sobre papel, de 148. */
 .hoja.hoja-revision h2 { font-size: 22px; line-height: normal; }
+/* 1f: 16 entre bloques, texto a 1,45 y la cuenta atras a 14 en tinta-3. */
+.hoja.hoja-recuperar { gap: 16px; }
+.hoja.hoja-recuperar h2 { line-height: normal; }
+.hoja-recuperar .hoja-cuenta { margin: 0; font-size: 14px; line-height: normal; color: var(--tinta-3); }
 .hoja-revision label { font-size: 13px; line-height: normal; color: var(--tinta-2); }
 .hoja-revision textarea { min-height: 148px; border-radius: 12px; background: var(--papel); border-color: var(--papel); }
 .hoja-revision .hoja-cuenta { font-size: 12px; line-height: normal; }

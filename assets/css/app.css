@@ -2431,14 +2431,19 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 /* 3f · Buscador de estaciones. */
 .hoja-alta { max-height: calc(100vh - 96px); overflow-y: auto; }
 .hoja-cabeza { display: flex; align-items: center; justify-content: space-between; gap: var(--e3); }
-.hoja-cabeza h2 { font-size: 20px; }
-.hoja-cabeza .btn.plano { width: auto; min-height: 44px; color: var(--azul); }
+.hoja-cabeza h2 { font-size: 20px; line-height: normal; }
+/* 3f: "Listo" es texto a la altura del titulo; la hoja llega hasta 48 bajo
+   la barra de estado aunque haya pocos resultados. */
+.hoja-cabeza .btn.plano { width: auto; min-height: 0; height: auto; padding: 0; font-size: 15px; color: var(--azul); }
+@media (max-width: 899px) {
+  .hoja.hoja-alta { top: calc(48px + env(safe-area-inset-top, 0px)); max-height: none; }
+}
 .campo-buscar { position: relative; }
 .campo-buscar .icono { position: absolute; left: 14px; top: 16px; width: 20px; height: 20px; color: var(--tinta-3); }
 .campo-buscar input { padding-left: 44px; }
 .campo-buscar input:focus { padding-left: 43px; }
 .lista-estaciones { display: flex; flex-direction: column; }
-.fila-estacion { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; min-height: 56px; border: 0; border-bottom: var(--borde); background: none; font: inherit; color: var(--tinta); text-align: left; cursor: pointer; }
+.fila-estacion { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; min-height: 57px; padding: 0; border: 0; border-bottom: var(--borde); background: none; font: inherit; color: var(--tinta); text-align: left; cursor: pointer; }
 .fila-estacion:hover { background: var(--papel); }
 .fila-estacion .codigo { font-size: 14px; font-weight: 800; font-stretch: 80%; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
 .fila-estacion .nombre { font-size: 15px; font-weight: 600; }

@@ -435,6 +435,23 @@ function tarjetaResuelta(viaje, perfil) {
  * Sigue el viaje recien subido (un solo documento, y solo hasta el veredicto:
  * `estado-viaje.js`). Devuelve si habia uno en el aire.
  */
+/**
+ * 8h: se llega de Subir (escritorio) porque el trayecto se acaba de verificar.
+ * El dialogo de Verificado se abre aqui, con Hoy ya actualizado detras.
+ */
+async function celebrarAlLlegar(perfil) {
+  let viajeId = null;
+  try {
+    viajeId = sessionStorage.getItem('bf_celebrar');
+    sessionStorage.removeItem('bf_celebrar');
+  } catch { return; } // sin sessionStorage no se llega aqui desde Subir
+  if (!viajeId) return;
+  const snap = await getDoc(doc(db, 'tiempos_viaje', viajeId)).catch(() => null);
+  if (snap?.exists() && snap.data().estado === 'aprobado') {
+    abrirVerificado({ id: viajeId, ...snap.data() }, { racha: perfil.racha || 0 });
+  }
+}
+
 function seguirViajeEnCurso(perfil, alResolver) {
   const destino = $('viaje-en-curso');
   const viajeId = viajeRecordado();
@@ -713,6 +730,7 @@ export async function pintarHoy(usuario, perfil) {
   pintarCabecera(perfil, false);
 
   const enCola = seguirViajeEnCurso(perfil, () => {});
+  celebrarAlLlegar(perfil);
   const modo = pintarRacha(perfil, { enCola });
   pintarSubir(perfil, modo);
 

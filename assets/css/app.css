@@ -3744,3 +3744,32 @@ body.pagina-admin { font-size: 14px; padding: 0; }
 .lista-como .fila-como small { font-size: 13px; font-weight: 400; color: var(--tinta-3); }
 .lista-como .flecha-como { font-size: 22px; color: var(--tinta-3); }
 .lista-como .fila-como:hover { background: var(--papel-3); }
+
+/* 11f · Subido en escritorio: confirmacion a la izquierda (420) y encuesta a la
+   derecha (520), a la misma altura. En el movil sigue en una columna (11a). */
+.subido-izq { display: flex; flex-direction: column; gap: inherit; }
+.subido-trayecto { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-radius: 20px; background: var(--papel-2); }
+.subido-trayecto > span { display: flex; flex-direction: column; gap: 2px; }
+.subido-trayecto strong { font-size: 15px; }
+.subido-trayecto small { font-size: 13px; color: var(--tinta-2); }
+.subido-trayecto .subido-tiempo { font-size: 32px; font-weight: 800; font-stretch: 72%; font-variant-numeric: tabular-nums; }
+.subido-acciones { display: flex; flex-direction: column; gap: 8px; }
+@media (min-width: 900px) {
+  body:has(.lateral) .subido.con-encuesta { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: 420px 520px; gap: 48px; align-items: start; padding: 56px; }
+  .subido-izq { gap: 22px; }
+  .subido-izq .subido-texto h2 { font-size: 48px; font-weight: 800; font-stretch: 88%; letter-spacing: -.04em; line-height: 1; }
+  .subido-izq .subido-texto p { font-size: 18px; line-height: 1.45; color: var(--tinta-2); }
+  .subido-izq .subir-hueco { display: none; }
+  .subido-acciones { flex-direction: row; align-items: center; gap: 12px; }
+  .subido-acciones .btn.grande { width: auto; min-height: 48px; padding: 0 20px; border-radius: 14px; background: none; color: var(--tinta); box-shadow: inset 0 0 0 1.5px var(--tinta); font-size: 15px; }
+  .subido-acciones .btn { white-space: nowrap; }
+  .subido-acciones .btn.plano { width: auto; flex: none; color: var(--azul); }
+  .subido-der .encuesta-bici { margin: 0; padding: 28px; border-radius: 28px; gap: 20px; }
+  .subido-der .encuesta-cabeza h3 { font-size: 24px; letter-spacing: -.02em; }
+  .subido-der .encuesta-numero-leido { font-size: 28px; font-stretch: 72%; }
+  .subido-der textarea { min-height: 80px; }
+  .subido-der .encuesta-enviar .btn { min-height: 52px; padding: 0 26px; }
+}
+@media (min-width: 1441px) {
+  body:has(.lateral) .subido.con-encuesta { grid-template-columns: minmax(420px, 42fr) minmax(520px, 52fr); }
+}

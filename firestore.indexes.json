@@ -1,16 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "huellas_captura",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "creado",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "reportes",
       "queryScope": "COLLECTION",
       "fields": [

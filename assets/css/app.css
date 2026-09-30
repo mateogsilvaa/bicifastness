@@ -3488,7 +3488,8 @@ body.pagina-admin { font-size: 14px; padding: 0; }
 .encuesta-numero input { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .08em; }
 .encuesta-pista { margin: 0; font-size: 13px; color: var(--tinta-3); line-height: 1.4; }
 .encuesta-pista.error { color: var(--rojo); }
-.encuesta-notas { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.encuesta-notas { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.encuesta-nota-texto { font-size: 15px; font-weight: 600; color: var(--tinta-2); }
 .encuesta-nota { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: var(--e2) 2px; border: 0; border-radius: 14px; background: var(--papel); color: var(--tinta); font: inherit; cursor: pointer; }
 .encuesta-nota strong { font-size: 22px; font-weight: 800; line-height: 1; }
 .encuesta-nota span { font-size: 12px; color: var(--tinta-2); }
@@ -3705,3 +3706,41 @@ body.pagina-admin { font-size: 14px; padding: 0; }
 .aviso-carga span { flex: 1; }
 .aviso-carga .btn { min-height: 40px; padding: 0 16px; }
 @media (min-width: 900px) { .aviso-carga { left: auto; right: 24px; bottom: 24px; width: 380px; } }
+
+/* 11 · Estrellas de las bicis. */
+.estrellas { position: relative; display: inline-flex; vertical-align: middle; line-height: 0; }
+.estrellas-capa { display: inline-flex; gap: 2px; }
+.estrellas-capa svg { flex: none; fill: currentColor; }
+.estrellas-capa.vacias { color: var(--linea-fuerte); }
+.estrellas-capa.llenas { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: #F2A71B; }
+.selector-estrellas { display: flex; gap: 6px; }
+.estrella-boton { padding: 2px; border: 0; background: none; cursor: pointer; color: var(--linea-fuerte); line-height: 0; border-radius: 8px; transition: transform .12s ease; }
+.estrella-boton svg { fill: currentColor; }
+.estrella-boton.encendida { color: #F2A71B; }
+.estrella-boton:active { transform: scale(.88); }
+.estrella-boton:disabled { cursor: default; opacity: .5; }
+
+/* 11 · Ficha de la bici: estrellas con las reseñas al lado y averias. */
+.bici-estrellas { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--tinta-2); }
+.bici-estrellas strong { font-size: 17px; color: var(--tinta); }
+.bici-roto, .bici-bien { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 16px; font-size: 14px; line-height: 1.4; }
+.bici-roto { background: var(--rojo-tinte); color: var(--rojo); }
+.bici-roto strong { display: block; margin-bottom: 6px; color: var(--rojo); }
+.bici-roto .bici-etiquetas span { background: rgba(200, 50, 42, .12); color: var(--rojo); }
+.bici-bien { background: var(--verde-tinte); color: var(--verde); }
+.bici-roto .icono, .bici-bien .icono { flex: none; width: 20px; height: 20px; }
+.bici-opinion { display: flex; gap: 12px; align-items: flex-start; }
+.bici-opinion .estrellas { margin-top: 3px; }
+.bici-todas summary { cursor: pointer; font-weight: 700; color: var(--azul); padding: 8px 0; }
+.bici-fila-nota { display: inline-flex; align-items: center; gap: 6px; }
+.valorar-bici { display: flex; flex-direction: column; gap: 14px; }
+.valorar-bici h2 { margin: 0; font-size: 22px; }
+.valorar-bici p { margin: 0; color: var(--tinta-2); font-size: 15px; line-height: 1.45; }
+
+/* Ajustes · Como funciona: filas que llevan a cada parte de /info/. */
+.lista-como .fila-como { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px; color: var(--tinta); text-decoration: none; }
+.lista-como .fila-como + .fila-como { border-top: 1px solid var(--linea); }
+.lista-como .fila-como .texto { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: 600; }
+.lista-como .fila-como small { font-size: 13px; font-weight: 400; color: var(--tinta-3); }
+.lista-como .flecha-como { font-size: 22px; color: var(--tinta-3); }
+.lista-como .fila-como:hover { background: var(--papel-3); }

@@ -39,6 +39,7 @@ const {
   construirRuta, inicioDelDiaMadrid, diaMadrid, buscarEstacion,
 } = require('./src/util');
 const imagen = require('./src/imagen');
+const rutasDestacadas = require('./src/rutas-destacadas');
 const {
   leerCaptura, releerCaptura, elegirTrayecto, cerrar: cerrarOcr,
 } = require('./src/ocr');
@@ -736,6 +737,30 @@ async function apuntarBiciVista(numero, viaje) {
  * `comentarioPublico`, sin invisibles y vacio si lleva un insulto. El original
  * solo lo lee su autor.
  */
+/**
+ * ¿La captura de una valoracion sin viaje demuestra esa bici? El numero de la
+ * bici tiene que leerse y coincidir, y si la captura trae fecha, no puede
+ * tener mas de un mes (LIMITES.DIAS_MAX_ANTIGUEDAD).
+ */
+async function comprobarCapturaDeBici(capturaId, bici) {
+  try {
+    const snap = await db.doc(`capturas/${capturaId}`).get();
+    if (!snap.exists) return { vale: false, motivo: 'sin captura' };
+    const { buffer } = imagen.decodificarDataUrl(snap.data().datos);
+    const lectura = await leerCaptura({ buffer });
+    if (!lectura.disponible) return { vale: false, motivo: 'captura ilegible' };
+    const leida = bicis.normalizarBici(lectura.numeroBici);
+    if (!leida || leida !== bici) return { vale: false, motivo: `la captura no es de la bici ${bici}` };
+    if (lectura.fecha) {
+      const dias = (Date.now() - new Date(`${lectura.fecha}T12:00:00Z`).getTime()) / 864e5;
+      if (dias > LIMITES.DIAS_MAX_ANTIGUEDAD) return { vale: false, motivo: 'captura de hace mas de un mes' };
+    }
+    return { vale: true };
+  } catch (error) {
+    return { vale: false, motivo: `error al leerla: ${error.message}` };
+  }
+}
+
 async function procesarValoraciones() {
   try {
     const nuevas = await db.collection('valoraciones_bici')
@@ -746,9 +771,19 @@ async function procesarValoraciones() {
     for (const doc of nuevas.docs) {
       const v = doc.data();
       const n = bicis.normalizarBici(v.bici);
+      // Valorar sin subir viaje (11): la prueba es la captura. Aqui se lee y
+      // tiene que ser esa bici y de hace menos de un mes; si no, no cuenta.
+      const prueba = v.capturaId ? await comprobarCapturaDeBici(v.capturaId, n) : { vale: true };
       if (!SIMULAR) {
-        await doc.ref.update({ procesada: true, comentarioPublico: bicis.limpiarComentario(v.comentario) });
+        await doc.ref.update({
+          procesada: true,
+          comentarioPublico: bicis.limpiarComentario(v.comentario),
+          ...(prueba.vale ? { rechazada: false } : { rechazada: true, motivoRechazo: prueba.motivo }),
+        });
+        // La captura solo servia de prueba: fuera, que son 700 KB.
+        if (v.capturaId) await db.doc(`capturas/${v.capturaId}`).delete().catch(() => {});
       }
+      if (!prueba.vale) console.log(`  valoracion de la bici ${n} descartada: ${prueba.motivo}`);
       if (n) tocadas.add(n);
     }
     if (!SIMULAR) for (const n of tocadas) await bicis.rehacerBici(db, n);
@@ -1068,7 +1103,7 @@ async function premiar(doc, viaje) {
 
       const totales = misiones.acumular(
         previo.misiones, diaDelViaje,
-        { distanciaMetros: metros, velocidadKmh: kmh },
+        { distanciaMetros: metros, velocidadKmh: kmh, tiempoSegundos: viaje.tiempoSegundos || 0 },
         Boolean(destino) && !previas.has(destino)
       );
 
@@ -1244,10 +1279,13 @@ async function prepararDia() {
   // 15.000 acumulados era una de las tres cosas que quedaban leyendola entera.
   // Si el indice todavia no existe — proyecto recien estrenado — se cuenta a
   // mano una vez, que es exactamente lo que hacia antes siempre.
-  const porRuta = await conteoPorRuta();
+  // Primero el plan del año (data/rutas-destacadas.csv); sin plan para hoy,
+  // entre los tramos con actividad, como antes.
+  const planificada = rutasDestacadas.rutaPlanificada(hoy);
+  const porRuta = planificada ? null : await conteoPorRuta();
 
   const recientes = Array.isArray(datos.rutasHistoricas) ? datos.rutasHistoricas.slice(-7) : [];
-  const elegida = misiones.rutaDelDia(porRuta, recientes, hoy);
+  const elegida = planificada || misiones.rutaDelDia(porRuta, recientes, hoy);
 
   if (!elegida) {
     console.log('Sin tramos con actividad suficiente: hoy no hay ruta del dia.');

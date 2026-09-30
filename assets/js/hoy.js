@@ -32,7 +32,7 @@ const DIVISIONES = {
 };
 /** Lo mismo que `PUNTOS_MISION` del worker, para las misiones publicadas antes. */
 const PUNTOS_MISION = { distancia: 20, velocidad: 15, trayectos: 15, exploracion: 25 };
-const ICONO_MISION = { distancia: 'ruta', velocidad: 'rayo', exploracion: 'pin', trayectos: 'hoy' };
+const ICONO_MISION = { distancia: 'ruta', velocidad: 'rayo', exploracion: 'pin', trayectos: 'hoy', largo: 'flecha', minutos: 'reloj' };
 
 const coma = (n, dec = 1) => Number(n).toFixed(dec).replace('.', ',');
 const ordinal = (n) => `${n}.º`;
@@ -329,6 +329,8 @@ function textoProgreso(m, p) {
   if (!p || !p.hecho) return null;
   if (m.tipo === 'distancia') return `${coma(p.hecho / 1000)} de ${coma(m.objetivo / 1000)} km`;
   if (m.tipo === 'trayectos') return `${p.hecho} de ${m.objetivo}`;
+  if (m.tipo === 'largo') return `Tu mas largo hoy: ${coma((p.hecho || 0) / 1000)} km`;
+  if (m.tipo === 'minutos') return `${Math.floor((p.hecho || 0) / 60)} de ${Math.round(m.objetivo / 60)} min`;
   if (m.tipo === 'velocidad') return `Tu mejor hoy: ${coma(p.hecho)} km/h`;
   return null;
 }

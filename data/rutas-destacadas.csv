@@ -1,0 +1,366 @@
+fecha,ruta,origen,nombre_origen,destino,nombre_destino,km,minutos_estimados
+2026-10-01,005-002,005,Fuencarral,002,Metro Callao,1.28,6
+2026-10-02,275-223,275,"Juan Antonio Vallejo-Nájera Botas, 25",223,Ermita del Santo,1.98,9
+2026-10-03,384-224,384,Metro Usera,224,Parque de Caramuel,4.18,19
+2026-10-04,335-382,335,"Cardaño, 10",382,"Parque Eugenia de Montijo, 2",3.29,15
+2026-10-05,016-038,016,San Bernardo,038,Plaza de los Carros,1.80,8
+2026-10-06,177-119,177,Metro Legazpi,119,Méndez Álvaro,1.73,8
+2026-10-07,102-488,102,Metro Retiro,488,"Ricardo Ortiz, 33",3.11,14
+2026-10-08,045-356,045,Metro Puerta de Toledo,356,Portalegre - Tinamús,2.99,14
+2026-10-09,280-277,280,Ps de los Melancólicos - San Epifanio,277,Virgen del Puerto,1.51,7
+2026-10-10,314-004,314,Av. Valladolid - Parque de la Bombilla,004,Malasaña,3.22,15
+2026-10-11,049-352,049,Casa Encendida,352,Algorta  - General Ricardos,3.88,18
+2026-10-12,583-157,583,Ángel Múgica - Marcos de Orueta,157,Plaza de Cuzco,3.86,18
+2026-10-13,057-059,057,Santa Cruz de Marcenado,059,Plaza de Juan Pujol,1.12,5
+2026-10-14,299-570,299,Rosario Pino - Joan Maragall,570,Uni. Autónoma Madrid - Facul. Medicina,2.93,14
+2026-10-15,150-291,150,Castellana - Hermanos Pinzón,291,Plaza José María Soler,2.98,14
+2026-10-16,031-322,031,Mayor,322,Ps. Jesuitas - Mercado Alto Extremadura,3.46,16
+2026-10-17,088-127,088,Velázquez-Padilla,127,Mercado Municipal de Vallehermoso,2.84,13
+2026-10-18,170-080A,170,"Paseo de la Esperanza, 21",080A,Estación de Atocha A,1.86,9
+2026-10-19,295-255,295,Hernani - Edgar Neville,255,General López Pozas - Apolonio Morales,2.70,12
+2026-10-20,396-674,396,"Gran Avenida, 27",674,Instalación deportiva Victoria Hernández,2.78,13
+2026-10-21,057-036,057,Santa Cruz de Marcenado,036,Plaza Ramales,1.91,9
+2026-10-22,167-113,167,Segovia 45,113,Teleférico Madrid - Estación Rosales,2.10,10
+2026-10-23,569-582,569,C. Deportivo Mpal. Vicente del Bosque,582,Isla Graciosa - Isla de Java,2.29,11
+2026-10-24,016-132,016,San Bernardo,132,Glorieta de Cuatro Caminos,3.55,16
+2026-10-25,271-177,271,Amaltea-Meneses,177,Metro Legazpi,1.35,6
+2026-10-26,610-638,610,Bardegueral,638,Polideportivo Carlos Ruiz,2.56,12
+2026-10-27,608-494,608,Estella - Camino de Santiago,494,Metro Pinar de Chamartín,2.58,12
+2026-10-28,384-274,384,Metro Usera,274,Estación Sur Méndez Álvaro A,3.19,15
+2026-10-29,549-525,549,Francisco Pi y Maragall,525,Metro Manoteras,2.04,9
+2026-10-30,213-280,213,Glorieta de Cádiz,280,Ps de los Melancólicos - San Epifanio,2.84,13
+2026-10-31,178-020,178,Junta Municipal Distrito de Retiro,020,Banco de España,3.03,14
+2026-11-01,198-049,198,Metro Rubén Darío,049,Casa Encendida,4.07,19
+2026-11-02,135-114,135,Plaza de San Juan de la Cruz,114,Quintana - Juan Álvarez de Mendizábal,3.49,16
+2026-11-03,189-546,189,Virgen de la Alegría,546,Andorra - Canillas,4.29,20
+2026-11-04,192-218,192,Avda. de los Toreros - Fco. Silvela,218,Camino de los Vinateros A,3.58,17
+2026-11-05,132-116A,132,Glorieta de Cuatro Caminos,116A,Plaza de España - Martín de los Heros,3.57,16
+2026-11-06,273-282,273,Delicias - General Lacy,282,Parque Retiro - Puerta Reina Mercedes,2.56,12
+2026-11-07,139-094,139,José Gutiérrez Abascal - Castellana,094,Estación de tren de Recoletos,2.43,11
+2026-11-08,424-175,424,"Camino de Valderribas, 47",175,Jaime el Conquistador - Divino Vallés,3.98,18
+2026-11-09,082-047,082,Doctor Esquerdo - Metro Conde de Casal,047,Renfe/Cercanías Embajadores,3.82,18
+2026-11-10,643-639,643,Plaza Mercedes Llorente,639,Madroño Del Paular,3.11,14
+2026-11-11,189-250,189,Virgen de la Alegría,250,Serrano - CSIC,3.56,16
+2026-11-12,073-460,073,Plaza de los Astros,460,Fuente Carrantona - Doctor García Tapia,4.26,20
+2026-11-13,169-053,169,Glorieta de Pirámides,053,Plaza de Lavapiés,1.80,8
+2026-11-14,203-026,203,General Ampudia - San Francisco Sales,026,Plaza de las Salesas,3.52,16
+2026-11-15,313-136,313,"Juan XXIII, 24",136,Metro Nuevos Ministerios,3.02,14
+2026-11-16,003-107,003,Plaza Conde Suchil,107,Serrano - Conde de Aranda,2.53,12
+2026-11-17,499-518,499,Biblioteca Pública Municipal Canillejas,518,Tampico - Plaza Barbados,2.66,12
+2026-11-18,031-323,031,Mayor,323,Centro Deportivo Municipal Gallur,4.27,20
+2026-11-19,075-052,075,Parque del Retiro - Plaza Mariano Cavia,052,Plaza de Santa Ana,2.72,13
+2026-11-20,598-307,598,Hospital Ramón y Cajal,307,Metro Valdezarza,4.10,19
+2026-11-21,104-076,104,Castellana - Hermosilla,076,"Avenida del Mediterráneo, 19",3.36,16
+2026-11-22,138-007,138,Estación de tren Nuevos Ministerios,007,"Hortaleza, 75",3.17,15
+2026-11-23,078-046,078,Metro Pacífico,046,Ribera de Curtidores,3.79,18
+2026-11-24,115-162,115,Ferraz - Templo de Debod,162,Metro Pirámides,3.36,15
+2026-11-25,269-354,269,Ariel - Parque Enrique Tierno Galván,354,Jacinto Verdaguer - Lola de Membrives,4.18,19
+2026-11-26,161-103,161,Intercambiador de Príncipe Pío A,103,Ortega y Gasset - Serrano,4.23,20
+2026-11-27,075-120,075,Parque del Retiro - Plaza Mariano Cavia,120,Metro Palos de la Frontera,2.02,9
+2026-11-28,019-126,019,Prim,126,General Álvarez de Castro,2.04,9
+2026-11-29,679-682,679,Metro Hortaleza,682,Centro operaciones EMT SANCHINARRO,1.45,7
+2026-11-30,018-125,018,Plaza de Pedro Zerolo,125,Fdez. de la Hoz - Gral. Martínez Campos,2.23,10
+2026-12-01,525-252,525,Metro Manoteras,252,Est. tren Chamartín - Clara Campoamor,2.54,12
+2026-12-02,356-326,356,Portalegre - Tinamús,326,Metro Alto de Extremadura,3.51,16
+2026-12-03,354-263,354,Jacinto Verdaguer - Lola de Membrives,263,Gran Vía de San Francisco,1.90,9
+2026-12-04,514-464,514,María Sevilla Diago,464,Univ. Rey Juan Carlos - Campus Madrid,3.98,18
+2026-12-05,012-110,012,San Hermenegildo,110,Intercambiador de Moncloa,1.85,9
+2026-12-06,277-393,277,Virgen del Puerto,393,"Manuel Noya , 29",4.08,19
+2026-12-07,498-501,498,Metro Torre Arias,501,Metro Alsacia,3.68,17
+2026-12-08,094-025A,094,Estación de tren de Recoletos,025A,Plaza de Celenque A,1.93,9
+2026-12-09,190-055,190,Velázquez - Diego de León,055,Plaza de San Ildefonso,2.64,12
+2026-12-10,116B-020,116B,Metro Plaza de España,020,Banco de España,1.89,9
+2026-12-11,096-099,096,Alcalá - Castelló,099,Alcántara - Hermosilla,1.11,5
+2026-12-12,036-174,036,Plaza Ramales,174,"Paseo de las Yeserías, 45",2.99,14
+2026-12-13,231-491,231,Derechos Humanos - Verdaguer y García,491,Esteban Collantes - José Arcones Gil,2.31,11
+2026-12-14,524-682,524,Glorieta Luis Rosales,682,Centro operaciones EMT SANCHINARRO,2.60,12
+2026-12-15,126-237,126,General Álvarez de Castro,237,Acueducto de Amaniel,2.74,13
+2026-12-16,125-211,125,Fdez. de la Hoz - Gral. Martínez Campos,211,Desengaño - Valverde,2.37,11
+2026-12-17,291-151,291,Plaza José María Soler,151,Orense 12,3.47,16
+2026-12-18,593-302,593,Metro Avenida de la Ilustración,302,Ps. Dirección B - Pque A. Rguez Sahagún,2.26,10
+2026-12-19,140-003,140,Velázquez - López de Hoyos,003,Plaza Conde Suchil,3.04,14
+2026-12-20,424-433,424,"Camino de Valderribas, 47",433,"Villalobos, 28",3.17,15
+2026-12-21,085-009,085,Parque del Retiro - Puerta de O´Donnell,009,Plaza de San Miguel,3.49,16
+2026-12-22,024-097,024,Palacio de Oriente,097,Metro Príncipe de Vergara,3.55,16
+2026-12-23,234-484,234,Metro La Elipa,484,Metro García Noblejas,2.18,10
+2026-12-24,010-011,010,Marqués de la Ensenada,011,Plaza del Dos de Mayo,1.33,6
+2026-12-25,235-029,235,Sodio - Embajadores,029,Marqués de Cubas,4.14,19
+2026-12-26,102-194,102,Metro Retiro,194,Intercambiador de Avenida de América,2.55,12
+2026-12-27,165-377,165,Entrada Matadero - Paseo de la Chopera,377,Metro Abrantes,3.90,18
+2026-12-28,176-392,176,Plaza de la Beata María Ana de Jesús,392,Metro Almendrales,1.78,8
+2026-12-29,590-595,590,Metro Arroyofresno,595,Betanzos - Fermín Caballero,2.14,10
+2026-12-30,183-105,183,Hermosilla - Doctor Esquerdo,105,"Serrano, 46",2.09,10
+2026-12-31,357-362,357,Sorbe - Baleares,362,"Hilario Herranz Establos, 36",2.98,14
+2027-01-01,167-034,167,Segovia 45,034,Jacinto Benavente,1.58,7
+2027-01-02,586-248,586,Caldas Estrach - San Cugat del Vallés,248,Sinesio Delgado - Cuatro Torres,3.48,16
+2027-01-03,129-192,129,Metro Alonso Cano,192,Avda. de los Toreros - Fco. Silvela,3.21,15
+2027-01-04,615-206,615,Avenida Juan de Andrés 21,206,Metro Tetuán,2.97,14
+2027-01-05,333-377,333,Illescas - Camarena,377,Metro Abrantes,3.66,17
+2027-01-06,556-522,556,"Cantabria, 6",522,Metro Estadio Metropolitano,3.54,16
+2027-01-07,214-285,214,Condesa de Venadito - Albacete,285,Santa María Magdalena - La Drácena,3.34,15
+2027-01-08,051-213,051,Ronda de Atocha,213,Glorieta de Cádiz,2.92,13
+2027-01-09,354-211,354,Jacinto Verdaguer - Lola de Membrives,211,Desengaño - Valverde,4.02,19
+2027-01-10,095-293,095,Claudio Coello - Villanueva,293,Santa Rita - Clara del Rey,4.09,19
+2027-01-11,068-099,068,Espalter - Ruiz de Alarcón,099,Alcántara - Hermosilla,2.81,13
+2027-01-12,055-020,055,Plaza de San Ildefonso,020,Banco de España,1.10,5
+2027-01-13,279-041,279,"Paseo de los Melancólicos, 1",041,Metro Antón Martín,2.23,10
+2027-01-14,050-177,050,Museo Reina Sofía,177,Metro Legazpi,2.40,11
+2027-01-15,345-333,345,Fuente del Tiro - Avd. de las Águilas,333,Illescas - Camarena,3.02,14
+2027-01-16,236-106A,236,Paseo Imperial,106A,Plaza de Colón A,4.24,20
+2027-01-17,048-092,048,Juan Sebastián Elcano,092,Claudio Coello - Hermosilla,3.74,17
+2027-01-18,004-137,004,Malasaña,137,Plaza de la República Argentina,3.20,15
+2027-01-19,104-116B,104,Castellana - Hermosilla,116B,Metro Plaza de España,2.43,11
+2027-01-20,247-133,247,Zurbano - José Abascal,133,Raimundo Fdez. Villaverde - Dulcinea,1.56,7
+2027-01-21,436-475,436,Campus Sur UPM,475,Aurora Boreal - Minerva,3.01,14
+2027-01-22,125-067,125,Fdez. de la Hoz - Gral. Martínez Campos,067,CaixaForum Madrid,3.67,17
+2027-01-23,042-010,042,Santa Isabel,010,Marqués de la Ensenada,2.30,11
+2027-01-24,601-591,601,Estación de tren de Fuencarral,591,Metro Mirasierra,4.16,19
+2027-01-25,245-155,245,Galileo - Donoso Cortés,155,San Germán 57,3.32,15
+2027-01-26,061-143,061,O Donnell - Narváez,143,Diego de León - General Pardiñas,2.01,9
+2027-01-27,081-228,081,Cuesta de Moyano,228,San Delfín - Antonio López,2.91,13
+2027-01-28,163-122,163,Metro Acacias,122,Santa Engracia - Zurbarán,4.04,19
+2027-01-29,148-480,148,Serrano 210,480,Vicente Muzas - Arturo Soria,2.67,12
+2027-01-30,126-039,126,General Álvarez de Castro,039,Plaza de la Cebada,3.59,17
+2027-01-31,323-346,323,Centro Deportivo Municipal Gallur,346,Metro Empalme,3.68,17
+2027-02-01,276-376,276,"Paseo de las Yeserías, 15",376,Metro Carpetana,3.64,17
+2027-02-02,534-209,534,"Mesena, 102",209,Plaza de Castilla - Fundación Canal,2.90,13
+2027-02-03,059-129,059,Plaza de Juan Pujol,129,Metro Alonso Cano,2.05,9
+2027-02-04,619-416,619,Cooperativa Electrica 13,416,Ramírez Tomé,2.66,12
+2027-02-05,124-133,124,Metro Bilbao,133,Raimundo Fdez. Villaverde - Dulcinea,2.43,11
+2027-02-06,004-080B,004,Malasaña,080B,Estación de Atocha B,3.45,16
+2027-02-07,002-042,002,Metro Callao,042,Santa Isabel,1.66,8
+2027-02-08,290-195,290,Francisco Suárez - Paseo de La Habana,195,Indalecio Hernández - Mataelpino,3.81,18
+2027-02-09,067-102,067,CaixaForum Madrid,102,Metro Retiro,1.86,9
+2027-02-10,103-210,103,Ortega y Gasset - Serrano,210,Calle de las Tres Cruces - Gran Vía,2.45,11
+2027-02-11,527-582,527,Velacho Alto - Trinquete,582,Isla Graciosa - Isla de Java,4.32,20
+2027-02-12,279-168,279,"Paseo de los Melancólicos, 1",168,Santa María Cabeza - Batalla del Salado,2.73,13
+2027-02-13,358-047,358,Verdad,047,Renfe/Cercanías Embajadores,2.53,12
+2027-02-14,456-435,456,"Encomienda de Palacios, 8",435,San Claudio,1.89,9
+2027-02-15,610-315,610,Bardegueral,315,Caroli,1.93,9
+2027-02-16,411-385,411,Estación de tren de Villaverde Alto,385,Estación de tren Orcasitas,3.93,18
+2027-02-17,519-509,519,"Troya, 11",509,Amposta - Arcos de Jalón,2.35,11
+2027-02-18,014-133,014,Ventura Rodríguez,133,Raimundo Fdez. Villaverde - Dulcinea,3.50,16
+2027-02-19,216-614,216,Plaza de Puerta del Ángel,614,Biblioteca central de la UNED,3.30,15
+2027-02-20,140-254,140,Velázquez - López de Hoyos,254,Plaza del Perú,3.42,16
+2027-02-21,493-255,493,Arturo Soria - San Luis,255,General López Pozas - Apolonio Morales,2.72,13
+2027-02-22,329-364,329,Metro Laguna,364,Metro Opañel,3.10,14
+2027-02-23,511-503,511,Aquitania 31,503,Zaldívar - Valdecanillas,2.21,10
+2027-02-24,209-306,209,Plaza de Castilla - Fundación Canal,306,Centro Deportivo Mpal Fernando Martín,2.75,13
+2027-02-25,023-276,023,Santo Domingo,276,"Paseo de las Yeserías, 15",3.20,15
+2027-02-26,018-070,018,Plaza de Pedro Zerolo,070,Hospital Uni. Infantil Niño Jesús,2.63,12
+2027-02-27,004-042,004,Malasaña,042,Santa Isabel,2.71,13
+2027-02-28,035-228,035,"Doctor Letamendi, 3",228,San Delfín - Antonio López,2.90,13
+2027-03-01,258-309,258,Metro Ciudad Universitaria A,309,Ofelia Nieto - Villaamil,3.38,16
+2027-03-02,186-060,186,General Pardiñas - Don Ramón de la Cruz,060,Puerta de Alcalá,1.96,9
+2027-03-03,046-065,046,Ribera de Curtidores,065,Parque del Retiro - Calle Antonio Maura,2.65,12
+2027-03-04,061-190,061,O Donnell - Narváez,190,Velázquez - Diego de León,2.14,10
+2027-03-05,355-386,355,Intercambiador de Plaza Elíptica,386,"Avenida de los Poblados, 130",1.89,9
+2027-03-06,265-226,265,Puerto Serrano - Embajadores,226,Sierra Toledana - Camino de Valderribas,3.77,17
+2027-03-07,397-394,397,Centro Deportivo Municipal Orcasur,394,"Periana, 24",1.24,6
+2027-03-08,488-088,488,"Ricardo Ortiz, 33",088,Velázquez-Padilla,3.04,14
+2027-03-09,216-351,216,Plaza de Puerta del Ángel,351,Comandante Fontanes - General Ricardos,2.98,14
+2027-03-10,543-611,543,Tomas Redondo,611,María de las Mercedes de Borbón A,3.47,16
+2027-03-11,140-210,140,Velázquez - López de Hoyos,210,Calle de las Tres Cruces - Gran Vía,3.64,17
+2027-03-12,089-122,089,Ayala - Conde de Peñalver,122,Santa Engracia - Zurbarán,2.44,11
+2027-03-13,055-170,055,Plaza de San Ildefonso,170,"Paseo de la Esperanza, 21",3.45,16
+2027-03-14,222-359,222,Eugenio Caxes - Antonio López,359,El Toboso - Zaida,3.85,18
+2027-03-15,362-404,362,"Hilario Herranz Establos, 36",404,Junta Municipal Distrito de Villaverde,3.99,18
+2027-03-16,280-057,280,Ps de los Melancólicos - San Epifanio,057,Santa Cruz de Marcenado,4.23,20
+2027-03-17,016-168,016,San Bernardo,168,Santa María Cabeza - Batalla del Salado,3.05,14
+2027-03-18,287-300,287,Metro Bambú,300,Capitan Blanco Argibay - Alfalfa,3.41,16
+2027-03-19,580-157,580,Metro Herrera Oria,157,Plaza de Cuzco,4.09,19
+2027-03-20,127-151,127,Mercado Municipal de Vallehermoso,151,Orense 12,2.70,12
+2027-03-21,372-361,372,"Lonja de la Seda, 33",361,Metro Pan Bendito,3.71,17
+2027-03-22,418-620,418,Puerto de Arlabán - San Diego,620,Calle Cazorla 79,1.53,7
+2027-03-23,012-099,012,San Hermenegildo,099,Alcántara - Hermosilla,3.69,17
+2027-03-24,225-101,225,Sierra Toledana - Doctor Lozano,101,Metro O Donnell,3.27,15
+2027-03-25,420-180,420,"Candilejas, 5",180,Estación Sur Méndez Álvaro B,2.26,10
+2027-03-26,216-167,216,Plaza de Puerta del Ángel,167,Segovia 45,1.31,6
+2027-03-27,596-317,596,Metro Lacoma,317,"Antonio Machado, 30",2.62,12
+2027-03-28,090-108,090,Metro Velázquez,108,Mártires Concepcionistas - Alcalá,1.54,7
+2027-03-29,294-100,294,Edificio Torres Blancas,100,Wizink Center,2.43,11
+2027-03-30,026-078,026,Plaza de las Salesas,078,Metro Pacífico,4.17,19
+2027-03-31,148-151,148,Serrano 210,151,Orense 12,1.63,8
+2027-04-01,201-251,201,Metro Canal,251,Santa Hortensia - Corazón de María,4.31,20
+2027-04-02,172-038,172,Estación de tren de Delicias,038,Plaza de los Carros,2.60,12
+2027-04-03,256-030,256,Reina Victoria - Beatriz de Bobadilla,030,San Quintín,4.08,19
+2027-04-04,170-007,170,"Paseo de la Esperanza, 21",007,"Hortaleza, 75",3.70,17
+2027-04-05,018-057,018,Plaza de Pedro Zerolo,057,Santa Cruz de Marcenado,1.97,9
+2027-04-06,129-116B,129,Metro Alonso Cano,116B,Metro Plaza de España,2.61,12
+2027-04-07,351-326,351,Comandante Fontanes - General Ricardos,326,Metro Alto de Extremadura,3.01,14
+2027-04-08,294-083,294,Edificio Torres Blancas,083,Pío Baroja,4.16,19
+2027-04-09,568-548,568,IFEMA A,548,Eduardo Mazón - Guadalajara,1.69,8
+2027-04-10,171-038,171,Embajadores-Cáceres,038,Plaza de los Carros,2.31,11
+2027-04-11,196-155,196,Metro Prosperidad,155,San Germán 57,3.54,16
+2027-04-12,270-352,270,Teresa L. Valcárcel - Tte. Cnel. Noreña,352,Algorta  - General Ricardos,3.93,18
+2027-04-13,167-003,167,Segovia 45,003,Plaza Conde Suchil,2.75,13
+2027-04-14,407-402,407,"Carmen de Burgos, 4",402,"Berrocal, 9",2.25,10
+2027-04-15,312-318,312,Metro Batán,318,C. Deportivo Mpal. José María Cagigal,4.07,19
+2027-04-16,449-452,449,Metro Congosto,452,"Las Suertes, 15",1.26,6
+2027-04-17,141-025B,141,Plaza de Emilio Castelar,025B,Plaza de Celenque B,3.30,15
+2027-04-18,295-105,295,Hernani - Edgar Neville,105,"Serrano, 46",3.34,15
+2027-04-19,138-088,138,Estación de tren Nuevos Ministerios,088,Velázquez-Padilla,2.33,11
+2027-04-20,081-246,081,Cuesta de Moyano,246,Metro Iglesia,4.08,19
+2027-04-21,082-027,082,Doctor Esquerdo - Metro Conde de Casal,027,Huertas,3.05,14
+2027-04-22,101-120,101,Metro O Donnell,120,Metro Palos de la Frontera,4.16,19
+2027-04-23,330-363,330,Duquesa de Parcent - Marcelino Castillo,363,Metro Oporto,2.04,9
+2027-04-24,529-546,529,"Lopez de Hoyos , 478",546,Andorra - Canillas,1.38,6
+2027-04-25,173-177,173,Paseo Esperanza - Santa María Cabeza,177,Metro Legazpi,1.40,6
+2027-04-26,134-065,134,María de Guzmán - Agustín de Betancourt,065,Parque del Retiro - Calle Antonio Maura,4.18,19
+2027-04-27,263-104,263,Gran Vía de San Francisco,104,Castellana - Hermosilla,3.83,18
+2027-04-28,311-114,311,C. Universitaria - F. Geografía e Histo,114,Quintana - Juan Álvarez de Mendizábal,3.61,17
+2027-04-29,088-113,088,Velázquez-Padilla,113,Teleférico Madrid - Estación Rosales,4.25,20
+2027-04-30,094-017,094,Estación de tren de Recoletos,017,Plaza de Carlos Cambronero,1.64,8
+2027-05-01,121-016,121,Glorieta de Santa María de la Cabeza,016,San Bernardo,3.34,15
+2027-05-02,071-242,071,Plaza del Doctor Laguna,242,Metro Parque de las Avenidas,3.73,17
+2027-05-03,479-290,479,Metro Arturo Soria,290,Francisco Suárez - Paseo de La Habana,3.11,14
+2027-05-04,061-211,061,O Donnell - Narváez,211,Desengaño - Valverde,3.10,14
+2027-05-05,587-598,587,Metro Paco de Lucía,598,Hospital Ramón y Cajal,2.71,13
+2027-05-06,062-096,062,Hospital M. Infantil Gregorio Marañón,096,Alcalá - Castelló,1.11,5
+2027-05-07,047-012,047,Renfe/Cercanías Embajadores,012,San Hermenegildo,3.61,17
+2027-05-08,228-025B,228,San Delfín - Antonio López,025B,Plaza de Celenque B,3.46,16
+2027-05-09,297-304,297,Simancas - Pinos Alta,304,"Valle de Mena, 5",2.38,11
+2027-05-10,241-214,241,Camilo José Cela,214,Condesa de Venadito - Albacete,1.50,7
+2027-05-11,092-050,092,Claudio Coello - Hermosilla,050,Museo Reina Sofía,3.04,14
+2027-05-12,011-181,011,Plaza del Dos de Mayo,181,Ibiza - Narváez,3.38,16
+2027-05-13,082-427,082,Doctor Esquerdo - Metro Conde de Casal,427,"Andaluces, 2",4.12,19
+2027-05-14,131-313,131,Plaza de Juan Zorrilla,313,"Juan XXIII, 24",1.75,8
+2027-05-15,542-538,542,Intercambiador de Valdebebas,538,"Haendel, 8",3.37,16
+2027-05-16,314-211,314,Av. Valladolid - Parque de la Bombilla,211,Desengaño - Valverde,3.51,16
+2027-05-17,508-563,508,Metro Canillejas,563,Soto Hidalgo,3.59,17
+2027-05-18,262-544,262,María de las Mercedes de Borbón B,544,Gregorio Sánchez Herráez 14,3.00,14
+2027-05-19,226-623,226,Sierra Toledana - Camino de Valderribas,623,"Ronda del Sur, esq Santa Rafaela",3.49,16
+2027-05-20,057-167,057,Santa Cruz de Marcenado,167,Segovia 45,2.44,11
+2027-05-21,633-025B,633,HUB Plaza de España,025B,Plaza de Celenque B,1.27,6
+2027-05-22,121-387,121,Glorieta de Santa María de la Cabeza,387,"Isabelita Usera, 44",3.04,14
+2027-05-23,573-590,573,Melchor Fernández Almagro - Villa Marín,590,Metro Arroyofresno,3.76,17
+2027-05-24,001-123,001,Metro Sol,123,Metro Argüelles,2.31,11
+2027-05-25,047-033,047,Renfe/Cercanías Embajadores,033,Puerta del Sol,1.80,8
+2027-05-26,592-599,592,Estación de tren de Pitis,599,Instalación Deportiva La Cabrera,3.58,17
+2027-05-27,051-263,051,Ronda de Atocha,263,Gran Vía de San Francisco,2.21,10
+2027-05-28,551-527,551,Oña,527,Velacho Alto - Trinquete,2.62,12
+2027-05-29,071-006,071,Plaza del Doctor Laguna,006,Colegio de Arquitectos,3.06,14
+2027-05-30,029-013,029,Marqués de Cubas,013,Conde Duque,2.35,11
+2027-05-31,247-092,247,Zurbano - José Abascal,092,Claudio Coello - Hermosilla,1.95,9
+2027-06-01,283-057,283,Museo Nacional del Prado,057,Santa Cruz de Marcenado,3.20,15
+2027-06-02,089-082,089,Ayala - Conde de Peñalver,082,Doctor Esquerdo - Metro Conde de Casal,2.89,13
+2027-06-03,027-078,027,Huertas,078,Metro Pacífico,3.08,14
+2027-06-04,129-190,129,Metro Alonso Cano,190,Velázquez - Diego de León,1.80,8
+2027-06-05,481-527,481,Diego Ayllón - Arturo Soria,527,Velacho Alto - Trinquete,3.30,15
+2027-06-06,439-451,439,Cabeza Mesada - Parque de Valdeperdices,451,"La Granja de San Ildefonso, 14",1.46,7
+2027-06-07,568-557,568,IFEMA A,557,Metro Alameda de Osuna,3.50,16
+2027-06-08,247-102,247,Zurbano - José Abascal,102,Metro Retiro,2.76,13
+2027-06-09,205-195,205,Metro Estrecho,195,Indalecio Hernández - Mataelpino,3.83,18
+2027-06-10,063-269,063,Hospital Gral. Uni. Gregorio Marañón,269,Ariel - Parque Enrique Tierno Galván,3.87,18
+2027-06-11,309-569,309,Ofelia Nieto - Villaamil,569,C. Deportivo Mpal. Vicente del Bosque,2.97,14
+2027-06-12,196-101,196,Metro Prosperidad,101,Metro O Donnell,3.24,15
+2027-06-13,525-287,525,Metro Manoteras,287,Metro Bambú,1.54,7
+2027-06-14,128-103,128,Metro Islas Filipinas,103,Ortega y Gasset - Serrano,3.53,16
+2027-06-15,181-274,181,Ibiza - Narváez,274,Estación Sur Méndez Álvaro A,3.26,15
+2027-06-16,674-396,674,Instalación deportiva Victoria Hernández,396,"Gran Avenida, 27",2.78,13
+2027-06-17,366-387,366,Metro Carabanchel,387,"Isabelita Usera, 44",4.27,20
+2027-06-18,335-321,335,"Cardaño, 10",321,Metro Casa de Campo,1.47,7
+2027-06-19,115-045,115,Ferraz - Templo de Debod,045,Metro Puerta de Toledo,2.85,13
+2027-06-20,420-235,420,"Candilejas, 5",235,Sodio - Embajadores,3.35,15
+2027-06-21,391-271,391,Junta Municipal Distrito de Usera,271,Amaltea-Meneses,3.76,17
+2027-06-22,121-068,121,Glorieta de Santa María de la Cabeza,068,Espalter - Ruiz de Alarcón,1.85,9
+2027-06-23,498-537,498,Metro Torre Arias,537,Plaza López de la Plata,2.47,11
+2027-06-24,056-080A,056,Plaza del Carmen,080A,Estación de Atocha A,2.30,11
+2027-06-25,178-025B,178,Junta Municipal Distrito de Retiro,025B,Plaza de Celenque B,3.78,17
+2027-06-26,079-047,079,Metro Menéndez Pelayo,047,Renfe/Cercanías Embajadores,2.56,12
+2027-06-27,135-106B,135,Plaza de San Juan de la Cruz,106B,Plaza de Colón B,2.57,12
+2027-06-28,090-026,090,Metro Velázquez,026,Plaza de las Salesas,1.23,6
+2027-06-29,516-230,516,Juan Ignacio Luca Tena - Quinta Molinos,230,Carlota O´Neill - Agastia,2.12,10
+2027-06-30,121-352,121,Glorieta de Santa María de la Cabeza,352,Algorta  - General Ricardos,3.63,17
+2027-07-01,524-493,524,Glorieta Luis Rosales,493,Arturo Soria - San Luis,2.11,10
+2027-07-02,016-132,016,San Bernardo,132,Glorieta de Cuatro Caminos,3.55,16
+2027-07-03,313-005,313,"Juan XXIII, 24",005,Fuencarral,3.39,16
+2027-07-04,012-032,012,San Hermenegildo,032,Plaza de la Provincia,2.07,10
+2027-07-05,111A-007,111A,Metro Moncloa A,007,"Hortaleza, 75",2.59,12
+2027-07-06,055-314,055,Plaza de San Ildefonso,314,Av. Valladolid - Parque de la Bombilla,3.38,16
+2027-07-07,279-376,279,"Paseo de los Melancólicos, 1",376,Metro Carpetana,3.71,17
+2027-07-08,109-153,109,Marqués de Salamanca,153,General Perón - Poeta Joan Maragall,3.61,17
+2027-07-09,351-320,351,Comandante Fontanes - General Ricardos,320,Metro Lago,3.59,17
+2027-07-10,139-299,139,José Gutiérrez Abascal - Castellana,299,Rosario Pino - Joan Maragall,3.40,16
+2027-07-11,470-501,470,Avenida Real - Galeote,501,Metro Alsacia,3.26,15
+2027-07-12,003-135,003,Plaza Conde Suchil,135,Plaza de San Juan de la Cruz,2.36,11
+2027-07-13,256-319,256,Reina Victoria - Beatriz de Bobadilla,319,Valdesangil,3.33,15
+2027-07-14,124-168,124,Metro Bilbao,168,Santa María Cabeza - Batalla del Salado,3.98,18
+2027-07-15,471-443,471,Molino Viejo - Minerva,443,"Fuentespina, 33",2.54,12
+2027-07-16,251-105,251,Santa Hortensia - Corazón de María,105,"Serrano, 46",3.49,16
+2027-07-17,122-111B,122,Santa Engracia - Zurbarán,111B,Metro Moncloa B,2.53,12
+2027-07-18,244-054,244,Hospital Clínico San Carlos,054,Metro Tribunal,2.81,13
+2027-07-19,293-089,293,Santa Rita - Clara del Rey,089,Ayala - Conde de Peñalver,2.89,13
+2027-07-20,508-506,508,Metro Canillejas,506,Albarracín - Julián Camarillo,3.47,16
+2027-07-21,093-116A,093,Plaza de Margaret Thatcher,116A,Plaza de España - Martín de los Heros,2.73,13
+2027-07-22,190-254,190,Velázquez - Diego de León,254,Plaza del Perú,4.08,19
+2027-07-23,173-033,173,Paseo Esperanza - Santa María Cabeza,033,Puerta del Sol,2.73,13
+2027-07-24,322-377,322,Ps. Jesuitas - Mercado Alto Extremadura,377,Metro Abrantes,4.15,19
+2027-07-25,320-110,320,Metro Lago,110,Intercambiador de Moncloa,3.16,15
+2027-07-26,389-359,389,Julio Merino - Pilarica,359,El Toboso - Zaida,4.07,19
+2027-07-27,574-207,574,Chantada,207,Plaza de la Remonta,2.10,10
+2027-07-28,137-060,137,Plaza de la República Argentina,060,Puerta de Alcalá,4.01,19
+2027-07-29,455-434,455,"Luis de Hoyos Sainz,  198",434,Charleroi - Cocherón de la Villa,2.75,13
+2027-07-30,571-286,571,Melchor Fernández Almagro - Plaza Tuy,286,Plaza Duque de Pastrana,3.88,18
+2027-07-31,102-272,102,Metro Retiro,272,Tejo - Parque La Ronda,3.73,17
+2027-08-01,311-013,311,C. Universitaria - F. Geografía e Histo,013,Conde Duque,4.14,19
+2027-08-02,124-199,124,Metro Bilbao,199,"Fernando el Católico, 61",1.85,9
+2027-08-03,197-301,197,Parque de Berlín,301,Muller - Capitan Blanco Argibay,3.10,14
+2027-08-04,225-620,225,Sierra Toledana - Doctor Lozano,620,Calle Cazorla 79,3.98,18
+2027-08-05,149-110,149,Plaza de Quito,110,Intercambiador de Moncloa,4.32,20
+2027-08-06,172-038,172,Estación de tren de Delicias,038,Plaza de los Carros,2.60,12
+2027-08-07,317-244,317,"Antonio Machado, 30",244,Hospital Clínico San Carlos,4.24,20
+2027-08-08,257-132,257,Ciudad Universitaria - INEF,132,Glorieta de Cuatro Caminos,3.28,15
+2027-08-09,085-078,085,Parque del Retiro - Puerta de O´Donnell,078,Metro Pacífico,3.16,15
+2027-08-10,037-325,037,"Calatrava, 38",325,Ps. Jesuitas - Pza. Cerro Bermejo,1.95,9
+2027-08-11,467-440,467,Univ. Rey Juan Carlos - Facultad  CJS,440,Metro Villa de Vallecas,4.28,20
+2027-08-12,052-178,052,Plaza de Santa Ana,178,Junta Municipal Distrito de Retiro,3.06,14
+2027-08-13,459-268,459,Moratalaz,268,Metro Arganzuela-Planetario,3.94,18
+2027-08-14,394-270,394,"Periana, 24",270,Teresa L. Valcárcel - Tte. Cnel. Noreña,3.35,15
+2027-08-15,527-546,527,Velacho Alto - Trinquete,546,Andorra - Canillas,2.03,9
+2027-08-16,024-228,024,Palacio de Oriente,228,San Delfín - Antonio López,3.52,16
+2027-08-17,017-048,017,Plaza de Carlos Cambronero,048,Juan Sebastián Elcano,2.85,13
+2027-08-18,165-002,165,Entrada Matadero - Paseo de la Chopera,002,Metro Callao,4.23,20
+2027-08-19,104-098,104,Castellana - Hermosilla,098,Plaza de Felipe II,1.63,8
+2027-08-20,616-577,616,Alcalde Martín de Alzaga,577,Monforte de Lemos - Plaza de Mondariz,2.75,13
+2027-08-21,084-089,084,Biblioteca Pública Elena Fortún,089,Ayala - Conde de Peñalver,3.57,16
+2027-08-22,125-052,125,Fdez. de la Hoz - Gral. Martínez Campos,052,Plaza de Santa Ana,3.20,15
+2027-08-23,070-065,070,Hospital Uni. Infantil Niño Jesús,065,Parque del Retiro - Calle Antonio Maura,1.33,6
+2027-08-24,018-200,018,Plaza de Pedro Zerolo,200,Metro Quevedo,2.01,9
+2027-08-25,103-151,103,Ortega y Gasset - Serrano,151,Orense 12,2.92,13
+2027-08-26,274-419,274,Estación Sur Méndez Álvaro A,419,Estación de tren de El Pozo,4.24,20
+2027-08-27,097-118,097,Metro Príncipe de Vergara,118,"OFICINA DEL SER, APR Y BICIREGISTRO",3.39,16
+2027-08-28,116B-263,116B,Metro Plaza de España,263,Gran Vía de San Francisco,2.32,11
+2027-08-29,380-351,380,Oca,351,Comandante Fontanes - General Ricardos,1.66,8
+2027-08-30,499-510,499,Biblioteca Pública Municipal Canillejas,510,Metro Avenida de Guadalajara,3.67,17
+2027-08-31,623-222,623,"Ronda del Sur, esq Santa Rafaela",222,Eugenio Caxes - Antonio López,3.99,18
+2027-09-01,049-169,049,Casa Encendida,169,Glorieta de Pirámides,1.79,8
+2027-09-02,035-129,035,"Doctor Letamendi, 3",129,Metro Alonso Cano,3.95,18
+2027-09-03,153-194,153,General Perón - Poeta Joan Maragall,194,Intercambiador de Avenida de América,2.94,14
+2027-09-04,014-295,014,Ventura Rodríguez,295,Hernani - Edgar Neville,3.79,17
+2027-09-05,051-268,051,Ronda de Atocha,268,Metro Arganzuela-Planetario,2.22,10
+2027-09-06,195-231,195,Indalecio Hernández - Mataelpino,231,Derechos Humanos - Verdaguer y García,2.25,10
+2027-09-07,530-538,530,Metro Mar de Cristal,538,"Haendel, 8",1.68,8
+2027-09-08,237-135,237,Acueducto de Amaniel,135,Plaza de San Juan de la Cruz,2.52,12
+2027-09-09,297-525,297,Simancas - Pinos Alta,525,Metro Manoteras,4.07,19
+2027-09-10,120-388,120,Metro Palos de la Frontera,388,Estación tren - Hospital 12 de Octubre,3.76,17
+2027-09-11,090-246,090,Metro Velázquez,246,Metro Iglesia,2.39,11
+2027-09-12,022-295,022,Jacometrezo 3,295,Hernani - Edgar Neville,4.33,20
+2027-09-13,8000-183,8000,EV Puente de Vallecas,183,Hermosilla - Doctor Esquerdo,4.20,19
+2027-09-14,433-227,433,"Villalobos, 28",227,Arroyo del Olivar,2.52,12
+2027-09-15,217-159,217,Hospital Universitario La Paz,159,Paseo de la Habana 63,4.03,19
+2027-09-16,079-016,079,Metro Menéndez Pelayo,016,San Bernardo,4.09,19
+2027-09-17,281-011,281,Reina Cristina - Julián Gayarre,011,Plaza del Dos de Mayo,3.83,18
+2027-09-18,265-212,265,Puerto Serrano - Embajadores,212,Metro Marqués de Vadillo,3.75,17
+2027-09-19,350-367,350,Ervigio - Amalarico,367,Metro San Francisco,3.25,15
+2027-09-20,428-455,428,Estadio de Vallecas,455,"Luis de Hoyos Sainz,  198",3.41,16
+2027-09-21,033-122,033,Puerta del Sol,122,Santa Engracia - Zurbarán,2.10,10
+2027-09-22,337-360,337,Metro Aluche,360,Ntra. Sra. Fátima - Ntra. Sra. de Luz,1.56,7
+2027-09-23,123-325,123,Metro Argüelles,325,Ps. Jesuitas - Pza. Cerro Bermejo,3.58,17
+2027-09-24,287-679,287,Metro Bambú,679,Metro Hortaleza,2.71,13
+2027-09-25,579-553,579,Maria Tubau - Isabel Colbrand,553,María Portugal - Niceto Alcalá Zamora,2.57,12
+2027-09-26,045-053,045,Metro Puerta de Toledo,053,Plaza de Lavapiés,1.20,6
+2027-09-27,018-164,018,Plaza de Pedro Zerolo,164,Paseo de las Delicias - Tomás Bretón,3.60,17
+2027-09-28,141-197,141,Plaza de Emilio Castelar,197,Parque de Berlín,2.76,13
+2027-09-29,188-497,188,Puente de Ventas,497,Metro Suances,3.88,18
+2027-09-30,011-024,011,Plaza del Dos de Mayo,024,Palacio de Oriente,1.60,7

@@ -5,7 +5,7 @@
  * valoraciones (backend/src/bicis.js); aqui solo se lee y se pinta.
  */
 
-import { db, auth, doc, getDoc, setDoc, serverTimestamp } from './firebase.js';
+import { db, auth, doc, getDoc, setDoc, serverTimestamp, writeBatch } from './firebase.js';
 
 /** Los fallos que se pueden marcar. Mismos codigos que las reglas y el worker. */
 export const FALLOS = [
@@ -64,22 +64,108 @@ export async function miValoracionDeHoy(numero) {
  * Guarda (o cambia, el mismo dia) la valoracion. Exactamente los campos que
  * pide la regla de `valoraciones_bici`.
  */
-export async function guardarValoracion({ bici, nota, fallos = [], comentario = '', viajeId, estacion }) {
+export async function guardarValoracion({ bici, nota, fallos = [], comentario = '', viajeId, estacion, captura = null }) {
   const uid = auth.currentUser?.uid;
   const n = normalizarBici(bici);
   if (!uid || !n) throw new Error('Falta el número de la bici.');
-  await setDoc(doc(db, 'valoraciones_bici', idValoracion(n, uid)), {
+  const datos = {
     bici: n,
     uid,
     dia: diaUTC(),
     nota,
     fallos: [...new Set(fallos)].filter((f) => NOMBRE_FALLO[f]),
     comentario: String(comentario || '').trim().slice(0, 280),
-    viajeId,
-    estacion: String(estacion || ''),
+    estacion: String(estacion || '').slice(0, 4),
     procesada: false,
     creado: serverTimestamp(),
-  });
+  };
+  if (!captura) {
+    await setDoc(doc(db, 'valoraciones_bici', idValoracion(n, uid)), { ...datos, viajeId });
+    return;
+  }
+
+  // Sin viaje (11): la captura del trayecto va de prueba, en el mismo lote y
+  // con el mismo cupo que las de los viajes. El worker la lee (tiene que ser
+  // esta bici y de hace menos de un mes) y la borra.
+  const dia = diaUTC();
+  const cupoRef = doc(db, 'cupos', uid);
+  const previo = (await getDoc(cupoRef)).data();
+  const actual = previo && previo.dia === dia ? previo : { dia, viajes: 0, capturas: 0 };
+  const capturaId = `${uid}_${dia}_c${(actual.capturas || 0) + 1}`;
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'capturas', capturaId), { uid, datos: captura, creado: serverTimestamp() });
+  lote.set(cupoRef, { dia, viajes: actual.viajes || 0, capturas: (actual.capturas || 0) + 1 });
+  lote.set(doc(db, 'valoraciones_bici', idValoracion(n, uid)), { ...datos, capturaId });
+  await lote.commit();
+}
+
+/** La nota que se enseña: la media si hay 3 o mas, y si no, la de las que haya. */
+export function notaDeFicha(ficha) {
+  if (ficha?.media != null) return ficha.media;
+  const notas = (ficha?.ultimas || []).map((v) => v.nota).filter(Number.isFinite);
+  return notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : null;
+}
+
+// --- Estrellas --------------------------------------------------------------------
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const RUTA_ESTRELLA = 'M12 2.6l2.9 6 6.5.9-4.8 4.5 1.2 6.5L12 17.4l-5.8 3.1 1.2-6.5-4.8-4.5 6.5-.9z';
+
+function estrellaSvg(tam) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', String(tam));
+  svg.setAttribute('height', String(tam));
+  svg.setAttribute('aria-hidden', 'true');
+  const ruta = document.createElementNS(SVG_NS, 'path');
+  ruta.setAttribute('d', RUTA_ESTRELLA);
+  svg.append(ruta);
+  return svg;
+}
+
+/** Cinco estrellas rellenas hasta `valor` (admite decimales: 3,6 son 3 y media larga). */
+export function estrellas(valor, { tam = 18 } = {}) {
+  const fila = (clase) => {
+    const capa = document.createElement('span');
+    capa.className = `estrellas-capa ${clase}`;
+    for (let i = 0; i < 5; i++) capa.append(estrellaSvg(tam));
+    return capa;
+  };
+  const caja = document.createElement('span');
+  caja.className = 'estrellas';
+  caja.setAttribute('role', 'img');
+  caja.setAttribute('aria-label', valor == null ? 'Sin nota' : `${cifra(valor)} de 5 estrellas`);
+  const llenas = fila('llenas');
+  llenas.style.width = `${Math.max(0, Math.min(5, Number(valor) || 0)) * 20}%`;
+  caja.append(fila('vacias'), llenas);
+  return caja;
+}
+
+/** Cinco estrellas que se tocan para dar la nota (1 a 5). */
+export function selectorEstrellas(valor, alElegir, { deshabilitado = false, tam = 36 } = {}) {
+  const grupo = document.createElement('div');
+  grupo.className = 'selector-estrellas';
+  grupo.setAttribute('role', 'radiogroup');
+  grupo.setAttribute('aria-label', 'Nota de la bici');
+  const botones = [];
+  const marcar = (hasta) => botones.forEach((b, i) => b.classList.toggle('encendida', i < hasta));
+  for (let v = 1; v <= 5; v++) {
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'estrella-boton';
+    boton.setAttribute('role', 'radio');
+    boton.setAttribute('aria-checked', String(valor === v));
+    boton.setAttribute('aria-label', `${v} ${v === 1 ? 'estrella' : 'estrellas'} · ${NOTAS[v - 1]}`);
+    if (deshabilitado) boton.disabled = true;
+    boton.append(estrellaSvg(tam));
+    boton.addEventListener('click', () => alElegir(v));
+    boton.addEventListener('pointerenter', () => marcar(v));
+    boton.addEventListener('pointerleave', () => marcar(valor || 0));
+    botones.push(boton);
+    grupo.append(boton);
+  }
+  marcar(valor || 0);
+  return grupo;
 }
 
 /** Hace cuanto, en palabras cortas. */

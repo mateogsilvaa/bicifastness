@@ -24,6 +24,8 @@ const VENTANA_DIAS = 60;
 const MINIMO_PARA_MEDIA = 3;
 /** Cuantas valoraciones sueltas se publican. El navegador las pagina de 10 en 10. */
 const MAX_ULTIMAS = 50;
+/** Valoraciones seguidas sin mencionar un fallo para darlo por arreglado. */
+const RESUELTO_TRAS = 3;
 
 const DIA_MS = 86400000;
 
@@ -64,6 +66,9 @@ function media(lista) {
  */
 function resumirBici(valoraciones, { ahora = Date.now(), vista = null } = {}) {
   const validas = valoraciones
+    // Las que se hicieron sin viaje y cuya captura no demostraba esa bici
+    // (worker.js, procesarValoraciones) no cuentan.
+    .filter((v) => !v.rechazada)
     .filter((v) => Number.isInteger(v.nota) && v.nota >= 1 && v.nota <= 5)
     .map((v) => ({ ...v, t: milis(v.creado) }))
     .sort((a, b) => b.t - a.t);
@@ -80,7 +85,13 @@ function resumirBici(valoraciones, { ahora = Date.now(), vista = null } = {}) {
   for (const v of recientes) {
     for (const f of new Set(v.fallos || [])) if (FALLOS.includes(f)) cuentaFallos[f] = (cuentaFallos[f] || 0) + 1;
   }
+  // Un fallo deja de estar roto cuando las 3 valoraciones posteriores a la
+  // ultima que lo menciona ya no lo dicen: alguien lo aviso, y despues tres
+  // personas la han usado sin notarlo (se habra arreglado).
+  const posteriores = (codigo) => validas.findIndex((v) => (v.fallos || []).includes(codigo));
+  const resueltos = Object.keys(cuentaFallos).filter((c) => posteriores(c) >= RESUELTO_TRAS);
   const fallos = Object.entries(cuentaFallos)
+    .filter(([codigo]) => !resueltos.includes(codigo))
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([codigo, veces]) => ({ codigo, veces }));
@@ -101,6 +112,7 @@ function resumirBici(valoraciones, { ahora = Date.now(), vista = null } = {}) {
     total: validas.length,
     reparto,
     fallos,
+    resueltos,
     tendencia: mediaAhora !== null && mediaAntes !== null
       ? { antes: mediaAntes, direccion: mediaAhora > mediaAntes + 0.2 ? 'subiendo' : mediaAhora < mediaAntes - 0.2 ? 'bajando' : 'igual' }
       : null,
@@ -143,6 +155,6 @@ async function rehacerBici(db, numero, { ahora = Date.now() } = {}) {
 }
 
 module.exports = {
-  FALLOS, VENTANA_DIAS, MINIMO_PARA_MEDIA, MAX_ULTIMAS,
+  FALLOS, VENTANA_DIAS, MINIMO_PARA_MEDIA, MAX_ULTIMAS, RESUELTO_TRAS,
   normalizarBici, limpiarComentario, resumirBici, rehacerBici,
 };

@@ -11,16 +11,21 @@
 
 import { el, reemplazar } from './dom.js';
 import {
-  FALLOS, NOTAS, normalizarBici, mostrarBici, tonoNota, cifra,
+  FALLOS, NOTAS, normalizarBici, mostrarBici, cifra,
   guardarValoracion, miValoracionDeHoy, leerFicha, MINIMO_PARA_MEDIA,
+  estrellas, selectorEstrellas,
 } from './bicis.js';
 
 /**
- * @param {{bici?: string, viajeId: string, ruta: string}} viaje
+ * Con `captura` (valorar sin subir viaje, desde la ficha de la bici): la bici
+ * es la leida de la captura y no se cambia, y se guarda solo al Enviar (cada
+ * guardado sube la captura de prueba).
+ *
+ * @param {{bici?: string, viajeId?: string, ruta?: string, captura?: string, estacionLeida?: string}} viaje
  * @returns {HTMLElement}
  */
-export function encuestaBici({ bici = '', viajeId, ruta }) {
-  const estacion = String(ruta || '').split('-')[0];
+export function encuestaBici({ bici = '', viajeId, ruta, captura = null, estacionLeida = '' }) {
+  const estacion = captura ? estacionLeida : String(ruta || '').split('-')[0];
   const estado = {
     bici: normalizarBici(bici),
     leida: Boolean(normalizarBici(bici)),
@@ -40,7 +45,7 @@ export function encuestaBici({ bici = '', viajeId, ruta }) {
     try {
       await guardarValoracion({
         bici: estado.bici, nota: estado.nota, fallos: [...estado.fallos],
-        comentario: estado.comentario, viajeId, estacion,
+        comentario: estado.comentario, viajeId, estacion, captura,
       });
       estado.error = '';
       return true;
@@ -76,7 +81,7 @@ export function encuestaBici({ bici = '', viajeId, ruta }) {
   async function elegirNota(n) {
     estado.nota = n;
     pintar();
-    await guardar(); // un toque ya guarda
+    if (!captura) await guardar(); // un toque ya guarda (con captura, al Enviar)
   }
 
   async function enviar() {
@@ -89,7 +94,7 @@ export function encuestaBici({ bici = '', viajeId, ruta }) {
     const n = estado.bici;
     const linea = el('p', { clase: 'encuesta-media', texto: 'Tu valoración ya está guardada.' });
     reemplazar(tarjeta, el('div', { clase: 'encuesta-hecha' }, [
-      el('span', { clase: `nota-pastilla ${tonoNota(estado.nota)}`, texto: String(estado.nota) }),
+      estrellas(estado.nota, { tam: 20 }),
       el('div', { clase: 'encuesta-hecha-texto' }, [
         el('strong', { texto: `Gracias. Bici ${mostrarBici(n)}: ${estado.nota} de 5` }),
         linea,
@@ -157,23 +162,15 @@ export function encuestaBici({ bici = '', viajeId, ruta }) {
           el('span', { clase: 'encuesta-rotulo', texto: 'Bici' }),
           el('strong', { clase: 'encuesta-numero-leido', texto: mostrarBici(estado.bici) }),
           el('span', { clase: 'encuesta-origen', texto: estado.leida ? 'leída de la captura' : 'escrita a mano' }),
-          el('button', {
+          captura ? null : el('button', {
             clase: 'enlace-fuerte', texto: 'Cambiar', attrs: { type: 'button' },
             on: { click: () => { estado.editando = true; pintar(); tarjeta.querySelector('input')?.focus(); } },
           }),
         ]),
-      el('div', { clase: 'encuesta-notas', attrs: { role: 'radiogroup', 'aria-label': 'Nota de la bici' } },
-        NOTAS.map((texto, i) => {
-          const v = i + 1;
-          return el('button', {
-            clase: 'encuesta-nota',
-            attrs: {
-              type: 'button', role: 'radio', 'aria-checked': String(estado.nota === v),
-              disabled: sinNumero ? '' : null, title: `${v} · ${texto}`,
-            },
-            on: { click: () => elegirNota(v) },
-          }, [el('strong', { texto: String(v) }), el('span', { texto: texto })]);
-        })),
+      el('div', { clase: 'encuesta-notas' }, [
+        selectorEstrellas(estado.nota, elegirNota, { deshabilitado: sinNumero }),
+        el('span', { clase: 'encuesta-nota-texto', texto: estado.nota ? NOTAS[estado.nota - 1] : 'Toca las estrellas' }),
+      ]),
       el('div', { clase: 'encuesta-fallos' }, [
         el('p', { clase: 'encuesta-rotulo' }, ['¿Algo no iba bien? ', el('span', { texto: '(opcional)' })]),
         el('div', { clase: 'encuesta-chips' }, FALLOS.map(([codigo, nombre]) => el('button', {
@@ -216,7 +213,7 @@ export function encuestaBici({ bici = '', viajeId, ruta }) {
     const previa = await miValoracionDeHoy(estado.bici);
     if (!previa || !tarjeta.isConnected) return;
     reemplazar(tarjeta, el('div', { clase: 'encuesta-hecha' }, [
-      el('span', { clase: `nota-pastilla ${tonoNota(previa.nota)}`, texto: String(previa.nota) }),
+      estrellas(previa.nota, { tam: 20 }),
       el('div', { clase: 'encuesta-hecha-texto' }, [
         el('strong', { texto: `Ya valoraste la ${mostrarBici(estado.bici)} hoy.` }),
         el('p', { clase: 'encuesta-media', texto: 'Puedes cambiar tu nota hasta medianoche.' }),

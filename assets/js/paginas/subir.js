@@ -83,6 +83,8 @@ function barra(titulo, { atras = false, miniatura = true } = {}) {
       on: { click: cancelar },
     }, [icono(atras ? 'atras' : 'cerrar')]),
     el('span', { clase: 'subir-barra-titulo', texto: titulo }),
+    // 8f: en escritorio, "Esc para cancelar" junto a la X.
+    el('span', { clase: 'subir-barra-esc', texto: 'Esc para cancelar' }),
     miniatura && preparada?.url
       ? el('button', {
         clase: 'subir-miniatura', attrs: { type: 'button', 'aria-label': 'Ver la captura' },
@@ -497,13 +499,14 @@ function segmentoDia(valor, alCambiar, { rotulo = 'Día del trayecto' } = {}) {
   const otro = valor !== hoy && valor !== ayer;
   const opcion = (texto, activo, accion, conIcono = false) => el('button', {
     attrs: { type: 'button', 'aria-pressed': String(activo) }, on: { click: accion },
-  }, [conIcono ? icono('calendario', 'icono peq') : null, el('span', { texto })]);
+  }, [conIcono ? icono('calendario', 'icono peq') : null, el('span', {}, [].concat(texto))]);
   return el('div', { clase: 'subir-dia' }, [
     el('span', { clase: 'rotulo', texto: rotulo }),
     el('div', { clase: 'segmento' }, [
       opcion('Hoy', valor === hoy, () => alCambiar(hoy)),
       opcion('Ayer', valor === ayer, () => alCambiar(ayer)),
-      opcion(otro ? formatearFecha(valor) : 'Otro', otro, () => abrirCalendario(valor, alCambiar), true),
+      // 8f: "Otro día…" en escritorio.
+      opcion(otro ? formatearFecha(valor) : ['Otro', el('span', { clase: 'solo-escritorio-i', texto: ' día…' })], otro, () => abrirCalendario(valor, alCambiar), true),
     ]),
     preparada?.diaPropuesto?.motivo && valor === preparada.diaPropuesto.dia && valor !== hoy
       ? el('span', { clase: 'pista-dia', texto: `Hemos puesto este día porque ${preparada.diaPropuesto.motivo}.` })

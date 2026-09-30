@@ -2565,7 +2565,37 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
   .subir-enviar .hoy-pista { text-align: left; max-width: 16ch; }
   .subido { max-width: 560px; padding-top: 0; }
   .captura-borrosa, .escaner { max-height: 60vh; }
+  /* 8f · Leyendo y confirmar: la captura (380) a la izquierda y el billete
+     (540) a la derecha, con el titulo de 32 y "Esc para cancelar" arriba. */
+  body:has(.lateral) .subir { max-width: none; margin: 0; padding: 32px 56px 40px; }
+  .subir-barra { height: 40px; padding: 0; margin-bottom: 24px; gap: 12px; }
+  .subir-barra-titulo { font-size: 32px; letter-spacing: -.035em; line-height: normal; }
+  .subir-barra .subir-barra-esc { display: block; font-size: 14px; color: var(--tinta-2); white-space: nowrap; }
+  .subir-barra .boton-icono { order: 1; width: 40px; height: 40px; border-radius: 12px; background: var(--papel-2); }
+  .subir-barra .boton-icono .icono { width: 20px; height: 20px; }
+  .confirmar, .varios { grid-template-columns: 380px 540px; }
+  .confirmar-imagen { padding: 10px; }
+  .confirmar-imagen img { border-radius: 12px; }
+  .confirmar-captura { gap: 8px; }
+  .confirmar-imagen { margin-bottom: 4px; }
+  .confirmar-datos > .subir-hueco, .varios-lista > .subir-hueco { display: none; }
+  .leido-ok { line-height: 18px; }
+  .confirmar-captura .leyendo-nota { color: var(--tinta-3); }
+  .billete-arriba { padding: 22px 24px 20px; }
+  .billete-nombre strong { font-size: 19px; }
+  .billete-editar { font-size: 14px; color: var(--azul); }
+  .billete-editar .icono { display: none; }
+  .billete-abajo { padding: 20px 24px 24px; }
+  .billete-tiempo strong { font-size: 88px; }
+  .billete-extra { font-size: 14px; }
+  .subir-dia { flex-direction: row; align-items: center; gap: 16px; }
+  .subir-dia .rotulo { font-size: 14px; white-space: nowrap; }
+  .subir-dia .segmento { flex: 1; }
+  .subir-dia .segmento button { min-height: 0; height: 34px; }
+  .subir-dia .pista-dia { display: none; }
+  .subir-enviar .hoy-pista { width: 72px; max-width: none; font-size: 13px; }
 }
+.subir-barra-esc { display: none; }
 
 /* --- 04 Ranking -------------------------------------------------------------------
  * Filas de 54 px sin tabla en movil; en escritorio (8c) la del grupo gana una

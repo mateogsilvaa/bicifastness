@@ -231,3 +231,26 @@ test('sin completar nada, cero', () => {
   const nada = misiones.progresoDeTotales(delDia, { metros: 0, mejorVelocidad: 0, trayectos: 0, nuevas: 0 });
   assert.strictEqual(misiones.puntosCompletadas(delDia, null, nada), 0);
 });
+
+// --- Rutas destacadas planificadas (data/rutas-destacadas.csv) ------------------
+
+test('el plan de rutas destacadas cubre un año con tramos de 5 a 20 minutos', () => {
+  const fs = require('fs');
+  const { leerPlan, FICHERO } = require('../src/rutas-destacadas');
+  const plan = leerPlan();
+  assert.ok(plan.size >= 365, `el plan tiene ${plan.size} dias`);
+  const filas = fs.readFileSync(FICHERO, 'utf8').trim().split('\n').slice(1);
+  for (const fila of filas) {
+    const campos = fila.match(/(?:"[^"]*"|[^,])+/g);
+    const km = Number(campos[campos.length - 2]);
+    const minutos = Number(campos[campos.length - 1]);
+    assert.ok(km >= 0.5 && km <= 6.7, `${campos[0]}: ${km} km fuera de 0,5-6,7`);
+    assert.ok(minutos >= 5 && minutos <= 20, `${campos[0]}: ${minutos} min fuera de 5-20`);
+  }
+});
+
+test('un dia fuera del plan no tiene ruta planificada', () => {
+  const { rutaPlanificada } = require('../src/rutas-destacadas');
+  assert.strictEqual(rutaPlanificada('1999-01-01'), null);
+  assert.match(rutaPlanificada('2026-10-01'), /^\d{3,4}[A-Z]?-\d{3,4}[A-Z]?$/);
+});

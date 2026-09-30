@@ -39,6 +39,7 @@ const {
   construirRuta, inicioDelDiaMadrid, diaMadrid, buscarEstacion,
 } = require('./src/util');
 const imagen = require('./src/imagen');
+const rutasDestacadas = require('./src/rutas-destacadas');
 const {
   leerCaptura, releerCaptura, elegirTrayecto, cerrar: cerrarOcr,
 } = require('./src/ocr');
@@ -1278,10 +1279,13 @@ async function prepararDia() {
   // 15.000 acumulados era una de las tres cosas que quedaban leyendola entera.
   // Si el indice todavia no existe — proyecto recien estrenado — se cuenta a
   // mano una vez, que es exactamente lo que hacia antes siempre.
-  const porRuta = await conteoPorRuta();
+  // Primero el plan del año (data/rutas-destacadas.csv); sin plan para hoy,
+  // entre los tramos con actividad, como antes.
+  const planificada = rutasDestacadas.rutaPlanificada(hoy);
+  const porRuta = planificada ? null : await conteoPorRuta();
 
   const recientes = Array.isArray(datos.rutasHistoricas) ? datos.rutasHistoricas.slice(-7) : [];
-  const elegida = misiones.rutaDelDia(porRuta, recientes, hoy);
+  const elegida = planificada || misiones.rutaDelDia(porRuta, recientes, hoy);
 
   if (!elegida) {
     console.log('Sin tramos con actividad suficiente: hoy no hay ruta del dia.');

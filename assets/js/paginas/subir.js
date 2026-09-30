@@ -491,7 +491,7 @@ function diaInicial() {
 // --- 3c · Confirmar: lo leido, en un billete ------------------------------------------------
 
 
-function segmentoDia(valor, alCambiar) {
+function segmentoDia(valor, alCambiar, { rotulo = 'Día del trayecto' } = {}) {
   const hoy = diaMadrid();
   const ayer = diaMadridHace(1);
   const otro = valor !== hoy && valor !== ayer;
@@ -499,7 +499,7 @@ function segmentoDia(valor, alCambiar) {
     attrs: { type: 'button', 'aria-pressed': String(activo) }, on: { click: accion },
   }, [conIcono ? icono('calendario', 'icono peq') : null, el('span', { texto })]);
   return el('div', { clase: 'subir-dia' }, [
-    el('span', { clase: 'rotulo', texto: 'Día del trayecto' }),
+    el('span', { clase: 'rotulo', texto: rotulo }),
     el('div', { clase: 'segmento' }, [
       opcion('Hoy', valor === hoy, () => alCambiar(hoy)),
       opcion('Ayer', valor === ayer, () => alCambiar(ayer)),
@@ -924,7 +924,7 @@ async function irAElegir(candidatos) {
             clase: 'menor apagado',
             texto: `${noCaben.length === 1 ? `El de las ${noCaben[0].c.horaSalida || 'otra hora'} no cabe` : 'Los demás no caben'} hoy: ya llevas ${llevaHoy()} y puntúan ${CUPO} al día.`,
           }) : null,
-          segmentoDia(dia, (d) => { dia = d; elegidos.clear(); pintar(); }),
+          segmentoDia(dia, (d) => { dia = d; elegidos.clear(); pintar(); }, { rotulo: 'Día de los trayectos' }),
           el('div', { clase: 'subir-hueco' }),
           el('div', { clase: 'subir-enviar' }, [boton]),
         ]),

@@ -84,7 +84,8 @@ function pintarSubir(perfil, modo) {
   const lleva = llevaHoy(perfil);
   const quedan = Math.max(0, CUPO - lleva);
   if (modo === 'salvado') {
-    reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir' }, [
+    // 2b: con el dia salvado, "Subir otro" baja debajo de las misiones.
+    reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir salvado' }, [
       botonSubir(quedan ? `Subir otro · ${quedan === 1 ? 'queda 1 que puntúa' : `quedan ${quedan} que puntúan`}` : 'Subir otro · ya sin puntos hoy', { secundario: true }),
     ]));
     return;

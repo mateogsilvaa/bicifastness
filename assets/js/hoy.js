@@ -688,24 +688,24 @@ function avisarCambioDivision(perfil) {
     el('div', { clase: 'cambio-division' }, [
       el('div', { clase: 'cambio-chips' }, [
         el('span', { clase: 'chip-division antes', texto: desde }),
-        icono('flecha', 'icono azul'),
+        icono('flecha', 'icono'),
         el('span', { clase: `chip-division despues ${cambio.hasta}`, texto: hasta }),
       ]),
       el('h2', { texto: sube ? `Subes a ${hasta}` : `Bajas a ${hasta}` }),
       el('p', {
         texto: sube
-          ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Esta semana compites en un grupo nuevo.`
+          ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Esta semana compites con pilotos nuevos, todos desde 0.`
           : `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total}. Esta semana, a recuperar ${desde}.`,
       }),
     ]),
     el('div', { clase: 'cifras-cambio' }, [
-      el('div', {}, [el('strong', { texto: String(cambio.puntos || 0) }), el('span', { texto: 'pts' })]),
+      el('div', {}, [el('strong', { texto: String(cambio.puntos || 0) }), el('span', { texto: 'pts semana' })]),
       el('div', {}, [el('strong', { texto: ordinal(cambio.puesto) }), el('span', { texto: `de ${cambio.total}` })]),
     ]),
     el('a', { clase: 'btn', texto: 'Ver mi grupo nuevo', attrs: { href: '/clasificacion/' } }),
   ], {
     etiqueta: sube ? `Subes a ${hasta}` : `Bajas a ${hasta}`,
-    clase: 'dialogo-escritorio',
+    clase: 'dialogo-escritorio hoja-division',
     alCerrar: () => { try { localStorage.setItem(clave, cambio.fecha); } catch { /* modo privado */ } },
   });
   // Tambien cuenta como vista si se sigue el enlace.

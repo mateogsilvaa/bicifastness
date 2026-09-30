@@ -20,6 +20,7 @@
  *   localStorage.maqueta_perfil = 'sinperfil' -> con sesion pero sin nombre de piloto (1c)
  *   localStorage.maqueta_perfil = 'peligro' -> sin escudos (2c, con maqueta_hora >= '20:00')
  *   localStorage.maqueta_perfil = 'escudo' | 'perdida' -> la mañana siguiente (2f)
+ *   localStorage.maqueta_perfil = 'division' -> subes de division (2g; borra bf_division_vista para verla otra vez)
  *   localStorage.maqueta_perfil = 'encola'  -> un trayecto subido hace 3 min, en cola (2d;
  *                                              sessionStorage['viaje-en-curso'] = 'maqueta-cola')
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
@@ -100,6 +101,7 @@ const perfiles = {
   sinclan: { ...perfilBase, clanId: null, rolClan: null },
   peligro: { ...perfilBase, escudos: 0 },
   encola: { ...perfilBase },
+  division: { ...perfilBase, ultimoCambioDivision: { fecha: hoy, desde: 'bronce', hasta: 'plata', puesto: 3, total: 30, puntos: 412 } },
   escudo: { ...perfilBase, escudos: 0, ultimoCierreRacha: { dia: hoy, escudosGastados: 1 } },
   perdida: { ...perfilBase, racha: 0, ultimoCierreRacha: { dia: hoy, rota: true, rachaPrevia: 23 } },
   lider: { ...perfilBase, rolClan: 'lider' },

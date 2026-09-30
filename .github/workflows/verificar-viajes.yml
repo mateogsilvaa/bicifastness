@@ -22,8 +22,8 @@ on:
   #
   # Cada 5 minutos. GitHub puede retrasar las ejecuciones programadas cuando hay
   # mucha carga, asi que el retardo real ronda los 5-15 minutos.
-  # schedule:
-  #   - cron: '*/5 * * * *'
+  schedule:
+  - cron: '*/5 * * * *'
 
   # Para poder lanzarlo a mano desde la pestana Actions sin esperar al reloj.
   workflow_dispatch:

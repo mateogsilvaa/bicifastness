@@ -776,7 +776,8 @@ function abrirCalendario(valor, alElegir) {
       ]),
     ]);
     const t = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${elegido}T12:00:00Z`));
-    confirmar.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    // 3j: "Jueves 24 de septiembre", sin la coma de Intl.
+    confirmar.textContent = (t.charAt(0).toUpperCase() + t.slice(1)).replace(',', '');
   };
 
   const { cerrar } = abrirHoja([cuerpo, confirmar], { etiqueta: 'Elegir el día', clase: 'dialogo-escritorio' });

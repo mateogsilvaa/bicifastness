@@ -70,10 +70,10 @@ const FUENTE = "Arial, 'Helvetica Neue', Helvetica, sans-serif";
  */
 function envolver({ titulo, contenido, tokenBaja = null, chip = null, subtitulo = null, preheader = '' }) {
   const pie = tokenBaja
-    ? `Recibes esto porque tienes activados los avisos por correo. <a href="${SITIO}/baja/?t=${encodeURIComponent(tokenBaja)}" style="color:${C.tinta3};text-decoration:underline;">Darme de baja</a><br>`
+    ? `Recibes esto porque tienes activados los avisos por correo. <a href="${SITIO}/baja/?t=${encodeURIComponent(tokenBaja)}" style="color:${C.tinta3};text-decoration:underline;">Darme de baja</a> · `
     : '';
   const estado = chip && CHIPS[chip]
-    ? `<tr><td style="padding:0 0 18px;"><span class="chip" style="display:inline-block;padding:5px 10px;border-radius:999px;background:${CHIPS[chip].fondo};color:${CHIPS[chip].color};font-family:${FUENTE};font-size:13px;font-weight:bold;">&#9679;&nbsp;${CHIPS[chip].texto}</span></td></tr>`
+    ? `<tr><td style="padding:0 0 18px;"><span class="chip" style="display:inline-block;padding:5px 10px;border-radius:999px;background:${CHIPS[chip].fondo};color:${CHIPS[chip].color};font-family:${FUENTE};font-size:13px;font-weight:bold;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${CHIPS[chip].color};vertical-align:middle;"></span>&nbsp;&nbsp;${CHIPS[chip].texto}</span></td></tr>`
     : '';
   return `<!doctype html>
 <html lang="es" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -93,7 +93,7 @@ function envolver({ titulo, contenido, tokenBaja = null, chip = null, subtitulo 
     .recuadro { background:#222326 !important; }
     .pie { color:#8B8A87 !important; }
   }
-  @media (max-width: 620px) {
+  @media (max-width: 580px) {
     .contenedor { width:100% !important; }
     .relleno { padding:24px !important; }
     h1 { font-size:24px !important; }
@@ -104,21 +104,21 @@ function envolver({ titulo, contenido, tokenBaja = null, chip = null, subtitulo 
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapar(preheader)}&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
 <table role="presentation" class="fondo" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.papel};">
   <tr><td align="center" style="padding:32px 12px;">
-    <table role="presentation" class="contenedor" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
-      <tr><td class="tarjeta relleno" style="background:${C.blanco};border-radius:20px;padding:36px;">
+    <table role="presentation" class="contenedor" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px;">
+      <tr><td class="tarjeta relleno" style="background:${C.blanco};border-radius:20px;padding:32px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr><td style="padding:0 0 26px;">
+          <tr><td style="padding:0 0 18px;">
             <img src="${SITIO}/images/icono/icono-192.png" width="28" height="28" alt="" style="vertical-align:middle;border:0;border-radius:7px;">
-            <span class="texto" style="vertical-align:middle;font-family:${FUENTE};font-size:17px;font-weight:bold;letter-spacing:-0.5px;color:${C.tinta};">&nbsp;bicifastness</span>
+            <span class="texto" style="vertical-align:middle;font-family:${FUENTE};font-size:17px;font-weight:800;letter-spacing:-0.6px;color:${C.tinta};">&nbsp;bicifastness</span>
           </td></tr>
           ${estado}
-          <tr><td style="padding:0 0 10px;"><h1 class="texto" style="margin:0;font-family:${FUENTE};font-size:28px;line-height:1.15;font-weight:bold;letter-spacing:-0.6px;color:${C.tinta};">${titulo}</h1></td></tr>
-          ${subtitulo ? `<tr><td class="suave" style="padding:0 0 20px;font-family:${FUENTE};font-size:16px;line-height:1.4;color:${C.tinta2};">${subtitulo}</td></tr>` : ''}
+          <tr><td style="padding:0 0 18px;"><h1 class="texto" style="margin:0;font-family:${FUENTE};font-size:28px;line-height:1.1;font-weight:800;letter-spacing:-0.84px;color:${C.tinta};">${titulo}</h1></td></tr>
+          ${subtitulo ? `<tr><td class="suave" style="padding:0 0 18px;font-family:${FUENTE};font-size:16px;line-height:1.3;color:${C.tinta2};">${subtitulo}</td></tr>` : ''}
           <tr><td>${contenido}</td></tr>
         </table>
       </td></tr>
-      <tr><td class="pie" style="padding:18px 12px 0;font-family:${FUENTE};font-size:12px;line-height:1.5;color:${C.tinta3};">
-        ${pie}Proyecto independiente, sin relación con BiciMAD ni la EMT.
+      <tr><td class="pie" style="padding:16px 8px 0;font-family:${FUENTE};font-size:12px;line-height:1.5;color:${C.tinta3};">
+        ${pie}BiciFastness es un proyecto independiente, sin relación con BiciMAD ni la EMT.
       </td></tr>
     </table>
   </td></tr>
@@ -139,16 +139,16 @@ Proyecto independiente, sin relacion con BiciMAD ni la EMT.
 `
   : '\n---\nProyecto independiente, sin relacion con BiciMAD ni la EMT.\n');
 
-const parrafo = (t) => `<p class="suave" style="margin:0 0 14px;font-family:${FUENTE};font-size:15px;line-height:1.55;color:${C.tinta2};">${t}</p>`;
+const parrafo = (t) => `<p class="suave" style="margin:0 0 18px;font-family:${FUENTE};font-size:14px;line-height:1.5;color:${C.tinta2};">${t}</p>`;
 
 /** El bloque del motivo: etiqueta pequeña, lo que ha pasado en negrita y que hacer. */
 function recuadro(fuerte, suave = '', { etiqueta = null, etiquetaSuave = null } = {}) {
   const e = (t) => `<span class="suave" style="display:block;font-size:13px;color:${C.tinta3};padding:0 0 4px;">${t}</span>`;
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr>`
-    + `<td class="recuadro" style="background:${C.papel};border-radius:14px;padding:16px 18px;font-family:${FUENTE};font-size:15px;line-height:1.5;">`
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;"><tr>`
+    + `<td class="recuadro" style="background:${C.papel};border-radius:14px;padding:16px;font-family:${FUENTE};font-size:15px;line-height:1.5;">`
     + (etiqueta ? e(etiqueta) : '')
     + `<strong class="texto" style="color:${C.tinta};">${fuerte}</strong>`
-    + (suave ? `<span style="display:block;height:10px;line-height:10px;">&nbsp;</span>${etiquetaSuave ? e(etiquetaSuave) : ''}<span class="suave" style="color:${C.tinta2};">${suave}</span>` : '')
+    + (suave ? `${etiquetaSuave ? `<span style="display:block;height:10px;line-height:10px;">&nbsp;</span>${e(etiquetaSuave)}` : '<br>'}<span class="suave" style="color:${C.tinta2};">${suave}</span>` : '')
     + '</td></tr></table>';
 }
 
@@ -162,9 +162,9 @@ function datos(filas) {
 
 /** Boton "a prueba de Outlook": VML para Outlook de escritorio, enlace para el resto. */
 function boton(texto, url, { color = C.azul } = {}) {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 20px;"><tr><td>
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;"><tr><td>
 <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${url}" style="height:48px;v-text-anchor:middle;width:260px;" arcsize="25%" stroke="f" fillcolor="${color}"><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">${texto}</center></v:roundrect><![endif]-->
-<!--[if !mso]><!--><a href="${url}" style="display:inline-block;background:${color};color:#ffffff;font-family:${FUENTE};font-size:16px;font-weight:bold;line-height:48px;padding:0 26px;border-radius:12px;text-decoration:none;">${texto}</a><!--<![endif]-->
+<!--[if !mso]><!--><a href="${url}" style="display:inline-block;background:${color};color:#ffffff;font-family:${FUENTE};font-size:16px;font-weight:bold;line-height:48px;padding:0 24px;border-radius:12px;text-decoration:none;">${texto}</a><!--<![endif]-->
 </td></tr></table>`;
 }
 
@@ -246,17 +246,13 @@ function viajeRechazado({
       preheader: String(motivo || 'No hemos podido verificar la captura.').slice(0, 90),
       titulo: 'No hemos podido dar por bueno tu trayecto',
       subtitulo: linea,
+      // 07 · 7h: el motivo y que hacer en un recuadro, el boton y una nota.
       contenido:
-        parrafo(`Hola, ${piloto}:`)
-        + recuadro(porQue, hacer, {
-          etiqueta: dePersona ? 'Lo que dice quien lo ha revisado' : 'Motivo',
-          etiquetaSuave: 'Qué hacer',
-        })
-        + parrafo('Tu racha no se ha tocado: si hoy subes otro trayecto que sí cuente, sigue viva. Si la mandas por WhatsApp antes de subirla, la captura llega recomprimida y se lee peor: volviendo a subir la original suele bastar.')
+        recuadro(porQue, hacer, dePersona ? { etiqueta: 'Lo que dice quien lo ha revisado' } : {})
         + boton('Ver mi trayecto', `${SITIO}/yo/#historial`)
         + (puedePedirRevision && !dePersona
-          ? parrafo('Si crees que es un error, puedes reclamarlo desde el propio trayecto y lo mira una persona.')
-          : parrafo('Si tienes dudas, responde a este correo.')),
+          ? parrafo('Si crees que es un error, puedes pedir que lo revise una persona desde el propio trayecto.')
+          : parrafo(`Si tienes dudas, ${piloto}, responde a este correo.`)),
     }),
     texto: `Hola, ${nombre}\n\nEl trayecto ${nombreTramo(ruta)} no se ha podido verificar.\n\n`
       + `${dePersona ? 'Lo que dice quien lo ha revisado' : 'Motivo'}: ${motivo || 'No hemos podido verificar la captura.'}\n`

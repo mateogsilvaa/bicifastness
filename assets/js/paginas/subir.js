@@ -1191,21 +1191,37 @@ function pintarSubido(ids, viajes = []) {
   const avisos = el('div');
   tarjetaAvisos().then((t) => { if (t) reemplazar(avisos, t); });
 
-  reemplazar(id('s-subido'), el('div', { clase: 'subir-cuerpo subido' }, [
-    el('span', { clase: 'subido-marca', attrs: { 'aria-hidden': 'true' } }, [icono('comprobado')]),
-    el('div', { clase: 'subido-texto' }, [
-      el('h2', { texto: ids.length > 1 ? `${ids.length} subidos.` : 'Subido.' }),
-      el('p', { texto: 'Lo verificamos en unos diez minutos. Puedes cerrar la app: esto sigue solo.' }),
+  // 11f: en escritorio, la confirmacion a la izquierda y la encuesta a la
+  // derecha, a la misma altura. En el movil, una columna como en 11a.
+  const primero = viajes[0];
+  const km = primero ? kmEstimados(primero.origen, primero.destino) : null;
+  const encuesta = ids[0] && primero ? encuestaBici({ bici: primero.bici, viajeId: ids[0], ruta: primero.ruta }) : null;
+  reemplazar(id('s-subido'), el('div', { clase: `subir-cuerpo subido${encuesta ? ' con-encuesta' : ''}` }, [
+    el('div', { clase: 'subido-izq' }, [
+      el('span', { clase: 'subido-marca', attrs: { 'aria-hidden': 'true' } }, [icono('comprobado')]),
+      el('div', { clase: 'subido-texto' }, [
+        el('h2', { texto: ids.length > 1 ? `${ids.length} subidos.` : 'Subido.' }),
+        el('p', { texto: 'Lo verificamos en unos diez minutos. Puedes cerrar la app: esto sigue solo.' }),
+      ]),
+      primero ? el('div', { clase: 'subido-trayecto' }, [
+        el('span', {}, [
+          el('strong', { texto: `${nombreEstacion(primero.origen)} → ${nombreEstacion(primero.destino)}` }),
+          el('small', { texto: [primero.fecha ? (primero.fecha === diaMadrid() ? 'hoy' : formatearFecha(primero.fecha)) : null, km ? `${coma(km)} km` : null].filter(Boolean).join(' · ') }),
+        ]),
+        el('strong', { clase: 'subido-tiempo', texto: formatearTiempo(primero.tiempoSegundos) }),
+      ]) : null,
+      lineaTiempo,
+      avisos,
+      el('div', { clase: 'subir-hueco' }),
+      el('div', { clase: 'subido-acciones' }, [
+        hayMas
+          ? el('button', { clase: 'btn grande', texto: `Leer la siguiente captura (${hayMas})`, attrs: { type: 'button' }, on: { click: siguienteCaptura } })
+          : el('a', { clase: 'btn grande', texto: 'Volver a Hoy', attrs: { href: '/' } }),
+        el('button', { clase: 'btn plano', texto: 'Subir otro trayecto', attrs: { type: 'button' }, on: { click: () => { cancelar(); entradaFoto.click(); } } }),
+      ]),
     ]),
-    lineaTiempo,
-    avisos,
-    // 11a: la bici del primer trayecto. Opcional y con "Saltar".
-    ids[0] && viajes[0] ? encuestaBici({ bici: viajes[0].bici, viajeId: ids[0], ruta: viajes[0].ruta }) : null,
-    el('div', { clase: 'subir-hueco' }),
-    hayMas
-      ? el('button', { clase: 'btn grande', texto: `Leer la siguiente captura (${hayMas})`, attrs: { type: 'button' }, on: { click: siguienteCaptura } })
-      : el('a', { clase: 'btn grande', texto: 'Volver a Hoy', attrs: { href: '/' } }),
-    el('button', { clase: 'btn plano', texto: 'Subir otro trayecto', attrs: { type: 'button' }, on: { click: () => { cancelar(); entradaFoto.click(); } } }),
+    // 11a / 11f: la bici del primer trayecto. Opcional y con "Saltar".
+    encuesta ? el('div', { clase: 'subido-der' }, [encuesta]) : null,
   ]));
 
   // Se sigue el primero (los demas van en la misma tanda) y se recuerda para
@@ -1219,6 +1235,13 @@ function pintarSubido(ids, viajes = []) {
     if (viaje.estado === 'pendiente' || viaje.estado === 'extrayendo') return;
     olvidarViaje();
     if (primera) return;
+    // 8h: en escritorio el "Verificado" sale sobre Hoy, ya actualizado detras.
+    // Salvo si se esta rellenando la encuesta de la bici: eso no se pierde.
+    const rellenando = document.querySelector('#s-subido .encuesta-bici .encuesta-cabeza');
+    if (viaje.estado === 'aprobado' && window.matchMedia('(min-width: 900px)').matches && !rellenando) {
+      try { sessionStorage.setItem('bf_celebrar', ids[0]); } catch { /* sin sessionStorage: se celebra aqui */ }
+      if (sessionStorage.getItem?.('bf_celebrar') === ids[0]) { window.location.href = '/'; return; }
+    }
     if (viaje.estado === 'aprobado') abrirVerificado(viaje, { racha: perfil.racha });
     else abrirResuelto(viaje);
   });

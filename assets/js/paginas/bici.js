@@ -7,10 +7,10 @@ import {
   auth, db, onAuthStateChanged, collection, query, where, orderBy, limit, getDocs,
 } from '/assets/js/firebase.js';
 import { iniciarPagina, nombreEstacion, nombreRuta } from '/assets/js/ui.js';
-import { id, el, icono, reemplazar } from '/assets/js/dom.js';
+import { id, el, icono, reemplazar, abrirHoja } from '/assets/js/dom.js';
 import {
-  NOMBRE_FALLO, normalizarBici, mostrarBici, tonoNota, cifra, leerFicha, haceTiempo,
-  buscadas, recordarBuscada,
+  NOMBRE_FALLO, normalizarBici, mostrarBici, cifra, leerFicha, haceTiempo,
+  buscadas, recordarBuscada, estrellas, notaDeFicha,
 } from '/assets/js/bicis.js';
 
 iniciarPagina('territorio');
@@ -40,21 +40,18 @@ function estadoInicial() {
   ]));
 }
 
-function pastilla(v, { grande = false } = {}) {
-  return el('span', { clase: `nota-pastilla ${tonoNota(v)}${grande ? ' grande' : ''}`, texto: typeof v === 'number' && !Number.isInteger(v) ? cifra(v) : String(v) });
-}
 
 function valoracion(v) {
   const fecha = haceTiempo(v.cuando);
   const desde = v.estacion ? nombreEstacion(v.estacion) || v.estacion : null;
   return el('li', { clase: 'bici-opinion' }, [
-    pastilla(v.nota),
+    estrellas(v.nota, { tam: 16 }),
     el('div', { clase: 'bici-opinion-texto' }, [
       v.comentario ? el('p', { texto: v.comentario }) : null,
       (v.fallos || []).length
         ? el('div', { clase: 'bici-etiquetas' }, v.fallos.map((f) => el('span', { texto: NOMBRE_FALLO[f] || f })))
         : null,
-      el('small', { texto: [fecha, desde ? `desde ${desde}` : null].filter(Boolean).join(' · ') }),
+      el('small', { texto: [fechaCorta(v.cuando), fecha, desde ? `desde ${desde}` : null].filter(Boolean).join(' · ') }),
     ]),
   ]);
 }
@@ -90,15 +87,32 @@ function listaValoraciones(ultimas) {
   return caja;
 }
 
+/** "29 sept." */
+function fechaCorta(ms) {
+  if (!ms) return null;
+  return new Date(ms).toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', day: 'numeric', month: 'short' });
+}
+
+/**
+ * La ficha: nota en estrellas con las reseñas al lado, lo que esta roto AHORA
+ * (lo que tres reseñas seguidas ya no mencionan se da por arreglado, en el
+ * worker), las tres ultimas reseñas con su fecha y, debajo, todas.
+ */
 function pintarFicha(n, ficha) {
   document.querySelector('.bici-pagina').classList.add('con-ficha');
   const ultimas = ficha?.ultimas || [];
-  const cuenta = ficha?.valoraciones60 || 0;
+  const cuenta = ultimas.length ? Math.max(ficha?.valoraciones60 || 0, ultimas.length) : 0;
   const vista = ficha?.vista;
+  const nota = notaDeFicha(ficha);
+  const rotos = ficha?.fallos || [];
+  const arreglados = ficha?.resueltos || [];
 
   const cabeza = el('div', { clase: 'bici-ficha-cabeza' }, [
     el('span', { clase: 'bici-rotulo', texto: 'Bici' }),
     el('h2', { clase: 'bici-numero', texto: mostrarBici(n) }),
+    el('div', { clase: 'bici-estrellas' }, nota != null
+      ? [estrellas(nota, { tam: 22 }), el('strong', { texto: cifra(nota) }), el('span', { texto: `(${cuenta} ${cuenta === 1 ? 'reseña' : 'reseñas'})` })]
+      : [estrellas(0, { tam: 22 }), el('span', { texto: '(sin reseñas)' })]),
     vista?.estacion
       ? el('p', { clase: 'bici-vista' }, [
         'Vista por última vez en ',
@@ -108,60 +122,101 @@ function pintarFicha(n, ficha) {
       : null,
   ]);
 
-  // Sin ninguna valoracion: invitacion a ser el primero (11e).
+  const valorar = el('button', {
+    clase: 'btn grande', attrs: { type: 'button' }, on: { click: () => valorarSinViaje(n) },
+  }, [icono('mas', 'icono'), 'Valorar esta bici']);
+
+  const roto = rotos.length
+    ? el('div', { clase: 'bloque bici-roto', attrs: { role: 'status' } }, [
+      icono('aviso', 'icono'),
+      el('div', {}, [
+        el('strong', { texto: 'Avisan de que tiene algo roto' }),
+        el('div', { clase: 'bici-etiquetas' }, rotos.map((f) => el('span', { texto: `${NOMBRE_FALLO[f.codigo] || f.codigo} · ${f.veces}` }))),
+      ]),
+    ])
+    : el('div', { clase: 'bloque bici-bien' }, [
+      icono('comprobado', 'icono'),
+      el('span', {
+        texto: arreglados.length
+          ? `Sin averías ahora. ${arreglados.map((c) => NOMBRE_FALLO[c] || c).join(', ')}: arreglado según las últimas reseñas.`
+          : 'Nadie ha avisado de averías.',
+      }),
+    ]);
+
   if (!ultimas.length) {
     reemplazar(destino, [
       cabeza,
       el('div', { clase: 'vacio' }, [
         el('h3', { texto: `Nadie ha valorado la ${mostrarBici(n)} todavía` }),
-        el('p', { texto: 'Si la usas, al subir el trayecto podrás ser el primero.' }),
+        el('p', { texto: 'Si la has usado, sé el primero: sube la captura de ese trayecto y ponle estrellas.' }),
       ]),
+      valorar,
     ]);
     return;
   }
 
-  const hayMedia = ficha.media != null;
-  const reparto = ficha.reparto || {};
-  const maxReparto = Math.max(1, ...Object.values(reparto));
-  const tendencia = ficha.tendencia && ficha.tendencia.direccion !== 'igual'
-    ? ` · ${ficha.tendencia.direccion} (${cifra(ficha.tendencia.antes)} hace un mes)`
-    : '';
-
   reemplazar(destino, [
     cabeza,
-    hayMedia
-      ? el('div', { clase: 'bloque bici-media' }, [
-        el('div', { clase: 'bici-media-cifra' }, [
-          pastilla(ficha.media, { grande: true }),
-          el('div', {}, [
-            el('strong', { texto: 'de 5' }),
-            el('span', { texto: `${cuenta} valoraciones · 60 días${tendencia}` }),
-          ]),
-        ]),
-        el('div', { clase: 'bici-reparto', attrs: { 'aria-label': 'Reparto de notas' } }, [5, 4, 3, 2, 1].map((v) => el('div', { clase: 'bici-barra' }, [
-          el('span', { texto: String(v) }),
-          el('i', { clase: tonoNota(v) }, [el('b', { estilo: { width: `${((reparto[v] || 0) / maxReparto) * 100}%` } })]),
-          el('small', { texto: String(reparto[v] || 0) }),
-        ]))),
-      ])
-      : el('div', { clase: 'bloque bici-pocas' }, [
-        el('strong', { texto: `${ultimas.length} ${ultimas.length === 1 ? 'valoración' : 'valoraciones'}` }),
-        el('p', { texto: 'Aún no hay suficientes para una nota media. Estas son las que hay:' }),
-      ]),
-    hayMedia && (ficha.fallos || []).length
-      ? el('div', { clase: 'bloque' }, [
-        el('div', { clase: 'bici-seccion' }, [el('h3', { texto: 'Lo que más se repite' }), el('span', { texto: '60 días' })]),
-        ...ficha.fallos.map((f) => el('div', { clase: 'bici-fallo' }, [
-          el('span', { texto: NOMBRE_FALLO[f.codigo] || f.codigo }),
-          el('i', {}, [el('b', { estilo: { width: `${(f.veces / Math.max(1, cuenta)) * 100}%` } })]),
-          el('small', { texto: `${f.veces} de ${cuenta}` }),
-        ])),
+    roto,
+    el('div', { clase: 'bici-seccion' }, [el('h3', { texto: 'Últimas reseñas' })]),
+    el('ul', { clase: 'bici-opiniones' }, ultimas.slice(0, 3).map(valoracion)),
+    valorar,
+    ultimas.length > 3
+      ? el('details', { clase: 'bici-todas' }, [
+        el('summary', { texto: `Ver las ${ultimas.length} reseñas` }),
+        listaValoraciones(ultimas),
       ])
       : null,
-    el('div', { clase: 'bici-seccion' }, [el('h3', { texto: hayMedia ? 'Últimas valoraciones' : 'Valoraciones' })]),
-    hayMedia ? listaValoraciones(ultimas) : el('ul', { clase: 'bici-opiniones' }, ultimas.map(valoracion)),
-    el('p', { clase: 'bici-nota-pie', texto: 'Las valoraciones las hacen otros pilotos y son orientativas. Para una avería, avisa también a BiciMAD desde su app.' }),
+    el('p', { clase: 'bici-nota-pie', texto: 'Las reseñas las hacen otros pilotos y son orientativas. Para una avería, avisa también a BiciMAD desde su app.' }),
   ]);
+}
+
+/**
+ * Valorar sin subir un viaje: hace falta la captura del trayecto en que se uso
+ * (para no opinar de una bici que no has cogido). Se lee aqui mismo: tiene que
+ * salir el numero de ESTA bici y no tener mas de un mes. El worker lo vuelve a
+ * comprobar con la captura antes de contarla.
+ */
+async function valorarSinViaje(n) {
+  if (!auth.currentUser) { window.location.href = '/entrar/'; return; }
+  const entrada = el('input', { attrs: { type: 'file', accept: 'image/*', hidden: '' } });
+  const estadoTxt = el('p', { clase: 'encuesta-pista', attrs: { 'aria-live': 'polite' } });
+  const cuerpo = el('div', { clase: 'valorar-bici' }, [
+    el('h2', { texto: `Valorar la ${mostrarBici(n)}` }),
+    el('p', { texto: 'Sube la captura del trayecto en el que la usaste (de la app de BiciMAD). No cuenta como viaje: solo demuestra que la has cogido.' }),
+    el('button', { clase: 'btn grande', attrs: { type: 'button' }, on: { click: () => entrada.click() } }, [icono('imagen', 'icono'), 'Elegir captura']),
+    estadoTxt,
+    entrada,
+  ]);
+  abrirHoja(cuerpo, { etiqueta: 'Valorar esta bici', clase: 'dialogo-escritorio' });
+
+  entrada.addEventListener('change', async () => {
+    const fichero = entrada.files?.[0];
+    if (!fichero) return;
+    estadoTxt.classList.remove('error');
+    estadoTxt.textContent = 'Leyendo la captura…';
+    const [{ extraer, cerrar: soltarLector }, { comprimir }, { encuestaBici }, { diaMadridHace }] = await Promise.all([
+      import('/assets/js/extraccion.js'), import('/assets/js/precheck.js'),
+      import('/assets/js/encuesta-bici.js'), import('/assets/js/dia.js'),
+    ]);
+    const url = URL.createObjectURL(fichero);
+    const img = new Image();
+    img.src = url;
+    // Si no decodifica, extraer() devuelve { disponible: false } y se dice abajo.
+    await img.decode().catch(() => null);
+    const lectura = await extraer(img, (_, a) => { estadoTxt.textContent = `Leyendo la captura… ${Math.round(a * 100)} %`; });
+    soltarLector();
+    URL.revokeObjectURL(url);
+    const mal = (texto) => { estadoTxt.textContent = texto; estadoTxt.classList.add('error'); entrada.value = ''; };
+    if (!lectura.disponible) { mal('No hemos podido leer la captura. Prueba con la original, sin recortar.'); return; }
+    const leida = normalizarBici(lectura.numeroBici);
+    if (!leida) { mal('En esta captura no se lee el número de la bici. Tiene que ser la del trayecto, con el número arriba.'); return; }
+    if (leida !== n) { mal(`Esta captura es de la bici ${mostrarBici(leida)}, no de la ${mostrarBici(n)}.`); return; }
+    if (lectura.fecha && lectura.fecha < diaMadridHace(30)) { mal('Esa captura tiene más de un mes. Solo cuentan los trayectos recientes.'); return; }
+    const comprimida = await comprimir(fichero).catch(() => null);
+    if (!comprimida?.dataUrl) { mal('No se ha podido preparar la imagen. Prueba con otra.'); return; }
+    reemplazar(cuerpo, encuestaBici({ bici: n, captura: comprimida.dataUrl, estacionLeida: lectura.origen || '' }));
+  });
 }
 
 let pedida = 0;
@@ -203,7 +258,7 @@ function fila({ n, texto, detalle, media }) {
   return el('li', {}, [el('a', { clase: 'bici-fila', attrs: { href: `/bici/?n=${n}` }, on: { click: (e) => { e.preventDefault(); campo.value = mostrarBici(n); buscar(n); } } }, [
     el('strong', { texto: mostrarBici(n) }),
     el('span', { clase: 'bici-fila-texto' }, [texto ? el('span', { texto }) : null, detalle ? el('small', { texto: detalle }) : null]),
-    media != null ? pastilla(media) : el('small', { clase: 'bici-pocos', texto: 'Pocos datos' }),
+    media != null ? el('span', { clase: 'bici-fila-nota' }, [estrellas(media, { tam: 14 }), el('small', { texto: cifra(media) })]) : el('small', { clase: 'bici-pocos', texto: 'Sin reseñas' }),
   ])]);
 }
 

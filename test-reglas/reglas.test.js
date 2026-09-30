@@ -376,6 +376,35 @@ test('la valoracion no admite notas, fallos ni estaciones fuera de lo previsto',
   await assertFails(getDoc(doc(como(OTRO), 'valoraciones_bici', `2471_${UID}_${diaUTC()}`)));
 });
 
+// 11 · Valorar sin viaje: la prueba es una captura propia, en el mismo lote.
+const valoracionConCaptura = (capturaId, extra = {}) => {
+  const { viajeId: _viaje, ...resto } = valoracion({ estacion: '124', ...extra });
+  return { ...resto, capturaId };
+};
+
+test('se valora una bici sin viaje subiendo la captura en el mismo lote', async () => {
+  const db = como(UID);
+  const dia = diaUTC();
+  const capturaId = `${UID}_${dia}_c1`;
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'capturas', capturaId), { uid: UID, datos: 'data:image/jpeg;base64,AAAA', creado: serverTimestamp() });
+  lote.set(doc(db, 'cupos', UID), { dia, viajes: 0, capturas: 1 });
+  lote.set(doc(db, 'valoraciones_bici', `2471_${UID}_${dia}`), valoracionConCaptura(capturaId));
+  await assertSucceeds(lote.commit());
+});
+
+test('sin viaje no vale la captura de otro ni llevar viaje y captura a la vez', async () => {
+  const dia = diaUTC();
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'capturas', `${OTRO}_${dia}_c1`), { uid: OTRO, datos: 'data:image/jpeg;base64,AAAA' });
+  });
+  await conViaje();
+  const db = como(UID);
+  const ref = doc(db, 'valoraciones_bici', `2471_${UID}_${dia}`);
+  await assertFails(setDoc(ref, valoracionConCaptura(`${OTRO}_${dia}_c1`)));
+  await assertFails(setDoc(ref, { ...valoracion(), capturaId: `${OTRO}_${dia}_c1` }));
+});
+
 test('la ficha de una bici la lee cualquiera y no la escribe nadie', async () => {
   await assertSucceeds(getDoc(doc(anonimo(), 'bicis', '2471')));
   await assertFails(setDoc(doc(como(UID), 'bicis', '2471'), { media: 5 }));

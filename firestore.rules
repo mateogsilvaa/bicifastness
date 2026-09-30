@@ -852,7 +852,7 @@ service cloud.firestore {
     match /valoraciones_bici/{valoracionId} {
       allow read: if autenticado() && resource.data.uid == request.auth.uid;
       allow create, update: if autenticado()
-        && datos().keys().hasOnly(['bici', 'uid', 'dia', 'nota', 'fallos', 'comentario', 'viajeId', 'estacion', 'procesada', 'creado'])
+        && datos().keys().hasOnly(['bici', 'uid', 'dia', 'nota', 'fallos', 'comentario', 'viajeId', 'capturaId', 'estacion', 'procesada', 'creado'])
         && datos().uid == request.auth.uid
         && datos().bici is string && datos().bici.matches('^[1-9][0-9]{0,4}$')
         && datos().dia == diaUTC()
@@ -861,9 +861,21 @@ service cloud.firestore {
         && datos().fallos is list && datos().fallos.size() <= 9
         && datos().fallos.hasOnly(['frenos', 'asistencia', 'bateria', 'cambios', 'ruido', 'sillin', 'luces', 'cesta', 'rueda'])
         && datos().comentario is string && datos().comentario.size() <= 280
-        && datos().viajeId is string && datos().viajeId.size() > 0 && datos().viajeId.size() <= 64
-        && get(/databases/$(database)/documents/tiempos_viaje/$(datos().viajeId)).data.uid == request.auth.uid
-        && datos().estacion == get(/databases/$(database)/documents/tiempos_viaje/$(datos().viajeId)).data.ruta.split('-')[0]
+        && (
+          // Con un viaje suyo: la estacion es la de salida de ese viaje.
+          (!('capturaId' in datos())
+            && datos().viajeId is string && datos().viajeId.size() > 0 && datos().viajeId.size() <= 64
+            && get(/databases/$(database)/documents/tiempos_viaje/$(datos().viajeId)).data.uid == request.auth.uid
+            && datos().estacion == get(/databases/$(database)/documents/tiempos_viaje/$(datos().viajeId)).data.ruta.split('-')[0])
+          // Sin viaje (11): la prueba es una captura suya, subida en el mismo
+          // lote (y con el mismo cupo). El worker la lee: tiene que ser esa
+          // bici y de hace menos de un mes, o la valoracion no cuenta.
+          || (!('viajeId' in datos())
+            && datos().capturaId is string && datos().capturaId.size() > 0 && datos().capturaId.size() <= 64
+            && existsAfter(/databases/$(database)/documents/capturas/$(datos().capturaId))
+            && getAfter(/databases/$(database)/documents/capturas/$(datos().capturaId)).data.uid == request.auth.uid
+            && datos().estacion is string && datos().estacion.size() <= 4)
+        )
         && datos().procesada == false
         && datos().creado == request.time;
       allow delete: if false;

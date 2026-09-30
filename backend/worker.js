@@ -736,6 +736,30 @@ async function apuntarBiciVista(numero, viaje) {
  * `comentarioPublico`, sin invisibles y vacio si lleva un insulto. El original
  * solo lo lee su autor.
  */
+/**
+ * ¿La captura de una valoracion sin viaje demuestra esa bici? El numero de la
+ * bici tiene que leerse y coincidir, y si la captura trae fecha, no puede
+ * tener mas de un mes (LIMITES.DIAS_MAX_ANTIGUEDAD).
+ */
+async function comprobarCapturaDeBici(capturaId, bici) {
+  try {
+    const snap = await db.doc(`capturas/${capturaId}`).get();
+    if (!snap.exists) return { vale: false, motivo: 'sin captura' };
+    const { buffer } = imagen.decodificarDataUrl(snap.data().datos);
+    const lectura = await leerCaptura({ buffer });
+    if (!lectura.disponible) return { vale: false, motivo: 'captura ilegible' };
+    const leida = bicis.normalizarBici(lectura.numeroBici);
+    if (!leida || leida !== bici) return { vale: false, motivo: `la captura no es de la bici ${bici}` };
+    if (lectura.fecha) {
+      const dias = (Date.now() - new Date(`${lectura.fecha}T12:00:00Z`).getTime()) / 864e5;
+      if (dias > LIMITES.DIAS_MAX_ANTIGUEDAD) return { vale: false, motivo: 'captura de hace mas de un mes' };
+    }
+    return { vale: true };
+  } catch (error) {
+    return { vale: false, motivo: `error al leerla: ${error.message}` };
+  }
+}
+
 async function procesarValoraciones() {
   try {
     const nuevas = await db.collection('valoraciones_bici')
@@ -746,9 +770,19 @@ async function procesarValoraciones() {
     for (const doc of nuevas.docs) {
       const v = doc.data();
       const n = bicis.normalizarBici(v.bici);
+      // Valorar sin subir viaje (11): la prueba es la captura. Aqui se lee y
+      // tiene que ser esa bici y de hace menos de un mes; si no, no cuenta.
+      const prueba = v.capturaId ? await comprobarCapturaDeBici(v.capturaId, n) : { vale: true };
       if (!SIMULAR) {
-        await doc.ref.update({ procesada: true, comentarioPublico: bicis.limpiarComentario(v.comentario) });
+        await doc.ref.update({
+          procesada: true,
+          comentarioPublico: bicis.limpiarComentario(v.comentario),
+          ...(prueba.vale ? { rechazada: false } : { rechazada: true, motivoRechazo: prueba.motivo }),
+        });
+        // La captura solo servia de prueba: fuera, que son 700 KB.
+        if (v.capturaId) await db.doc(`capturas/${v.capturaId}`).delete().catch(() => {});
       }
+      if (!prueba.vale) console.log(`  valoracion de la bici ${n} descartada: ${prueba.motivo}`);
       if (n) tocadas.add(n);
     }
     if (!SIMULAR) for (const n of tocadas) await bicis.rehacerBici(db, n);

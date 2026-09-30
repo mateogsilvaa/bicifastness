@@ -32,17 +32,34 @@ test('dias distintos generan misiones distintas', () => {
 
 // --- Composicion -------------------------------------------------------------
 
-test('siempre hay una de distancia y una de velocidad', () => {
+test('cada dia hay una de fondo, una de ritmo y una de constancia o explorar', () => {
   // Sin esto, un dia podrian salir tres de velocidad y el fondista se queda sin
-  // poder completar ninguna.
+  // poder completar ninguna. Cada hueco rota entre dos familias (HUECOS).
+  const vistas = new Set();
   for (let d = 1; d <= 28; d++) {
     const fecha = `2026-08-${String(d).padStart(2, '0')}`;
     const tipos = misiones.generar(fecha).misiones.map((m) => m.tipo);
+    tipos.forEach((t) => vistas.add(t));
 
-    assert.ok(tipos.includes('distancia'), `${fecha} no tiene mision de distancia`);
-    assert.ok(tipos.includes('velocidad'), `${fecha} no tiene mision de velocidad`);
     assert.strictEqual(tipos.length, 3);
+    assert.ok(['distancia', 'minutos'].includes(tipos[0]), `${fecha}: el primer hueco es de fondo`);
+    assert.ok(['velocidad', 'largo'].includes(tipos[1]), `${fecha}: el segundo es de ritmo`);
+    assert.ok(['trayectos', 'exploracion'].includes(tipos[2]), `${fecha}: el tercero, constancia o explorar`);
   }
+  // En un mes salen todas las familias.
+  assert.deepStrictEqual([...vistas].sort(), ['distancia', 'exploracion', 'largo', 'minutos', 'trayectos', 'velocidad']);
+});
+
+test('trayecto largo y minutos se llevan con los totales del dia', () => {
+  let t = misiones.acumular(null, '2026-09-30', { distanciaMetros: 2000, velocidadKmh: 12, tiempoSegundos: 600 });
+  t = misiones.acumular(t, '2026-09-30', { distanciaMetros: 3200, velocidadKmh: 14, tiempoSegundos: 900 });
+  const [largo, minutos] = misiones.progresoDeTotales(
+    [{ tipo: 'largo', objetivo: 3000 }, { tipo: 'minutos', objetivo: 1500 }], t,
+  );
+  assert.strictEqual(largo.hecho, 3200);
+  assert.ok(largo.completada, 'el trayecto de 3,2 km cumple el de 3 km');
+  assert.strictEqual(minutos.hecho, 1500);
+  assert.ok(minutos.completada, '10 + 15 minutos cumplen los 25');
 });
 
 test('los objetivos son alcanzables en un dia normal', () => {

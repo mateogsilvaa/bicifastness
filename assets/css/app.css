@@ -3736,3 +3736,11 @@ body.pagina-admin { font-size: 14px; padding: 0; }
 .valorar-bici { display: flex; flex-direction: column; gap: 14px; }
 .valorar-bici h2 { margin: 0; font-size: 22px; }
 .valorar-bici p { margin: 0; color: var(--tinta-2); font-size: 15px; line-height: 1.45; }
+
+/* Ajustes · Como funciona: filas que llevan a cada parte de /info/. */
+.lista-como .fila-como { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px; color: var(--tinta); text-decoration: none; }
+.lista-como .fila-como + .fila-como { border-top: 1px solid var(--linea); }
+.lista-como .fila-como .texto { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: 600; }
+.lista-como .fila-como small { font-size: 13px; font-weight: 400; color: var(--tinta-3); }
+.lista-como .flecha-como { font-size: 22px; color: var(--tinta-3); }
+.lista-como .fila-como:hover { background: var(--papel-3); }

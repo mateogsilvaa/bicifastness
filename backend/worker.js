@@ -1102,7 +1102,7 @@ async function premiar(doc, viaje) {
 
       const totales = misiones.acumular(
         previo.misiones, diaDelViaje,
-        { distanciaMetros: metros, velocidadKmh: kmh },
+        { distanciaMetros: metros, velocidadKmh: kmh, tiempoSegundos: viaje.tiempoSegundos || 0 },
         Boolean(destino) && !previas.has(destino)
       );
 

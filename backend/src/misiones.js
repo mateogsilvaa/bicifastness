@@ -58,6 +58,8 @@ const PUNTOS_MISION = {
   velocidad: 15,
   trayectos: 15,
   exploracion: 25,
+  largo: 20,
+  minutos: 15,
 };
 
 /**
@@ -100,6 +102,30 @@ const FAMILIAS = {
     };
   },
 
+  // Un trayecto largo de una sola vez (no suman varios).
+  largo: (azar) => {
+    const km = elegir(azar, [2.5, 3, 3.5, 4]);
+    return {
+      tipo: 'largo',
+      objetivo: km * 1000,
+      texto: `Un trayecto de mas de ${String(km).replace('.', ',')} km`,
+      ayuda: 'Tiene que ser en un solo trayecto.',
+      puntos: PUNTOS_MISION.largo,
+    };
+  },
+
+  // Tiempo encima de la bici, sumando los trayectos del dia.
+  minutos: (azar) => {
+    const min = elegir(azar, [20, 25, 30, 40]);
+    return {
+      tipo: 'minutos',
+      objetivo: min * 60,
+      texto: `Pedalea ${min} minutos hoy`,
+      ayuda: 'Suman todos tus trayectos del dia.',
+      puntos: PUNTOS_MISION.minutos,
+    };
+  },
+
   exploracion: () => ({
     tipo: 'exploracion',
     objetivo: 1,
@@ -109,8 +135,12 @@ const FAMILIAS = {
   }),
 };
 
-/** La tercera mision rota entre estas. */
-const ROTATORIAS = ['trayectos', 'exploracion'];
+/**
+ * Cada hueco rota entre dos familias, para que no sean siempre las mismas tres:
+ * uno de distancia o tiempo, uno de velocidad o de trayecto largo, y uno de
+ * constancia o de explorar.
+ */
+const HUECOS = [['distancia', 'minutos'], ['velocidad', 'largo'], ['trayectos', 'exploracion']];
 
 /**
  * Genera las tres misiones de un dia.
@@ -121,11 +151,9 @@ function generar(fecha) {
 
   return {
     fecha,
-    misiones: [
-      FAMILIAS.distancia(azar),
-      FAMILIAS.velocidad(azar),
-      FAMILIAS[elegir(azar, ROTATORIAS)](azar),
-    ],
+    // Cada hueco elige familia con su propia semilla: el primer numero del
+    // generador de una fecha sale sesgado y un hueco se quedaba siempre igual.
+    misiones: HUECOS.map((opciones, i) => FAMILIAS[elegir(generador(`${fecha}#${i}`), opciones)](azar)),
   };
 }
 
@@ -154,6 +182,8 @@ function totalesDelDia(viajesDelDia, estacionesPrevias = new Set()) {
     metros: viajesDelDia.reduce((t, v) => t + (v.distanciaMetros || 0), 0),
     mejorVelocidad: Math.max(0, ...viajesDelDia.map((v) => v.velocidadKmh || 0)),
     trayectos: viajesDelDia.length,
+    mejorDistancia: Math.max(0, ...viajesDelDia.map((v) => v.distanciaMetros || 0)),
+    segundos: viajesDelDia.reduce((t, v) => t + (v.tiempoSegundos || 0), 0),
     nuevas: viajesDelDia.filter((v) => {
       const destino = String(v.ruta || '').split('-')[1];
       return destino && !estacionesPrevias.has(destino);
@@ -175,7 +205,7 @@ function totalesDelDia(viajesDelDia, estacionesPrevias = new Set()) {
 function acumular(totales, fecha, viaje, esEstacionNueva = false) {
   const base = (totales && totales.fecha === fecha)
     ? totales
-    : { fecha, metros: 0, mejorVelocidad: 0, trayectos: 0, nuevas: 0 };
+    : { fecha, metros: 0, mejorVelocidad: 0, trayectos: 0, nuevas: 0, mejorDistancia: 0, segundos: 0 };
 
   return {
     fecha,
@@ -183,6 +213,8 @@ function acumular(totales, fecha, viaje, esEstacionNueva = false) {
     mejorVelocidad: Math.max(base.mejorVelocidad || 0, viaje.velocidadKmh || 0),
     trayectos: (base.trayectos || 0) + 1,
     nuevas: (base.nuevas || 0) + (esEstacionNueva ? 1 : 0),
+    mejorDistancia: Math.max(base.mejorDistancia || 0, viaje.distanciaMetros || 0),
+    segundos: (base.segundos || 0) + (viaje.tiempoSegundos || 0),
   };
 }
 
@@ -194,6 +226,8 @@ function progresoDeTotales(misiones, totales) {
       velocidad: totales.mejorVelocidad || 0,
       trayectos: totales.trayectos || 0,
       exploracion: totales.nuevas || 0,
+      largo: totales.mejorDistancia || 0,
+      minutos: totales.segundos || 0,
     }[m.tipo] || 0;
 
     return {
@@ -262,7 +296,7 @@ module.exports = {
   PUNTOS_MISION,
   puntosCompletadas,
   FAMILIAS,
-  ROTATORIAS,
+  HUECOS,
   generador,
   generar,
   progreso,

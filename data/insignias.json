@@ -30,6 +30,20 @@
       "icono": "comprobado",
       "regla": { "campo": "viajesVerificados", "minimo": 1 }
     },
+    "diez-viajes": {
+      "titulo": "Diez trayectos",
+      "descripcion": "Diez trayectos verificados. Ya no es casualidad.",
+      "modo": "exploracion",
+      "icono": "comprobado",
+      "regla": { "campo": "viajesVerificados", "minimo": 10 }
+    },
+    "veinticinco-viajes": {
+      "titulo": "Veinticinco",
+      "descripcion": "25 trayectos verificados.",
+      "modo": "exploracion",
+      "icono": "comprobado",
+      "regla": { "campo": "viajesVerificados", "minimo": 25 }
+    },
     "veterano": {
       "titulo": "Veterano",
       "descripcion": "50 trayectos verificados.",
@@ -44,13 +58,33 @@
       "icono": "comprobado",
       "regla": { "campo": "viajesVerificados", "minimo": 100 }
     },
-
+    "leyenda": {
+      "titulo": "Leyenda",
+      "descripcion": "500 trayectos verificados. Madrid te conoce.",
+      "modo": "exploracion",
+      "icono": "medalla",
+      "regla": { "campo": "viajesVerificados", "minimo": 500 }
+    },
+    "fondo-10": {
+      "titulo": "10 km",
+      "descripcion": "Tus primeros 10 km verificados.",
+      "modo": "fondo",
+      "icono": "ruta",
+      "regla": { "campo": "metrosTotales", "minimo": 10000 }
+    },
     "fondo-50": {
       "titulo": "50 km",
       "descripcion": "50 km acumulados en trayectos verificados.",
       "modo": "fondo",
       "icono": "ruta",
       "regla": { "campo": "metrosTotales", "minimo": 50000 }
+    },
+    "fondo-100": {
+      "titulo": "100 km",
+      "descripcion": "100 km acumulados.",
+      "modo": "fondo",
+      "icono": "ruta",
+      "regla": { "campo": "metrosTotales", "minimo": 100000 }
     },
     "fondo-250": {
       "titulo": "250 km",
@@ -59,6 +93,13 @@
       "icono": "ruta",
       "regla": { "campo": "metrosTotales", "minimo": 250000 }
     },
+    "fondo-500": {
+      "titulo": "500 km",
+      "descripcion": "500 km: de Madrid a Valencia y vuelta.",
+      "modo": "fondo",
+      "icono": "ruta",
+      "regla": { "campo": "metrosTotales", "minimo": 500000 }
+    },
     "fondo-1000": {
       "titulo": "1.000 km",
       "descripcion": "1.000 km acumulados sobre una BiciMAD.",
@@ -66,13 +107,33 @@
       "icono": "ruta",
       "regla": { "campo": "metrosTotales", "minimo": 1000000 }
     },
-
+    "fondo-2500": {
+      "titulo": "2.500 km",
+      "descripcion": "2.500 km sobre una BiciMAD. Esto ya es otra cosa.",
+      "modo": "fondo",
+      "icono": "ruta",
+      "regla": { "campo": "metrosTotales", "minimo": 2500000 }
+    },
+    "racha-3": {
+      "titulo": "Tres seguidos",
+      "descripcion": "Tres días seguidos con al menos un trayecto.",
+      "modo": "constancia",
+      "icono": "reloj",
+      "regla": { "campo": "mejorRacha", "minimo": 3 }
+    },
     "racha-7": {
       "titulo": "Una semana seguida",
       "descripcion": "Siete días seguidos con al menos un trayecto.",
       "modo": "constancia",
       "icono": "reloj",
       "regla": { "campo": "mejorRacha", "minimo": 7 }
+    },
+    "racha-14": {
+      "titulo": "Dos semanas",
+      "descripcion": "Catorce días seguidos.",
+      "modo": "constancia",
+      "icono": "reloj",
+      "regla": { "campo": "mejorRacha", "minimo": 14 }
     },
     "racha-30": {
       "titulo": "Un mes seguido",
@@ -81,6 +142,13 @@
       "icono": "reloj",
       "regla": { "campo": "mejorRacha", "minimo": 30 }
     },
+    "racha-60": {
+      "titulo": "Dos meses",
+      "descripcion": "Sesenta días seguidos sin fallar.",
+      "modo": "constancia",
+      "icono": "reloj",
+      "regla": { "campo": "mejorRacha", "minimo": 60 }
+    },
     "racha-100": {
       "titulo": "Cien días",
       "descripcion": "Cien días seguidos sin fallar uno.",
@@ -88,7 +156,6 @@
       "icono": "reloj",
       "regla": { "campo": "mejorRacha", "minimo": 100 }
     },
-
     "sprint-podio": {
       "titulo": "Podio",
       "descripcion": "Estás entre los tres mejores de algún tramo.",
@@ -102,6 +169,13 @@
       "icono": "clasificacion",
       "regla": { "campo": "tramosConPuntos", "minimo": 5 }
     },
+    "sprint-diez-tramos": {
+      "titulo": "Diez tramos",
+      "descripcion": "Puntúas en diez tramos distintos.",
+      "modo": "sprint",
+      "icono": "clasificacion",
+      "regla": { "campo": "tramosConPuntos", "minimo": 10 }
+    },
     "sprint-veinte-tramos": {
       "titulo": "Veinte tramos",
       "descripcion": "Puntúas en veinte tramos distintos. Te conoces la ciudad.",
@@ -109,13 +183,26 @@
       "icono": "clasificacion",
       "regla": { "campo": "tramosConPuntos", "minimo": 20 }
     },
-
+    "sprint-cincuenta-tramos": {
+      "titulo": "Cincuenta tramos",
+      "descripcion": "Puntúas en cincuenta tramos. Media ciudad es tuya.",
+      "modo": "sprint",
+      "icono": "clasificacion",
+      "regla": { "campo": "tramosConPuntos", "minimo": 50 }
+    },
     "explorador-10": {
       "titulo": "Diez estaciones",
       "descripcion": "Has salido o llegado desde diez estaciones distintas.",
       "modo": "exploracion",
       "icono": "mapa",
       "regla": { "campo": "estacionesVisitadas", "minimo": 10 }
+    },
+    "explorador-25": {
+      "titulo": "Veinticinco estaciones",
+      "descripcion": "Veinticinco estaciones distintas.",
+      "modo": "exploracion",
+      "icono": "mapa",
+      "regla": { "campo": "estacionesVisitadas", "minimo": 25 }
     },
     "explorador-50": {
       "titulo": "Cincuenta estaciones",
@@ -124,7 +211,20 @@
       "icono": "mapa",
       "regla": { "campo": "estacionesVisitadas", "minimo": 50 }
     },
-
+    "explorador-100": {
+      "titulo": "Cien estaciones",
+      "descripcion": "Cien estaciones distintas.",
+      "modo": "exploracion",
+      "icono": "mapa",
+      "regla": { "campo": "estacionesVisitadas", "minimo": 100 }
+    },
+    "explorador-250": {
+      "titulo": "Toda la red",
+      "descripcion": "250 estaciones distintas. Pocos llegan aquí.",
+      "modo": "exploracion",
+      "icono": "mapa",
+      "regla": { "campo": "estacionesVisitadas", "minimo": 250 }
+    },
     "clan-fundador": {
       "titulo": "Fundador",
       "descripcion": "Has creado un clan.",
@@ -138,7 +238,6 @@
       "icono": "clan"
     }
   },
-
   "temporada": {
     "_comentario": [
       "Las de temporada NO se listan una a una: son `temporada-2026-07-oro` y",
@@ -148,10 +247,30 @@
       "estaba en ningun diccionario, asi que el perfil no pintaba nada: se",
       "concedian y no se veian."
     ],
-    "oro": { "titulo": "Oro", "descripcion": "Primero de la temporada", "icono": "clasificacion" },
-    "plata": { "titulo": "Plata", "descripcion": "Segundo de la temporada", "icono": "clasificacion" },
-    "bronce": { "titulo": "Bronce", "descripcion": "Tercero de la temporada", "icono": "clasificacion" },
-    "fondo": { "titulo": "Rey del fondo", "descripcion": "Más kilómetros de la temporada", "icono": "ruta" },
-    "constancia": { "titulo": "El más constante", "descripcion": "Mejor racha de la temporada", "icono": "reloj" }
+    "oro": {
+      "titulo": "Oro",
+      "descripcion": "Primero de la temporada",
+      "icono": "clasificacion"
+    },
+    "plata": {
+      "titulo": "Plata",
+      "descripcion": "Segundo de la temporada",
+      "icono": "clasificacion"
+    },
+    "bronce": {
+      "titulo": "Bronce",
+      "descripcion": "Tercero de la temporada",
+      "icono": "clasificacion"
+    },
+    "fondo": {
+      "titulo": "Rey del fondo",
+      "descripcion": "Más kilómetros de la temporada",
+      "icono": "ruta"
+    },
+    "constancia": {
+      "titulo": "El más constante",
+      "descripcion": "Mejor racha de la temporada",
+      "icono": "reloj"
+    }
   }
 }

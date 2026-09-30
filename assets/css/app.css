@@ -2314,7 +2314,7 @@ body:has(.subir) #pie-legal { display: none; }
 .subir-inicio-cabeza span { font-size: 13px; color: var(--tinta-2); }
 .subir-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .subir-opciones:has(.subir-opcion.oculto) { grid-template-columns: 1fr; }
-.subir-opcion { height: 108px; border: 0; border-radius: 18px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: left; font: inherit; cursor: pointer; }
+.subir-opcion { height: 136px; border: 0; border-radius: 18px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: left; font: inherit; cursor: pointer; }
 .subir-opcion .icono { width: 26px; height: 26px; }
 .subir-opcion strong { font-size: 16px; }
 .subir-opcion small { display: block; font-size: 12px; color: var(--tinta-2); }
@@ -2330,6 +2330,9 @@ body:has(.subir) #pie-legal { display: none; }
 .subir-ejemplo-texto .bien .icono { color: var(--verde); width: 16px; height: 16px; }
 .subir-ejemplo-texto .mal .icono { color: var(--rojo); width: 16px; height: 16px; }
 .subir-truco { display: flex; align-items: center; gap: var(--e2); font-size: 13px; color: var(--tinta-2); }
+/* 3a: la hoja de subida sobre la pantalla en la que se esta. */
+.hoja.hoja-subir { gap: 16px; padding-bottom: max(30px, env(safe-area-inset-bottom, 0px)); box-shadow: 0 -8px 32px rgba(0, 0, 0, .12); }
+.hoja-subir .subir-ejemplo { background: var(--papel); }
 .subir-truco kbd { font-family: var(--tipo); font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: var(--papel-3); color: var(--tinta); }
 .bloqueo { gap: var(--e1); font-size: 14px; }
 .bloqueo strong { font-size: 15px; }

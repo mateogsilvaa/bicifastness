@@ -2309,6 +2309,11 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
   background: var(--papel);
   color: var(--tinta);
 }
+/* Lo que se abre DESDE el veredicto (3m, "que lo mire una persona") tiene que
+   quedar encima: con el z-index normal de las hojas (71) salia detras y el
+   boton parecia no hacer nada. */
+body:has(.pantalla-veredicto) > .velo { z-index: 81; }
+body:has(.pantalla-veredicto) > .hoja { z-index: 82; }
 .pantalla-veredicto:focus { outline: none; }
 .veredicto-cerrar { position: absolute; top: calc(var(--e3) + env(safe-area-inset-top, 0px)); right: var(--e3); }
 .pantalla-veredicto.verificado { background: var(--azul-relleno); color: var(--sobre-azul); gap: 22px; }

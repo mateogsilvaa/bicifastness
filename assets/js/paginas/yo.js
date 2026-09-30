@@ -83,6 +83,15 @@ escritorioAjustes.addEventListener('change', colocarCorreo);
 const VISTAS = ['resumen', 'insignias', 'historial', 'temporadas', 'rutas', 'ajustes', 'datos', 'adios'];
 const cargadas = new Set();
 
+// Desde el correo de trayecto rechazado (10a): `?viaje=ID` abre ese trayecto en
+// el historial y `&revision=1`, ademas, la hoja de "que lo mire una persona".
+const deCorreo = new URLSearchParams(window.location.search);
+let viajePedido = deCorreo.get('viaje');
+const revisionPedida = deCorreo.get('revision') === '1';
+if (viajePedido) {
+  history.replaceState(null, '', `${window.location.pathname}#historial`);
+}
+
 function mostrarVista() {
   const pedida = window.location.hash.slice(1);
   const vista = VISTAS.includes(pedida) ? pedida : 'resumen';
@@ -356,6 +365,16 @@ function pintarHistorial() {
     ...nodosHistorial(viajes, filtro, { alAbrir: abrirViaje }),
     quedanMas ? botonVerMas() : null,
   ]);
+  if (viajePedido) {
+    const fila = id('historial').querySelector(`.fila-viaje[data-viaje="${CSS.escape(viajePedido)}"]`);
+    if (fila) {
+      viajePedido = null;
+      fila.click();
+      // El detalle se monta en el siguiente fotograma; su boton, con el.
+      if (revisionPedida) requestAnimationFrame(() => setTimeout(() => document.querySelector('.pedir-revision')?.click(), 50));
+      return;
+    }
+  }
   // 8n: en escritorio el detalle vive al lado; se abre el primero.
   if (anchoHistorial() && !id('detalle-historial').childElementCount) {
     id('historial').querySelector('.fila-viaje')?.click();

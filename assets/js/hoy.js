@@ -15,10 +15,11 @@ import {
   db, doc, getDoc, collection, getDocs, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
 import { el, icono, reemplazar, abrirHoja } from '/assets/js/dom.js';
-import { nombreEstacion, formatearTiempo } from '/assets/js/ui.js';
+import { nombreEstacion, formatearTiempo, kmEstimados } from '/assets/js/ui.js';
 import { traerAgregado, puestoPorMarca } from '/assets/js/agregados.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
-import { diaMadrid, minutosMadrid } from '/assets/js/dia.js';
+import { diaMadrid, diaMadridHace, minutosMadrid } from '/assets/js/dia.js';
+import { INSIGNIAS } from '/assets/data/insignias.js';
 import { destacar } from '/assets/js/celebrar.js';
 import { anilloSemana, estadosSemana, activoHoy } from '/assets/js/anillo.js';
 import { seguirViaje, viajeRecordado, olvidarViaje } from '/assets/js/estado-viaje.js';
@@ -81,17 +82,20 @@ function botonSubir(texto, { secundario = false, clase = '' } = {}) {
 }
 
 function pintarSubir(perfil, modo) {
+  if (modo === 'en-cola') { reemplazar($('bloque-subir')); return; }
   const lleva = llevaHoy(perfil);
   const quedan = Math.max(0, CUPO - lleva);
   if (modo === 'salvado') {
-    reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir' }, [
+    // 2b: con el dia salvado, "Subir otro" baja debajo de las misiones.
+    reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir salvado' }, [
       botonSubir(quedan ? `Subir otro · ${quedan === 1 ? 'queda 1 que puntúa' : `quedan ${quedan} que puntúan`}` : 'Subir otro · ya sin puntos hoy', { secundario: true }),
     ]));
     return;
   }
+  // 2c: con la racha en peligro, el boton solo; la ayuda va debajo.
   reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir solo-movil' }, [
     botonSubir('Subir trayecto'),
-    el('span', { clase: 'hoy-pista', texto: `Hoy puntúan ${CUPO} · llevas ${lleva} · también desde Fotos → Compartir` }),
+    modo === 'riesgo' ? null : el('span', { clase: 'hoy-pista', texto: `Hoy puntúan ${CUPO} · llevas ${lleva} · también desde Fotos → Compartir` }),
   ]));
 }
 
@@ -128,9 +132,20 @@ function diasSemana() {
     })));
 }
 
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const nombreDia = (dia) => DIAS[new Date(`${dia}T12:00:00Z`).getUTCDay()];
+
+/** 2f: la mejor insignia de racha que da esa marca: 'insignia "Una semana seguida"'. */
+function insigniaDeRacha(dias) {
+  const ganadas = Object.values(INSIGNIAS)
+    .filter((i) => i.regla?.campo === 'mejorRacha' && dias >= i.regla.minimo)
+    .sort((a, b) => b.regla.minimo - a.regla.minimo);
+  return ganadas[0] ? `insignia "${ganadas[0].titulo}"` : null;
+}
+
 /**
  * La tarjeta de la racha, en el estado que toque (2a, 2b, 2c, 2d, 2f).
- * @returns {'pendiente'|'salvado'|'riesgo'}
+ * @returns {'pendiente'|'en-cola'|'salvado'|'riesgo'}
  */
 function pintarRacha(perfil, { enCola = false } = {}) {
   const dias = perfil.racha || 0;
@@ -150,7 +165,8 @@ function pintarRacha(perfil, { enCola = false } = {}) {
         el('span', { texto: 'En cuanto se verifique, hoy queda salvado.' }),
       ]),
     ]));
-    return 'pendiente';
+    // 2d: mientras espera, sin boton de subir; debajo van las misiones.
+    return 'en-cola';
   }
 
   // 2b · Hoy ya esta salvado.
@@ -181,12 +197,13 @@ function pintarRacha(perfil, { enCola = false } = {}) {
         anilloSemana(estados, { tam: 84, numero: '0' }),
         el('div', { clase: 'hoy-racha-texto' }, [
           el('strong', { texto: 'Empieza otra hoy' }),
-          el('span', { texto: `Tu racha de ${cierre.rachaPrevia} días terminó. ${cierre.rachaPrevia >= (perfil.mejorRacha || 0) ? 'Sigue siendo tu mejor marca.' : ''}`.trim() }),
+          // 2f: "Tu racha de 23 días terminó el domingo. Sigue siendo tu mejor marca."
+          el('span', { texto: `Tu racha de ${cierre.rachaPrevia} días terminó el ${nombreDia(diaMadridHace(1))}. ${cierre.rachaPrevia >= (perfil.mejorRacha || 0) ? 'Sigue siendo tu mejor marca.' : ''}`.trim() }),
         ]),
       ]),
       el('div', { clase: 'fila-dato' }, [
         el('span', { texto: 'Mejor racha' }),
-        el('strong', { texto: `${perfil.mejorRacha || cierre.rachaPrevia} días` }),
+        el('strong', { texto: [`${perfil.mejorRacha || cierre.rachaPrevia} días`, insigniaDeRacha(perfil.mejorRacha || cierre.rachaPrevia)].filter(Boolean).join(' · ') }),
       ]),
       botonSubir('Subir trayecto', { clase: 'solo-escritorio' }),
     ]));
@@ -228,13 +245,15 @@ function pintarRacha(perfil, { enCola = false } = {}) {
             el('span', { clase: 'rotulo-rojo', texto: 'Sin escudos' }),
             el('span', { clase: 'cuenta-atras', texto: duracion(quedan) }),
             el('span', { texto: `para salvar ${dias} ${dias === 1 ? 'día' : 'días'}. Si no sales, vuelves a 0.` }),
+            // 8p: en escritorio, el boton en la columna del texto.
+            botonSubir('Subir trayecto', { clase: 'solo-escritorio' }),
           ]
           : [
             el('strong', { texto: 'Hoy aún no has salido' }),
             el('span', { texto: `Quedan ${duracion(quedan)}. Si no sales, se gasta tu escudo.` }),
+            botonSubir('Subir trayecto', { clase: 'solo-escritorio' }),
           ]),
       ]),
-      botonSubir('Subir trayecto · o arrastra la captura aquí', { clase: 'solo-escritorio' }),
     ]));
     return 'riesgo';
   }
@@ -245,7 +264,11 @@ function pintarRacha(perfil, { enCola = false } = {}) {
       anilloSemana(estados, { tam: 120, numero: String(dias), pie: 'días' }),
       el('div', { clase: 'hoy-racha-texto' }, [
         el('strong', { texto: 'Hoy aún no has salido' }),
-        el('span', { texto: `Un trayecto antes de las 23:59 y llegas a ${dias + 1}.` }),
+        el('span', {}, [
+          `Un trayecto antes de las 23:59 y llegas a ${dias + 1}.`,
+          // 8a: en escritorio el escudo va en la misma frase, sin chip.
+          escudos ? el('span', { clase: 'solo-escritorio-i', texto: ` Tienes ${escudos === 1 ? '1 escudo guardado' : `${escudos} escudos guardados`}.` }) : null,
+        ]),
         chipEscudos(escudos),
         botonSubir('Subir trayecto · o arrastra la captura aquí', { clase: 'solo-escritorio' }),
       ]),
@@ -256,14 +279,27 @@ function pintarRacha(perfil, { enCola = false } = {}) {
 }
 
 /** 2c · Lo que sale debajo cuando la racha esta en peligro. */
-function pintarAyudaRiesgo() {
+function pintarAyudaRiesgo(perfil) {
+  // La estacion que mas aparece en sus tramos: la que tiene mas a mano.
+  const veces = new Map();
+  for (const ruta of Object.keys(perfil?.puntosPorRuta || {})) {
+    for (const e of ruta.split('-')) veces.set(e, (veces.get(e) || 0) + 1);
+  }
+  const [habitual] = [...veces.entries()].sort((a, b) => b[1] - a[1])[0] || [];
   reemplazar($('misiones'), el('div', { clase: 'pila hoy-ayuda' }, [
     el('div', { clase: 'tarjeta-grande media' }, [
-      el('strong', { texto: 'Lo más corto que te salva' }),
-      el('span', {
-        clase: 'apagado',
-        texto: 'Cualquier trayecto verificado cuenta, aunque sea corto y lento. Recuerda: vale la hora de llegada de la captura, no la de subida; puedes subirla mañana.',
-      }),
+      // 8p: en escritorio, una sola frase: "Lo más corto que te salva: cualquier…".
+      el('strong', {}, ['Lo más corto que te salva', el('span', { clase: 'solo-escritorio-i', texto: ':' })]),
+      el('span', { clase: 'apagado' }, [
+        el('span', { clase: 'solo-movil-i' }, [
+          'Cualquier trayecto verificado cuenta, aunque sea corto y lento. ',
+          habitual ? 'Tu estación más usada: ' : null,
+          habitual ? el('strong', { texto: nombreEstacion(habitual) || habitual }) : null,
+          habitual ? '. ' : null,
+          'Recuerda: vale la hora de llegada de la captura, no la de subida; puedes subirla mañana.',
+        ]),
+        el('span', { clase: 'solo-escritorio-i', texto: ' cualquier trayecto verificado cuenta. Vale la hora de llegada de la captura, no la de subida: puedes subirla mañana.' }),
+      ]),
     ]),
     el('div', { clase: 'aviso tonal' }, [
       icono('escudo', 'icono'),
@@ -287,7 +323,7 @@ function pintarNuevo() {
     ]),
     paso(3, 'Súbela aquí. Leemos las estaciones y el tiempo por ti.'),
   ]));
-  reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir' }, [
+  reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir primero' }, [
     botonSubir('Subir mi primer trayecto'),
     el('span', { clase: 'hoy-pista', texto: 'Respeta semáforos y pasos de peatones: ningún puesto vale un susto.' }),
   ]));
@@ -383,7 +419,7 @@ function tarjetaEnCola(viaje) {
       el('span', { clase: 'cola-tiempo', texto: formatearTiempo(viaje.tiempoSegundos) }),
     ]),
     el('span', { clase: 'progreso gruesa azul' }, [el('span', { estilo: { width: `${pct}%` } })]),
-    el('span', { clase: 'apagado menor', texto: 'Suele tardar unos diez minutos. Puedes cerrar la app: te avisamos.' }),
+    el('span', { clase: 'apagado menor cola-nota', texto: 'Suele tardar unos diez minutos. Puedes cerrar la app: te avisamos.' }),
   ]);
 }
 
@@ -462,17 +498,26 @@ async function pintarRutaDelDia(perfil) {
     const deHoy = agregado?.hoyDia === diaMadrid() ? (agregado.hoy || []) : [];
     const mia = deHoy.find((f) => f.nombre === perfil.username);
     const [a, b] = ruta.split('-');
+    const distancia = kmEstimados(a, b);
+    const km = distancia ? `${coma(distancia)} km` : null;
 
     reemplazar(destino, el('a', {
       clase: 'tarjeta-ruta-dia', attrs: { href: `/clasificacion/?ruta=${encodeURIComponent(ruta)}` },
     }, [
       el('div', { clase: 'fila-cola' }, [
         el('span', { clase: 'x2', texto: 'Ruta del día · ×2' }),
-        el('span', { clase: 'cierra', texto: `cierra en ${duracion(minutosHastaMedianoche())}` }),
+        el('span', { clase: 'cierra' }, [
+          `cierra en ${Math.floor(minutosHastaMedianoche() / 60)} h`,
+          el('span', { clase: 'solo-movil-i', texto: ` ${minutosHastaMedianoche() % 60} min` }),
+        ]),
       ]),
       el('div', { clase: 'ruta-dia-nombre' }, [
-        el('strong', { texto: nombreEstacion(a) || a }),
-        el('span', { texto: `→ ${nombreEstacion(b) || b}` }),
+        el('strong', {}, [
+          nombreEstacion(a) || a,
+          // 8a: en escritorio, el tramo entero en una linea.
+          el('span', { clase: 'solo-escritorio-i', texto: ` → ${nombreEstacion(b) || b}` }),
+        ]),
+        el('span', { clase: 'solo-movil-i', texto: `→ ${nombreEstacion(b) || b}${km ? ` · ${km}` : ''}` }),
       ]),
       el('div', { clase: 'ruta-dia-filas' }, [
         ...deHoy.slice(0, 3).map((f) => el('div', { clase: 'ruta-dia-fila' }, [
@@ -534,7 +579,7 @@ async function pintarDivision(perfil) {
     reemplazar(destino, el('a', { clase: 'tarjeta-grande hoy-division', attrs: { href: '/clasificacion/' } }, [
       el('div', { clase: 'hoy-seccion' }, [
         el('strong', { texto: nombreGrupo(grupo.clave) }),
-        el('span', { texto: 'se decide el lunes' }),
+        el('span', {}, [el('span', { clase: 'solo-movil-i', texto: 'se decide el ' }), 'lunes']),
       ]),
       el('div', { clase: 'division-puesto' }, [
         el('span', { clase: 'cifra-grande', texto: ordinal(yo.pos) }),
@@ -605,14 +650,25 @@ async function pintarClan(perfil) {
     if (!clan) { reemplazar(destino); return; }
     const suyas = Object.values(mapa.estaciones || {}).filter((e) => e.clan === perfil.clanId);
     const asedio = suyas.filter((e) => e.disputa).length;
-    reemplazar(destino, el('a', { clase: 'tarjeta-grande media hoy-mini', attrs: { href: '/territorio/#mi-clan' } }, [
-      el('span', { clase: 'rotulo con-punto' }, [
-        el('span', { clase: 'punto-clan', estilo: { background: clan.color || 'var(--tinta-3)' } }),
-        el('span', { texto: clan.nombre }),
+    const iniciales = String(clan.nombre || '').split(/\s+/).filter(Boolean).slice(0, 2)
+      .map((p) => [...p][0]).join('').toUpperCase();
+    reemplazar(destino, [
+      el('a', { clase: 'tarjeta-grande media hoy-mini solo-movil', attrs: { href: '/territorio/#mi-clan' } }, [
+        el('span', { clase: 'rotulo con-punto' }, [
+          el('span', { clase: 'punto-clan', estilo: { background: clan.color || 'var(--tinta-3)' } }),
+          el('span', { texto: clan.nombre }),
+        ]),
+        el('span', { clase: 'cifra-media', texto: String(suyas.length) }),
+        el('span', { clase: 'rotulo', texto: `estaciones${asedio ? ` · ${asedio} en asedio` : ''}` }),
       ]),
-      el('span', { clase: 'cifra-media', texto: String(suyas.length) }),
-      el('span', { clase: 'rotulo', texto: `estaciones${asedio ? ` · ${asedio} en asedio` : ''}` }),
-    ]));
+      el('a', { clase: 'hoy-clan-fila solo-escritorio', attrs: { href: '/territorio/#mi-clan' } }, [
+        el('span', { clase: 'insignia-clan', estilo: { background: clan.color || 'var(--tinta-3)' }, texto: iniciales }),
+        el('span', { clase: 'datos' }, [
+          el('strong', { texto: clan.nombre }),
+          el('span', { texto: `${suyas.length} ${suyas.length === 1 ? 'estación' : 'estaciones'}${asedio ? ` · ${asedio} en asedio` : ''}` }),
+        ]),
+      ]),
+    ]);
   } catch (error) {
     console.debug('Sin clan', error);
     reemplazar(destino);
@@ -638,24 +694,24 @@ function avisarCambioDivision(perfil) {
     el('div', { clase: 'cambio-division' }, [
       el('div', { clase: 'cambio-chips' }, [
         el('span', { clase: 'chip-division antes', texto: desde }),
-        icono('flecha', 'icono azul'),
+        icono('flecha', 'icono'),
         el('span', { clase: `chip-division despues ${cambio.hasta}`, texto: hasta }),
       ]),
       el('h2', { texto: sube ? `Subes a ${hasta}` : `Bajas a ${hasta}` }),
       el('p', {
         texto: sube
-          ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Esta semana compites en un grupo nuevo.`
+          ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Esta semana compites con pilotos nuevos, todos desde 0.`
           : `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total}. Esta semana, a recuperar ${desde}.`,
       }),
     ]),
     el('div', { clase: 'cifras-cambio' }, [
-      el('div', {}, [el('strong', { texto: String(cambio.puntos || 0) }), el('span', { texto: 'pts' })]),
+      el('div', {}, [el('strong', { texto: String(cambio.puntos || 0) }), el('span', { texto: 'pts semana' })]),
       el('div', {}, [el('strong', { texto: ordinal(cambio.puesto) }), el('span', { texto: `de ${cambio.total}` })]),
     ]),
     el('a', { clase: 'btn', texto: 'Ver mi grupo nuevo', attrs: { href: '/clasificacion/' } }),
   ], {
     etiqueta: sube ? `Subes a ${hasta}` : `Bajas a ${hasta}`,
-    clase: 'dialogo-escritorio',
+    clase: 'dialogo-escritorio hoja-division',
     alCerrar: () => { try { localStorage.setItem(clave, cambio.fecha); } catch { /* modo privado */ } },
   });
   // Tambien cuenta como vista si se sigue el enlace.
@@ -686,7 +742,7 @@ export async function pintarHoy(usuario, perfil) {
   const modo = pintarRacha(perfil, { enCola });
   pintarSubir(perfil, modo);
 
-  if (modo === 'riesgo') pintarAyudaRiesgo();
+  if (modo === 'riesgo') pintarAyudaRiesgo(perfil);
   else await pintarMisiones(perfil, { conBarras: !enCola });
 
   avisarCambioDivision(perfil);

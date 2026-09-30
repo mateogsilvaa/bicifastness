@@ -46,21 +46,21 @@
     },
 
     "fondo-50": {
-      "titulo": "50 kilómetros",
+      "titulo": "50 km",
       "descripcion": "50 km acumulados en trayectos verificados.",
       "modo": "fondo",
       "icono": "ruta",
       "regla": { "campo": "metrosTotales", "minimo": 50000 }
     },
     "fondo-250": {
-      "titulo": "250 kilómetros",
+      "titulo": "250 km",
       "descripcion": "250 km acumulados. Ya es una distancia de verdad.",
       "modo": "fondo",
       "icono": "ruta",
       "regla": { "campo": "metrosTotales", "minimo": 250000 }
     },
     "fondo-1000": {
-      "titulo": "1.000 kilómetros",
+      "titulo": "1.000 km",
       "descripcion": "1.000 km acumulados sobre una BiciMAD.",
       "modo": "fondo",
       "icono": "ruta",

@@ -23,7 +23,7 @@ import {
 } from '/assets/js/firebase.js';
 import {
   iniciarPagina, normalizarEstacion, nombreEstacion, formatearTiempo, formatearFecha,
-  anotarSubidaAbierta, VERSION_LEGAL, pedirReaceptacion,
+  anotarSubidaAbierta, VERSION_LEGAL, pedirReaceptacion, kmEstimados,
 } from '/assets/js/ui.js';
 import { id, el, icono, reemplazar, abrirHoja } from '/assets/js/dom.js';
 import { diaMadrid, diaMadridHace, diaProbableDelViaje } from '/assets/js/dia.js';
@@ -83,6 +83,8 @@ function barra(titulo, { atras = false, miniatura = true } = {}) {
       on: { click: cancelar },
     }, [icono(atras ? 'atras' : 'cerrar')]),
     el('span', { clase: 'subir-barra-titulo', texto: titulo }),
+    // 8f: en escritorio, "Esc para cancelar" junto a la X.
+    el('span', { clase: 'subir-barra-esc', texto: 'Esc para cancelar' }),
     miniatura && preparada?.url
       ? el('button', {
         clase: 'subir-miniatura', attrs: { type: 'button', 'aria-label': 'Ver la captura' },
@@ -353,7 +355,10 @@ async function preparar(fichero) {
     preparada.metadatos.capturadaEn = diaMadrid(new Date(fichero.lastModified));
   }
 
-  if (preparada.avisos.length) {
+  // 8g: en escritorio, los avisos que no impiden van encima de lo leido, sin
+  // pantalla propia; en el movil, antes de leer (3h).
+  const soloAvisan = !preparada.avisos.some((a) => IMPIDEN.includes(a.codigo)) && preparada.dataUrl;
+  if (preparada.avisos.length && !(soloAvisan && enEscritorio())) {
     pintarAvisos(preparada.avisos);
     mostrar('avisos');
     return;
@@ -361,10 +366,25 @@ async function preparar(fichero) {
   leer();
 }
 
+const enEscritorio = () => window.matchMedia('(min-width: 900px)').matches;
+
+/** 8g: los avisos previos, encima de la lista o del billete, con "Elegir otra". */
+function avisosEncima() {
+  if (!enEscritorio() || !preparada?.avisos?.length) return null;
+  return el('div', { clase: 'pila avisos-previos' }, preparada.avisos.map((a) => el('div', { clase: 'aviso atencion con-icono' }, [
+    icono('aviso', 'icono'),
+    el('p', {}, [
+      el('strong', { texto: `${TITULO_AVISO[a.codigo] || 'Ojo.'} ` }),
+      el('span', { texto: `${a.texto} ` }),
+      el('button', { clase: 'enlace-boton', texto: 'Elegir otra', attrs: { type: 'button' }, on: { click: () => entradaFoto.click() } }),
+    ]),
+  ])));
+}
+
 function pintarAvisos(avisos) {
   const impide = avisos.some((a) => IMPIDEN.includes(a.codigo)) || !preparada.dataUrl;
   reemplazar(id('s-avisos'), [
-    barra('Antes de leerla', { miniatura: false }),
+    barra('Antes de leerla', { miniatura: false, atras: true }),
     el('div', { clase: 'subir-cuerpo' }, [
       el('div', { clase: 'captura-borrosa' }, [el('img', { attrs: { src: preparada.url, alt: '' } })]),
       el('div', { clase: 'pila avisos-previos' }, avisos.map((a) => el('div', { clase: 'aviso atencion con-icono' }, [
@@ -490,32 +510,21 @@ function diaInicial() {
 
 // --- 3c · Confirmar: lo leido, en un billete ------------------------------------------------
 
-/** Distancia por calle estimada: la misma formula de respaldo que el worker. */
-function kmEstimados(origen, destino) {
-  const a = ESTACIONES[origen];
-  const b = ESTACIONES[destino];
-  if (!a || !b) return null;
-  const rad = (g) => (g * Math.PI) / 180;
-  const dLat = rad(b.lat - a.lat);
-  const dLon = rad(b.lon - a.lon);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
-  const recta = 2 * 6371 * Math.asin(Math.sqrt(h));
-  return recta * 1.35; // FISICA.FACTOR_CALLEJERO
-}
 
-function segmentoDia(valor, alCambiar) {
+function segmentoDia(valor, alCambiar, { rotulo = 'Día del trayecto' } = {}) {
   const hoy = diaMadrid();
   const ayer = diaMadridHace(1);
   const otro = valor !== hoy && valor !== ayer;
   const opcion = (texto, activo, accion, conIcono = false) => el('button', {
     attrs: { type: 'button', 'aria-pressed': String(activo) }, on: { click: accion },
-  }, [conIcono ? icono('calendario', 'icono peq') : null, el('span', { texto })]);
+  }, [conIcono ? icono('calendario', 'icono peq') : null, el('span', {}, [].concat(texto))]);
   return el('div', { clase: 'subir-dia' }, [
-    el('span', { clase: 'rotulo', texto: 'Día del trayecto' }),
+    el('span', { clase: 'rotulo', texto: rotulo }),
     el('div', { clase: 'segmento' }, [
       opcion('Hoy', valor === hoy, () => alCambiar(hoy)),
       opcion('Ayer', valor === ayer, () => alCambiar(ayer)),
-      opcion(otro ? formatearFecha(valor) : 'Otro', otro, () => abrirCalendario(valor, alCambiar), true),
+      // 8f: "Otro día…" en escritorio.
+      opcion(otro ? formatearFecha(valor) : ['Otro', el('span', { clase: 'solo-escritorio-i', texto: ' día…' })], otro, () => abrirCalendario(valor, alCambiar), true),
     ]),
     preparada?.diaPropuesto?.motivo && valor === preparada.diaPropuesto.dia && valor !== hoy
       ? el('span', { clase: 'pista-dia', texto: `Hemos puesto este día porque ${preparada.diaPropuesto.motivo}.` })
@@ -594,7 +603,8 @@ function pintarConfirmar() {
         el('div', { clase: 'subir-hueco' }),
         el('div', { clase: 'subir-enviar' }, [
           boton,
-          el('span', { clase: 'hoy-pista', texto: lleno ? textoPuesto() : `${textoPuesto()} · Toca cualquier dato para corregirlo` }),
+          // 3c: "1.º de 3 que puntúan hoy"; cada dato del billete ya se ve tocable.
+          el('span', { clase: 'hoy-pista', texto: textoPuesto() }),
         ]),
       ]),
     ]),
@@ -787,7 +797,8 @@ function abrirCalendario(valor, alElegir) {
       ]),
     ]);
     const t = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${elegido}T12:00:00Z`));
-    confirmar.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    // 3j: "Jueves 24 de septiembre", sin la coma de Intl.
+    confirmar.textContent = (t.charAt(0).toUpperCase() + t.slice(1)).replace(',', '');
   };
 
   const { cerrar } = abrirHoja([cuerpo, confirmar], { etiqueta: 'Elegir el día', clase: 'dialogo-escritorio' });
@@ -910,6 +921,7 @@ async function irAElegir(candidatos) {
       el('div', { clase: 'subir-cuerpo varios' }, [
         el('div', { clase: 'confirmar-imagen solo-escritorio' }, [el('img', { attrs: { src: preparada.url, alt: 'Tu captura' } })]),
         el('div', { clase: 'varios-lista' }, [
+          avisosEncima(),
           el('p', { clase: 'apagado' }, quedan
             ? ['Hoy te quedan ', el('strong', { texto: quedan === 1 ? '1 que puntúa' : `${quedan} que puntúan` }), '. Elige cuáles.']
             : ['Hoy ya no te quedan trayectos que puntúen. Puedes subirlos igual, sin puntos, de uno en uno.']),
@@ -922,10 +934,16 @@ async function irAElegir(candidatos) {
               on: { click: () => { if (marcado) elegidos.delete(i); else elegidos.add(i); pintar(); } },
             }, [
               el('span', { clase: 'casilla-visual' }, [icono('check', 'icono peq')]),
+              // 3g: salida arriba y "→ meta" debajo; 8g: "Salida → Meta" en una
+              // linea y debajo "hoy 18:51 → 19:08 · 2,1 km".
               el('span', { clase: 'trayecto-texto' }, [
-                el('strong', { texto: nombreEstacion(c.origen) }),
-                el('span', { texto: `→ ${nombreEstacion(c.destino)}` }),
-                el('small', { texto: repetido ? 'Ya lo tienes subido' : [c.horaSalida, c.horaLlegada].filter(Boolean).join(' → ') }),
+                el('strong', {}, [nombreEstacion(c.origen), el('span', { clase: 'solo-escritorio-i', texto: ` → ${nombreEstacion(c.destino).split(' - ')[0]}` })]),
+                el('span', { clase: 'solo-movil-i', texto: `→ ${nombreEstacion(c.destino)}` }),
+                el('small', {}, repetido ? ['Ya lo tienes subido'] : [
+                  el('span', { clase: 'solo-escritorio-i', texto: `${dia === diaMadrid() ? 'hoy' : dia === diaMadridHace(1) ? 'ayer' : formatearFecha(dia)} ` }),
+                  [c.horaSalida, c.horaLlegada].filter(Boolean).join(' → '),
+                  kmEstimados(c.origen, c.destino) ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${String(kmEstimados(c.origen, c.destino).toFixed(1)).replace('.', ',')} km` }) : null,
+                ]),
               ]),
               el('span', { clase: 'trayecto-tiempo', texto: formatearTiempo(c.tiempoSegundos) }),
             ]);
@@ -934,9 +952,11 @@ async function irAElegir(candidatos) {
             clase: 'menor apagado',
             texto: `${noCaben.length === 1 ? `El de las ${noCaben[0].c.horaSalida || 'otra hora'} no cabe` : 'Los demás no caben'} hoy: ya llevas ${llevaHoy()} y puntúan ${CUPO} al día.`,
           }) : null,
-          segmentoDia(dia, (d) => { dia = d; elegidos.clear(); pintar(); }),
-          el('div', { clase: 'subir-hueco' }),
-          el('div', { clase: 'subir-enviar' }, [boton]),
+          el('div', { clase: 'varios-pie' }, [
+            segmentoDia(dia, (d) => { dia = d; elegidos.clear(); pintar(); }, { rotulo: 'Día de los trayectos' }),
+            el('div', { clase: 'subir-hueco' }),
+            el('div', { clase: 'subir-enviar' }, [boton]),
+          ]),
         ]),
       ]),
     ]);

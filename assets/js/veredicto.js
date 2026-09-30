@@ -13,7 +13,7 @@
  * ruta propia, y cerrar devuelve exactamente a donde se estaba.
  */
 
-import { el, icono, abrirHoja } from '/assets/js/dom.js';
+import { el, icono, abrirHoja, reemplazar } from '/assets/js/dom.js';
 import { nombreEstacion, formatearTiempo } from '/assets/js/ui.js';
 import { estadoDeViaje, motivoDeViaje } from '/assets/js/motivos.js';
 import { sinMovimiento, aparecerPorPartes, sonar } from '/assets/js/celebrar.js';
@@ -67,14 +67,23 @@ function contar(nodo, hasta, { prefijo = '+', ms = 900 } = {}) {
   requestAnimationFrame(paso);
 }
 
-/** Superficie comun: pantalla entera en movil, dialogo de 480 px en escritorio. */
-function abrirPantalla(clase, hijos, etiqueta) {
+/**
+ * Superficie comun: pantalla entera en movil, dialogo de 480 px en escritorio
+ * y, con `destino`, el panel de al lado de la lista del historial (8n).
+ */
+function abrirPantalla(clase, hijos, etiqueta, destino = null, { atras = false } = {}) {
+  if (destino) {
+    reemplazar(destino, el('div', { clase: `panel-veredicto ${clase}`, attrs: { 'aria-label': etiqueta } }, hijos));
+    return () => reemplazar(destino);
+  }
   const antes = document.activeElement;
   const velo = el('div', { clase: 'velo solo-escritorio' });
+  // 3k / 3l: en el movil se vuelve con la flecha, arriba a la izquierda; en
+  // el dialogo de escritorio, la X de siempre.
   const cerrarBoton = el('button', {
-    clase: 'boton-icono veredicto-cerrar',
-    attrs: { type: 'button', 'aria-label': 'Cerrar' },
-  }, [icono('cerrar')]);
+    clase: `boton-icono veredicto-cerrar${atras ? ' con-atras' : ''}`,
+    attrs: { type: 'button', 'aria-label': atras ? 'Volver' : 'Cerrar' },
+  }, atras ? [icono('atras', 'icono solo-movil-i'), icono('cerrar', 'icono solo-escritorio-i')] : [icono('cerrar')]);
 
   const pantalla = el('div', {
     clase: `pantalla-veredicto ${clase}`,
@@ -117,10 +126,11 @@ export function abrirVerificado(viaje, contexto = {}) {
     el('span', { texto: t }), el('strong', { texto: v }),
   ]));
 
+  // [marca, texto del movil (3e), cifra y resto del escritorio (8h)]
   const logros = [
-    contexto.racha ? [String(contexto.racha), `Racha de ${contexto.racha} días. Hoy salvado.`] : null,
-    contexto.rutaDelDia ? [contexto.rutaDelDia.puesto, contexto.rutaDelDia.texto] : null,
-    contexto.mision ? [icono('ruta'), contexto.mision] : null,
+    contexto.racha ? [String(contexto.racha), `Racha de ${contexto.racha} días. Hoy salvado.`, `${contexto.racha} días`, ' de racha'] : null,
+    contexto.rutaDelDia ? [contexto.rutaDelDia.puesto, contexto.rutaDelDia.texto, contexto.rutaDelDia.puesto, ' en la ruta del día'] : null,
+    contexto.mision ? [icono('ruta'), contexto.mision, '', contexto.mision] : null,
   ].filter(Boolean);
 
   let cerrar = null;
@@ -147,23 +157,25 @@ export function abrirVerificado(viaje, contexto = {}) {
         el('div', { clase: 'veredicto-fila total' }, [el('strong', { texto: 'Total' }), el('strong', { texto: String(total) })]),
       ]),
     logros.length
-      ? el('div', { clase: 'veredicto-logros' }, logros.map(([marca, texto]) => el('div', {}, [
-        el('span', { clase: 'veredicto-marca' }, [marca]), el('span', { texto }),
+      ? el('div', { clase: 'veredicto-logros' }, logros.map(([marca, texto, cifra, resto]) => el('div', {}, [
+        el('span', { clase: 'veredicto-marca' }, [marca]), el('span', { clase: 'logro-movil', texto }),
+        el('span', { clase: 'logro-escritorio' }, [cifra ? el('strong', { texto: cifra }) : null, resto]),
       ])))
       : null,
     el('div', { clase: 'veredicto-hueco' }),
-    seguir,
-  ], 'Trayecto verificado');
+    contexto.destino ? null : seguir,
+  ], 'Trayecto verificado', contexto.destino);
 
   aparecerPorPartes(nodosFilas);
+  if (contexto.destino) { contar(cifra, total); return cerrar; }
   if (!sinPuntos) { contar(cifra, total); sonar(); }
   seguir.focus();
   return cerrar;
 }
 
 /** 3k y 3l · Lo mira una persona / No cuenta. */
-export function abrirResuelto(viaje, { alPedirRevision = null } = {}) {
-  if (viaje.estado === 'aprobado') return abrirVerificado(viaje);
+export function abrirResuelto(viaje, { alPedirRevision = null, destino = null, pedir: pedirPropio = null } = {}) {
+  if (viaje.estado === 'aprobado') return abrirVerificado(viaje, { destino });
 
   const rechazado = viaje.estado === 'rechazado';
   const textos = estadoDeViaje(viaje.estado);
@@ -172,20 +184,25 @@ export function abrirResuelto(viaje, { alPedirRevision = null } = {}) {
   const puedePedir = rechazado && viaje.revisadoPor === 'automatico' && !viaje.impugnado;
 
   let cerrar = null;
+  // 3l: "Creo que es un error: que lo mire una persona"; 8n, mas corto, al
+  // lado de "Corregir y volver a subir".
   const pedir = puedePedir
-    ? el('button', {
-      clase: 'btn plano', texto: 'Creo que es un error: que lo mire una persona', attrs: { type: 'button' },
-      on: {
-        click: () => pedirRevisionHumana(viaje, () => {
-          if (cerrar) cerrar();
-          if (alPedirRevision) alPedirRevision();
-        }),
-      },
-    })
+    ? el('button', { clase: 'btn plano pedir-revision', attrs: { type: 'button' } }, [
+      el('span', { clase: 'solo-movil-i', texto: 'Creo que es un error: que lo mire una persona' }),
+      el('span', { clase: 'solo-escritorio-i', texto: 'Que lo mire una persona' }),
+    ])
     : null;
+  pedir?.addEventListener('click', () => {
+    if (pedirPropio) { pedirPropio(pedir); return; }
+    pedirRevisionHumana(viaje, () => {
+      if (cerrar) cerrar();
+      if (alPedirRevision) alPedirRevision();
+    });
+  });
 
   cerrar = abrirPantalla(rechazado ? 'rechazado' : 'revision', [
-    el('span', { clase: `chip ${rechazado ? 'rechazado' : 'revision'}`, texto: textos.titulo }),
+    // 3l / 8n: la pastilla dice "No cuenta"; el titulo ya explica el resto.
+    el('span', { clase: `chip ${rechazado ? 'rechazado' : 'revision'}`, texto: rechazado ? 'No cuenta' : textos.titulo }),
     rechazado
       ? el('div', { clase: 'veredicto-cabeza' }, [
         el('h2', { texto: 'No lo hemos podido dar por bueno' }),
@@ -200,7 +217,7 @@ export function abrirResuelto(viaje, { alPedirRevision = null } = {}) {
         el('span', { clase: 'rotulo', texto: motivo.dePersona ? 'Lo que dice quien lo ha revisado' : 'Motivo' }),
         el('strong', { texto: motivo.texto }),
         motivo.queHacer ? el('span', { clase: 'rotulo', texto: 'Qué hacer' }) : null,
-        motivo.queHacer ? el('span', { clase: 'apagado', texto: motivo.queHacer }) : null,
+        motivo.queHacer ? el('span', { clase: 'que-hacer', texto: motivo.queHacer }) : null,
       ]
       : [
         el('strong', { texto: viaje.impugnado ? 'Has pedido revisión humana.' : motivo.texto }),
@@ -211,17 +228,19 @@ export function abrirResuelto(viaje, { alPedirRevision = null } = {}) {
             : 'Todo lo que no está claro lo confirma una persona. No hace falta que hagas nada.',
         }),
       ]),
-    el('p', {
-      clase: 'veredicto-nota',
-      texto: rechazado
-        ? 'Tu racha no se ha tocado: sigue contando hasta medianoche.'
-        : 'Normalmente el mismo día. Te avisamos por correo y en el móvil.',
-    }),
+    el('p', { clase: 'veredicto-nota' }, rechazado
+      ? [
+        el('span', { clase: destino ? 'oculto' : '', texto: 'Tu racha no se ha tocado: sigue contando hasta medianoche.' }),
+        el('span', { clase: destino ? '' : 'oculto', texto: 'Tu racha no se ha tocado.' }),
+      ]
+      : ['Normalmente el mismo día. Te avisamos por correo y en el móvil.']),
     el('div', { clase: 'veredicto-hueco' }),
-    rechazado ? el('a', { clase: 'btn grande', texto: 'Corregir y volver a subir', attrs: { href: '/subir/' } }) : null,
-    pedir,
+    el('div', { clase: 'veredicto-botones' }, [
+      rechazado ? el('a', { clase: 'btn grande', texto: 'Corregir y volver a subir', attrs: { href: '/subir/' } }) : null,
+      pedir,
+    ]),
     viaje.impugnado && rechazado ? el('p', { clase: 'veredicto-nota', texto: 'Has pedido revisión humana. Un administrador lo mirará.' }) : null,
-  ], textos.titulo);
+  ], textos.titulo, destino, { atras: true });
   return cerrar;
 }
 
@@ -245,7 +264,7 @@ export function pedirRevisionHumana(viaje, alTerminar) {
     ]),
     enviar,
     error,
-  ], { etiqueta: 'Pedir revisión humana' });
+  ], { etiqueta: 'Pedir revisión humana', clase: 'hoja-revision dialogo-escritorio' });
 
   enviar.addEventListener('click', async () => {
     enviar.disabled = true;

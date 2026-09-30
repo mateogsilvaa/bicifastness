@@ -113,7 +113,7 @@ test('un rechazo no revela como funciona el antifraude', () => {
 test('un rechazo dice que hacer, no solo que ha fallado', () => {
   const { html } = plantillas.viajeRechazado({ nombre: 'Ana', ruta: '002-110', motivo: 'x' });
   assert.match(html, /volviendo a subir/i, 'no explica como arreglarlo');
-  assert.match(html, /reclamarlo/i, 'no ofrece impugnar, que exige el RGPD art. 22.3');
+  assert.match(html, /revise una persona|reclamarlo/i, 'no ofrece impugnar, que exige el RGPD art. 22.3');
 });
 
 test('todas las plantillas traen version en texto plano', () => {
@@ -159,7 +159,7 @@ test('un solo viaje no dice "1 trayectos"', () => {
 test('todo correo lleva el aviso de independencia', () => {
   // El aviso legal del proyecto lo exige: no hay relacion con BiciMAD ni la EMT.
   const { html } = plantillas.bienvenida({ nombre: 'Ana' });
-  assert.match(html, /Proyecto independiente/);
+  assert.match(html, /proyecto independiente/i);
 });
 
 // --- Baja sin iniciar sesion -------------------------------------------------

@@ -16,3 +16,6 @@ assets/ocr/** -text
 # El banco de capturas son imagenes. Que git no intente ser listo con ellas.
 backend/test/banco/*.png binary
 backend/test/banco/*.jpg binary
+
+# Ficheros de terceros con hash de integridad: ni un byte distinto.
+assets/vendor/** -text

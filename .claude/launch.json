@@ -4,14 +4,45 @@
     {
       "name": "sitio",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["scripts/servidor-local.js", "5000"],
+      "runtimeArgs": [
+        "scripts/servidor-local.js",
+        "5000"
+      ],
       "port": 5000
     },
     {
       "name": "maqueta",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["scripts/servidor-local.js", "5001", "--maqueta"],
+      "runtimeArgs": [
+        "scripts/servidor-local.js",
+        "5001",
+        "--maqueta"
+      ],
       "port": 5001
+    },
+    {
+      "name": "diseno",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5002",
+        "--directory",
+        "C:\\Users\\mateo\\AppData\\Local\\Temp\\claude\\C--Users-mateo-Documents-Repositorios---mateogsilvaa-bicifastness\\f9d8fca0-488b-4fde-89aa-7a18775e9ee9\\scratchpad\\diseno2\\redise-o-bicifastness\\project"
+      ],
+      "port": 5002
+    },
+    {
+      "name": "publicado",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5003",
+        "--directory",
+        "_site"
+      ],
+      "port": 5003
     }
   ]
 }

@@ -2,12 +2,13 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Compite con tus tiempos de BiciMAD en Madrid. Rankings por ruta, clanes y dominio de estaciones.">
 <title>BiciFastness | El circuito urbano de Madrid</title>
-<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="icon" href="/images/icono/icono.svg" type="image/svg+xml">
+<link rel="icon" href="/images/icono/icono-48.png" sizes="48x48" type="image/png">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
@@ -72,10 +73,14 @@
           cae. El nombre de piloto y los consentimientos se piden igual, justo
           despues.
         -->
-        <button type="button" class="btn grande" id="btn-google">
-          <span class="disco-google"><img src="/images/google.svg" alt="" width="16" height="16"></span>
-          <span>Empezar con Google</span>
-        </button>
+        <div class="portada-cta">
+          <button type="button" class="btn grande" id="btn-google">
+            <span class="disco-google"><img src="/images/google.svg" alt="" width="16" height="16"></span>
+            <span>Empezar con Google</span>
+          </button>
+          <!-- 8d: en escritorio, el correo va al lado del boton. -->
+          <a class="portada-correo" href="/register/">o con tu correo</a>
+        </div>
         <p class="mensaje" id="mensaje-google" aria-live="polite"></p>
         <div class="portada-enlaces">
           <a class="azul" href="/register/">Crear cuenta con correo</a>
@@ -87,20 +92,27 @@
 
     <!-- 1b · Al desplazar: tres ideas, cada una con su cifra real del juego. -->
     <div class="portada-ideas">
+      <!-- 1b en movil; en escritorio (8d), la franja de cifras bajo el boton. -->
       <div class="idea">
         <span class="idea-cifra">3</span>
         <h2>Tres formas de ganar</h2>
         <p>Sprint si vas rápido, Fondo si haces kilómetros, Constancia si sales cada día. Cada una tiene su ranking.</p>
+        <strong class="idea-corta">formas de ganar</strong>
+        <span class="idea-corta-texto">Sprint, Fondo y Constancia.</span>
       </div>
       <div class="idea">
         <span class="idea-cifra">30</span>
         <h2>Compites contra 30, no contra todos</h2>
         <p>Grupos por división que se reordenan cada lunes. Cada mes, temporada nueva desde cero.</p>
+        <strong class="idea-corta">rivales por grupo</strong>
+        <span class="idea-corta-texto">Se reordenan cada lunes.</span>
       </div>
       <div class="idea">
         <span class="idea-cifra" id="cifra-estaciones">631</span>
         <h2>Estaciones por conquistar</h2>
         <p>Con tu clan. Y se pierden si dejáis de pedalear.</p>
+        <strong class="idea-corta">estaciones</strong>
+        <span class="idea-corta-texto">Para conquistar con tu clan.</span>
       </div>
       <button type="button" class="btn grande" id="btn-google-2">Empezar con Google</button>
       <p class="mensaje" id="mensaje-google-2" aria-live="polite"></p>
@@ -111,6 +123,8 @@
         <a href="/legal/cookies/">Cookies</a>
       </nav>
     </div>
+    <!-- 8d: el pie de escritorio, en una linea. -->
+    <p class="portada-pie-escritorio">Proyecto independiente. Sin relación con BiciMAD, la EMT ni el Ayuntamiento de Madrid. · <a href="/legal/privacidad/">Privacidad</a> · <a href="/legal/terminos/">Términos</a> · <a href="/legal/cookies/">Cookies</a></p>
   </section>
 
   <!-- CON SESION (02 Hoy). Responde a una sola pregunta: ¿que hago hoy?
@@ -208,6 +222,7 @@
 
     <div class="acceso-hueco"></div>
     <button class="btn grande" id="rec-enviar" type="button" disabled>Empezar a competir</button>
+    <p class="acceso-atajo">Intro también envía</p>
     <p class="acceso-error" id="rec-mensaje" aria-live="polite"></p>
   </section>
 </main>

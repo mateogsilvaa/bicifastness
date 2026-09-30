@@ -8,11 +8,12 @@
 // una vez y se guarda en la pestaña (`cache.js`).
 
 import { db, doc, getDoc, auth, onAuthStateChanged } from '/assets/js/firebase.js';
-import { iniciarPagina, nombreEstacion, formatearTiempo } from '/assets/js/ui.js';
+import { iniciarPagina, nombreEstacion, formatearTiempo, normalizarEstacion, miles } from '/assets/js/ui.js';
 import { id, el, icono, estado, reemplazar, pedirTexto, avisar, abrirHoja } from '/assets/js/dom.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
 import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 import { diaMadrid } from '/assets/js/dia.js';
+import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
 
 iniciarPagina('clasificacion');
@@ -31,7 +32,7 @@ const MODOS = {
   constancia: { unidad: 'días', formato: (v) => `${v} ${v === 1 ? 'día' : 'días'}`, explica: 'Tu racha más larga. Premia aparecer cada día.' },
 };
 
-const numero = (n) => Number(n || 0).toLocaleString('es-ES');
+const numero = (n) => miles(n);
 const ordinal = (n) => `${n}.º`;
 const $ = id;
 
@@ -132,10 +133,12 @@ async function claveDeMiGrupo() {
   return indice?.porPiloto?.[perfil.username] || null;
 }
 
-function filaPiloto(f, { yo, zona, valor, clanes, columnas = null }) {
+function filaPiloto(f, { yo, zona, valor, clanes, columnas = null, flecha = false }) {
   const clan = clanes[f.clan];
+  // 4a: puestos ganados o perdidos desde ayer en el grupo (el worker los calcula).
+  const cambio = Number(f.cambio) || 0;
   return el('button', {
-    clase: `fila-ranking ${yo ? 'tuya' : ''}`,
+    clase: `fila-ranking ${yo ? 'tuya' : ''} ${flecha ? 'con-flecha' : ''}`,
     attrs: { type: 'button', 'aria-label': `${f.pos}.º ${f.nombre}, ${valor}` },
     on: { click: () => abrirPiloto(f.nombre) },
   }, [
@@ -154,6 +157,10 @@ function filaPiloto(f, { yo, zona, valor, clanes, columnas = null }) {
     ]),
     ...(columnas || []).map((c) => el('span', { clase: 'col-modo', texto: c })),
     el('strong', { clase: 'valor', texto: valor }),
+    flecha ? el('span', {
+      clase: `flecha-cambio ${cambio > 0 ? 'sube' : cambio < 0 ? 'baja' : ''}`,
+      attrs: { title: cambio ? `${cambio > 0 ? 'Sube' : 'Baja'} ${Math.abs(cambio)} desde ayer` : 'Igual que ayer' },
+    }, [icono(cambio > 0 ? 'sube' : cambio < 0 ? 'baja' : 'mas-h')]) : null,
   ]);
 }
 
@@ -168,14 +175,15 @@ async function pintarPilotos() {
   $('ambito-grupo').classList.toggle('oculto', !clave);
   $('ambito-grupo').textContent = clave ? nombreGrupo(clave) : 'Tu grupo';
   $('ambito-grupo').setAttribute('aria-pressed', String(ambito === 'grupo'));
+  document.querySelector('.ranking')?.classList.toggle('en-grupo', ambito === 'grupo');
   $('ambito-madrid').setAttribute('aria-pressed', String(ambito === 'madrid'));
   for (const b of document.querySelectorAll('.chip-modo')) {
-    b.setAttribute('aria-pressed', String(ambito === 'madrid' && b.value === modo));
+    // 4a: el grupo se ordena por el total, asi que "General" va marcado.
+    b.setAttribute('aria-pressed', String(ambito === 'madrid' ? b.value === modo : b.value === 'general'));
     b.disabled = false;
   }
-  $('explica-modo').textContent = ambito === 'grupo'
-    ? 'Tu grupo de la semana. El lunes suben los primeros y bajan los últimos.'
-    : MODOS[modo].explica;
+  // 4b: la frase de cada modo solo en Madrid; en tu grupo (4a) no hay frase.
+  $('explica-modo').textContent = ambito === 'grupo' ? '' : MODOS[modo].explica;
 
   reemplazar(destino, esqueleto());
   const clanes = await clanesDelMapa();
@@ -193,18 +201,27 @@ async function pintarPilotos() {
     };
     reemplazar(destino, [
       el('div', { clase: 'lista-ranking con-columnas' }, [
-        el('div', { clase: 'cabecera-ranking' }, [
-          el('span', { clase: 'sube', texto: 'Suben el lunes' }),
-          escritorio ? el('span', { clase: 'col-cab', texto: 'Clan' }) : null,
-          ...(escritorio ? ['Sprint', 'Fondo', 'Constancia'].map((t) => el('span', { clase: 'col-cab num', texto: t })) : []),
-          el('span', { clase: 'col-cab num', texto: escritorio ? 'Total ↓' : 'pts' }),
-        ]),
+        // 8c: en escritorio, la cabecera de una tabla de verdad; 4a: en movil,
+        // quien sube el lunes y la unidad.
+        el('div', { clase: 'cabecera-ranking' }, escritorio
+          ? [
+            el('span', { clase: 'col-cab col-pos', texto: '#' }),
+            el('span', { clase: 'col-cab', texto: 'Piloto' }),
+            el('span', { clase: 'col-cab', texto: 'Clan' }),
+            ...['Sprint', 'Fondo', 'Constancia'].map((t) => el('span', { clase: 'col-cab num', texto: t })),
+            el('span', { clase: 'col-cab num', texto: 'Total ↓' }),
+          ]
+          : [
+            el('span', { clase: 'sube', texto: 'Suben el lunes' }),
+            el('span', { clase: 'col-cab num', texto: 'pts' }),
+          ]),
         ...grupo.filas.map((f, i) => filaPiloto(f, {
           yo: f.nombre === perfil?.username,
           zona: mueven && i < mueven ? 'sube' : mueven && i >= grupo.filas.length - mueven ? 'baja' : '',
           valor: numero(f.puntos),
           clanes,
           columnas: escritorio ? [valorDe('sprint', f.nombre), valorDe('fondo', f.nombre), valorDe('constancia', f.nombre)] : null,
+          flecha: !escritorio,
         })),
       ]),
       pieActualizado(grupo),
@@ -460,7 +477,11 @@ async function pintarDetalleRuta(ruta, vista = null) {
   const agregado = await traer(`ruta-${ruta}`);
   const rutaDelDia = (await configGeneral())?.rutaDestacada || null;
   const esDelDia = ruta === rutaDelDia;
-  const deHoy = esDelDia && agregado?.hoyDia === diaMadrid() ? agregado.hoy || [] : [];
+  // "Hoy": en la ruta del dia, su tabla de hoy; en las demas, las marcas que
+  // se han hecho hoy (el agregado guarda el dia de cada una).
+  const deHoy = esDelDia
+    ? (agregado?.hoyDia === diaMadrid() ? agregado.hoy || [] : [])
+    : (agregado?.filas || []).filter((f) => f.fecha === diaMadrid()).map((f, i) => ({ ...f, pos: i + 1 }));
   const modoVista = vista || (esDelDia ? 'hoy' : 'siempre');
   const filas = modoVista === 'hoy' ? deHoy : agregado?.filas || [];
   const km = kmRuta(ruta);
@@ -495,17 +516,23 @@ async function pintarDetalleRuta(ruta, vista = null) {
       pin,
     ]),
     el('div', { clase: 'detalle-titulo' }, [
-      el('span', { clase: 'rotulo', texto: [`${a} → ${b}`, km ? `≈${String(km.toFixed(1)).replace('.', ',')} km` : null, agregado?.total ? `${agregado.total} pilotos` : null].filter(Boolean).join(' · ') }),
+      // 4d: "001 → 102 · 1,9 km".
+      el('span', { clase: 'rotulo' }, [
+        [`${normalizarEstacion(a)} → ${normalizarEstacion(b)}`, km ? `${String(km.toFixed(1)).replace('.', ',')} km` : null].filter(Boolean).join(' · '),
+        // 8i: en escritorio, tambien cuantos pilotos la han hecho.
+        agregado?.total ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${agregado.total} pilotos` }) : null,
+      ]),
       el('h2', {}, [el('span', { texto: nombreDe(ruta, ORIGEN) }), el('br', { clase: 'solo-movil-inline' }), el('span', { texto: ` → ${nombreDe(ruta, DESTINO)}` })]),
     ]),
-    esDelDia ? el('div', { clase: 'segmento dos' }, [
+    el('div', { clase: 'segmento dos' }, [
       el('button', { attrs: { type: 'button', 'aria-pressed': String(modoVista === 'hoy') }, texto: 'Hoy', on: { click: () => pintarDetalleRuta(ruta, 'hoy') } }),
       el('button', { attrs: { type: 'button', 'aria-pressed': String(modoVista === 'siempre') }, texto: 'Siempre', on: { click: () => pintarDetalleRuta(ruta, 'siempre') } }),
-    ]) : null,
+    ]),
     record ? el('div', { clase: 'tarjetas-ruta' }, [
-      el('div', { clase: 'tarjeta-record' }, [el('span', { texto: modoVista === 'hoy' ? 'Récord de hoy' : 'Récord' }), el('strong', { texto: mmss(record.marca) }), el('small', { texto: record.nombre })]),
-      mio ? el('div', { clase: 'tarjeta-tuya' }, [el('span', { texto: 'Tu mejor' }), el('strong', { texto: mmss(mio.yo.marca) }), el('small', { texto: `${ordinal(mio.yo.pos)} de ${mio.total}` })]) : null,
-      objetivo ? el('div', { clase: 'tarjeta-objetivo' }, [el('span', { texto: `Para el ${ordinal(objetivo.pos)}` }), el('strong', { texto: menosDe(mio.yo.marca - objetivo.marca) }), el('small', { texto: objetivo.nombre })]) : null,
+      // 8i: en escritorio, cada tarjeta dice ademas cuando o con que marca.
+      el('div', { clase: 'tarjeta-record' }, [el('span', { texto: modoVista === 'hoy' ? 'Récord de hoy' : 'Récord' }), el('strong', { texto: mmss(record.marca) }), el('small', {}, [record.nombre, record.fecha ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${fechaCorta(record.fecha)}` }) : null])]),
+      mio ? el('div', { clase: 'tarjeta-tuya' }, [el('span', { texto: 'Tu mejor' }), el('strong', { texto: mmss(mio.yo.marca) }), el('small', {}, [`${ordinal(mio.yo.pos)} de ${mio.total}`, mio.yo.fecha ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${diaRelativo(mio.yo.fecha)}` }) : null])]) : null,
+      objetivo ? el('div', { clase: 'tarjeta-objetivo' }, [el('span', { texto: `Para el ${ordinal(objetivo.pos)}` }), el('strong', { texto: menosDe(mio.yo.marca - objetivo.marca) }), el('small', {}, [objetivo.nombre, el('span', { clase: 'solo-escritorio-i', texto: ` · ${mmss(objetivo.marca)}` })])]) : null,
     ]) : null,
     filas.length
       ? el('div', { clase: 'lista-ranking tabla-ruta' }, filas.map((f) => {
@@ -522,7 +549,10 @@ async function pintarDetalleRuta(ruta, vista = null) {
         ]);
       }))
       : vacio(modoVista === 'hoy' ? 'Hoy aún no hay tiempos' : 'Esta ruta aún no tiene tiempos', 'El primero que la haga se lleva el récord.'),
-    el('a', { clase: 'btn grande subir-aqui', attrs: { href: '/subir/', 'data-subir': '' } }, [icono('mas', 'icono'), el('span', { texto: 'Subir un tiempo aquí' })]),
+    // 4d: fijo abajo, sobre la barra, con el fondo de la pagina alrededor.
+    el('div', { clase: 'barra-subir-aqui' }, [
+      el('a', { clase: 'btn grande subir-aqui', attrs: { href: '/subir/', 'data-subir': '' } }, [icono('mas', 'icono'), el('span', { texto: 'Subir un tiempo aquí' })]),
+    ]),
     pieActualizado(agregado),
   ]);
 }
@@ -700,6 +730,9 @@ function mostrar(pestana, { recordar = true } = {}) {
     $(`panel-${p}`).classList.toggle('oculto', p !== activa);
   }
   if (recordar) cambiarParametro('tab', activa === 'pilotos' ? null : activa);
+  // "Septiembre · acaba mañana" solo va en Pilotos (4a, 4b); Rutas y Clanes
+  // (4c, 4e) llevan el titulo solo.
+  document.querySelector('.ranking')?.setAttribute('data-pestana', activa);
   $('fila-fija').classList.add('oculto');
   observador?.disconnect();
   if (activa === 'pilotos') pintarPilotos();

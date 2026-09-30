@@ -96,6 +96,29 @@ export function nombreEstacion(raw) {
   return ESTACIONES[normalizarEstacion(raw)]?.nombre || null;
 }
 
+/** Distancia por calle estimada: la misma formula de respaldo que el worker. */
+export function kmEstimados(origen, destino) {
+  const a = ESTACIONES[normalizarEstacion(origen)];
+  const b = ESTACIONES[normalizarEstacion(destino)];
+  if (!a || !b) return null;
+  const rad = (g) => (g * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  const recta = 2 * 6371 * Math.asin(Math.sqrt(h));
+  return recta * 1.35; // FISICA.FACTOR_CALLEJERO
+}
+
+/**
+ * "1.412" y "18.402", como en el diseño: con punto de miles tambien en cuatro
+ * cifras (el formato de España del navegador no lo pone hasta las cinco).
+ */
+export function miles(n, decimales = 0) {
+  const valor = Number(n) || 0;
+  const [entera, fraccion] = Math.abs(valor).toFixed(decimales).split('.');
+  return `${valor < 0 ? '-' : ''}${entera.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}${fraccion ? `,${fraccion}` : ''}`;
+}
+
 /** "002-110" -> "Metro Callao → Intercambiador de Moncloa" */
 export function nombreRuta(ruta) {
   const [origen, destino] = String(ruta || '').split('-');
@@ -178,6 +201,11 @@ export function montarNavegacion(activo) {
       }, [icono(d.icono), el('span', { texto: d.texto })]))),
       el('div', { clase: 'lateral-hueco' }),
       fichaLateral());
+    // Se repinta cuando cambia el resumen (al entrar, al cargar el perfil, al
+    // salir), sin esperar a la siguiente pagina.
+    window.addEventListener('bf:resumen', () => {
+      superior.querySelector('.lateral-ficha, .lateral-invitado')?.replaceWith(fichaLateral());
+    });
   }
 
   if (inferior) {
@@ -232,7 +260,7 @@ export function logoAnillo(tam = 28) {
   return svg;
 }
 
-const NOMBRE_DIVISION = {
+export const NOMBRE_DIVISION = {
   hierro: 'Hierro', bronce: 'Bronce', plata: 'Plata', oro: 'Oro', platino: 'Platino', leyenda: 'Leyenda',
 };
 
@@ -304,7 +332,16 @@ function montarAtajosDeSubida(enSubir) {
   // eso va en el clic y no al llegar a /subir/.
   document.addEventListener('click', (evento) => {
     const enlace = evento.target.closest?.('[data-subir]');
-    if (!enlace || vecesSubidaAbierta() < 2) return;
+    if (!enlace) return;
+    // 3a: las dos primeras veces, en el movil, la hoja de subida sobre esta
+    // misma pantalla. En escritorio el + lleva a /subir/ (8b).
+    if (vecesSubidaAbierta() < 2) {
+      if (window.matchMedia('(min-width: 900px)').matches) return;
+      evento.preventDefault();
+      anotarSubidaAbierta();
+      import('./hoja-subir.js').then((m) => m.abrirHojaSubir());
+      return;
+    }
     evento.preventDefault();
     const selector = document.createElement('input');
     selector.type = 'file';
@@ -335,25 +372,37 @@ function montarAtajosDeSubida(enSubir) {
   let capa = null;
   let dentro = 0;
   const conImagen = (e) => [...(e.dataTransfer?.items || [])].some((i) => i.kind === 'file');
-  const quitar = () => { capa?.remove(); capa = null; dentro = 0; };
+  const quitar = () => { capa?.remove(); capa = null; dentro = 0; document.body.classList.remove('soltando'); };
 
   window.addEventListener('dragenter', (e) => {
     if (!conImagen(e)) return;
     dentro += 1;
     if (capa) return;
+    // 8b: la pantalla de detras se apaga y se desenfoca; delante, una captura
+    // de ejemplo con el + y lo que se puede soltar.
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     capa = el('div', { clase: 'capa-soltar', attrs: { 'aria-hidden': 'true' } }, [
       el('div', { clase: 'capa-soltar-marco' }, [
-        el('span', { clase: 'capa-soltar-mas' }, [icono('mas')]),
+        el('div', { clase: 'capa-soltar-dibujo' }, [
+          el('span', { clase: 'capa-soltar-fondo' }),
+          el('span', { clase: 'capa-soltar-captura' }, [el('img', { attrs: { src: '/images/ejemplo.jpg', alt: '' } })]),
+          el('span', { clase: 'capa-soltar-mas' }, [icono('mas')]),
+        ]),
         el('strong', { texto: 'Suéltala para leerla' }),
         el('span', { texto: 'Leemos estaciones, tiempo y horas en tu navegador. Puedes soltar varias a la vez: cada una es un trayecto.' }),
         el('span', { clase: 'capa-soltar-chips' }, [
-          el('span', { texto: 'JPG · PNG · WebP' }),
+          el('span', { texto: 'JPG · PNG · WebP · HEIC' }),
           el('span', { texto: 'Hasta 30 días atrás' }),
           el('span', { texto: 'Hoy puntúan 3' }),
         ]),
       ]),
+      el('div', { clase: 'capa-soltar-teclas' }, [
+        el('kbd', { texto: 'Esc' }), 'cancelar', el('span', { clase: 'hueco' }),
+        el('kbd', { texto: mac ? '⌘ V' : 'Ctrl V' }), 'también pega una captura copiada',
+      ]),
     ]);
     document.body.append(capa);
+    document.body.classList.add('soltando');
   });
   window.addEventListener('dragover', (e) => { if (capa) e.preventDefault(); });
   window.addEventListener('dragleave', () => { dentro -= 1; if (dentro <= 0) quitar(); });

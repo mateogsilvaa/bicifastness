@@ -127,7 +127,7 @@ function abrirHojaRecuperar(email) {
 
   const velo = el('div', { clase: 'velo' });
   const hoja = el('div', {
-    clase: 'hoja',
+    clase: 'hoja hoja-recuperar dialogo-escritorio',
     attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'titulo-recuperar' },
   }, [
     el('span', { clase: 'asa', attrs: { 'aria-hidden': 'true' } }),
@@ -147,7 +147,8 @@ function abrirHojaRecuperar(email) {
 
   const pintarCuenta = () => {
     if (restante > 0) {
-      cuenta.replaceChildren(document.createTextNode(`Reenviar en 0:${String(restante).padStart(2, '0')}`));
+      // "Reenviar en 0:48"; un minuto entero es "1:00", no "0:60".
+      cuenta.replaceChildren(document.createTextNode(`Reenviar en ${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}`));
       return;
     }
     const reenviar = el('button', { clase: 'btn plano', texto: 'Reenviar', attrs: { type: 'button' } });

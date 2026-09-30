@@ -258,7 +258,7 @@ export function avisar(mensaje, tipo = 'error') {
     attrs: { role: tipo === 'error' ? 'alert' : 'status' },
     texto: mensaje,
     estilo: {
-      position: 'fixed', left: '50%', bottom: 'calc(var(--alto-barra) + 16px)',
+      position: 'fixed', left: '50%', bottom: 'calc(var(--alto-barra) + var(--pie-barra) + 16px)',
       transform: 'translateX(-50%)', zIndex: '10002', maxWidth: 'min(440px, calc(100vw - 32px))',
       background: 'var(--papel-2)', color: 'var(--tinta)',
       border: '1px solid var(--linea)', borderLeft: `3px solid ${colores[tipo] || colores.info}`,

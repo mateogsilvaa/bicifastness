@@ -20,7 +20,6 @@
       "https://www.gstatic.com",
       "https://www.google.com",
       "https://apis.google.com",
-      "https://unpkg.com",
       "'wasm-unsafe-eval'"
     ],
     "worker-src": [
@@ -29,8 +28,7 @@
     ],
     "style-src": [
       "'self'",
-      "'unsafe-inline'",
-      "https://unpkg.com"
+      "'unsafe-inline'"
     ],
     "font-src": [
       "'self'"

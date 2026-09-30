@@ -2,13 +2,14 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com https://unpkg.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://unpkg.com; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Tu perfil de piloto en BiciFastness: historial, insignias, clan y ajustes.">
 <meta name="robots" content="noindex">
 <title>Tú | BiciFastness</title>
-<link rel="icon" href="/images/logo.png" type="image/png">
+<link rel="icon" href="/images/icono/icono.svg" type="image/svg+xml">
+<link rel="icon" href="/images/icono/icono-48.png" sizes="48x48" type="image/png">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
@@ -31,8 +32,6 @@
   <section class="vista" id="vista-resumen" aria-labelledby="nombre">
     <div class="yo-barra">
       <span></span>
-      <!-- 8m: en escritorio, Historial y Ajustes a mano en la cabecera. -->
-      <a class="boton-pastilla solo-escritorio-inline" href="#historial">Historial</a>
       <a class="boton-icono" href="#ajustes" aria-label="Ajustes" id="ir-ajustes"></a>
     </div>
 
@@ -42,6 +41,11 @@
         <h1 id="nombre">…</h1>
         <span class="sub" id="clan"></span>
         <span class="etiquetas" id="etiquetas"></span>
+      </div>
+      <!-- 8m: en escritorio, Historial y Ajustes a mano en la cabecera. -->
+      <div class="acciones-yo">
+        <a class="boton-blanco" href="#historial" id="ir-historial-e">Historial</a>
+        <a class="boton-blanco" href="#ajustes" id="ir-ajustes-e">Ajustes</a>
       </div>
     </div>
 
@@ -56,7 +60,14 @@
       <div><strong id="total-viajes">—</strong><span id="verificados">trayectos</span></div>
       <div><strong id="km-total">0 km</strong><span>en total</span></div>
       <div><strong id="mejor-racha">0 días</strong><span>mejor racha</span></div>
+      <div class="cifra-escritorio"><strong id="estaciones-distintas">0</strong><span>estaciones distintas</span></div>
     </div>
+
+    <!-- 8m: en escritorio, las temporadas como barras por mes. -->
+    <section class="temporadas-barras" aria-labelledby="titulo-barras">
+      <div class="cabeza"><h2 id="titulo-barras">Temporadas</h2><span id="mejor-temporada"></span></div>
+      <div class="barras" id="barras-temporadas"></div>
+    </section>
 
     <nav class="menu-lista" id="menu" aria-label="Tu perfil"></nav>
     <p class="mensaje" id="msg-perfil" aria-live="polite"></p>
@@ -67,20 +78,24 @@
     <div class="subcabecera">
       <a class="boton-icono" href="#" aria-label="Volver"></a>
       <h1 id="titulo-insignias">Insignias</h1>
+      <span class="cuenta-insignias" id="cuenta-insignias"></span>
     </div>
     <div id="insignia-destacada"></div>
     <div class="insignias-rejilla" id="insignias"></div>
+    <a class="ver-insignias" href="#insignias" id="ver-insignias">Ver todas las insignias</a>
   </section>
 
   <!-- 6c · Historial -->
   <section class="vista oculto" id="vista-historial" aria-labelledby="titulo-historial">
     <div class="subcabecera">
-      <a class="boton-icono" href="#" aria-label="Volver"></a>
+      <a class="boton-icono" href="#" aria-label="Volver"><span class="migas">Tú</span></a>
       <h1 id="titulo-historial">Historial</h1>
     </div>
     <div class="filtros" id="filtros" role="group" aria-label="Filtrar por estado"></div>
     <div id="historial"></div>
     <p class="mensaje" id="msg-historial" aria-live="polite"></p>
+    <!-- 8n: en escritorio, el detalle del trayecto elegido. -->
+    <div class="detalle-historial" id="detalle-historial" aria-live="polite"></div>
   </section>
 
   <!-- 6d · Temporadas -->
@@ -108,28 +123,29 @@
   <!-- 6e · Ajustes -->
   <section class="vista oculto" id="vista-ajustes" aria-labelledby="titulo-ajustes">
     <div class="subcabecera">
-      <a class="boton-icono" href="#" aria-label="Volver"></a>
+      <a class="boton-icono" href="#" aria-label="Volver"><span class="migas">Tú</span></a>
       <h1 id="titulo-ajustes">Ajustes</h1>
     </div>
 
-    <h2 class="seccion-ajustes">Apariencia</h2>
+    <h2 class="seccion-ajustes" id="sec-apariencia">Apariencia</h2>
     <div class="temas" id="temas" role="group" aria-label="Tema"></div>
 
     <!-- Avisos push (#33). Toda la seccion se oculta si el navegador no puede:
          enseñar interruptores que no hacen nada es peor que no enseñarlos. -->
     <div id="ajustes-push" class="oculto">
-      <h2 class="seccion-ajustes">Avisos en el móvil</h2>
+      <h2 class="seccion-ajustes" id="sec-avisos"><span class="solo-movil-i">Avisos en el móvil</span><span class="solo-escritorio-i">Avisos</span></h2>
       <div class="lista-ajustes" id="lista-avisos"></div>
       <p class="mensaje" id="msg-push" aria-live="polite"></p>
     </div>
 
-    <h2 class="seccion-ajustes">Otros</h2>
-    <div class="lista-ajustes">
-      <label>
+    <h2 class="seccion-ajustes otros">Otros</h2>
+    <div class="lista-ajustes" id="lista-otros">
+      <label id="fila-correo">
         <span class="texto">Correo sobre mis trayectos<small>Rechazos, anulaciones y verificados</small></span>
+        <span class="nota-aviso">correo</span>
         <input type="checkbox" class="interruptor" id="avisos-correo">
       </label>
-      <label>
+      <label class="fila-sonido">
         <span class="texto">Sonido al verificarse<small>Solo con la app abierta</small></span>
         <input type="checkbox" class="interruptor" id="sonido">
       </label>
@@ -140,6 +156,28 @@
       <button class="btn" id="btn-salir" type="button">Cerrar sesión</button>
       <a class="btn" href="#datos">Mis datos</a>
     </div>
+
+    <!-- 8o: en escritorio, Mis datos va en la misma pagina, con un indice. -->
+    <h2 class="seccion-ajustes datos-escritorio" id="sec-datos">Tus datos</h2>
+    <div class="lista-ajustes datos-escritorio">
+      <div class="fila-dato">
+        <span class="texto">Descargar mis datos<small>JSON con todo lo que guardamos sobre ti</small></span>
+        <button class="enlace-dato" type="button" data-igual="btn-exportar" id="exportar-e">Descargar</button>
+      </div>
+      <div class="fila-dato">
+        <span class="texto">Cerrar sesión en este navegador</span>
+        <button class="enlace-dato tinta" type="button" data-igual="btn-salir">Cerrar sesión</button>
+      </div>
+      <div class="fila-dato">
+        <span class="texto peligro">Eliminar mi cuenta<small>Perfil, historial y capturas. No se puede deshacer.</small></span>
+        <button class="boton-eliminar" type="button" data-igual="btn-borrar">Eliminar…</button>
+      </div>
+    </div>
+    <nav class="indice-ajustes" aria-label="Secciones de ajustes">
+      <button type="button" data-ir="sec-apariencia" aria-current="true">Apariencia</button>
+      <button type="button" data-ir="sec-avisos">Avisos</button>
+      <button type="button" data-ir="sec-datos">Tus datos</button>
+    </nav>
     <p class="pie-version" id="pie-version"></p>
   </section>
 
@@ -150,24 +188,16 @@
       <h1 id="titulo-datos">Mis datos</h1>
     </div>
 
-    <div class="bloque">
-      <h2 class="h2">Descargar mis datos</h2>
-      <p class="menor apagado">
-        Un fichero JSON con todo lo que guardamos sobre ti (derecho de acceso y
-        portabilidad).
-      </p>
-      <button class="btn tonal" id="btn-exportar" type="button">Descargar</button>
-    </div>
+    <!-- 6f: cada derecho es una tarjeta que se pulsa entera. -->
+    <button class="tarjeta-dato" id="btn-exportar" type="button">
+      <strong>Descargar mis datos</strong>
+      <span>Un JSON con todo lo que guardamos sobre ti (acceso y portabilidad).</span>
+    </button>
 
-    <div class="bloque">
-      <h2 class="h2">Eliminar mi cuenta</h2>
-      <p class="menor apagado">
-        Se borra tu perfil, tu historial y tus capturas. Tus tiempos verificados
-        se anonimizan para no dejar huecos en los rankings de los demás, y dejan
-        de estar vinculados a ti.
-      </p>
-      <button class="btn peligro" id="btn-borrar" type="button">Eliminar mi cuenta</button>
-    </div>
+    <button class="tarjeta-dato peligro" id="btn-borrar" type="button">
+      <strong>Eliminar mi cuenta</strong>
+      <span>Se borra tu perfil, tu historial y tus capturas. No se puede deshacer.</span>
+    </button>
     <p class="mensaje" id="msg-datos" aria-live="polite"></p>
   </section>
 

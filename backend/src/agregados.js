@@ -55,7 +55,9 @@ const CAMPOS_PUBLICABLES = ['pos', 'nombre', 'avatar', 'clan', 'puntos', 'marca'
   'viajeId',
   // El DIA de una marca ('YYYY-MM-DD'), para "Tu mejor · ayer" y el record
   // "rosa.pedal · 14 sep" del rediseño 04. Solo el dia: ni la hora ni nada mas.
-  'fecha'];
+  'fecha',
+  // Puestos ganados (+) o perdidos (-) en el grupo desde ayer: la flecha de 4a.
+  'cambio'];
 
 /**
  * Un documento de Firestore tiene un tope duro de 1 MiB. Un ranking largo no
@@ -430,14 +432,28 @@ async function reconstruir({
     u,
   })));
   const porPiloto = {};
+  // "La flecha indica cambio desde ayer" (4a). El indice guarda los puestos de
+  // la ultima reconstruccion; la primera de cada dia los congela como "ayer".
+  // Una lectura por reconstruccion, del mismo documento que se va a escribir.
+  const hoyDia = diaMadrid();
+  const indicePrevio = (await db().doc('agregados/grupos').get()).data() || {};
+  const ayer = indicePrevio.dia === hoyDia ? (indicePrevio.ayer || {}) : (indicePrevio.posiciones || {});
+  const posiciones = {};
   for (const [clave, miembros] of grupos) {
-    const filas = miembros.map((p, i) => ({
-      pos: i + 1,
-      nombre: p.u.username || 'Piloto',
-      clan: p.u.clanId || null,
-      puntos: p.puntos,
-      viajes: p.u.viajesVerificados || 0,
-    }));
+    const filas = miembros.map((p, i) => {
+      const nombre = p.u.username || 'Piloto';
+      const antes = ayer[nombre];
+      posiciones[nombre] = { grupo: clave, pos: i + 1 };
+      return {
+        pos: i + 1,
+        nombre,
+        clan: p.u.clanId || null,
+        puntos: p.puntos,
+        viajes: p.u.viajesVerificados || 0,
+        // Solo si ayer estaba en ESTE grupo: entre grupos, un puesto no se compara.
+        cambio: antes && antes.grupo === clave ? antes.pos - (i + 1) : null,
+      };
+    });
     await escribirAgregado(`grupo-${clave}`, filas, {
       grupo: clave,
       // Cuantos suben y cuantos bajan en ESTE grupo: un grupo incompleto mueve
@@ -449,6 +465,9 @@ async function reconstruir({
   }
   await db().doc('agregados/grupos').set({
     porPiloto,
+    posiciones,
+    ayer,
+    dia: hoyDia,
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   });
   escritos.grupos = grupos.size;

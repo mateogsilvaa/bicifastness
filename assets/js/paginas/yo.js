@@ -16,11 +16,12 @@ import {
   collection, getDocs, getCountFromServer, query, where, orderBy, limit, startAfter, doc, getDoc,
 } from '/assets/js/firebase.js';
 import { iniciarPagina, nombreRuta, temaElegido, elegirTema } from '/assets/js/ui.js';
-import { id, el, estado, reemplazar, icono, pedirTexto } from '/assets/js/dom.js';
+import { id, el, estado, reemplazar, icono } from '/assets/js/dom.js';
 import {
-  impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo, guardarFavoritas,
+  exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo, guardarFavoritas,
 } from '/assets/js/acciones.js';
 import { vaciarCache } from '/assets/js/cache.js';
+import { abrirResuelto } from '/assets/js/veredicto.js';
 import { guardarResumenOffline, olvidarResumenOffline } from '/assets/js/instalar.js';
 import { traerAgregado } from '/assets/js/agregados.js';
 import { sonidoActivo, activarSonido, sonar } from '/assets/js/celebrar.js';
@@ -44,9 +45,35 @@ let perfil = null;
 // --- Iconos de la maqueta -------------------------------------------------------
 // Los enlaces de volver y el de ajustes solo llevan icono: su nombre accesible
 // va en `aria-label`, en el HTML.
-for (const volver of document.querySelectorAll('.subcabecera .boton-icono')) volver.append(icono('atras'));
+for (const volver of document.querySelectorAll('.subcabecera .boton-icono')) volver.prepend(icono('atras'));
 id('ir-ajustes').append(icono('ajustes'));
+id('ir-historial-e').prepend(icono('reloj'));
+id('ir-ajustes-e').prepend(icono('ajustes'));
 id('btn-salir').prepend(icono('salir'));
+id('exportar-e').prepend(icono('descargar'));
+
+// 8o: los botones de "Tus datos" hacen lo mismo que los de Mis datos, y el
+// indice lleva a cada seccion sin cambiar de pantalla.
+for (const boton of document.querySelectorAll('[data-igual]')) {
+  boton.addEventListener('click', () => id(boton.dataset.igual).click());
+}
+for (const boton of document.querySelectorAll('[data-ir]')) {
+  boton.addEventListener('click', () => {
+    for (const b of document.querySelectorAll('[data-ir]')) b.removeAttribute('aria-current');
+    boton.setAttribute('aria-current', 'true');
+    id(boton.dataset.ir).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+// 8o: en escritorio el correo es un aviso mas; en el movil va en "Otros" (6e).
+const escritorioAjustes = window.matchMedia('(min-width: 1200px)');
+const colocarCorreo = () => {
+  (escritorioAjustes.matches ? id('lista-avisos') : id('lista-otros')).prepend(id('fila-correo'));
+  // Y la version, al pie del indice.
+  if (escritorioAjustes.matches) document.querySelector('.indice-ajustes').append(id('pie-version'));
+  else id('vista-ajustes').append(id('pie-version'));
+};
+escritorioAjustes.addEventListener('change', colocarCorreo);
 
 // --- Vistas ------------------------------------------------------------------
 //
@@ -63,7 +90,7 @@ function mostrarVista() {
   // 8m: en escritorio ancho no hace falta entrar a subpantallas para ver
   // insignias y temporadas: van en la columna lateral del resumen.
   const ancho = vista === 'resumen' && window.matchMedia('(min-width: 1200px)').matches;
-  const lateral = ancho ? ['insignias', 'temporadas'] : [];
+  const lateral = ancho ? ['insignias'] : [];
   for (const v of VISTAS) id(`vista-${v}`).classList.toggle('oculto', v !== vista && !lateral.includes(v));
   id('principal').classList.toggle('yo-ancho', ancho);
   window.scrollTo(0, 0);
@@ -71,6 +98,8 @@ function mostrarVista() {
   if (perfil) {
     cargarVista(vista);
     for (const v of lateral) cargarVista(v);
+    // Las barras de temporadas del resumen (8m) salen de la misma lectura.
+    if (ancho) cargarVista('temporadas');
   }
 }
 
@@ -98,6 +127,11 @@ onAuthStateChanged(auth, async (u) => {
 
 // --- Resumen -------------------------------------------------------------------
 
+// Lo que completa la cabecera cuando llega: el clan y el grupo de la liga.
+let clanDatos = null;
+let claveGrupo = null;
+let puestoGeneral = null;
+
 async function cargarPerfil() {
   const snap = await getDoc(doc(db, 'usuarios', usuario.uid));
   if (!snap.exists()) {
@@ -111,7 +145,7 @@ async function cargarPerfil() {
 
   // Primero lo que ya esta en el documento, para que la pantalla no espere a
   // nada; despues se completa con lo que cuesta una lectura.
-  pintarCabecera(perfil, null);
+  pintarCabecera(perfil, clanDatos, claveGrupo);
   pintarRating(perfil);
   pintarCifras(perfil, null);
   pintarMenu(perfil);
@@ -120,6 +154,7 @@ async function cargarPerfil() {
   // Activados salvo que se hayan apagado a proposito: `undefined` significa que
   // nunca se ha tocado la preferencia, no que este desactivada.
   id('avisos-correo').checked = perfil.avisosCorreo !== false;
+  colocarCorreo();
 
   await Promise.all([cargarClan(), contarTrayectos(), cargarPuestos()]);
 }
@@ -129,7 +164,7 @@ async function cargarClan() {
   if (!perfil.clanId) return;
   try {
     const clan = await getDoc(doc(db, 'clanes', perfil.clanId));
-    if (clan.exists()) pintarCabecera(perfil, clan.data());
+    if (clan.exists()) { clanDatos = clan.data(); pintarCabecera(perfil, clanDatos, claveGrupo); }
   } catch (error) {
     console.debug('No se ha podido leer el clan', error);
   }
@@ -170,10 +205,13 @@ async function cargarPuestos() {
       return null;
     }
   };
-  const [general, sprint, fondo, constancia] = await Promise.all([
-    buscar('ranking-general'), buscar('ranking-sprint'), buscar('ranking-fondo'), buscar('ranking-constancia'),
+  const grupo = traerAgregado('grupos').then((g) => g?.porPiloto?.[perfil.username] || null).catch(() => null);
+  const [general, sprint, fondo, constancia, clave] = await Promise.all([
+    buscar('ranking-general'), buscar('ranking-sprint'), buscar('ranking-fondo'), buscar('ranking-constancia'), grupo,
   ]);
   pintarRating(perfil, { general, sprint, fondo, constancia });
+  puestoGeneral = general;
+  if (clave) { claveGrupo = clave; pintarCabecera(perfil, clanDatos, claveGrupo); }
 }
 
 // --- Rutas ancladas --------------------------------------------------------------
@@ -266,7 +304,7 @@ function nombreTemporada(temporada) {
 }
 
 async function cargarTemporadas() {
-  pintarTemporadas(perfil, []);
+  pintarTemporadas(perfil, [], puestoGeneral);
   try {
     // Vive en una subcoleccion del propio usuario, asi que se borra con su
     // cuenta sin tener que ir a buscarlo a otro sitio.
@@ -275,7 +313,7 @@ async function cargarTemporadas() {
       .map((d) => d.data())
       .sort((a, b) => ordenTemporada(b.temporada).localeCompare(ordenTemporada(a.temporada)))
       .map((t) => ({ ...t, nombre: nombreTemporada(t.temporada) }));
-    pintarTemporadas(perfil, cerradas);
+    pintarTemporadas(perfil, cerradas, puestoGeneral);
   } catch (error) {
     console.debug('No se han podido cargar las temporadas', error);
   }
@@ -315,9 +353,32 @@ reemplazar(id('filtros'), FILTROS.map((f) => {
 
 function pintarHistorial() {
   reemplazar(id('historial'), [
-    ...nodosHistorial(viajes, filtro, { alImpugnar: impugnar }),
+    ...nodosHistorial(viajes, filtro, { alAbrir: abrirViaje }),
     quedanMas ? botonVerMas() : null,
   ]);
+  // 8n: en escritorio el detalle vive al lado; se abre el primero.
+  if (anchoHistorial() && !id('detalle-historial').childElementCount) {
+    id('historial').querySelector('.fila-viaje')?.click();
+  }
+}
+
+const anchoHistorial = () => window.matchMedia('(min-width: 1200px)').matches;
+
+/** 6c: el detalle de 3k / 3l a pantalla entera; 8n: en el panel de al lado. */
+function abrirViaje(viaje, fila) {
+  const ancho = anchoHistorial();
+  for (const f of id('historial').querySelectorAll('.fila-viaje.elegida')) f.classList.remove('elegida');
+  if (ancho) fila.classList.add('elegida');
+  // 3m: la hoja de "Que lo mire una persona" es la de veredicto.js; al
+  // enviarla, el historial se vuelve a pedir para enseñar que esta pedida.
+  abrirResuelto(viaje, {
+    destino: ancho ? id('detalle-historial') : null,
+    alPedirRevision: () => {
+      estado(id('msg-historial'), 'Revisión pedida. Verás la respuesta en el propio trayecto.', 'ok');
+      reemplazar(id('detalle-historial'));
+      cargarHistorial();
+    },
+  });
 }
 
 async function cargarHistorial({ mas = false } = {}) {
@@ -358,32 +419,6 @@ function botonVerMas() {
     await cargarHistorial({ mas: true });
   });
   return boton;
-}
-
-/**
- * Pide que una persona revise un rechazo automatico.
- * Es un derecho del art. 22.3 del RGPD, no una cortesia: la politica de
- * privacidad lo promete.
- */
-async function impugnar(viajeId, boton) {
-  const alegacion = await pedirTexto(
-    'Explica por qué crees que el rechazo es un error. Lo leerá una persona.',
-    { etiqueta: 'Tu explicación', textoAceptar: 'Pedir revisión', minimo: 15,
-      marcador: 'Por ejemplo: la captura es auténtica, el trayecto lo hice el…' }
-  );
-  if (!alegacion) return;
-
-  boton.disabled = true;
-  boton.textContent = 'Enviando…';
-  try {
-    await impugnarViaje(viajeId, alegacion);
-    estado(id('msg-historial'), 'Revisión pedida. Verás la respuesta en el propio trayecto.', 'ok');
-    await cargarHistorial();
-  } catch (error) {
-    boton.disabled = false;
-    boton.textContent = 'Pedir revisión humana';
-    estado(id('msg-historial'), error.message, 'error');
-  }
 }
 
 // --- Ajustes ---------------------------------------------------------------------
@@ -506,16 +541,21 @@ async function montarAvisosPush(datos) {
       }),
   ];
 
+  // 8o: a la derecha, cuando o donde llega cada uno.
+  const NOTAS = { viajeResuelto: 'móvil y ordenador', rachaEnPeligro: '20:00', cambioDivision: 'lunes' };
   for (const [tipo, info] of Object.entries(TIPOS_PUSH)) {
-    nodos.push(interruptor(
+    const fila = interruptor(
       info.etiqueta,
       null,
       preferencias[tipo] === undefined ? info.porDefecto : preferencias[tipo] === true,
       (activo) => ajustarAvisoPush(tipo, activo),
-      !suscripcion));
+      !suscripcion);
+    if (NOTAS[tipo]) fila.lastElementChild.before(el('span', { clase: 'nota-aviso', texto: NOTAS[tipo] }));
+    nodos.push(fila);
   }
 
   reemplazar(id('lista-avisos'), nodos);
+  colocarCorreo();
 }
 
 // El sonido va apagado salvo que se encienda a proposito: una web que suena
@@ -584,13 +624,13 @@ id('btn-borrar').addEventListener('click', () => {
 
   const velo = el('div', { clase: 'velo' });
   const hoja = el('div', {
-    clase: 'hoja',
+    clase: 'hoja dialogo-escritorio',
     attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'titulo-borrar' },
   }, [
     el('span', { clase: 'asa', attrs: { 'aria-hidden': 'true' } }),
     el('h2', { clase: 'peligro', texto: 'Eliminar mi cuenta', attrs: { id: 'titulo-borrar' } }),
     el('p', { texto: 'Se borra tu perfil, tu historial y tus capturas. Tus tiempos verificados se anonimizan para no dejar huecos en los rankings de los demás y dejan de estar vinculados a ti. No se puede deshacer.' }),
-    el('div', { clase: 'pila', estilo: { gap: '6px' } }, [
+    el('div', { clase: 'pila confirmar-nombre', estilo: { gap: '6px' } }, [
       el('span', { clase: 'menor apagado' }, [
         el('span', { texto: 'Escribe ' }), el('strong', { texto: nombre }), el('span', { texto: ' para confirmar' }),
       ]),

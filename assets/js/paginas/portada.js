@@ -77,25 +77,41 @@ async function pintarPortadaPublica() {
 
     const agregado = await traerAgregado(`ruta-${ruta}`).catch(() => null);
     const pilotos = agregado?.total ?? agregado?.filas?.length ?? 0;
-    const record = agregado?.filas?.[0]?.marca ?? null;
+    const lider = agregado?.filas?.[0] || null;
+    const record = lider?.marca ?? null;
     // "N pilotos" y no "N pilotos hoy": el agregado cuenta a todos los que han
     // hecho el tramo, no solo a los de hoy, y decir otra cosa seria inventar.
-    const detalle = [
-      pilotos ? `${pilotos} ${pilotos === 1 ? 'piloto' : 'pilotos'}` : 'Aún sin tiempos',
-      record !== null ? `récord ${formatearTiempo(record)}` : 'el primero se lleva el récord',
-    ].join(' · ');
+    const cuantos = pilotos ? `${pilotos} ${pilotos === 1 ? 'piloto' : 'pilotos'}` : 'Aún sin tiempos';
+    const marca = record !== null ? `récord ${formatearTiempo(record)}` : 'el primero se lleva el récord';
+    const nombre = nombreRuta(ruta);
 
+    // Dos composiciones del mismo dato: 1a (movil, en una fila) y 8d
+    // (escritorio, tarjeta sobre el mapa con "en vivo" y de quien es el record).
     reemplazar(id('ruta-publica'), el('a', {
       clase: 'ruta-publica',
       attrs: { href: `/clasificacion/?ruta=${encodeURIComponent(ruta)}` },
     }, [
-      el('span', { clase: 'punto-vivo', attrs: { 'aria-hidden': 'true' } }),
-      el('span', { clase: 'texto' }, [
-        el('span', { texto: 'Ruta del día: ' }),
-        el('strong', { texto: nombreRuta(ruta).replace(' - ', ' → ') }),
-        el('span', { clase: 'detalle', texto: detalle }),
+      el('span', { clase: 'rp-movil' }, [
+        el('span', { clase: 'punto-vivo', attrs: { 'aria-hidden': 'true' } }),
+        el('span', { clase: 'texto' }, [
+          el('span', { texto: 'Ruta del día: ' }),
+          // 1a: en una fila, sin la segunda parte de cada estacion.
+          el('strong', { texto: nombre.replace(/ - [^→]*/g, ' ').replace(/\s+→/, ' →').trim() }),
+          el('span', { clase: 'detalle', texto: `${cuantos} · ${marca}` }),
+        ]),
+        el('span', { clase: 'x2', texto: '×2' }),
       ]),
-      el('span', { clase: 'x2', texto: '×2' }),
+      el('span', { clase: 'rp-escritorio' }, [
+        el('span', { clase: 'rp-cabeza' }, [
+          el('span', { clase: 'rp-etiqueta' }, [
+            el('span', { clase: 'punto-vivo', attrs: { 'aria-hidden': 'true' } }),
+            'Ruta del día · en vivo',
+          ]),
+          el('span', { clase: 'x2', texto: '×2' }),
+        ]),
+        el('strong', { texto: nombre }),
+        el('span', { clase: 'detalle', texto: `${cuantos} · ${marca}${lider?.nombre && record !== null ? ` de ${lider.nombre}` : ''}` }),
+      ]),
     ]));
   } catch (error) {
     console.debug('Sin ruta del dia en la portada', error);

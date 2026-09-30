@@ -12,7 +12,6 @@
 import { el, icono, reemplazar } from './dom.js';
 import { nombreRuta, formatearTiempo } from './ui.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
-import { motivoDeViaje } from './motivos.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
 
 // --- Formato -----------------------------------------------------------------
@@ -112,9 +111,10 @@ export function pintarRating(perfil, puestos = {}) {
   document.getElementById('rating').textContent = numero(perfil.biciRating || 0);
 
   const general = puestos.general;
-  document.getElementById('puesto-global').textContent = general?.pos
-    ? `${ordinal(general.pos)} de ${numero(general.total)}`
-    : '';
+  // 8m: en escritorio, "184.º de 1.207 en Madrid".
+  reemplazar(document.getElementById('puesto-global'), general?.pos
+    ? [`${ordinal(general.pos)} de ${numero(general.total)}`, el('span', { clase: 'solo-escritorio-i', texto: ' en Madrid' })]
+    : []);
 
   const fuerzas = Object.fromEntries(MODOS.map((m) => [m.clave, fuerzaModo(puestos[m.clave])]));
   const alguna = Object.values(fuerzas).some((f) => f > 0);
@@ -131,14 +131,14 @@ export function pintarRating(perfil, puestos = {}) {
 
   const valores = valoresModos(perfil);
   reemplazar(document.getElementById('leyenda-modos'), MODOS.map((m) => el('span', {}, [
-    el('span', { clase: `nombre-modo ${m.clave}`, texto: m.nombre }),
-    el('strong', { texto: valores[m.clave] }),
-    m.clave === fuerte ? el('span', { clase: 'fuerte', texto: 'tu fuerte' }) : null,
+    // 6a: "527 · tu fuerte", en la cifra; 8m: "Constancia · tu fuerte", en el nombre.
+    el('span', { clase: `nombre-modo ${m.clave}` }, [m.nombre, m.clave === fuerte ? el('span', { clase: 'solo-escritorio-i', texto: ' · tu fuerte' }) : null]),
+    el('strong', {}, [valores[m.clave], m.clave === fuerte ? el('span', { clase: 'solo-movil-i', texto: ' · tu fuerte' }) : null]),
   ])));
 }
 
 /** Cabecera: inicial sobre el color del clan, nombre, clan y etiquetas. */
-export function pintarCabecera(perfil, clan) {
+export function pintarCabecera(perfil, clan, grupo = null) {
   const nombre = perfil.username || 'Piloto';
   document.getElementById('nombre').textContent = nombre;
 
@@ -151,12 +151,19 @@ export function pintarCabecera(perfil, clan) {
   const desde = creado
     ? `desde ${MESES[creado.getMonth()]}${creado.getFullYear() === new Date().getFullYear() ? '' : ` de ${creado.getFullYear()}`}`
     : '';
-  document.getElementById('clan').textContent = [clan?.nombre || 'Sin clan', desde].filter(Boolean).join(' · ');
-
   const division = nombreDivision(perfil.division);
+  const liga = division ? (grupo ? `${division} · grupo ${String(grupo).split('-')[1]}` : division) : null;
+  // 8m: en escritorio la liga va en esta linea, sin etiquetas debajo.
+  reemplazar(document.getElementById('clan'), [
+    clan?.nombre || 'Sin clan',
+    liga ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${liga}` }) : null,
+    desde ? ` · ${desde}` : null,
+  ]);
+
   const escudos = perfil.escudos || 0;
   reemplazar(document.getElementById('etiquetas'), [
-    division ? el('span', { clase: 'etiqueta-juego', texto: division }) : null,
+    // 6a: "Plata · grupo 4" en cuanto se sabe el grupo de la liga.
+    liga ? el('span', { clase: 'etiqueta-juego', texto: liga }) : null,
     // Los escudos, a la vista: son lo que protege la racha.
     el('span', {
       clase: 'etiqueta-juego',
@@ -177,12 +184,19 @@ export function pintarCifras(perfil, total) {
   document.getElementById('km-total').textContent = `${km >= 10 ? numero(km) : km.toFixed(1).replace('.', ',')} km`;
   const racha = perfil.mejorRacha || 0;
   document.getElementById('mejor-racha').textContent = `${numero(racha)} ${racha === 1 ? 'día' : 'días'}`;
+  document.getElementById('estaciones-distintas').textContent = numero(derivados(perfil).estacionesVisitadas);
 }
 
 /** Cuantas insignias del catalogo tiene. Las de temporada van aparte. */
 export function insigniasConseguidas(perfil) {
   const tiene = new Set(perfil.logros || []);
-  return Object.keys(INSIGNIAS).filter((k) => tiene.has(k)).length;
+  const datos = derivados(perfil);
+  return Object.entries(INSIGNIAS).filter(([k, ins]) => tiene.has(k) || alcanzada(ins, datos)).length;
+}
+
+/** La meta de una insignia con regla, ya cumplida en los datos del perfil. */
+function alcanzada(ins, datos) {
+  return Boolean(ins.regla) && (Number(datos[ins.regla.campo]) || 0) >= ins.regla.minimo;
 }
 
 /**
@@ -225,7 +239,8 @@ function derivados(perfil) {
 
 /** "214 de 250 km", "81 de 100". */
 function progresoTexto(campo, valor, minimo) {
-  if (campo === 'metrosTotales') return `${numero(valor / 1000)} de ${numero(minimo / 1000)} km`;
+  // 6b: "214 de 250"; la unidad ya va en el nombre ("250 km").
+  if (campo === 'metrosTotales') return `${numero(Math.floor(valor / 1000))} de ${numero(minimo / 1000)}`;
   return `${numero(valor)} de ${numero(minimo)}`;
 }
 
@@ -249,8 +264,11 @@ export function pintarInsignias(perfil) {
   const datos = derivados(perfil);
   const total = Object.keys(INSIGNIAS).length;
 
-  document.getElementById('titulo-insignias').textContent =
-    `Insignias · ${insigniasConseguidas(perfil)} de ${total}`;
+  // 6b: "Insignias · 7 de 16"; 8m: "Insignias" y la cuenta a la derecha.
+  const cuenta = `${insigniasConseguidas(perfil)} de ${total}`;
+  reemplazar(document.getElementById('titulo-insignias'), ['Insignias', el('span', { clase: 'solo-movil-i', texto: ` · ${cuenta}` })]);
+  document.getElementById('cuenta-insignias').textContent = cuenta;
+  document.getElementById('ver-insignias').textContent = `Ver las ${total} insignias`;
 
   const [ultima] = insigniasDeTemporada(perfil.logros);
   reemplazar(document.getElementById('insignia-destacada'), ultima
@@ -258,20 +276,25 @@ export function pintarInsignias(perfil) {
       el('span', { clase: 'disco' }, [icono('medalla')]),
       el('span', { clase: 'texto' }, [
         el('strong', { texto: `${ultima.titulo} · ${nombreMes(ultima.temporada).split(' ')[0].toLowerCase()}` }),
-        el('span', { clase: 'sub', texto: ultima.descripcion }),
+        el('span', { clase: 'sub' }, [
+          el('span', { clase: 'solo-movil-i', texto: ultima.descripcion }),
+          el('span', { clase: 'solo-escritorio-i', texto: 'De temporada' }),
+        ]),
       ]),
     ])
     : null);
 
   // Todas, conseguidas o no: cada pendiente, con su progreso real, es una meta.
   reemplazar(document.getElementById('insignias'), Object.entries(INSIGNIAS).map(([clave, ins]) => {
-    const conseguida = tiene.has(clave);
     const regla = ins.regla;
     const valor = regla ? Number(datos[regla.campo]) || 0 : 0;
+    // Alcanzada la meta, conseguida: el logro lo apunta el servidor en el
+    // siguiente recalculo, y "41 de 1" no es un progreso.
+    const conseguida = tiene.has(clave) || alcanzada(ins, datos);
     const pct = conseguida ? 100 : regla ? Math.min(100, (valor / regla.minimo) * 100) : 0;
 
     return el('div', {
-      clase: `insignia ${conseguida ? 'conseguida' : 'pendiente'}`,
+      clase: `insignia ${conseguida ? 'conseguida' : 'bloqueada'}`,
       titulo: ins.descripcion,
     }, [
       el('span', { clase: 'disco' }, [icono(ins.icono)]),
@@ -320,9 +343,9 @@ function textoExtra(v) {
  *
  * @param {Array<{id, datos}>} viajes  lo cargado hasta ahora, en orden
  * @param {string} filtro
- * @param {{ alImpugnar: Function }} acciones
+ * @param {{ alAbrir: Function }} acciones  alAbrir(viaje con id, fila)
  */
-export function nodosHistorial(viajes, filtro, { alImpugnar }) {
+export function nodosHistorial(viajes, filtro, { alAbrir }) {
   const vale = (FILTROS.find((f) => f.clave === filtro) || FILTROS[0]).vale;
   const visibles = viajes.filter((v) => vale(v.datos));
 
@@ -349,10 +372,9 @@ export function nodosHistorial(viajes, filtro, { alImpugnar }) {
     const estado = v.estado === 'aprobado' && v.fueraDeCupo
       ? { clase: 'pendiente', texto: 'Sin puntos · pasado el cupo' }
       : ESTADOS[v.estado] || ESTADOS.pendiente;
-    const detalle = el('div', { clase: 'detalle-viaje oculto' }, nodosDetalle(id, v, alImpugnar));
     const fila = el('button', {
       clase: 'fila-viaje',
-      attrs: { type: 'button', 'aria-expanded': 'false' },
+      attrs: { type: 'button', 'data-viaje': id },
     }, [
       el('span', { clase: 'ruta-viaje', texto: nombreRuta(v.ruta) }),
       el('span', { clase: 'tiempo', texto: formatearTiempo(v.tiempoSegundos) }),
@@ -360,54 +382,10 @@ export function nodosHistorial(viajes, filtro, { alImpugnar }) {
       el('span', { clase: 'extra', texto: textoExtra(v) }),
     ]);
 
-    fila.addEventListener('click', () => {
-      const abierto = fila.getAttribute('aria-expanded') === 'true';
-      fila.setAttribute('aria-expanded', String(!abierto));
-      detalle.classList.toggle('oculto', abierto);
-    });
+    // 6c: cada fila abre el detalle de 3k / 3l (en escritorio, al lado).
+    fila.addEventListener('click', () => alAbrir({ id, ...v }, fila));
 
-    nodos.push(el('div', {}, [fila, detalle]));
-  }
-
-  return nodos;
-}
-
-/** Lo que se ve al abrir una fila: el motivo si no cuenta, y que se puede hacer. */
-function nodosDetalle(id, v, alImpugnar) {
-  const nodos = [];
-
-  if (v.estado === 'rechazado') {
-    // El texto sale de `motivos.js`: el resumen de la auditoria esta escrito
-    // para quien revisa y lleva dentro los numeros del antifraude.
-    const motivo = motivoDeViaje(v);
-    nodos.push(el('div', { clase: 'aviso error' }, [
-      el('p', { clase: 'etiqueta', texto: motivo.dePersona ? 'Lo que dice quien lo ha revisado' : 'Por qué no cuenta' }),
-      el('p', { texto: motivo.texto }),
-      motivo.queHacer ? el('p', { texto: motivo.queHacer }) : null,
-    ]));
-  }
-
-  if (impugnable(v)) {
-    const boton = el('button', { clase: 'btn plano', texto: 'Pedir revisión humana', attrs: { type: 'button' } });
-    boton.addEventListener('click', () => alImpugnar(id, boton));
-    nodos.push(boton);
-  } else if (v.impugnado) {
-    nodos.push(el('p', { clase: 'menor apagado', estilo: { margin: '0' },
-      texto: 'Has pedido revisión humana. La va a mirar una persona.' }));
-  }
-
-  if (v.estado === 'aprobado' && v.distanciaMetros) {
-    const km = (v.distanciaMetros / 1000).toFixed(1).replace('.', ',');
-    nodos.push(el('p', { clase: 'menor apagado', estilo: { margin: '0' },
-      texto: `${km} km${v.velocidadKmh ? ` · ${String(v.velocidadKmh.toFixed(1)).replace('.', ',')} km/h` : ''}` }));
-  }
-  if (v.estado === 'pendiente') {
-    nodos.push(el('p', { clase: 'menor apagado', estilo: { margin: '0' },
-      texto: 'En cola: el análisis automático tarda de 5 a 15 minutos.' }));
-  }
-  if (v.estado === 'revision' && !v.impugnado) {
-    nodos.push(el('p', { clase: 'menor apagado', estilo: { margin: '0' },
-      texto: 'Una persona lo va a revisar. No hace falta que hagas nada.' }));
+    nodos.push(fila);
   }
 
   return nodos;
@@ -423,11 +401,35 @@ export function diasQueQuedan(ahora = new Date()) {
 }
 
 /**
+ * 8m: las ultimas cinco temporadas como barras (80 px la mejor), la actual en
+ * azul, y la mejor posicion a la derecha del titulo.
+ */
+function pintarBarrasTemporadas(actual, cerradas) {
+  const destino = document.getElementById('barras-temporadas');
+  if (!destino) return;
+  const meses = [
+    ...cerradas.filter((t) => /^\d{4}-\d{2}$/.test(t.temporada)).slice(0, 4).reverse()
+      .map((t) => ({ mes: t.temporada, puntos: t.puntos || 0 })),
+    { mes: diaMadrid().slice(0, 7), puntos: actual, actual: true },
+  ];
+  const tope = Math.max(...meses.map((m) => m.puntos), 1);
+  reemplazar(destino, meses.map((m) => el('div', { clase: `barra-mes${m.actual ? ' actual' : ''}` }, [
+    el('span', { clase: 'valor', texto: String(m.puntos) }),
+    el('span', { clase: 'columna', estilo: { height: `${Math.max(4, Math.round((m.puntos / tope) * 80))}px` } }),
+    el('span', { clase: 'mes', texto: MESES_CORTOS[Number(m.mes.slice(5, 7)) - 1] }),
+  ])));
+  const mejor = cerradas.filter((t) => t.posicion).sort((a, b) => a.posicion - b.posicion)[0];
+  document.getElementById('mejor-temporada').textContent = mejor
+    ? `mejor: ${ordinal(mejor.posicion)} en ${nombreMes(mejor.temporada).split(' ')[0].toLowerCase()}`
+    : '';
+}
+
+/**
  * @param {object} perfil
  * @param {Array<{temporada, nombre, puntos, posicion, division}>} cerradas
  *   ya ordenadas y con nombre (lo decide la pagina)
  */
-export function pintarTemporadas(perfil, cerradas) {
+export function pintarTemporadas(perfil, cerradas, puesto = null) {
   const actual = perfil.puntosTemporada || 0;
   const mejor = Math.max(actual, ...cerradas.map((t) => t.puntos || 0), 1);
   const quedan = diasQueQuedan();
@@ -440,18 +442,21 @@ export function pintarTemporadas(perfil, cerradas) {
     ]),
     el('div', { clase: 'cifra-grande' }, [
       el('strong', { texto: numero(actual) }),
-      el('span', { texto: ['pts', division].filter(Boolean).join(' · ') }),
+      // 6d: "pts · 184.º · Plata".
+      el('span', { texto: ['pts', puesto?.pos ? ordinal(puesto.pos) : null, division].filter(Boolean).join(' · ') }),
     ]),
     el('div', { clase: 'pista', attrs: { 'aria-hidden': 'true' } }, [
       el('span', { estilo: { width: `${Math.round((actual / mejor) * 100)}%` } }),
     ]),
   ]));
 
+  pintarBarrasTemporadas(actual, cerradas);
+
   const premios = insigniasDeTemporada(perfil.logros);
 
   reemplazar(document.getElementById('temporadas'), cerradas.length
     ? cerradas.map((t) => {
-      const suyos = premios.filter((p) => p.temporada === t.temporada).map((p) => p.titulo);
+      const suyos = premios.filter((p) => p.temporada === t.temporada);
       const sub = [t.posicion ? ordinal(t.posicion) : null, nombreDivision(t.division)].filter(Boolean).join(' · ');
       return el('div', { clase: 'temporada-fila' }, [
         el('span', { clase: 'mes', texto: t.nombre }),
@@ -460,7 +465,8 @@ export function pintarTemporadas(perfil, cerradas) {
           el('span', { estilo: { width: `${Math.round(((t.puntos || 0) / mejor) * 100)}%` } }),
         ]),
         el('span', { clase: 'sub', texto: sub || 'sin puntos' }),
-        el('span', { clase: 'premio', texto: suyos.join(' · ') }),
+        // 6d: el bronce, en su color; el resto, en ambar.
+        el('span', { clase: `premio ${suyos.some((p) => p.clave.endsWith('-bronce')) ? 'bronce' : ''}`, texto: suyos.map((p) => p.titulo).join(' · ') }),
       ]);
     })
     : [el('div', { clase: 'vacio' }, [

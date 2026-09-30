@@ -31,7 +31,13 @@ let ultimasBicis = null;
 
 // --- Mapa --------------------------------------------------------------------
 
-const mapa = L.map('mapa', { zoomControl: false, attributionControl: true }).setView([40.4230, -3.7000], 14);
+// En pantallas tactiles, las 685 estaciones se pintan en un <canvas>: como
+// elementos SVG, cada arrastre del mapa movia 685 nodos y en un movil se notaba
+// a tirones. Con raton se quedan en SVG, que es lo que permite recorrerlas con
+// el teclado.
+const TACTIL = window.matchMedia('(pointer: coarse)').matches;
+const mapa = L.map('mapa', { zoomControl: false, attributionControl: true, preferCanvas: TACTIL })
+  .setView([40.4230, -3.7000], 14);
 
 // Teselas de OpenStreetMap, apagadas en CSS hasta quedar como Positron (y
 // invertidas en oscuro, como Dark Matter). Las de CARTO empezaron a salir con
@@ -156,7 +162,8 @@ window.addEventListener('pointerup', (e) => {
 });
 id('resumen-mapa').addEventListener('click', (e) => {
   if (e.target.closest('a')) return;
-  if (hoja.dataset.altura === 'asomada') { altura('media'); mostrar(miClanId ? 'miclan' : 'clanes'); }
+  // 5c: Mi clan y Clanes van en la hoja completa.
+  if (hoja.dataset.altura === 'asomada') { altura('completa'); mostrar(miClanId ? 'miclan' : 'clanes'); }
 });
 
 // --- 5b · Estacion ---------------------------------------------------------------------
@@ -351,6 +358,8 @@ function mostrar(pestana, { recordar = true } = {}) {
     url.searchParams.set('tab', activa);
     window.history.replaceState({}, '', url);
   }
+  // 5b es media altura (la estacion); 5c, completa (Clanes y Mi clan).
+  if (activa !== 'estaciones' && hoja.dataset.altura === 'media') altura('completa');
 }
 for (const p of PESTANAS) id(`tab-${p}`).addEventListener('click', () => mostrar(p));
 
@@ -434,7 +443,7 @@ async function cargar() {
     const feature = pedida && estaciones.find((f) => String(f.properties.number) === pedida);
     if (feature) elegir(feature.properties, { centrar: true });
     else mostrar(parametros.get('tab') || (parametros.get('clan') ? 'clanes' : 'estaciones'), { recordar: false });
-    if (parametros.get('tab') || parametros.get('clan')) altura('media');
+    if (parametros.get('tab') || parametros.get('clan')) altura(parametros.get('tab') === 'estaciones' ? 'media' : 'completa');
   } catch (error) {
     console.debug('No se ha podido cargar el territorio', error);
     estado(id('mensaje'), 'No hemos podido cargar el mapa. Vuelve a intentarlo.', 'error');

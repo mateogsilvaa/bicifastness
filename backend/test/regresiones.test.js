@@ -402,7 +402,9 @@ test('los eventos del embudo los emite alguien', () => {
 
 test('se puede impugnar un rechazo automatico (RGPD art. 22.3)', () => {
   assert.match(leerCodigo('assets/js/acciones.js'), /export async function impugnarViaje/);
-  assert.match(leerCodigo('assets/js/paginas/yo.js'), /impugnarViaje\(/);
+  // La hoja de 3m vive en veredicto.js, que abren el historial y Hoy.
+  assert.match(leerCodigo('assets/js/veredicto.js'), /impugnarViaje\(/);
+  assert.match(leerCodigo('assets/js/paginas/yo.js'), /abrirResuelto\(/);
   assert.match(bloque('tiempos_viaje'), /previo\(\)\.revisadoPor == 'automatico'/);
 });
 
@@ -440,7 +442,25 @@ test('el sistema de diseno no admite sombras', () => {
   // `inset` en la fila propia es un borde de 3 px, no una sombra: es la unica
   // forma de pintar un borde dentro de una celda de tabla sin descuadrar la
   // rejilla de columnas.
-  const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none'));
+  //
+  // Y las que pone el propio diseño, con su valor exacto: sobre el mapa, un
+  // boton blanco sin sombra se pierde contra las calles (8d, "Entrar").
+  // Y el panel lateral que se abre sobre la pagina (8j), que sin ella no se
+  // separa de la tabla de detras.
+  // Y lo que flota sobre el mapa (05, 8k): controles, hoja y panel.
+  const DEL_DISEÑO = ['box-shadow: 0 2px 12px rgba(0, 0, 0, .08);', 'box-shadow: -12px 0 40px rgba(0, 0, 0, .10);',
+    'box-shadow: 0 2px 10px rgba(0, 0, 0, .08);', 'box-shadow: 0 -8px 32px rgba(0, 0, 0, .12);', 'box-shadow: 0 8px 32px rgba(0, 0, 0, .12);',
+    // 8l: la tarjeta de invitar, flotando junto al panel del mapa.
+    'box-shadow: 0 8px 32px rgba(0, 0, 0, .14);',
+    // 8b: las dos capturas de la capa de soltar.
+    'box-shadow: 0 6px 20px rgba(0, 0, 0, .08);', 'box-shadow: 0 18px 40px rgba(17, 17, 16, .22);',
+    // 8h: el dialogo de verificado, sobre Hoy.
+    'box-shadow: 0 24px 64px rgba(0, 0, 0, .25);',
+    // 7c: el aviso de cookies, sobre la barra.
+    'box-shadow: 0 -4px 24px rgba(0, 0, 0, .08);',
+    // 8q: los mismos avisos en escritorio, flotando abajo a la derecha.
+    'box-shadow: 0 8px 32px rgba(0, 0, 0, .1);'];
+  const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none') && !DEL_DISEÑO.includes(s));
   assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
 });
 
@@ -700,6 +720,36 @@ test('el despliegue no publica el backend ni los scripts', () => {
     assert.ok(fs.existsSync(path.join(sitio, dentro)), `falta ${dentro} en lo publicado`);
   }
   assert.match(leerCodigo('assets/js/paginas/territorio.js'), /\/data\/emt\.geojson/);
+  fs.rmSync(sitio, { recursive: true, force: true });
+});
+
+test('lo publicado precarga sus modulos y los lleva con version', () => {
+  // Sin precarga, el navegador descubria los modulos por niveles y cada nivel
+  // eran cientos de milisegundos en Pages. Sin version en TODAS las rutas, el
+  // service worker no podria servirlos de su cache sin mezclar despliegues, y
+  // un mismo modulo pedido con y sin version se ejecutaria dos veces.
+  const sitio = montarSitio(true);
+  const portada = fs.readFileSync(path.join(sitio, 'index.html'), 'utf8');
+  assert.match(portada, /<link rel="modulepreload" href="\/assets\/js\/paginas\/portada\.js\?v=/);
+  assert.match(portada, /<link rel="modulepreload" href="https:\/\/www\.gstatic\.com\/firebasejs\//);
+  assert.match(portada, /<script type="module" src="\/assets\/js\/paginas\/portada\.js\?v=/);
+
+  const sinVersion = [];
+  (function recorrer(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const completo = path.join(dir, e.name);
+      if (e.isDirectory()) { if (e.name !== 'vendor' && e.name !== 'ocr') recorrer(completo); continue; }
+      if (!e.name.endsWith('.js')) continue;
+      const codigo = fs.readFileSync(completo, 'utf8');
+      for (const m of codigo.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]((?:\.{1,2}\/|\/assets\/)[^'"]+)['"]/g)) {
+        if (!m[1].includes('?v=')) sinVersion.push(`${e.name}: ${m[1]}`);
+      }
+    }
+  })(path.join(sitio, 'assets'));
+  assert.deepStrictEqual(sinVersion, []);
+
+  // Y el service worker cambia de cache con cada version.
+  assert.match(fs.readFileSync(path.join(sitio, 'sw.js'), 'utf8'), /const CACHE = 'bicifastness-v\d+-[^']+';/);
   fs.rmSync(sitio, { recursive: true, force: true });
 });
 

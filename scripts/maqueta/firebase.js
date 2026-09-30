@@ -14,9 +14,39 @@
  *   localStorage.maqueta_perfil = 'nuevo'   -> piloto recien llegado (2e)
  *   localStorage.maqueta_perfil = 'salvado' -> hoy ya salvado (2b)
  *   localStorage.maqueta_perfil = 'admin'   -> con permisos de administracion
+ *   localStorage.maqueta_perfil = 'sinclan' -> sin clan (5e)
+ *   localStorage.maqueta_perfil = 'lider'   -> lider con dos solicitudes (5d)
+ *   localStorage.maqueta_perfil = 'cupo'    -> ya ha subido los 3 que puntuan hoy (3n)
+ *   localStorage.maqueta_perfil = 'sinperfil' -> con sesion pero sin nombre de piloto (1c)
+ *   localStorage.maqueta_perfil = 'peligro' -> sin escudos (2c, con maqueta_hora >= '20:00')
+ *   localStorage.maqueta_perfil = 'escudo' | 'perdida' -> la mañana siguiente (2f)
+ *   localStorage.maqueta_perfil = 'division' -> subes de division (2g; borra bf_division_vista para verla otra vez)
+ *   localStorage.maqueta_perfil = 'encola'  -> un trayecto subido hace 3 min, en cola (2d;
+ *                                              sessionStorage['viaje-en-curso'] = 'maqueta-cola')
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
+ *   localStorage.maqueta_hora = '12:00'     -> la app cree que es esa hora de
+ *                                              Madrid (p. ej. '21:30' para 2c)
  * Un viaje subido pasa a verificado a los 6 segundos.
  */
+
+// La hora de mentira: se adelanta o atrasa el reloj entero de la pagina para que
+// la hora de Madrid sea la pedida. Asi se ven los estados que dependen de la hora
+// (misiones de dia, racha en peligro por la noche) a cualquier hora del dia.
+(() => {
+  let pedida = null;
+  try { pedida = localStorage.getItem('maqueta_hora'); } catch { /* sin almacenamiento */ }
+  const m = String(pedida || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return;
+  const Real = Date;
+  const partes = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Real()).split(':');
+  const ahora = Number(partes[0]) * 60 + Number(partes[1]);
+  const delta = ((Number(m[1]) * 60 + Number(m[2])) - ahora) * 60000;
+  class Falsa extends Real {
+    constructor(...args) { if (args.length) super(...args); else super(Real.now() + delta); }
+    static now() { return Real.now() + delta; }
+  }
+  globalThis.Date = Falsa;
+})();
 
 const UID = 'maqueta-uid';
 const hoy = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(new Date());
@@ -54,7 +84,7 @@ const perfilBase = {
   viajesVerificados: 41, metrosTotales: 96400, segundosTotales: 41000,
   puntosTemporada: 322, biciRating: 870, division: 'plata', clanId: 'c1', rolClan: 'miembro',
   puntosPorRuta: { '124-115': 60, '1-102': 30, '102-124': 20 },
-  logros: ['primer_viaje', 'semana_seguida'],
+  logros: ['primer-viaje', 'veterano', 'fondo-50', 'racha-7', 'sprint-cinco-tramos', 'explorador-10', 'temporada-2026-08-constancia', 'temporada-2026-07-bronce'],
   consentimiento: { terminos: { version: '1.4.0' } },
   creado: hace(60 * 24 * 40),
 };
@@ -68,6 +98,13 @@ const perfiles = {
     },
   },
   admin: { ...perfilBase, admin: true },
+  sinclan: { ...perfilBase, clanId: null, rolClan: null },
+  peligro: { ...perfilBase, escudos: 0 },
+  encola: { ...perfilBase },
+  division: { ...perfilBase, ultimoCambioDivision: { fecha: hoy, desde: 'bronce', hasta: 'plata', puesto: 3, total: 30, puntos: 412 } },
+  escudo: { ...perfilBase, escudos: 0, ultimoCierreRacha: { dia: hoy, escudosGastados: 1 } },
+  perdida: { ...perfilBase, racha: 0, ultimoCierreRacha: { dia: hoy, rota: true, rachaPrevia: 23 } },
+  lider: { ...perfilBase, rolClan: 'lider' },
 };
 const perfil = perfiles[variante] || perfilBase;
 
@@ -92,9 +129,10 @@ ids.forEach((id, i) => {
 const rankingPilotos = (valor) => nombres.map((n, i) => ({ pos: i + 1, nombre: n, clan: ['c1', 'c2', 'c3'][i % 3], puntos: valor(i), viajes: 40 - i }));
 
 const datos = {
-  [`usuarios/${UID}`]: perfil,
+  // Sin documento de perfil: la sesion esta, pero falta el nombre (1c).
+  ...(variante === 'sinperfil' ? {} : { [`usuarios/${UID}`]: perfil }),
   [`nombres_usuario/${perfil.username.toLowerCase()}`]: { uid: UID },
-  [`cupos/${UID}`]: { dia: Math.floor(Date.now() / 864e5), viajes: variante === 'salvado' ? 1 : 0, capturas: 0 },
+  [`cupos/${UID}`]: { dia: Math.floor(Date.now() / 864e5), viajes: variante === 'salvado' ? 1 : variante === 'cupo' ? 3 : 0, capturas: variante === 'cupo' ? 3 : 0 },
   'config/general': { rutaDestacada: '124-115', mantenimiento: false },
   [`config/misiones/dias/${hoy}`]: {
     fecha: hoy,
@@ -127,15 +165,29 @@ const datos = {
   },
 };
 for (const [id, c] of Object.entries(CLANES)) {
-  datos[`clanes/${id}`] = { ...c, descripcion: 'Salimos de Chamberí cada mañana.', lider: id === 'c1' ? 'otro-uid' : 'x', miembros: id === 'c1' ? ['otro-uid', UID] : ['x'], oficiales: [], solicitudes: id === 'c1' ? [] : [], numMiembros: 12, biciRating: 5200, creado: hace(60 * 24 * 90) };
+  datos[`clanes/${id}`] = { ...c, descripcion: 'Salimos de Chamberí cada mañana.', lider: id === 'c1' ? (variante === 'lider' ? UID : 'otro-uid') : 'x', miembros: id === 'c1' ? ['otro-uid', ...(perfil.clanId ? [UID] : [])] : ['x'], oficiales: [], solicitudes: id === 'c1' && variante === 'lider' ? ['s1', 's2'] : [], numMiembros: 12, biciRating: 5200, creado: hace(60 * 24 * 90) };
 }
+// 2d: el trayecto que se acaba de subir, esperando al worker.
+if (variante === 'encola') {
+  datos['tiempos_viaje/maqueta-cola'] = {
+    uid: UID, username: perfil.username, ruta: '124-115', tiempoSegundos: 1038, fechaViaje: dia(0), estado: 'pendiente',
+    verificado: false, motivos: [], distanciaMetros: 2100, creado: hace(3),
+  };
+}
+
+// 6d: temporadas cerradas, con sus premios en `logros`.
+[['2026-08', 1132, 212, 'plata'], ['2026-07', 1214, 3, 'oro'], ['2026-06', 702, 401, 'bronce'], ['2026-05', 388, 688, 'hierro']]
+  .forEach(([temporada, puntos, posicion, division]) => { datos[`usuarios/${UID}/temporadas/${temporada}`] = { temporada, puntos, posicion, division }; });
 datos['agregados/clan-c1'] = {
   clanId: 'c1', nombre: CLANES.c1.nombre, color: CLANES.c1.color,
   miembros: [
-    { uid: 'otro-uid', nombre: 'jorge_on_wheels', puntos: 1212, viajes: 44, metros: 120000 },
-    { uid: UID, nombre: perfil.username, puntos: 870, viajes: 41, metros: 96400 },
+    { uid: 'otro-uid', nombre: 'jorge_on_wheels', puntos: 1212, viajes: 44, metros: 120000, semana: 212 },
+    { uid: UID, nombre: perfil.username, puntos: 870, viajes: 41, metros: 96400, semana: 188 },
   ],
-  candidatos: [],
+  candidatos: variante === 'lider' ? [
+    { uid: 's1', nombre: 'sergio.bm', puntos: 1400, viajes: 38, metros: 80000, division: 'plata', clanId: null },
+    { uid: 's2', nombre: 'carla_fx', puntos: 300, viajes: 6, metros: 9000, division: 'bronce', clanId: 'c2' },
+  ] : [],
 };
 nombres.slice(0, 8).forEach((n, i) => {
   datos[`tiempos_viaje/${UID}_v${i}`] = {

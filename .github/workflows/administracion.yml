@@ -1,0 +1,98 @@
+name: Administracion
+
+# Operaciones que necesitan las credenciales de servicio y que antes solo se
+# podian lanzar desde un ordenador con el JSON de la clave descargado. Aqui
+# usan el secreto FIREBASE_SERVICE_ACCOUNT, que ya existe.
+#
+# OJO: el repositorio es PUBLICO y los logs de Actions tambien. Nada de lo que
+# se imprime aqui puede llevar datos de nadie: el correo se enmascara y la
+# comprobacion solo da recuentos.
+
+on:
+  workflow_dispatch:
+    inputs:
+      operacion:
+        description: 'Que hacer'
+        type: choice
+        options: [hacer-admin, quitar-admin, comprobar-datos]
+        required: true
+      correo:
+        description: 'Correo de la cuenta (solo para hacer-admin / quitar-admin)'
+        type: string
+        required: false
+
+concurrency:
+  group: administracion
+  cancel-in-progress: false
+
+jobs:
+  ejecutar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ocultar el correo en el log
+        env:
+          CORREO: ${{ inputs.correo }}
+        run: |
+          if [ -n "$CORREO" ]; then echo "::add-mask::$CORREO"; fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del worker (firebase-admin)
+        working-directory: backend
+        run: npm ci
+
+      - name: Ejecutar
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          OPERACION: ${{ inputs.operacion }}
+          CORREO: ${{ inputs.correo }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::Falta el secreto FIREBASE_SERVICE_ACCOUNT."
+            exit 1
+          fi
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/cuenta-servicio.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          trap 'rm -f "$GOOGLE_APPLICATION_CREDENTIALS"' EXIT
+
+          case "$OPERACION" in
+            hacer-admin)
+              [ -n "$CORREO" ] || { echo "::error::Pon el correo de la cuenta."; exit 1; }
+              node scripts/set-admin.js "$CORREO"
+              ;;
+            quitar-admin)
+              [ -n "$CORREO" ] || { echo "::error::Pon el correo de la cuenta."; exit 1; }
+              node scripts/set-admin.js "$CORREO" --quitar
+              ;;
+            comprobar-datos)
+              # Solo recuentos: si la base sigue con el formato de la v1
+              # (usuarios indexados por correo, viajes con email_real y
+              # foto_url), la web nueva no encuentra los perfiles.
+              node -e "
+                const admin = require('./scripts/lib/firebase-admin');
+                admin.initializeApp({ credential: admin.credential.applicationDefault() });
+                const db = admin.firestore();
+                (async () => {
+                  const usuarios = await db.collection('usuarios').select().get();
+                  const porCorreo = usuarios.docs.filter((d) => d.id.includes('@')).length;
+                  console.log('Usuarios: ' + usuarios.size + ' (' + porCorreo + ' con el formato antiguo, indexados por correo)');
+                  const cuentas = await admin.auth().listUsers(1000);
+                  const sinPerfil = [];
+                  for (const u of cuentas.users) {
+                    const p = await db.doc('usuarios/' + u.uid).get();
+                    if (!p.exists || !p.data().username) sinPerfil.push(u.uid);
+                  }
+                  console.log('Cuentas de acceso: ' + cuentas.users.length + ' (' + sinPerfil.length + ' sin perfil nuevo con nombre de piloto)');
+                  process.exit(0);
+                })().catch((e) => { console.error(e.message); process.exit(1); });
+              "
+              node scripts/migrar-datos.js --comprobar || true
+              ;;
+          esac

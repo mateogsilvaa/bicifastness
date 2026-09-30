@@ -877,19 +877,19 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .raya-menos { width: 14px; height: 2px; border-radius: 1px; background: currentColor; }
 
 .hoja-mapa { position: absolute; left: 0; right: 0; bottom: 0; z-index: 600; background: var(--papel-2); border-radius: var(--radio-grande) var(--radio-grande) 0 0; border-top: 0; box-shadow: 0 -8px 32px rgba(0, 0, 0, .12); display: flex; flex-direction: column; transition: height 240ms ease-out; }
-.hoja-mapa[data-altura='asomada'] { height: auto; }
-.hoja-mapa[data-altura='media'] { height: 58%; }
-.hoja-mapa[data-altura='completa'] { height: calc(100% - env(safe-area-inset-top, 0px)); }
+/* En el movil la hoja mide SIEMPRE lo mismo y lo que cambia es cuanto asoma:
+   se desplaza con transform (lo anima la GPU, sin recalcular la pagina ni
+   repintar el mapa de debajo). Antes cambiaba de altura (auto -> 58% -> fixed
+   470 px), que no se puede animar: saltaba de golpe y el mapa daba tirones. La
+   posicion la pone territorio.js segun data-altura, y sigue al dedo al arrastrar. */
+.hoja-mapa { height: calc(100% - env(safe-area-inset-top, 0px)); will-change: transform; transition: transform .34s cubic-bezier(.22, .8, .26, 1); }
+.hoja-mapa.arrastrando { transition: none; }
 /* 5b: una estacion elegida sube la hoja a 470 px por encima de la barra
    inferior, sin pestañas; con ellas (Clanes, Mi clan) la hoja es 5c. */
 @media (max-width: 899px) {
-  .hoja-mapa[data-altura='media']:has(#panel-estaciones:not(.oculto) .ficha-estacion) { position: fixed; z-index: 55; height: 470px; }
   .hoja-mapa[data-altura='media']:has(#panel-estaciones:not(.oculto) .ficha-estacion) .pestanas-mapa { display: none; }
   /* El boton de competir, al pie de la hoja (18 px de aire), y la cabecera a 14 del asa. */
-  .hoja-mapa[data-altura='media']:has(#panel-estaciones:not(.oculto) .ficha-estacion) .cuerpo-hoja { padding: 2px var(--margen) 18px; overflow: hidden; }
-  .hoja-mapa[data-altura='media'] #panel-estaciones, .hoja-mapa[data-altura='media'] #ficha-estacion { flex: 1; display: flex; flex-direction: column; }
-  .hoja-mapa[data-altura='media'] .ficha-estacion { flex: 1; }
-  .hoja-mapa[data-altura='media'] .ficha-estacion > .btn.grande { margin-top: auto; }
+  .hoja-mapa[data-altura='media']:has(#panel-estaciones:not(.oculto) .ficha-estacion) .cuerpo-hoja { padding: 2px var(--margen) 18px; }
 }
 .asa-mapa { flex: none; height: 27px; padding-top: 10px; align-items: flex-start !important; border: 0; background: none; cursor: grab; display: flex; align-items: center; justify-content: center; touch-action: none; }
 .asa-mapa span { width: 40px; height: 5px; border-radius: 3px; background: var(--linea-fuerte); }
@@ -1051,7 +1051,7 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
   .mapa-zoom { position: absolute; right: 20px; bottom: 20px; z-index: 500; display: flex; flex-direction: column; border: 0; box-shadow: 0 2px 10px rgba(0, 0, 0, .08); border-radius: 12px; overflow: hidden; }
   .mapa-zoom .boton-mapa { border: 0; border-radius: 0; box-shadow: none; width: 42px; height: 42px; }
   .mapa-zoom .boton-mapa + .boton-mapa { border-top: var(--borde); }
-  .hoja-mapa, .hoja-mapa[data-altura] { left: 20px; top: 20px; bottom: 20px; right: auto; width: 400px; height: auto; border: 0; border-radius: var(--radio-grande); padding-top: 20px; box-shadow: 0 8px 32px rgba(0, 0, 0, .12); }
+  .hoja-mapa, .hoja-mapa[data-altura] { transform: none !important; transition: none; will-change: auto; left: 20px; top: 20px; bottom: 20px; right: auto; width: 400px; height: auto; border: 0; border-radius: var(--radio-grande); padding-top: 20px; box-shadow: 0 8px 32px rgba(0, 0, 0, .12); }
   .asa-mapa, .hoja-mapa .resumen-mapa { display: none !important; }
   .hoja-mapa .cuerpo-hoja { display: flex !important; padding: 0 22px 20px; gap: 16px; }
   /* 8k: la estacion llena el panel y "Competir aqui" va al pie; 8l, a 14. */
@@ -3681,4 +3681,27 @@ body.pagina-admin { font-size: 14px; padding: 0; }
   html body:has(.lateral) .yo.yo-ancho { max-width: none; }
   html body:has(.lateral) .hoy-rejilla,
   html body:has(.lateral) .yo.yo-ancho { grid-template-columns: minmax(0, 1fr) 340px; }
+  /* Historial (8n), Ajustes (8o) y Subir (8f): la misma idea, las columnas crecen
+     en la proporcion del diseño en vez de quedarse en sus px de 1440. */
+  html body:has(.lateral) #vista-historial { grid-template-columns: minmax(411px, 11fr) minmax(372px, 8fr); }
+  html body:has(.lateral) #vista-ajustes { grid-template-columns: minmax(640px, 1fr) 240px; }
+  html body:has(.lateral) .confirmar,
+  html body:has(.lateral) .varios { grid-template-columns: minmax(380px, 38fr) minmax(540px, 54fr); }
+  html body:has(.lateral) .subir-inicio { max-width: none; }
 }
+
+/* 8f · El billete mientras se lee: huecos donde van a ir las estaciones. */
+.hueco-billete { display: block; height: 22px; margin-top: 4px; border-radius: 6px; animation: latido 1.2s ease-in-out infinite alternate; }
+@keyframes latido { from { opacity: .55; } to { opacity: 1; } }
+.leyendo-8f .confirmar-imagen.escaner { position: relative; max-height: none; }
+.leyendo-8f .progreso { margin-top: 4px; }
+
+/* 8f · Recuadros sobre lo leido en la captura. */
+.captura-marcada { position: relative; display: block; }
+.caja-leida { position: absolute; border-radius: 6px; outline: 2px solid var(--azul-relleno); background: rgba(27, 128, 229, .10); pointer-events: none; }
+
+/* Aviso de carga colgada (ui.js, vigilarCarga). Encima de la barra inferior. */
+.aviso-carga { position: fixed; left: var(--margen); right: var(--margen); bottom: calc(var(--alto-barra, 64px) + var(--pie-barra, 0px) + 12px); z-index: 90; display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; border-radius: 16px; background: var(--tinta); color: var(--papel); font-size: 14px; }
+.aviso-carga span { flex: 1; }
+.aviso-carga .btn { min-height: 40px; padding: 0 16px; }
+@media (min-width: 900px) { .aviso-carga { left: auto; right: 24px; bottom: 24px; width: 380px; } }

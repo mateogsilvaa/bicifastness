@@ -411,6 +411,7 @@ function pintarAvisos(avisos) {
 function pintarLeyendo(avance, fase) {
   const pct = Math.round(avance * 100);
   const preparando = fase === 'preparando';
+  if (window.matchMedia('(min-width: 900px)').matches) { pintarLeyendoEscritorio(pct, fase, preparando); return; }
   reemplazar(id('s-leyendo'), [
     el('div', { clase: 'subir-barra' }, [
       el('button', { clase: 'boton-icono', attrs: { type: 'button', 'aria-label': 'Cancelar' }, on: { click: cancelar } }, [icono('cerrar')]),
@@ -439,6 +440,56 @@ function pintarLeyendo(avance, fase) {
   ]);
 }
 
+/**
+ * 8f · En escritorio se lee EN LA MISMA VISTA que se confirma: la captura a la
+ * izquierda (con la linea que la recorre) y el billete a la derecha, vacio
+ * hasta que llega la lectura. Sin pantalla intermedia con la imagen gigante.
+ */
+function pintarLeyendoEscritorio(pct, fase, preparando) {
+  const hueco = (ancho) => el('span', { clase: 'esqueleto hueco-billete', estilo: { width: ancho } });
+  const leyendo = fase === 'leyendo';
+  reemplazar(id('s-leyendo'), [
+    barra('Revisa y sube'),
+    el('div', { clase: 'subir-cuerpo confirmar leyendo-8f' }, [
+      el('div', { clase: 'confirmar-captura' }, [
+        el('div', { clase: 'confirmar-imagen escaner' }, [
+          el('img', { attrs: { src: preparada?.url || '', alt: 'Tu captura' } }),
+          leyendo ? el('div', { clase: 'escaner-linea', estilo: { top: `${Math.min(96, pct)}%` } }) : null,
+        ]),
+        fase === 'comprobando'
+          ? el('span', { clase: 'leido-ok' }, [el('span', { clase: 'girando' }), el('span', { texto: 'Mirando la captura…' })])
+          : el('span', { clase: 'leido-ok' }, [icono('comprobado', 'icono peq'), el('span', { texto: 'Captura nítida y entera' })]),
+        fase !== 'comprobando'
+          ? el('span', { clase: 'leido-ok' }, [el('span', { clase: 'girando' }), el('span', {
+            texto: preparando ? `Preparando el lector (solo la primera vez) · ${pct} %` : `Leyendo estaciones, tiempo y horas · ${pct} %`,
+          })])
+          : null,
+        el('span', { clase: 'leyendo-nota', texto: 'Se lee en tu navegador. La imagen solo sale de aquí al pulsar Subir.' }),
+      ]),
+      el('div', { clase: 'confirmar-datos' }, [
+        el('div', { clase: 'billete' }, [
+          el('div', { clase: 'billete-arriba' }, [
+            el('div', { clase: 'billete-estacion origen' }, [
+              el('span', { clase: 'billete-punto origen' }),
+              el('span', { clase: 'billete-nombre' }, [el('small', { texto: 'Salida' }), hueco('62%')]),
+            ]),
+            el('span', { clase: 'billete-guiones', attrs: { 'aria-hidden': 'true' } }),
+            el('div', { clase: 'billete-estacion destino' }, [
+              el('span', { clase: 'billete-punto destino' }, [icono('pin', 'icono')]),
+              el('span', { clase: 'billete-nombre' }, [el('small', { texto: 'Meta' }), hueco('78%')]),
+            ]),
+          ]),
+          el('div', { clase: 'billete-corte', attrs: { 'aria-hidden': 'true' } }),
+          el('div', { clase: 'billete-abajo' }, [
+            el('span', { clase: 'billete-tiempo' }, [el('small', { texto: 'Tiempo' }), el('strong', { clase: 'apagado', texto: '--:--' })]),
+          ]),
+        ]),
+        el('span', { clase: 'progreso leyendo-progreso' }, [el('span', { estilo: { width: `${fase === 'comprobando' ? 4 : pct}%` } })]),
+      ]),
+    ]),
+  ]);
+}
+
 async function leer() {
   const fichero = preparada?.fichero;
   if (!fichero) return;
@@ -452,6 +503,11 @@ async function leer() {
     pintarLeyendo(avance, estadoOcr === 'recognizing text' ? 'leyendo' : 'preparando');
   });
   if (preparada?.fichero !== fichero) return;
+
+  // En el movil el motor del lector ocupa mucha memoria, y Safari mata la
+  // pestaña (pantalla en blanco) si se queda cargado. Si no quedan mas
+  // capturas por leer, se suelta ya; la siguiente vez sale de la cache.
+  if (!cola.length && window.matchMedia('(pointer: coarse)').matches) cerrarLector();
 
   preparada.lectura = lectura.disponible ? lectura : null;
 
@@ -582,7 +638,14 @@ function pintarConfirmar() {
     barra('Revisa y sube'),
     el('div', { clase: 'subir-cuerpo confirmar' }, [
       el('div', { clase: 'confirmar-captura solo-escritorio' }, [
-        el('div', { clase: 'confirmar-imagen' }, [el('img', { attrs: { src: preparada.url, alt: 'Tu captura' } })]),
+        el('div', { clase: 'confirmar-imagen' }, [el('span', { clase: 'captura-marcada' }, [
+          el('img', { attrs: { src: preparada.url, alt: 'Tu captura' } }),
+          // 8f: lo que se ha leido, recuadrado en azul sobre la propia captura.
+          ...(preparada.lectura?.cajas || []).map((c) => el('span', {
+            clase: 'caja-leida',
+            estilo: { left: `${c.x}%`, top: `${c.y}%`, width: `${c.ancho}%`, height: `${c.alto}%` },
+          })),
+        ])]),
         el('span', { clase: 'leido-ok' }, [icono('comprobado', 'icono peq'), el('span', { texto: 'Captura nítida y entera' })]),
         el('span', { clase: 'leido-ok' }, [icono('comprobado', 'icono peq'), el('span', { texto: 'Estaciones, tiempo y horas leídos' })]),
         el('span', { clase: 'leyendo-nota', texto: 'Se lee en tu navegador. La imagen solo sale de aquí al pulsar Subir.' }),

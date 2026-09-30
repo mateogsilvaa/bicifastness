@@ -130,7 +130,13 @@ window.addEventListener('hashchange', mostrarVista);
 onAuthStateChanged(auth, async (u) => {
   if (!u) { window.location.replace('/entrar/'); return; }
   usuario = u;
-  await cargarPerfil();
+  try {
+    await cargarPerfil();
+  } catch (error) {
+    // Sin esto, un fallo de red dejaba Tu en blanco y sin decir nada.
+    estado(id('msg-perfil'), 'No hemos podido cargar tu perfil. Comprueba la conexión y recarga.', 'error');
+    console.error('No se ha podido cargar el perfil', error);
+  }
   mostrarVista();
 });
 

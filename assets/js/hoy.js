@@ -308,27 +308,6 @@ function pintarAyudaRiesgo(perfil) {
   ]));
 }
 
-// --- 2e · Piloto nuevo --------------------------------------------------------
-
-function pintarNuevo() {
-  const paso = (n, texto) => el('div', { clase: 'paso-nuevo' }, [
-    el('span', { clase: 'paso-numero', texto: String(n) }), el('span', { texto }),
-  ]);
-  reemplazar($('racha'), el('div', { clase: 'tarjeta-grande hoy-nuevo' }, [
-    el('h2', { texto: 'Tu primer trayecto, en tres pasos' }),
-    paso(1, 'Haz tu trayecto de siempre en BiciMAD.'),
-    paso(2, 'Al terminar, captura la pantalla del viaje en la app. Esta:'),
-    el('div', { clase: 'ejemplo-captura' }, [
-      el('img', { attrs: { src: '/images/ejemplo.jpg', alt: 'Ejemplo de captura de la app de BiciMAD', loading: 'lazy' } }),
-    ]),
-    paso(3, 'Súbela aquí. Leemos las estaciones y el tiempo por ti.'),
-  ]));
-  reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir primero' }, [
-    botonSubir('Subir mi primer trayecto'),
-    el('span', { clase: 'hoy-pista', texto: 'Respeta semáforos y pasos de peatones: ningún puesto vale un susto.' }),
-  ]));
-}
-
 // --- Misiones -----------------------------------------------------------------
 
 async function misionesDeHoy() {
@@ -727,16 +706,9 @@ function avisarCambioDivision(perfil) {
  * @param {object} perfil
  */
 export async function pintarHoy(usuario, perfil) {
-  const hayEnCola = Boolean(viajeRecordado());
-  const nuevo = !(perfil.viajesVerificados > 0) && !hayEnCola;
-  pintarCabecera(perfil, nuevo);
-  document.querySelector('.hoy')?.classList.toggle('es-nuevo', nuevo);
-
-  if (nuevo) {
-    pintarNuevo();
-    reemplazar($('misiones'));
-    return;
-  }
+  // Quien aun no ha subido nada ve el Hoy de verdad (racha a 0, misiones, ruta
+  // del dia): la pantalla de bienvenida con los tres pasos sobraba.
+  pintarCabecera(perfil, false);
 
   const enCola = seguirViajeEnCurso(perfil, () => {});
   const modo = pintarRacha(perfil, { enCola });

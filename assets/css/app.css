@@ -3681,4 +3681,21 @@ body.pagina-admin { font-size: 14px; padding: 0; }
   html body:has(.lateral) .yo.yo-ancho { max-width: none; }
   html body:has(.lateral) .hoy-rejilla,
   html body:has(.lateral) .yo.yo-ancho { grid-template-columns: minmax(0, 1fr) 340px; }
+  /* Historial (8n), Ajustes (8o) y Subir (8f): la misma idea, las columnas crecen
+     en la proporcion del diseño en vez de quedarse en sus px de 1440. */
+  html body:has(.lateral) #vista-historial { grid-template-columns: minmax(411px, 11fr) minmax(372px, 8fr); }
+  html body:has(.lateral) #vista-ajustes { grid-template-columns: minmax(640px, 1fr) 240px; }
+  html body:has(.lateral) .confirmar,
+  html body:has(.lateral) .varios { grid-template-columns: minmax(380px, 38fr) minmax(540px, 54fr); }
+  html body:has(.lateral) .subir-inicio { max-width: none; }
 }
+
+/* 8f · El billete mientras se lee: huecos donde van a ir las estaciones. */
+.hueco-billete { display: block; height: 22px; margin-top: 4px; border-radius: 6px; animation: latido 1.2s ease-in-out infinite alternate; }
+@keyframes latido { from { opacity: .55; } to { opacity: 1; } }
+.leyendo-8f .confirmar-imagen.escaner { position: relative; max-height: none; }
+.leyendo-8f .progreso { margin-top: 4px; }
+
+/* 8f · Recuadros sobre lo leido en la captura. */
+.captura-marcada { position: relative; display: block; }
+.caja-leida { position: absolute; border-radius: 6px; outline: 2px solid var(--azul-relleno); background: rgba(27, 128, 229, .10); pointer-events: none; }

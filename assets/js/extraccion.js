@@ -410,7 +410,7 @@ export async function cerrar() {
  * hace aqui es recortar margenes, que alli sirve para quitar la barra de estado
  * y aqui no compensa el codigo.
  */
-export function prepararParaOcr(imagen) {
+export function prepararParaOcr(imagen, { niveles = true } = {}) {
   const escala = Math.min(ANCHO_OCR / imagen.naturalWidth, 4);
   const lienzo = document.createElement('canvas');
   lienzo.width = Math.round(imagen.naturalWidth * escala);
@@ -440,7 +440,7 @@ export function prepararParaOcr(imagen) {
   const { DESDE, HASTA } = AJUSTES_WORKER.NIVELES;
   for (let i = 0; i < datos.length; i += 4) {
     let gris = invertir ? 255 - datos[i] : datos[i];
-    if (gris >= DESDE) gris = Math.min(255, Math.round(((gris - DESDE) * 255) / (HASTA - DESDE)));
+    if (niveles && gris >= DESDE) gris = Math.min(255, Math.round(((gris - DESDE) * 255) / (HASTA - DESDE)));
     datos[i] = gris;
     datos[i + 1] = gris;
     datos[i + 2] = gris;
@@ -482,7 +482,9 @@ export async function extraer(imagen, alProgresar) {
     // manejador se instala una vez y el motor se reutiliza.
     fallo = null;
 
-    const { data } = await conReloj(motor.recognize(lienzo));
+    // `blocks`: la posicion de cada linea, para marcar en la captura lo que se
+    // ha leido (8f: los recuadros azules sobre las dos estaciones).
+    const { data } = await conReloj(motor.recognize(lienzo, {}, { text: true, blocks: true }));
 
     // Tesseract puede avisar de un problema sin llegar a rechazar la promesa.
     // Lo leido entonces no es de fiar: mejor el formulario a mano.
@@ -490,12 +492,43 @@ export async function extraer(imagen, alProgresar) {
 
     const texto = String(data.text || '');
 
+    const lineas = (data.blocks || []).flatMap((b) => (b.paragraphs || []).flatMap((pa) => pa.lines || []));
+    const cajas = lineas
+      .filter((l) => /-[^()]*\S\s*\(\d{1,3}[a-zA-Z]?\)\s*$/.test(String(l.text || '').trim()))
+      .map(({ bbox: c }) => ({
+        x: (c.x0 / lienzo.width) * 100, y: (c.y0 / lienzo.height) * 100,
+        ancho: ((c.x1 - c.x0) / lienzo.width) * 100, alto: ((c.y1 - c.y0) / lienzo.height) * 100,
+      }));
+
+    let leido = interpretar(texto);
+
+    // Segunda oportunidad. El retoque de grises es lo que deja leer la bici y
+    // las fechas, pero en alguna captura (fondos grises, modo oscuro raro) se
+    // come otra cosa. Si falta algo de lo imprescindible, se lee otra vez SIN
+    // retoque y se rellena solo lo que faltaba: la primera lectura manda.
+    const falta = (l) => !l.origen || !l.destino || !l.segundosDuracion;
+    if (falta(leido)) {
+      fallo = null;
+      const { data: otra } = await conReloj(motor.recognize(prepararParaOcr(imagen, { niveles: false }).lienzo));
+      if (!fallo) {
+        const segunda = interpretar(String(otra.text || ''));
+        const rellenado = { ...leido };
+        for (const [clave, valor] of Object.entries(segunda)) {
+          const vacio = rellenado[clave] === '' || rellenado[clave] === null || rellenado[clave] === undefined
+            || (Array.isArray(rellenado[clave]) && !rellenado[clave].length);
+          if (vacio) rellenado[clave] = valor;
+        }
+        leido = rellenado;
+      }
+    }
+
     return {
       disponible: true,
+      cajas,
       oscura,
       confianza: Math.max(0, Math.min(100, Math.round(data.confidence ?? 0))),
       texto,
-      ...interpretar(texto),
+      ...leido,
     };
   } catch (error) {
     // Un navegador sin SIMD, sin espacio o sin red se queda aqui. No es un

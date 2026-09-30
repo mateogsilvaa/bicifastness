@@ -2304,6 +2304,10 @@ body:has(.subir) #pie-legal { display: none; }
 .subir-cuerpo { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: var(--e2) var(--margen) var(--margen); }
 .subir-hueco { flex: 1; }
 .subir-acciones, .subir-enviar { display: flex; flex-direction: column; gap: var(--e2); }
+/* 3h: el secundario, de 50 y a 14 del principal. */
+.subir-acciones { gap: 14px; }
+.subir-acciones .btn.secundario { min-height: 50px; border-radius: 14px; font-size: 16px; }
+.avisos-previos .aviso { margin: 0; border-radius: 14px; }
 .subir-enviar .hoy-pista.error { color: var(--rojo); }
 .captura-grande { display: block; width: 100%; max-height: 80vh; object-fit: contain; border-radius: 14px; }
 
@@ -2456,9 +2460,11 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .campo-manual { display: flex; flex-direction: column; gap: 6px; }
 .campo-manual label { font-size: 13px; color: var(--tinta-2); }
 .campo-manual input { font-weight: 700; }
-.estacion-leida { font-size: 12px; min-height: 16px; }
+.estacion-leida { font-size: 12px; line-height: normal; min-height: 14px; }
 .estacion-leida .ok { display: flex; align-items: center; gap: 4px; color: var(--verde); }
-.estacion-leida .ok .icono { width: 14px; height: 14px; }
+.estacion-leida .ok .icono { display: none; }
+/* 3i: el aviso de lo que falta, a 14 y pegado a los campos. */
+#s-manual .subir-cuerpo > p.apagado { margin: 0; font-size: 14px; line-height: 1.45; color: var(--tinta-2); }
 .estacion-leida .mal { color: var(--rojo); }
 
 /* 3g · Varios trayectos. */
@@ -2478,13 +2484,13 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .trayecto-tiempo { font-size: 28px; font-weight: 800; font-stretch: 72%; font-variant-numeric: tabular-nums; }
 
 /* 3d · Subido. */
-.subido { padding-top: 40px; gap: var(--e5); }
+.subido { padding: 40px 24px var(--margen); gap: var(--e5); }
 .subido-marca { width: 88px; height: 88px; color: var(--azul-relleno); }
 .subido-marca .icono { width: 88px; height: 88px; stroke-width: 1.2; }
 .subido-texto h2 { margin: 0 0 var(--e2); font-size: 34px; font-weight: 800; font-stretch: 88%; letter-spacing: -.035em; line-height: 1; }
 .subido-texto p { margin: 0; font-size: 17px; color: var(--tinta-2); line-height: 1.4; }
 .linea-tiempo { display: flex; flex-direction: column; font-size: 15px; }
-.linea-tiempo > div { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start; padding-bottom: 18px; color: var(--tinta-3); }
+.linea-tiempo > div { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start; padding-bottom: 14px; color: var(--tinta-3); }
 .linea-tiempo > div:last-child { padding-bottom: 0; }
 .linea-tiempo > div.hecho, .linea-tiempo > div.ahora { color: var(--tinta-3); }
 .linea-tiempo strong { color: var(--tinta); }

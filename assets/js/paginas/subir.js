@@ -364,7 +364,7 @@ async function preparar(fichero) {
 function pintarAvisos(avisos) {
   const impide = avisos.some((a) => IMPIDEN.includes(a.codigo)) || !preparada.dataUrl;
   reemplazar(id('s-avisos'), [
-    barra('Antes de leerla', { miniatura: false }),
+    barra('Antes de leerla', { miniatura: false, atras: true }),
     el('div', { clase: 'subir-cuerpo' }, [
       el('div', { clase: 'captura-borrosa' }, [el('img', { attrs: { src: preparada.url, alt: '' } })]),
       el('div', { clase: 'pila avisos-previos' }, avisos.map((a) => el('div', { clase: 'aviso atencion con-icono' }, [

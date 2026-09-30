@@ -312,6 +312,13 @@ export function anotarSubidaAbierta() {
 
 let atajosMontados = false;
 
+/** Trayectos de hoy segun el ultimo resumen guardado (8b: "llevas N"). */
+function llevasHoy() {
+  const r = leerResumenOffline();
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date());
+  return r?.llevaHoy?.dia === hoy ? r.llevaHoy.trayectos || 0 : 0;
+}
+
 async function irASubirCon(ficheros) {
   const { guardarPendiente } = await import('./captura-pendiente.js');
   if (await guardarPendiente(ficheros)) window.location.href = '/subir/?pendiente=1';
@@ -388,14 +395,14 @@ function montarAtajosDeSubida(enSubir) {
         el('div', { clase: 'capa-soltar-dibujo' }, [
           el('span', { clase: 'capa-soltar-fondo' }),
           el('span', { clase: 'capa-soltar-captura' }, [el('img', { attrs: { src: '/images/ejemplo.jpg', alt: '' } })]),
-          el('span', { clase: 'capa-soltar-mas' }, [icono('mas')]),
+          el('span', { clase: 'capa-soltar-mas' }, [icono('mas', 'icono')]),
         ]),
         el('strong', { texto: 'Suéltala para leerla' }),
         el('span', { texto: 'Leemos estaciones, tiempo y horas en tu navegador. Puedes soltar varias a la vez: cada una es un trayecto.' }),
         el('span', { clase: 'capa-soltar-chips' }, [
           el('span', { texto: 'JPG · PNG · WebP · HEIC' }),
           el('span', { texto: 'Hasta 30 días atrás' }),
-          el('span', { texto: 'Hoy puntúan 3' }),
+          el('span', { texto: `Hoy puntúan 3 · llevas ${llevasHoy()}` }),
         ]),
       ]),
       el('div', { clase: 'capa-soltar-teclas' }, [

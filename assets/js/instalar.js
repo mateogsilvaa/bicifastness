@@ -140,6 +140,8 @@ export function guardarResumenOffline(perfil, extra = {}) {
     division: perfil.division || null,
     // Si hoy ya esta salvado, para la pantalla sin red (07 · 7d).
     ultimoDiaActivo: perfil.ultimoDiaActivo || null,
+    // Los trayectos de hoy, para "Hoy puntuan 3 · llevas N" (8b).
+    llevaHoy: perfil.misiones?.fecha ? { dia: perfil.misiones.fecha, trayectos: perfil.misiones.trayectos || 0 } : null,
     // Puesto en el grupo, si la portada lo sabe ("7.º de 30").
     ...extra,
     guardadoEn: new Date().toISOString(),

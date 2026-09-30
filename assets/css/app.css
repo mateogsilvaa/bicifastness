@@ -3773,3 +3773,49 @@ body.pagina-admin { font-size: 14px; padding: 0; }
 @media (min-width: 1441px) {
   body:has(.lateral) .subido.con-encuesta { grid-template-columns: minmax(420px, 42fr) minmax(520px, 52fr); }
 }
+
+/* 8b · Soltar la captura, igual que el diseño. */
+body.soltando .capa-soltar { background: rgba(243, 241, 236, .55); padding: 24px; }
+[data-theme='dark'] body.soltando .capa-soltar, body.soltando[data-theme='dark'] .capa-soltar { background: rgba(14, 15, 16, .55); }
+.capa-soltar-marco { background: rgba(27, 128, 229, .06); gap: 18px; }
+.capa-soltar-marco strong { font-size: 44px; }
+.capa-soltar-fondo, .capa-soltar-captura { background: #fff; }
+.capa-soltar-captura { width: 150px; box-sizing: content-box; }
+.capa-soltar-dibujo .capa-soltar-mas { width: 44px; height: 44px; }
+.capa-soltar-mas .icono { width: 22px; height: 22px; stroke-width: 2.4; }
+.capa-soltar-chips { gap: 8px; margin-top: 6px; }
+.capa-soltar-chips span { padding: 6px 12px; background: #fff; color: #111110; }
+.capa-soltar-teclas kbd { background: #fff; color: #111110; }
+@media (max-width: 899px) { .capa-soltar-marco strong { font-size: 32px; } }
+
+/* 8f · Huecos del billete cuando la lectura no saca algo. */
+.billete-falta { color: var(--azul); }
+.billete-tiempo strong.billete-falta { color: var(--linea-fuerte); }
+.leido-ok.falta { color: var(--ambar-texto); }
+.leido-ok.falta .icono { color: var(--ambar); }
+
+/* 3b · Escaneo: la franja azul con su brillo baja por la captura; encima deja
+   una estela azul (lo leido) y debajo la imagen queda algo apagada (lo que falta). */
+.escaner { position: relative; overflow: hidden; isolation: isolate; }
+.escaner img { filter: saturate(.9); }
+.escaner-linea {
+  position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 2;
+  background: var(--azul-relleno); outline: none;
+  box-shadow: 0 0 24px 6px rgba(27, 128, 229, .6);
+  transition: none;
+  animation: barrido 2.2s cubic-bezier(.45, 0, .55, 1) infinite;
+}
+.escaner-linea::before { content: ''; position: absolute; left: 0; right: 0; bottom: 3px; height: 120px; background: linear-gradient(to top, rgba(27, 128, 229, .22), rgba(27, 128, 229, 0)); }
+.escaner-linea::after { content: ''; position: absolute; left: 0; right: 0; top: 3px; height: 2000px; background: rgba(17, 17, 16, .35); }
+@keyframes barrido { from { top: 0; } to { top: calc(100% - 3px); } }
+@media (prefers-reduced-motion: reduce) { .escaner-linea { animation: none; top: 50%; } }
+
+/* 8f · En escritorio la lectura va en la vista clara de confirmar, no en la
+   pantalla oscura del movil (3b). */
+@media (min-width: 900px) {
+  html body:has(.lateral) .subir-paso.leyendo:has(.leyendo-8f) { background: none; color: var(--tinta); border-radius: 0; padding: 0; }
+  html body.en-paso:has(.subir-paso.leyendo:not(.oculto) .leyendo-8f) { background: var(--papel); }
+  html body .subir-paso.leyendo:has(.leyendo-8f) .boton-icono { color: var(--tinta); }
+  html body .subir-paso.leyendo:has(.leyendo-8f) .boton-icono:hover { background: var(--papel-3); }
+  .leyendo-8f .escaner-linea::after { background: rgba(17, 17, 16, .16); }
+}

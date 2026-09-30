@@ -459,7 +459,9 @@ test('el sistema de diseno no admite sombras', () => {
     // 7c: el aviso de cookies, sobre la barra.
     'box-shadow: 0 -4px 24px rgba(0, 0, 0, .08);',
     // 8q: los mismos avisos en escritorio, flotando abajo a la derecha.
-    'box-shadow: 0 8px 32px rgba(0, 0, 0, .1);'];
+    'box-shadow: 0 8px 32px rgba(0, 0, 0, .1);',
+    // 3b: el brillo de la franja azul que recorre la captura al leerla.
+    'box-shadow: 0 0 24px 6px rgba(27, 128, 229, .6);'];
   const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none') && !DEL_DISEÑO.includes(s));
   assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
 });

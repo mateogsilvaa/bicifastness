@@ -504,6 +504,11 @@ async function leer() {
   });
   if (preparada?.fichero !== fichero) return;
 
+  // En el movil el motor del lector ocupa mucha memoria, y Safari mata la
+  // pestaña (pantalla en blanco) si se queda cargado. Si no quedan mas
+  // capturas por leer, se suelta ya; la siguiente vez sale de la cache.
+  if (!cola.length && window.matchMedia('(pointer: coarse)').matches) cerrarLector();
+
   preparada.lectura = lectura.disponible ? lectura : null;
 
   // La app de BiciMAD pone la fecha bajo cada estacion ("21/09/25 02:51:12"):

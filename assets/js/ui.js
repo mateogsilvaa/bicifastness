@@ -559,6 +559,7 @@ export function montarPieLegal() {
 export function iniciarPagina(seccionActiva) {
   // Lo primero: si algo revienta mas abajo, queremos enterarnos.
   vigilarErrores();
+  vigilarCarga();
   medir();
   aplicarTema();
   montarNavegacion(seccionActiva);
@@ -568,4 +569,34 @@ export function iniciarPagina(seccionActiva) {
   // registra en todas las paginas porque cualquiera puede ser la primera que
   // alguien abre.
   registrarServiceWorker();
+}
+
+/**
+ * Pantalla en blanco. Si una lectura se queda colgada (red que no contesta, la
+ * cache de Safari…) la pagina se quedaba vacia o con los esqueletos de carga
+ * para siempre, sin error y sin salida. A los 12 s, si sigue asi, se dice y se
+ * ofrece reintentar. No toca nada si la pagina ya ha pintado su contenido.
+ */
+function vigilarCarga() {
+  setTimeout(() => {
+    const principal = document.querySelector('main');
+    if (!principal) return;
+    const visibles = [...principal.querySelectorAll('.esqueleto')].filter((e) => e.offsetParent !== null);
+    const vacia = principal.innerText.trim().length < 20;
+    if (!vacia && !visibles.length) return;
+    if (document.getElementById('aviso-carga')) return;
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'btn';
+    boton.textContent = 'Reintentar';
+    boton.addEventListener('click', () => window.location.reload());
+    const aviso = document.createElement('div');
+    aviso.id = 'aviso-carga';
+    aviso.className = 'aviso-carga';
+    aviso.setAttribute('role', 'alert');
+    const texto = document.createElement('span');
+    texto.textContent = 'Esto no ha terminado de cargar. Suele ser la conexión.';
+    aviso.append(texto, boton);
+    document.body.append(aviso);
+  }, 12000);
 }

@@ -141,26 +141,83 @@ for (const b of document.querySelectorAll('[data-filtro]')) {
 
 const hoja = id('hoja-mapa');
 const ALTURAS = ['asomada', 'media', 'completa'];
+const MOVIL = window.matchMedia('(max-width: 899px)');
+
+/** Cuanto asoma la hoja en cada altura, en px. La hoja mide siempre lo mismo. */
+function asoma(a) {
+  const total = hoja.offsetHeight;
+  if (a === 'completa') return total;
+  if (a === 'media') return Math.min(total * 0.62, 440);
+  return id('asa-mapa').offsetHeight + id('resumen-mapa').offsetHeight;
+}
+
+let desplazado = 0;
+function colocar(y) {
+  desplazado = Math.max(0, y);
+  hoja.style.transform = `translate3d(0, ${desplazado}px, 0)`;
+}
+function recolocar() {
+  if (!MOVIL.matches) { hoja.style.transform = ''; return; }
+  colocar(hoja.offsetHeight - asoma(hoja.dataset.altura));
+}
+
 function altura(a) {
   hoja.dataset.altura = a;
   id('asa-mapa').setAttribute('aria-label', a === 'completa' ? 'Reducir el panel' : 'Ampliar el panel');
+  // Despues de que el contenido de esa altura este puesto (el resumen se mide).
+  requestAnimationFrame(recolocar);
 }
+window.addEventListener('resize', recolocar);
+// El resumen (lo que asoma) llega despues, con los datos: se vuelve a medir.
+if ('ResizeObserver' in window) {
+  new ResizeObserver(() => { if (hoja.dataset.altura === 'asomada' && !arrastre) recolocar(); }).observe(id('resumen-mapa'));
+}
+MOVIL.addEventListener?.('change', recolocar);
+requestAnimationFrame(recolocar);
+
+// Arrastrar: la hoja sigue al dedo y al soltar encaja en la altura mas cercana
+// (con un empujon si el gesto iba rapido). Un toque sin arrastre es un clic.
+let arrastre = null;
+let acabaDeArrastrar = false;
+function empezarArrastre(e) {
+  if (!MOVIL.matches || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  arrastre = { y0: e.clientY, base: desplazado, t0: performance.now(), movido: false };
+}
+id('asa-mapa').addEventListener('pointerdown', empezarArrastre);
+id('resumen-mapa').addEventListener('pointerdown', empezarArrastre);
+window.addEventListener('pointermove', (e) => {
+  if (!arrastre) return;
+  const d = e.clientY - arrastre.y0;
+  if (!arrastre.movido && Math.abs(d) < 6) return;
+  arrastre.movido = true;
+  hoja.classList.add('arrastrando');
+  const tope = hoja.offsetHeight - asoma('asomada');
+  colocar(Math.min(tope, arrastre.base + d));
+}, { passive: true });
+window.addEventListener('pointerup', (e) => {
+  if (!arrastre) return;
+  const { movido, y0, t0 } = arrastre;
+  arrastre = null;
+  hoja.classList.remove('arrastrando');
+  if (!movido) return;
+  acabaDeArrastrar = true;
+  setTimeout(() => { acabaDeArrastrar = false; }, 0);
+  const velocidad = (e.clientY - y0) / Math.max(1, performance.now() - t0); // px/ms, + hacia abajo
+  const destino = desplazado + velocidad * 180;
+  const total = hoja.offsetHeight;
+  const cerca = ALTURAS
+    .map((a) => ({ a, y: total - asoma(a) }))
+    .sort((x, y) => Math.abs(x.y - destino) - Math.abs(y.y - destino))[0].a;
+  if (cerca === hoja.dataset.altura) recolocar(); else altura(cerca);
+});
+
 id('asa-mapa').addEventListener('click', () => {
+  if (acabaDeArrastrar) return;
   const i = ALTURAS.indexOf(hoja.dataset.altura);
   altura(ALTURAS[(i + 1) % ALTURAS.length]);
 });
-// Deslizar el asa arriba o abajo cambia de altura.
-let inicioY = null;
-id('asa-mapa').addEventListener('pointerdown', (e) => { inicioY = e.clientY; });
-window.addEventListener('pointerup', (e) => {
-  if (inicioY === null) return;
-  const d = e.clientY - inicioY;
-  inicioY = null;
-  if (Math.abs(d) < 24) return;
-  const i = ALTURAS.indexOf(hoja.dataset.altura);
-  altura(ALTURAS[Math.max(0, Math.min(2, i + (d < 0 ? 1 : -1)))]);
-});
 id('resumen-mapa').addEventListener('click', (e) => {
+  if (acabaDeArrastrar) return;
   if (e.target.closest('a')) return;
   // 5c: Mi clan y Clanes van en la hoja completa.
   if (hoja.dataset.altura === 'asomada') { altura('completa'); mostrar(miClanId ? 'miclan' : 'clanes'); }

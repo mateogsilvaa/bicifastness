@@ -3662,14 +3662,18 @@ body.pagina-admin { font-size: 14px; padding: 0; }
 }
 
 /* --- Pantallas anchas ----------------------------------------------------------
- * El diseño de escritorio esta dibujado a 1440: columna de ancho fijo a 56 px del
- * lateral. En un monitor de 1920 o mas, esa columna se quedaba pegada a la
- * izquierda con media pantalla vacia a la derecha. A partir de 1600 se centra en
- * el hueco que deja el lateral. Las paginas a todo el ancho (mapa, rutas) no
- * tienen tope de ancho, asi que el margen automatico no les cambia nada.
+ * El diseño de escritorio esta dibujado a 1440 (lateral de 240 + el resto) y fija
+ * las columnas a ese ancho: 640 + 340 en Hoy y Tu, 1040 en Ranking. En un monitor
+ * mas ancho eso dejaba todo apiñado a la izquierda y media pantalla vacia. A partir
+ * de 1441 los topes se quitan y la columna principal crece hasta ocupar el hueco;
+ * los paneles laterales (340) conservan su ancho. A 1440 no cambia nada.
  */
-@media (min-width: 1600px) {
+@media (min-width: 1441px) {
   html body:has(.lateral) .container,
-  html body:has(.lateral) .container > .hoy { margin-inline: auto; }
-  html body:has(.lateral) .subir { max-width: 1200px; margin-inline: auto; }
+  html body:has(.lateral) .container > .hoy,
+  html body:has(.lateral) .container.ranking,
+  html body:has(.lateral) .container.ranking[data-pestana='clanes'],
+  html body:has(.lateral) .yo.yo-ancho { max-width: none; }
+  html body:has(.lateral) .hoy-rejilla,
+  html body:has(.lateral) .yo.yo-ancho { grid-template-columns: minmax(0, 1fr) 340px; }
 }

@@ -245,13 +245,15 @@ function pintarRacha(perfil, { enCola = false } = {}) {
             el('span', { clase: 'rotulo-rojo', texto: 'Sin escudos' }),
             el('span', { clase: 'cuenta-atras', texto: duracion(quedan) }),
             el('span', { texto: `para salvar ${dias} ${dias === 1 ? 'día' : 'días'}. Si no sales, vuelves a 0.` }),
+            // 8p: en escritorio, el boton en la columna del texto.
+            botonSubir('Subir trayecto', { clase: 'solo-escritorio' }),
           ]
           : [
             el('strong', { texto: 'Hoy aún no has salido' }),
             el('span', { texto: `Quedan ${duracion(quedan)}. Si no sales, se gasta tu escudo.` }),
+            botonSubir('Subir trayecto', { clase: 'solo-escritorio' }),
           ]),
       ]),
-      botonSubir('Subir trayecto · o arrastra la captura aquí', { clase: 'solo-escritorio' }),
     ]));
     return 'riesgo';
   }
@@ -286,13 +288,17 @@ function pintarAyudaRiesgo(perfil) {
   const [habitual] = [...veces.entries()].sort((a, b) => b[1] - a[1])[0] || [];
   reemplazar($('misiones'), el('div', { clase: 'pila hoy-ayuda' }, [
     el('div', { clase: 'tarjeta-grande media' }, [
-      el('strong', { texto: 'Lo más corto que te salva' }),
+      // 8p: en escritorio, una sola frase: "Lo más corto que te salva: cualquier…".
+      el('strong', {}, ['Lo más corto que te salva', el('span', { clase: 'solo-escritorio-i', texto: ':' })]),
       el('span', { clase: 'apagado' }, [
-        'Cualquier trayecto verificado cuenta, aunque sea corto y lento. ',
-        habitual ? 'Tu estación más usada: ' : null,
-        habitual ? el('strong', { texto: nombreEstacion(habitual) || habitual }) : null,
-        habitual ? '. ' : null,
-        'Recuerda: vale la hora de llegada de la captura, no la de subida; puedes subirla mañana.',
+        el('span', { clase: 'solo-movil-i' }, [
+          'Cualquier trayecto verificado cuenta, aunque sea corto y lento. ',
+          habitual ? 'Tu estación más usada: ' : null,
+          habitual ? el('strong', { texto: nombreEstacion(habitual) || habitual }) : null,
+          habitual ? '. ' : null,
+          'Recuerda: vale la hora de llegada de la captura, no la de subida; puedes subirla mañana.',
+        ]),
+        el('span', { clase: 'solo-escritorio-i', texto: ' cualquier trayecto verificado cuenta. Vale la hora de llegada de la captura, no la de subida: puedes subirla mañana.' }),
       ]),
     ]),
     el('div', { clase: 'aviso tonal' }, [

@@ -2145,6 +2145,19 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 .hoy-ayuda .tarjeta-grande > strong { font-size: 15px; line-height: normal; }
 .hoy-ayuda .tarjeta-grande .apagado { color: var(--tinta-2); }
 .hoy-ayuda .tarjeta-grande .apagado strong { color: var(--tinta); }
+@media (min-width: 900px) {
+  /* 8p: la racha en peligro con la cuenta atras de 48 y el boton debajo del
+     texto; la ayuda, en un parrafo, sin la tarjeta de los escudos. */
+  .hoy-racha.riesgo .hoy-racha-texto .rotulo-rojo { font-size: 14px; line-height: normal; }
+  .hoy-racha.riesgo .hoy-racha-texto .cuenta-atras { font-size: 48px; font-weight: 800; font-stretch: 72%; line-height: 46px; }
+  .hoy-racha.riesgo .hoy-racha-texto > span:not([class]) { line-height: normal; }
+  #racha .hoy-racha.riesgo .hoy-racha-texto { gap: 8px; }
+  .hoy-racha.riesgo .hoy-racha-texto .btn.solo-escritorio { align-self: flex-start; width: auto; min-height: 52px; margin-top: 6px; padding: 0 20px; border-radius: 14px; font-size: 16px; }
+  .hoy-ayuda .tarjeta-grande { display: block; padding: 18px; font-size: 15px; line-height: 1.5; color: var(--tinta-2); }
+  .hoy-ayuda .tarjeta-grande > strong { display: inline; color: var(--tinta); }
+  .hoy-ayuda .tarjeta-grande .apagado { display: inline; font-size: 15px; }
+  .hoy-ayuda .aviso.tonal { display: none; }
+}
 .aviso.tonal { display: flex; gap: 10px; align-items: center; margin: 0; padding: 14px 16px; background: var(--papel-3); color: var(--tinta-2); border-radius: 20px; }
 .aviso.tonal p { font-size: 14px; line-height: 1.4; }
 .aviso.tonal .icono { flex: none; width: 20px; height: 20px; }

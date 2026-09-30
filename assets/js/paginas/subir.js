@@ -408,6 +408,17 @@ function pintarAvisos(avisos) {
 
 // --- 3b · Leyendo ------------------------------------------------------------------------
 
+/**
+ * 3b · La franja azul que recorre la captura mientras se lee. Barre sola, sin
+ * esperar al porcentaje del lector (que avanza a saltos). La pantalla se
+ * repinta con cada aviso de progreso: el retraso negativo, sacado del reloj,
+ * hace que la franja siga donde iba en vez de volver arriba.
+ */
+const BARRIDO_MS = 2200;
+function lineaBarrido() {
+  return el('div', { clase: 'escaner-linea', estilo: { animationDelay: `-${Math.round(performance.now() % BARRIDO_MS)}ms` } });
+}
+
 function pintarLeyendo(avance, fase) {
   const pct = Math.round(avance * 100);
   const preparando = fase === 'preparando';
@@ -421,8 +432,7 @@ function pintarLeyendo(avance, fase) {
     el('div', { clase: 'subir-cuerpo leyendo-cuerpo' }, [
       el('div', { clase: 'escaner' }, [
         el('img', { attrs: { src: preparada?.url || '', alt: '' } }),
-        fase === 'leyendo' ? el('div', { clase: 'escaner-linea', estilo: { top: `${Math.min(96, pct)}%` } }) : null,
-        fase === 'leyendo' ? el('div', { clase: 'escaner-sombra', estilo: { top: `${Math.min(96, pct)}%` } }) : null,
+        fase !== 'comprobando' ? lineaBarrido() : null,
       ]),
       el('div', { clase: 'leyendo-lista' }, [
         fase === 'comprobando'
@@ -454,7 +464,7 @@ function pintarLeyendoEscritorio(pct, fase, preparando) {
       el('div', { clase: 'confirmar-captura' }, [
         el('div', { clase: 'confirmar-imagen escaner' }, [
           el('img', { attrs: { src: preparada?.url || '', alt: 'Tu captura' } }),
-          leyendo ? el('div', { clase: 'escaner-linea', estilo: { top: `${Math.min(96, pct)}%` } }) : null,
+          fase !== 'comprobando' ? lineaBarrido() : null,
         ]),
         fase === 'comprobando'
           ? el('span', { clase: 'leido-ok' }, [el('span', { clase: 'girando' }), el('span', { texto: 'Mirando la captura…' })])
@@ -481,7 +491,7 @@ function pintarLeyendoEscritorio(pct, fase, preparando) {
           ]),
           el('div', { clase: 'billete-corte', attrs: { 'aria-hidden': 'true' } }),
           el('div', { clase: 'billete-abajo' }, [
-            el('span', { clase: 'billete-tiempo' }, [el('small', { texto: 'Tiempo' }), el('strong', { clase: 'apagado', texto: '--:--' })]),
+            el('span', { clase: 'billete-tiempo' }, [el('small', { texto: 'Tiempo' }), el('strong', { clase: 'billete-falta', texto: '00:00' })]),
           ]),
         ]),
         el('span', { clase: 'progreso leyendo-progreso' }, [el('span', { estilo: { width: `${fase === 'comprobando' ? 4 : pct}%` } })]),
@@ -557,6 +567,22 @@ async function decidirPaso(lectura) {
   }
 
   // 3i · Lo que si se leyo llega relleno; lo demas, a mano.
+  // 8f: en escritorio se queda en la misma vista y los huecos salen en el billete.
+  if (window.matchMedia('(min-width: 900px)').matches && lectura.disponible) {
+    const o = normalizarEstacion(lectura.origen);
+    const d = normalizarEstacion(lectura.destino);
+    borrador = {
+      origen: nombreEstacion(o) ? o : '',
+      destino: nombreEstacion(d) ? d : '',
+      tiempoSegundos: lectura.segundosDuracion || null,
+      horaSalida: lectura.horaSalida || '', horaLlegada: lectura.horaLlegada || '',
+      bici: lectura.numeroBici || '',
+      fecha: dia,
+    };
+    pintarConfirmar();
+    mostrar('confirmar');
+    return;
+  }
   const origen = lectura.disponible ? normalizarEstacion(lectura.origen) : '';
   const destino = lectura.disponible ? normalizarEstacion(lectura.destino) : '';
   borrador = {
@@ -592,7 +618,7 @@ function segmentoDia(valor, alCambiar, { rotulo = 'Día del trayecto' } = {}) {
       opcion('Hoy', valor === hoy, () => alCambiar(hoy)),
       opcion('Ayer', valor === ayer, () => alCambiar(ayer)),
       // 8f: "Otro día…" en escritorio.
-      opcion(otro ? formatearFecha(valor) : ['Otro', el('span', { clase: 'solo-escritorio-i', texto: ' día…' })], otro, () => abrirCalendario(valor, alCambiar), true),
+      opcion(otro ? new Date(`${valor}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : ['Otro', el('span', { clase: 'solo-escritorio-i', texto: ' día…' })], otro, () => abrirCalendario(valor, alCambiar), true),
     ]),
     preparada?.diaPropuesto?.motivo && valor === preparada.diaPropuesto.dia && valor !== hoy
       ? el('span', { clase: 'pista-dia', texto: `Hemos puesto este día porque ${preparada.diaPropuesto.motivo}.` })
@@ -610,8 +636,11 @@ function textoPuesto(cuantos = 1) {
 
 function pintarConfirmar() {
   const b = borrador;
-  const km = kmEstimados(b.origen, b.destino);
+  const km = b.origen && b.destino ? kmEstimados(b.origen, b.destino) : null;
   const kmh = km && b.tiempoSegundos ? km / (b.tiempoSegundos / 3600) : null;
+  // Lo que no se ha podido leer: sale como hueco en el billete, para rellenarlo ahi.
+  const faltan = [!b.origen && 'la salida', !b.destino && 'la meta', !b.tiempoSegundos && 'el tiempo'].filter(Boolean);
+  const completo = !faltan.length && b.origen !== b.destino;
   const fueraDeCupo = llevaHoy() >= CUPO;
   const lleno = llevaHoy() >= TOPE;
   const esRutaDelDia = rutaDelDia && rutaDelDia === `${b.origen}-${b.destino}`;
@@ -622,15 +651,15 @@ function pintarConfirmar() {
   }, [
     el('span', { clase: `billete-punto ${cual}` }, cual === 'destino' ? [icono('pin', 'icono')] : []),
     el('span', { clase: 'billete-nombre' }, [
-      el('small', { texto: `${etiqueta} · ${codigo}` }),
-      el('strong', { texto: nombreEstacion(codigo) || '—' }),
+      el('small', { texto: codigo ? `${etiqueta} · ${codigo}` : `${etiqueta} · no se ha leído` }),
+      el('strong', { clase: codigo ? null : 'billete-falta', texto: nombreEstacion(codigo) || 'Elige la estación' }),
     ]),
-    el('span', { clase: 'billete-editar' }, [icono('lapiz', 'icono peq'), el('span', { clase: 'solo-escritorio', texto: 'Cambiar' })]),
+    el('span', { clase: 'billete-editar' }, [icono('lapiz', 'icono peq'), el('span', { clase: 'solo-escritorio', texto: codigo ? 'Cambiar' : 'Elegir' })]),
   ]);
 
   const boton = el('button', {
-    clase: 'btn grande', attrs: { type: 'button', disabled: lleno ? '' : null },
-    texto: fueraDeCupo ? 'Subir sin puntos' : 'Subir trayecto',
+    clase: 'btn grande', attrs: { type: 'button', disabled: lleno || !completo ? '' : null },
+    texto: !completo ? `Falta ${faltan.join(', ') || 'elegir otra meta'}` : fueraDeCupo ? 'Subir sin puntos' : 'Subir trayecto',
     on: { click: () => subir([{ ...borrador, ruta: `${borrador.origen}-${borrador.destino}` }], borrador.fecha) },
   });
 
@@ -647,7 +676,9 @@ function pintarConfirmar() {
           })),
         ])]),
         el('span', { clase: 'leido-ok' }, [icono('comprobado', 'icono peq'), el('span', { texto: 'Captura nítida y entera' })]),
-        el('span', { clase: 'leido-ok' }, [icono('comprobado', 'icono peq'), el('span', { texto: 'Estaciones, tiempo y horas leídos' })]),
+        faltan.length
+          ? el('span', { clase: 'leido-ok falta' }, [icono('aviso', 'icono peq'), el('span', { texto: `No se ha leído ${faltan.join(', ')}: rellénalo en el billete` })])
+          : el('span', { clase: 'leido-ok' }, [icono('comprobado', 'icono peq'), el('span', { texto: 'Estaciones, tiempo y horas leídos' })]),
         el('span', { clase: 'leyendo-nota', texto: 'Se lee en tu navegador. La imagen solo sale de aquí al pulsar Subir.' }),
       ]),
       el('div', { clase: 'confirmar-datos' }, [
@@ -662,7 +693,10 @@ function pintarConfirmar() {
             clase: 'billete-abajo', attrs: { type: 'button', 'aria-label': 'Corregir el tiempo' },
             on: { click: abrirTiempo },
           }, [
-            el('span', { clase: 'billete-tiempo' }, [el('small', { texto: 'Tiempo' }), el('strong', { texto: formatearTiempo(b.tiempoSegundos) })]),
+            el('span', { clase: 'billete-tiempo' }, [
+              el('small', { texto: b.tiempoSegundos ? 'Tiempo' : 'Tiempo · no se ha leído, toca para escribirlo' }),
+              el('strong', { clase: b.tiempoSegundos ? null : 'billete-falta', texto: b.tiempoSegundos ? formatearTiempo(b.tiempoSegundos) : '00:00' }),
+            ]),
             el('span', { clase: 'billete-extra' }, [
               km ? el('span', {}, [el('strong', { texto: `≈${coma(km)}` }), ' km']) : null,
               kmh ? el('span', {}, [el('strong', { texto: coma(kmh) }), ' km/h']) : null,

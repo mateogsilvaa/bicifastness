@@ -404,14 +404,18 @@ async function contar(consulta, respaldo = 0) {
  *   cobran una lectura por cada MIL documentos contados.
  */
 async function resumir() {
+  // Los ultimos 200 dias por RANGO de id (el id es el dia) y no con
+  // `orderBy(documentId(), 'desc')`: ese orden descendente exige un indice que
+  // Firestore no deja declarar en firestore.indexes.json, y sin el esta
+  // consulta fallaba. Se le da la vuelta aqui para conservar el orden de antes.
   const [diarios, previo] = await Promise.all([
     db().collection('metricas')
-      .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
-      .limit(200).get(),
+      .where(admin.firestore.FieldPath.documentId(), '>=', dia(new Date(Date.now() - 199 * 86400000)))
+      .get(),
     db().doc('agregados/metricas').get(),
   ]);
 
-  const porDia = diarios.docs.map((d) => ({ dia: d.id, ...d.data() }));
+  const porDia = diarios.docs.map((d) => ({ dia: d.id, ...d.data() })).reverse();
   const hoy = dia(new Date());
   const antes = previo.exists ? previo.data() : {};
 

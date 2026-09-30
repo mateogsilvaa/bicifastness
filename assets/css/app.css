@@ -1169,13 +1169,15 @@ body:has(.nav-inf) .pila-avisos {
   padding: 14px var(--e4);
   border-radius: 20px;
   background: var(--papel-2);
-  border: var(--borde);
+  border: 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, .08);
   font-size: 14px;
   line-height: 1.45;
 }
-.aviso-flotante p { margin: 0; max-width: none; }
-.aviso-flotante .btn { width: 100%; min-height: 40px; font-size: 14px; border-radius: var(--radio-campo); }
-.aviso-flotante.oscuro { background: var(--tinta); color: var(--papel); border-color: var(--tinta); }
+/* 7c: sin borde, con la sombra del diseño; el de terminos, de tinta y sin ella. */
+.aviso-flotante p { margin: 0; max-width: none; line-height: 1.45; }
+.aviso-flotante .btn { width: 100%; min-height: 40px; font-size: 14px; font-weight: 700; border-radius: 12px; }
+.aviso-flotante.oscuro { background: var(--tinta); color: var(--papel); box-shadow: none; }
 .aviso-flotante.oscuro a { color: var(--azul-inverso); }
 
 /* --- Pie ------------------------------------------------------------------- */

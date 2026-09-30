@@ -455,7 +455,9 @@ test('el sistema de diseno no admite sombras', () => {
     // 8b: las dos capturas de la capa de soltar.
     'box-shadow: 0 6px 20px rgba(0, 0, 0, .08);', 'box-shadow: 0 18px 40px rgba(17, 17, 16, .22);',
     // 8h: el dialogo de verificado, sobre Hoy.
-    'box-shadow: 0 24px 64px rgba(0, 0, 0, .25);'];
+    'box-shadow: 0 24px 64px rgba(0, 0, 0, .25);',
+    // 7c: el aviso de cookies, sobre la barra.
+    'box-shadow: 0 -4px 24px rgba(0, 0, 0, .08);'];
   const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none') && !DEL_DISEÑO.includes(s));
   assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
 });

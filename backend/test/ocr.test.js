@@ -139,10 +139,10 @@ test('el historial se trocea en un trayecto por viaje', () => {
 
   assert.strictEqual(trayectos.length, 2);
   assert.deepStrictEqual(trayectos[0], {
-    origen: '002', destino: '110', horaSalida: '18:42', horaLlegada: '18:54', segundosDuracion: 720, numeroBici: '2471',
+    origen: '002', destino: '110', horaSalida: '18:42', horaLlegada: '18:54', segundosDuracion: 720, numeroBici: '2471', fecha: '',
   });
   assert.deepStrictEqual(trayectos[1], {
-    origen: '045', destino: '118', horaSalida: '08:05', horaLlegada: '08:19', segundosDuracion: 840, numeroBici: '',
+    origen: '045', destino: '118', horaSalida: '08:05', horaLlegada: '08:19', segundosDuracion: 840, numeroBici: '', fecha: '',
   });
 });
 
@@ -196,4 +196,25 @@ test('el idioma del OCR sale del repositorio, no de la red', () => {
 test('la hora de la barra de estado sale de las primeras lineas y sin etiqueta', () => {
   assert.strictEqual(ocr.extraerRelojBarra('19:03 84%\nBiciMAD\nSalida 18:42'), '19:03');
   assert.strictEqual(ocr.extraerRelojBarra('BiciMAD\nSalida 18:42 Llegada 18:54'), '');
+});
+
+// El formato actual de la app (captura de referencia del diseño, ref/ejemplo.jpg):
+// la bici suelta junto al icono, fecha y hora bajo cada estacion y "17m. 18s.".
+// Los textos son lo que devuelve tesseract de verdad, con sus erratas.
+const ACTUAL = '7 10310 O\n\nO 124 - Metro Bilbao (124)\n. 21/09/25 02:51:12\n\nQ 115 - Ferraz - Templo de Debod (115)\n21/09/25 03:08:30\n\n(O) 17m.18s. 0.50 €\n';
+const ACTUAL_PEOR = '— 75 lo310\n\nO 124 - Metro Bilbao (124)\n\no\ne 21/09/25 02:51:12\no\n\n21/09/25 03:08:30\n\n(5) 17m.18s. 0.50 €\n\nO TI5 - Ferraz - Templo de Debod (115)\n';
+
+test('la captura actual de BiciMAD se lee entera: estaciones, tiempo, bici y fecha', () => {
+  for (const texto of [ACTUAL, ACTUAL_PEOR]) {
+    const [t, ...resto] = ocr.extraerTrayectos(texto);
+    assert.strictEqual(resto.length, 0);
+    assert.deepStrictEqual(t, {
+      origen: '124', destino: '115', horaSalida: '02:51', horaLlegada: '03:08',
+      segundosDuracion: 17 * 60 + 18, numeroBici: '10310', fecha: '2025-09-21',
+    });
+  }
+});
+
+test('un parentesis suelto (el icono del reloj) no es una estacion', () => {
+  assert.deepStrictEqual(ocr.extraerEstaciones(ACTUAL_PEOR), ['124', '115']);
 });

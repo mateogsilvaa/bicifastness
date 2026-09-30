@@ -184,6 +184,10 @@ const MOTIVOS = {
     texto: 'El trayecto figura en plena madrugada.',
     queHacer: 'Si es correcto, no hace falta que hagas nada.',
   },
+  fecha_captura_distinta: {
+    texto: 'La fecha que marca la captura no es la del día que has puesto al viaje.',
+    queHacer: 'Elige en el calendario el día que sale en la captura. Solo cuentan los trayectos del último mes.',
+  },
   captura_anterior_al_viaje: {
     texto: 'La captura es de un dia anterior a la fecha que has puesto al viaje.',
     queHacer: 'Elige en el calendario el dia en que hiciste el trayecto.',

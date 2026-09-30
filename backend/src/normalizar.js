@@ -40,6 +40,26 @@ const ANCHO = 1400;
  */
 const UMBRAL_OSCURO = 110;
 
+/**
+ * Niveles para el gris claro. La app de BiciMAD pinta el numero de la bici y la
+ * fecha y hora de cada estacion en gris muy claro sobre blanco, y tesseract no
+ * los veia: de la captura solo salian las dos estaciones. Todo lo que este
+ * entre DESDE y HASTA se estira a 0..255 (el gris claro pasa a casi negro y el
+ * blanco sigue blanco); lo mas oscuro que DESDE no se toca, que es lo que deja
+ * legible el texto blanco sobre la barra azul del tiempo.
+ */
+const NIVELES = { DESDE: 140, HASTA: 240 };
+
+/** Aplica NIVELES a un buffer de un canal, en el sitio. Gemela de la del navegador. */
+function aclararGrises(pixeles) {
+  const { DESDE, HASTA } = NIVELES;
+  for (let i = 0; i < pixeles.length; i++) {
+    const v = pixeles[i];
+    if (v >= DESDE) pixeles[i] = Math.min(255, Math.round(((v - DESDE) * 255) / (HASTA - DESDE)));
+  }
+  return pixeles;
+}
+
 /** Tolerancia de color para considerar que una fila es margen uniforme. */
 const TOLERANCIA_MARGEN = 12;
 
@@ -172,10 +192,19 @@ async function preparar(entrada) {
     // 4. Tamaño unico y contraste normalizado. `withoutEnlargement: false`
     //    porque una captura pequeña hay que AMPLIARLA: es justo el caso en que
     //    el OCR falla.
-    const buffer = await trabajo
+    // 5. El gris claro, a oscuro (NIVELES). Sobre los pixeles crudos: sharp no
+    //    tiene una curva por tramos.
+    const crudo = await trabajo
       .resize({ width: ANCHO, withoutEnlargement: false })
       .normalise()
-      .sharpen()
+      .toColourspace('b-w')
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    aclararGrises(crudo.data);
+
+    // Sin `sharpen()`: con el gris ya oscurecido, el enfoque se comia el numero
+    // de la bici (medido con la captura de referencia del diseño).
+    const buffer = await sharp(crudo.data, { raw: crudo.info })
       .png()
       .toBuffer();
 
@@ -191,6 +220,8 @@ module.exports = {
   clasificar,
   margenesUniformes,
   luminanciaMedia,
+  aclararGrises,
   ANCHO,
   UMBRAL_OSCURO,
+  NIVELES,
 };

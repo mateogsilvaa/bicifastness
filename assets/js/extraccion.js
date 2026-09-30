@@ -56,6 +56,8 @@ export const AJUSTES_WORKER = {
   SEGMENTACION: '3',
   /** `backend/src/ocr.js` -> RESOLUCION */
   RESOLUCION: '600',
+  /** `backend/src/normalizar.js` -> NIVELES (el gris claro de la bici y las fechas, a oscuro) */
+  NIVELES: { DESDE: 140, HASTA: 240 },
 };
 
 /** Ancho al que se lee, el mismo que usa el worker (`backend/src/normalizar.js`). */
@@ -125,22 +127,33 @@ export function extraerHoras(texto) {
   const { salida, llegada } = horasEtiquetadas(texto);
   if (salida && llegada) return [salida, llegada];
 
+  // Formato actual de la app: cada estacion con su "21/09/25 02:51:12".
+  const conFecha = extraerFechas(texto);
+  if (conFecha.length >= 2) return [conFecha[0].hora, conFecha[1].hora];
+
   const encontradas = [...texto.matchAll(new RegExp(HORA, 'g'))]
     .map((m) => `${m[1].padStart(2, '0')}:${m[2]}`);
   return [...new Set(encontradas)];
 }
 
 export function extraerEstaciones(texto) {
-  const conParentesis = [...texto.matchAll(/\((\d{1,3}[a-zA-Z]?)\)/g)].map((m) => m[1]);
+  // Solo el "(124)" que cierra "124 - Nombre (124)": un parentesis suelto (el
+  // icono del reloj leido como "(5)") no es una estacion.
+  const conParentesis = [...texto.matchAll(/-[^\n()]*\S\s*\((\d{1,3}[a-zA-Z]?)\)/g)].map((m) => m[1]);
   if (conParentesis.length >= 2) return conParentesis;
 
   const alPrincipio = [...texto.matchAll(/^\s*(\d{1,3})\s*[-–]\s*\S/gm)].map((m) => m[1]);
-  return alPrincipio;
+  // Una linea sola con su "(124)": la lectura por lineas de extraerTrayectos.
+  return alPrincipio.length ? alPrincipio : conParentesis;
 }
 
 export function extraerDuracion(texto) {
   const conUnidades = texto.match(/(\d{1,3})\s*min(?:utos?)?(?:\s*(?:y\s*)?(\d{1,2})\s*s)?/i);
   if (conUnidades) return Number(conUnidades[1]) * 60 + Number(conUnidades[2] || 0);
+
+  // "17m. 18s.", el de la app actual.
+  const abreviado = texto.match(/(\d{1,3})\s*m\.?\s*(\d{1,2})\s*s\b/i);
+  if (abreviado) return Number(abreviado[1]) * 60 + Number(abreviado[2]);
 
   const junto = texto.match(/(?:duraci[oó]n|tiempo)\D{0,20}(\d{1,3}):([0-5]\d)/i);
   if (junto) return Number(junto[1]) * 60 + Number(junto[2]);
@@ -157,7 +170,46 @@ export function extraerDuracion(texto) {
  */
 export function extraerBici(texto) {
   const m = String(texto || '').match(/\bbici(?:cleta)?\b\W{0,4}(?:n(?:[º°o.]|[uú]m(?:ero)?\.?)\s*)?[:#]?\s*(\d{3,5})\b/i);
-  return m ? m[1] : '';
+  return m ? m[1] : biciSuelta(texto);
+}
+
+/**
+ * Formato actual de la app: el numero de la bici va solo, junto al icono y
+ * ANTES de la primera estacion, sin la palabra "bici". Se busca solo ahi, y se
+ * corrige lo que el OCR confunde en ese gris claro (l, I, | por 1; o, O por 0:
+ * "lo310" es la 10310).
+ */
+export function biciSuelta(texto) {
+  const lineas = String(texto || '').split(/\r?\n/);
+  const primera = lineas.findIndex((l) => /\(\d{1,3}[a-zA-Z]?\)/.test(l));
+  if (primera <= 0) return '';
+  for (const linea of lineas.slice(0, primera)) {
+    for (const trozo of linea.split(/\s+/)) {
+      if (!/^[0-9lIioO|]{4,6}$/.test(trozo) || (trozo.match(/\d/g) || []).length < 3) continue;
+      const numero = trozo.replace(/[lIi|]/g, '1').replace(/[oO]/g, '0');
+      if (/^\d{4,5}$/.test(numero)) return numero;
+    }
+  }
+  return '';
+}
+
+/**
+ * Fecha y hora de cada estacion, formato actual de la app ("21/09/25 02:51:12":
+ * la primera es la salida y la segunda la llegada). La fecha es la del
+ * trayecto, y con ella se comprueba que no tenga mas de un mes.
+ */
+export function extraerFechas(texto) {
+  const re = /\b(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})\s+([01]?\d|2[0-3]):([0-5]\d)/g;
+  return [...String(texto || '').matchAll(re)].flatMap((m) => {
+    const dia = Number(m[1]);
+    const mes = Number(m[2]);
+    if (dia < 1 || dia > 31 || mes < 1 || mes > 12) return [];
+    const anio = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    return [{
+      fecha: `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
+      hora: `${m[4].padStart(2, '0')}:${m[5]}`,
+    }];
+  });
 }
 
 /**
@@ -189,7 +241,7 @@ export function extraerTrayectos(texto) {
   };
 
   const nuevo = () => ({
-    origen: '', destino: '', horaSalida: '', horaLlegada: '', segundosDuracion: null, numeroBici: '',
+    origen: '', destino: '', horaSalida: '', horaLlegada: '', segundosDuracion: null, numeroBici: '', fecha: '',
   });
 
   for (const linea of String(texto || '').split(/\r?\n/)) {
@@ -210,6 +262,12 @@ export function extraerTrayectos(texto) {
     if (horas.salida && !actual.horaSalida) actual.horaSalida = horas.salida;
     if (horas.llegada && !actual.horaLlegada) actual.horaLlegada = horas.llegada;
 
+    for (const { fecha, hora } of extraerFechas(linea)) {
+      if (!actual.fecha) actual.fecha = fecha;
+      if (!actual.horaSalida) actual.horaSalida = hora;
+      else if (!actual.horaLlegada && hora !== actual.horaSalida) actual.horaLlegada = hora;
+    }
+
     const duracion = extraerDuracion(linea);
     if (duracion !== null && actual.segundosDuracion === null) actual.segundosDuracion = duracion;
 
@@ -218,6 +276,9 @@ export function extraerTrayectos(texto) {
   }
 
   guardar();
+  // La bici suelta va antes de la primera estacion, fuera de cualquier trayecto.
+  const suelta = biciSuelta(texto);
+  if (suelta && trayectos[0] && !trayectos[0].numeroBici) trayectos[0].numeroBici = suelta;
   return trayectos;
 }
 
@@ -252,7 +313,7 @@ export function interpretar(texto) {
   const estaciones = extraerEstaciones(texto);
 
   return {
-    esBicimad: MARCADORES.some((m) => plano.includes(m)),
+    esBicimad: (MARCADORES.some((m) => plano.includes(m)) || (estaciones.length >= 2 && extraerDuracion(texto) !== null)),
     // Todos los trayectos de la captura (#11). Los campos sueltos siguen siendo
     // los del primero, para quien solo espera uno.
     trayectos: extraerTrayectos(texto),
@@ -262,6 +323,7 @@ export function interpretar(texto) {
     horaLlegada: horas[1] || '',
     segundosDuracion: extraerDuracion(texto),
     numeroBici: extraerBici(texto),
+    fecha: extraerFechas(texto)[0]?.fecha || '',
   };
 }
 
@@ -371,8 +433,14 @@ export function prepararParaOcr(imagen) {
   const media = suma / (datos.length / 4);
   const invertir = media < UMBRAL_OSCURO;
 
+  // El numero de la bici y la fecha y hora de cada estacion van en gris muy
+  // claro: lo que este entre DESDE y HASTA se estira a 0..255 (el gris pasa a
+  // casi negro, el blanco sigue blanco); lo mas oscuro no se toca, y asi el
+  // texto blanco de la barra azul del tiempo sigue legible.
+  const { DESDE, HASTA } = AJUSTES_WORKER.NIVELES;
   for (let i = 0; i < datos.length; i += 4) {
-    const gris = invertir ? 255 - datos[i] : datos[i];
+    let gris = invertir ? 255 - datos[i] : datos[i];
+    if (gris >= DESDE) gris = Math.min(255, Math.round(((gris - DESDE) * 255) / (HASTA - DESDE)));
     datos[i] = gris;
     datos[i + 1] = gris;
     datos[i + 2] = gris;

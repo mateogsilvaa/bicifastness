@@ -390,6 +390,18 @@ function comprobarFecha({ fechaViaje, capturadaEn, lectura, subidoEn }) {
       { capturadaEn, fechaViaje: dia }));
   }
 
+  // 3. La app actual pinta la fecha bajo cada estacion ("21/09/25 02:51:12").
+  //    Si se ha leido y no es el dia declarado, lo mira una persona: el dia
+  //    declarado ya no puede tener mas de un mes (worker.js), asi que una
+  //    captura vieja nunca se aprueba sola. No es fatal porque depende de que el
+  //    OCR no confunda un 5 con un 6.
+  const fechaLeida = lectura?.disponible ? String(lectura.fecha || '') : '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fechaLeida) && dia && fechaLeida !== dia) {
+    señales.push(señal('fecha_captura_distinta', 50,
+      `La captura marca el ${fechaLeida} y el viaje se ha declarado del ${dia}.`,
+      { fechaCaptura: fechaLeida, fechaViaje: dia }));
+  }
+
   const subida = subidoEn instanceof Date && !Number.isNaN(subidoEn.getTime()) ? subidoEn : null;
   const llegada = lectura?.disponible ? horaASegundos(lectura.horaLlegada) : null;
   const salida = lectura?.disponible ? horaASegundos(lectura.horaSalida) : null;

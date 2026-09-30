@@ -25,7 +25,7 @@ import {
   iniciarPagina, normalizarEstacion, nombreEstacion, formatearTiempo, formatearFecha,
   anotarSubidaAbierta, VERSION_LEGAL, pedirReaceptacion, kmEstimados,
 } from '/assets/js/ui.js';
-import { id, el, icono, reemplazar, abrirHoja } from '/assets/js/dom.js';
+import { id, el, icono, reemplazar, abrirHoja, avisar } from '/assets/js/dom.js';
 import { diaMadrid, diaMadridHace, diaProbableDelViaje } from '/assets/js/dia.js';
 import { revisar, LIMITES_CLIENTE } from '/assets/js/precheck.js';
 import { leerExif } from '/assets/js/exif.js';
@@ -454,10 +454,22 @@ async function leer() {
   if (preparada?.fichero !== fichero) return;
 
   preparada.lectura = lectura.disponible ? lectura : null;
-  preparada.diaPropuesto = diaProbableDelViaje({
-    ficheroModificado: fichero.lastModified,
-    horaLlegada: lectura.disponible ? lectura.horaLlegada : null,
-  });
+
+  // La app de BiciMAD pone la fecha bajo cada estacion ("21/09/25 02:51:12"):
+  // si se ha leido, manda ella. Un trayecto de hace mas de un mes no se puede
+  // subir (el worker lo rechazaria igual), asi que se dice ya.
+  const fechaLeida = lectura.disponible ? lectura.fecha : '';
+  if (fechaLeida && fechaLeida < diaMadridHace(30)) {
+    cancelar();
+    avisar(`Esta captura es del ${formatearFecha(fechaLeida)}. Solo cuentan los trayectos del último mes.`);
+    return;
+  }
+  preparada.diaPropuesto = fechaLeida && fechaLeida <= diaMadrid()
+    ? { dia: fechaLeida, motivo: 'la fecha de la captura' }
+    : diaProbableDelViaje({
+      ficheroModificado: fichero.lastModified,
+      horaLlegada: lectura.disponible ? lectura.horaLlegada : null,
+    });
   await decidirPaso(lectura);
 }
 

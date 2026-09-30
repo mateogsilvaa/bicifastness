@@ -19,6 +19,8 @@
  *   localStorage.maqueta_perfil = 'cupo'    -> ya ha subido los 3 que puntuan hoy (3n)
  *   localStorage.maqueta_perfil = 'sinperfil' -> con sesion pero sin nombre de piloto (1c)
  *   localStorage.maqueta_perfil = 'peligro' -> sin escudos (2c, con maqueta_hora >= '20:00')
+ *   localStorage.maqueta_perfil = 'encola'  -> un trayecto subido hace 3 min, en cola (2d;
+ *                                              sessionStorage['viaje-en-curso'] = 'maqueta-cola')
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
  *   localStorage.maqueta_hora = '12:00'     -> la app cree que es esa hora de
  *                                              Madrid (p. ej. '21:30' para 2c)
@@ -96,6 +98,7 @@ const perfiles = {
   admin: { ...perfilBase, admin: true },
   sinclan: { ...perfilBase, clanId: null, rolClan: null },
   peligro: { ...perfilBase, escudos: 0 },
+  encola: { ...perfilBase },
   lider: { ...perfilBase, rolClan: 'lider' },
 };
 const perfil = perfiles[variante] || perfilBase;
@@ -159,6 +162,14 @@ const datos = {
 for (const [id, c] of Object.entries(CLANES)) {
   datos[`clanes/${id}`] = { ...c, descripcion: 'Salimos de Chamberí cada mañana.', lider: id === 'c1' ? (variante === 'lider' ? UID : 'otro-uid') : 'x', miembros: id === 'c1' ? ['otro-uid', ...(perfil.clanId ? [UID] : [])] : ['x'], oficiales: [], solicitudes: id === 'c1' && variante === 'lider' ? ['s1', 's2'] : [], numMiembros: 12, biciRating: 5200, creado: hace(60 * 24 * 90) };
 }
+// 2d: el trayecto que se acaba de subir, esperando al worker.
+if (variante === 'encola') {
+  datos['tiempos_viaje/maqueta-cola'] = {
+    uid: UID, username: perfil.username, ruta: '124-115', tiempoSegundos: 1038, fechaViaje: dia(0), estado: 'pendiente',
+    verificado: false, motivos: [], distanciaMetros: 2100, creado: hace(3),
+  };
+}
+
 // 6d: temporadas cerradas, con sus premios en `logros`.
 [['2026-08', 1132, 212, 'plata'], ['2026-07', 1214, 3, 'oro'], ['2026-06', 702, 401, 'bronce'], ['2026-05', 388, 688, 'hierro']]
   .forEach(([temporada, puntos, posicion, division]) => { datos[`usuarios/${UID}/temporadas/${temporada}`] = { temporada, puntos, posicion, division }; });

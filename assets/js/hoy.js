@@ -81,6 +81,7 @@ function botonSubir(texto, { secundario = false, clase = '' } = {}) {
 }
 
 function pintarSubir(perfil, modo) {
+  if (modo === 'en-cola') { reemplazar($('bloque-subir')); return; }
   const lleva = llevaHoy(perfil);
   const quedan = Math.max(0, CUPO - lleva);
   if (modo === 'salvado') {
@@ -132,7 +133,7 @@ function diasSemana() {
 
 /**
  * La tarjeta de la racha, en el estado que toque (2a, 2b, 2c, 2d, 2f).
- * @returns {'pendiente'|'salvado'|'riesgo'}
+ * @returns {'pendiente'|'en-cola'|'salvado'|'riesgo'}
  */
 function pintarRacha(perfil, { enCola = false } = {}) {
   const dias = perfil.racha || 0;
@@ -152,7 +153,8 @@ function pintarRacha(perfil, { enCola = false } = {}) {
         el('span', { texto: 'En cuanto se verifique, hoy queda salvado.' }),
       ]),
     ]));
-    return 'pendiente';
+    // 2d: mientras espera, sin boton de subir; debajo van las misiones.
+    return 'en-cola';
   }
 
   // 2b · Hoy ya esta salvado.
@@ -398,7 +400,7 @@ function tarjetaEnCola(viaje) {
       el('span', { clase: 'cola-tiempo', texto: formatearTiempo(viaje.tiempoSegundos) }),
     ]),
     el('span', { clase: 'progreso gruesa azul' }, [el('span', { estilo: { width: `${pct}%` } })]),
-    el('span', { clase: 'apagado menor', texto: 'Suele tardar unos diez minutos. Puedes cerrar la app: te avisamos.' }),
+    el('span', { clase: 'apagado menor cola-nota', texto: 'Suele tardar unos diez minutos. Puedes cerrar la app: te avisamos.' }),
   ]);
 }
 

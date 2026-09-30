@@ -3665,3 +3665,20 @@ body.pagina-admin { font-size: 14px; padding: 0; }
      `animation: none` la regla de arriba dejaria el `opacity: 0` puesto. */
   .aparece { opacity: 1; }
 }
+
+/* --- Pantallas anchas ----------------------------------------------------------
+ * El diseño de escritorio esta dibujado a 1440 (lateral de 240 + el resto) y fija
+ * las columnas a ese ancho: 640 + 340 en Hoy y Tu, 1040 en Ranking. En un monitor
+ * mas ancho eso dejaba todo apiñado a la izquierda y media pantalla vacia. A partir
+ * de 1441 los topes se quitan y la columna principal crece hasta ocupar el hueco;
+ * los paneles laterales (340) conservan su ancho. A 1440 no cambia nada.
+ */
+@media (min-width: 1441px) {
+  html body:has(.lateral) .container,
+  html body:has(.lateral) .container > .hoy,
+  html body:has(.lateral) .container.ranking,
+  html body:has(.lateral) .container.ranking[data-pestana='clanes'],
+  html body:has(.lateral) .yo.yo-ancho { max-width: none; }
+  html body:has(.lateral) .hoy-rejilla,
+  html body:has(.lateral) .yo.yo-ancho { grid-template-columns: minmax(0, 1fr) 340px; }
+}

@@ -39,17 +39,17 @@ const TIPOS = {
     porDefecto: true,
   },
   rachaEnPeligro: {
-    etiqueta: 'Cuando mi racha esta en peligro',
+    etiqueta: 'Cuando mi racha está en peligro',
     porDefecto: true,
   },
   // El que mas hace volver: alguien concreto te ha quitado algo concreto. Por
   // defecto SI, como la racha: es informacion sobre algo tuyo, no publicidad.
   recordPerdido: {
-    etiqueta: 'Cuando alguien me quita un record',
+    etiqueta: 'Cuando alguien me quita un récord',
     porDefecto: true,
   },
   cambioDivision: {
-    etiqueta: 'Cuando cambio de division',
+    etiqueta: 'Cuando cambio de división',
     porDefecto: false,
   },
 };

@@ -123,28 +123,29 @@
   <!-- 6e · Ajustes -->
   <section class="vista oculto" id="vista-ajustes" aria-labelledby="titulo-ajustes">
     <div class="subcabecera">
-      <a class="boton-icono" href="#" aria-label="Volver"></a>
+      <a class="boton-icono" href="#" aria-label="Volver"><span class="migas">Tú</span></a>
       <h1 id="titulo-ajustes">Ajustes</h1>
     </div>
 
-    <h2 class="seccion-ajustes">Apariencia</h2>
+    <h2 class="seccion-ajustes" id="sec-apariencia">Apariencia</h2>
     <div class="temas" id="temas" role="group" aria-label="Tema"></div>
 
     <!-- Avisos push (#33). Toda la seccion se oculta si el navegador no puede:
          enseñar interruptores que no hacen nada es peor que no enseñarlos. -->
     <div id="ajustes-push" class="oculto">
-      <h2 class="seccion-ajustes">Avisos en el móvil</h2>
+      <h2 class="seccion-ajustes" id="sec-avisos"><span class="solo-movil-i">Avisos en el móvil</span><span class="solo-escritorio-i">Avisos</span></h2>
       <div class="lista-ajustes" id="lista-avisos"></div>
       <p class="mensaje" id="msg-push" aria-live="polite"></p>
     </div>
 
-    <h2 class="seccion-ajustes">Otros</h2>
-    <div class="lista-ajustes">
-      <label>
+    <h2 class="seccion-ajustes otros">Otros</h2>
+    <div class="lista-ajustes" id="lista-otros">
+      <label id="fila-correo">
         <span class="texto">Correo sobre mis trayectos<small>Rechazos, anulaciones y verificados</small></span>
+        <span class="nota-aviso">correo</span>
         <input type="checkbox" class="interruptor" id="avisos-correo">
       </label>
-      <label>
+      <label class="fila-sonido">
         <span class="texto">Sonido al verificarse<small>Solo con la app abierta</small></span>
         <input type="checkbox" class="interruptor" id="sonido">
       </label>
@@ -155,6 +156,28 @@
       <button class="btn" id="btn-salir" type="button">Cerrar sesión</button>
       <a class="btn" href="#datos">Mis datos</a>
     </div>
+
+    <!-- 8o: en escritorio, Mis datos va en la misma pagina, con un indice. -->
+    <h2 class="seccion-ajustes datos-escritorio" id="sec-datos">Tus datos</h2>
+    <div class="lista-ajustes datos-escritorio">
+      <div class="fila-dato">
+        <span class="texto">Descargar mis datos<small>JSON con todo lo que guardamos sobre ti</small></span>
+        <button class="enlace-dato" type="button" data-igual="btn-exportar" id="exportar-e">Descargar</button>
+      </div>
+      <div class="fila-dato">
+        <span class="texto">Cerrar sesión en este navegador</span>
+        <button class="enlace-dato tinta" type="button" data-igual="btn-salir">Cerrar sesión</button>
+      </div>
+      <div class="fila-dato">
+        <span class="texto peligro">Eliminar mi cuenta<small>Perfil, historial y capturas. No se puede deshacer.</small></span>
+        <button class="boton-eliminar" type="button" data-igual="btn-borrar">Eliminar…</button>
+      </div>
+    </div>
+    <nav class="indice-ajustes" aria-label="Secciones de ajustes">
+      <button type="button" data-ir="sec-apariencia" aria-current="true">Apariencia</button>
+      <button type="button" data-ir="sec-avisos">Avisos</button>
+      <button type="button" data-ir="sec-datos">Tus datos</button>
+    </nav>
     <p class="pie-version" id="pie-version"></p>
   </section>
 

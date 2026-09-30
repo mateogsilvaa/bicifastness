@@ -50,6 +50,30 @@ id('ir-ajustes').append(icono('ajustes'));
 id('ir-historial-e').prepend(icono('reloj'));
 id('ir-ajustes-e').prepend(icono('ajustes'));
 id('btn-salir').prepend(icono('salir'));
+id('exportar-e').prepend(icono('descargar'));
+
+// 8o: los botones de "Tus datos" hacen lo mismo que los de Mis datos, y el
+// indice lleva a cada seccion sin cambiar de pantalla.
+for (const boton of document.querySelectorAll('[data-igual]')) {
+  boton.addEventListener('click', () => id(boton.dataset.igual).click());
+}
+for (const boton of document.querySelectorAll('[data-ir]')) {
+  boton.addEventListener('click', () => {
+    for (const b of document.querySelectorAll('[data-ir]')) b.removeAttribute('aria-current');
+    boton.setAttribute('aria-current', 'true');
+    id(boton.dataset.ir).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+// 8o: en escritorio el correo es un aviso mas; en el movil va en "Otros" (6e).
+const escritorioAjustes = window.matchMedia('(min-width: 1200px)');
+const colocarCorreo = () => {
+  (escritorioAjustes.matches ? id('lista-avisos') : id('lista-otros')).prepend(id('fila-correo'));
+  // Y la version, al pie del indice.
+  if (escritorioAjustes.matches) document.querySelector('.indice-ajustes').append(id('pie-version'));
+  else id('vista-ajustes').append(id('pie-version'));
+};
+escritorioAjustes.addEventListener('change', colocarCorreo);
 
 // --- Vistas ------------------------------------------------------------------
 //
@@ -130,6 +154,7 @@ async function cargarPerfil() {
   // Activados salvo que se hayan apagado a proposito: `undefined` significa que
   // nunca se ha tocado la preferencia, no que este desactivada.
   id('avisos-correo').checked = perfil.avisosCorreo !== false;
+  colocarCorreo();
 
   await Promise.all([cargarClan(), contarTrayectos(), cargarPuestos()]);
 }
@@ -536,16 +561,21 @@ async function montarAvisosPush(datos) {
       }),
   ];
 
+  // 8o: a la derecha, cuando o donde llega cada uno.
+  const NOTAS = { viajeResuelto: 'móvil y ordenador', rachaEnPeligro: '20:00', cambioDivision: 'lunes' };
   for (const [tipo, info] of Object.entries(TIPOS_PUSH)) {
-    nodos.push(interruptor(
+    const fila = interruptor(
       info.etiqueta,
       null,
       preferencias[tipo] === undefined ? info.porDefecto : preferencias[tipo] === true,
       (activo) => ajustarAvisoPush(tipo, activo),
-      !suscripcion));
+      !suscripcion);
+    if (NOTAS[tipo]) fila.lastElementChild.before(el('span', { clase: 'nota-aviso', texto: NOTAS[tipo] }));
+    nodos.push(fila);
   }
 
   reemplazar(id('lista-avisos'), nodos);
+  colocarCorreo();
 }
 
 // El sonido va apagado salvo que se encienda a proposito: una web que suena
@@ -614,7 +644,7 @@ id('btn-borrar').addEventListener('click', () => {
 
   const velo = el('div', { clase: 'velo' });
   const hoja = el('div', {
-    clase: 'hoja',
+    clase: 'hoja dialogo-escritorio',
     attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'titulo-borrar' },
   }, [
     el('span', { clase: 'asa', attrs: { 'aria-hidden': 'true' } }),

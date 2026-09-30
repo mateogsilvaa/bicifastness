@@ -2276,6 +2276,7 @@ section.acceso { padding: calc(var(--e5) + env(safe-area-inset-top, 0px)) var(--
 .veredicto-botones { display: flex; flex-direction: column; gap: inherit; }
 .veredicto-botones:empty { display: none; }
 .migas { display: none; }
+.nota-aviso, .datos-escritorio, .indice-ajustes { display: none; }
 .hoja-cuenta.derecha { align-self: flex-end; }
 @media (min-width: 900px) {
   .velo.solo-escritorio { display: block !important; z-index: 79; }
@@ -3141,6 +3142,43 @@ body.sin-navegacion .lateral { display: none; }
   .yo.yo-ancho #vista-insignias .insignia .disco { width: 38px; height: 38px; }
   .yo.yo-ancho #vista-insignias .insignia .titulo { font-size: 11px; }
   .yo.yo-ancho #vista-insignias .estado-insignia { display: none; }
+  /* 8o · Ajustes y mis datos: una columna de 640 con grupos e indice a la
+     derecha. El correo va con los avisos; el sonido, solo en el movil. */
+  .yo:has(> #vista-ajustes:not(.oculto)) { max-width: none; }
+  #vista-ajustes { display: grid; grid-template-columns: 640px 200px; column-gap: 48px; row-gap: 14px; align-items: start; }
+  #vista-ajustes > *, #ajustes-push > * { grid-column: 1; }
+  #vista-ajustes > .subcabecera { flex-direction: column; align-items: flex-start; gap: 14px; min-height: 0; margin: -8px 0 0; }
+  #vista-ajustes > .subcabecera .boton-icono { width: auto; height: auto; min-height: 0; padding: 0; font-size: 14px; color: var(--tinta-2); text-decoration: none; }
+  #vista-ajustes > .subcabecera .boton-icono:hover { background: none; color: var(--tinta); }
+  #vista-ajustes > .subcabecera .boton-icono .icono { display: none; }
+  #vista-ajustes .migas { display: inline; line-height: 18px; }
+  #vista-ajustes > .subcabecera h1 { font-size: 32px; font-weight: 800; font-stretch: 88%; letter-spacing: -.035em; line-height: normal; }
+  #vista-ajustes .seccion-ajustes { margin: 6px 0 0; font-size: 15px; font-weight: 700; color: var(--tinta); scroll-margin-top: 32px; }
+  #vista-ajustes .temas { gap: 10px; }
+  #vista-ajustes .temas .muestra { height: 64px; }
+  #vista-ajustes .temas button { align-items: flex-start; font-size: 14px; line-height: normal; }
+  #ajustes-push.oculto { display: contents !important; }
+  #ajustes-push.oculto #lista-avisos:empty { display: none; }
+  #vista-ajustes .otros, #vista-ajustes .fila-sonido, #vista-ajustes .dos-botones { display: none; }
+  #lista-otros:not(:has(> label:not(.fila-sonido))) { display: none; }
+  #vista-ajustes .lista-ajustes > label, #vista-ajustes .lista-ajustes > div { padding: 0 18px; }
+  #vista-ajustes .lista-ajustes > label { padding-top: 0; padding-bottom: 0; }
+  .nota-aviso { display: inline; font-size: 12px; color: var(--tinta-3); }
+  #lista-avisos > label { min-height: 53px; }
+  .datos-escritorio { display: flex; }
+  h2.datos-escritorio { display: block; }
+  .fila-dato { min-height: 60px !important; }
+  .fila-dato .texto.peligro { color: var(--rojo); font-weight: 600; }
+  .fila-dato .texto.peligro small { font-weight: 400; }
+  .enlace-dato { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; font: inherit; font-size: 14px; font-weight: 700; color: var(--azul); cursor: pointer; }
+  .enlace-dato.tinta { color: var(--tinta); }
+  .enlace-dato .icono { width: 16px; height: 16px; }
+  .boton-eliminar { height: 36px; padding: 0 14px; border: 0; border-radius: 10px; background: none; box-shadow: inset 0 0 0 1.5px var(--rojo); color: var(--rojo); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .boton-eliminar:hover { background: var(--rojo-tinte); }
+  .indice-ajustes { grid-column: 2 !important; grid-row: 1 / span 3; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding-top: 84px; position: sticky; top: 32px; }
+  .indice-ajustes button { padding: 0; border: 0; background: none; font: inherit; font-size: 14px; line-height: normal; color: var(--tinta-2); cursor: pointer; }
+  .indice-ajustes button[aria-current='true'] { font-weight: 700; color: var(--tinta); }
+  .indice-ajustes .pie-version { margin: 16px 0 0; font-size: 12px; line-height: normal; }
   /* 8n · Historial: la lista (411) y el detalle del elegido al lado (372),
      con las migas "Tu" encima de un titulo de 32. */
   .yo:has(> #vista-historial:not(.oculto)) { max-width: none; }

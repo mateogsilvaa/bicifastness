@@ -2272,6 +2272,20 @@ section.acceso { padding: calc(var(--e5) + env(safe-area-inset-top, 0px)) var(--
 .veredicto-motivo { font-size: 15px; line-height: 1.45; gap: var(--e2); }
 .veredicto-motivo .rotulo { font-size: 13px; color: var(--tinta-3); }
 .veredicto-motivo .que-hacer { color: var(--tinta-2); }
+.veredicto-motivo strong + .rotulo { margin-top: 5px; }
+/* 3k / 3l · En el movil: barra de 52 con la flecha a la izquierda, 20 de
+   margen y 16 entre bloques. */
+@media (max-width: 899px) {
+  .pantalla-veredicto:not(.verificado) { gap: 16px; padding: calc(52px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .veredicto-cerrar.con-atras { top: calc(4px + env(safe-area-inset-top, 0px)); left: 12px; right: auto; }
+  .veredicto-cerrar.con-atras .icono { width: 24px; height: 24px; }
+  .pantalla-veredicto:not(.verificado) .veredicto-motivo { padding: 16px; gap: 10px; }
+  .pantalla-veredicto.rechazado .veredicto-nota { line-height: normal; }
+  .pantalla-veredicto.revision .veredicto-motivo { gap: 8px; }
+  /* 3e: sin X (se sale con "Seguir") y la pastilla a 28 de arriba. */
+  .pantalla-veredicto.verificado { padding-top: calc(28px + env(safe-area-inset-top, 0px)); }
+  .pantalla-veredicto.verificado .veredicto-cerrar { display: none; }
+}
 .pantalla-veredicto .btn.plano { width: 100%; min-height: 44px; }
 .veredicto-botones { display: flex; flex-direction: column; gap: inherit; }
 .veredicto-botones:empty { display: none; }

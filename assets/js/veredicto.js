@@ -71,17 +71,19 @@ function contar(nodo, hasta, { prefijo = '+', ms = 900 } = {}) {
  * Superficie comun: pantalla entera en movil, dialogo de 480 px en escritorio
  * y, con `destino`, el panel de al lado de la lista del historial (8n).
  */
-function abrirPantalla(clase, hijos, etiqueta, destino = null) {
+function abrirPantalla(clase, hijos, etiqueta, destino = null, { atras = false } = {}) {
   if (destino) {
     reemplazar(destino, el('div', { clase: `panel-veredicto ${clase}`, attrs: { 'aria-label': etiqueta } }, hijos));
     return () => reemplazar(destino);
   }
   const antes = document.activeElement;
   const velo = el('div', { clase: 'velo solo-escritorio' });
+  // 3k / 3l: en el movil se vuelve con la flecha, arriba a la izquierda; en
+  // el dialogo de escritorio, la X de siempre.
   const cerrarBoton = el('button', {
-    clase: 'boton-icono veredicto-cerrar',
-    attrs: { type: 'button', 'aria-label': 'Cerrar' },
-  }, [icono('cerrar')]);
+    clase: `boton-icono veredicto-cerrar${atras ? ' con-atras' : ''}`,
+    attrs: { type: 'button', 'aria-label': atras ? 'Volver' : 'Cerrar' },
+  }, atras ? [icono('atras', 'icono solo-movil-i'), icono('cerrar', 'icono solo-escritorio-i')] : [icono('cerrar')]);
 
   const pantalla = el('div', {
     clase: `pantalla-veredicto ${clase}`,
@@ -236,7 +238,7 @@ export function abrirResuelto(viaje, { alPedirRevision = null, destino = null, p
       pedir,
     ]),
     viaje.impugnado && rechazado ? el('p', { clase: 'veredicto-nota', texto: 'Has pedido revisión humana. Un administrador lo mirará.' }) : null,
-  ], textos.titulo, destino);
+  ], textos.titulo, destino, { atras: true });
   return cerrar;
 }
 

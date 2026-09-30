@@ -21,6 +21,7 @@ import {
   impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo, guardarFavoritas,
 } from '/assets/js/acciones.js';
 import { vaciarCache } from '/assets/js/cache.js';
+import { abrirResuelto } from '/assets/js/veredicto.js';
 import { guardarResumenOffline, olvidarResumenOffline } from '/assets/js/instalar.js';
 import { traerAgregado } from '/assets/js/agregados.js';
 import { sonidoActivo, activarSonido, sonar } from '/assets/js/celebrar.js';
@@ -44,7 +45,7 @@ let perfil = null;
 // --- Iconos de la maqueta -------------------------------------------------------
 // Los enlaces de volver y el de ajustes solo llevan icono: su nombre accesible
 // va en `aria-label`, en el HTML.
-for (const volver of document.querySelectorAll('.subcabecera .boton-icono')) volver.append(icono('atras'));
+for (const volver of document.querySelectorAll('.subcabecera .boton-icono')) volver.prepend(icono('atras'));
 id('ir-ajustes').append(icono('ajustes'));
 id('ir-historial-e').prepend(icono('reloj'));
 id('ir-ajustes-e').prepend(icono('ajustes'));
@@ -327,9 +328,26 @@ reemplazar(id('filtros'), FILTROS.map((f) => {
 
 function pintarHistorial() {
   reemplazar(id('historial'), [
-    ...nodosHistorial(viajes, filtro, { alImpugnar: impugnar }),
+    ...nodosHistorial(viajes, filtro, { alAbrir: abrirViaje }),
     quedanMas ? botonVerMas() : null,
   ]);
+  // 8n: en escritorio el detalle vive al lado; se abre el primero.
+  if (anchoHistorial() && !id('detalle-historial').childElementCount) {
+    id('historial').querySelector('.fila-viaje')?.click();
+  }
+}
+
+const anchoHistorial = () => window.matchMedia('(min-width: 1200px)').matches;
+
+/** 6c: el detalle de 3k / 3l a pantalla entera; 8n: en el panel de al lado. */
+function abrirViaje(viaje, fila) {
+  const ancho = anchoHistorial();
+  for (const f of id('historial').querySelectorAll('.fila-viaje.elegida')) f.classList.remove('elegida');
+  if (ancho) fila.classList.add('elegida');
+  abrirResuelto(viaje, {
+    destino: ancho ? id('detalle-historial') : null,
+    pedir: (boton) => impugnar(viaje.id, boton),
+  });
 }
 
 async function cargarHistorial({ mas = false } = {}) {
@@ -386,14 +404,14 @@ async function impugnar(viajeId, boton) {
   if (!alegacion) return;
 
   boton.disabled = true;
-  boton.textContent = 'Enviando…';
   try {
     await impugnarViaje(viajeId, alegacion);
     estado(id('msg-historial'), 'Revisión pedida. Verás la respuesta en el propio trayecto.', 'ok');
+    document.querySelector('.pantalla-veredicto .veredicto-cerrar')?.click();
+    reemplazar(id('detalle-historial'));
     await cargarHistorial();
   } catch (error) {
     boton.disabled = false;
-    boton.textContent = 'Pedir revisión humana';
     estado(id('msg-historial'), error.message, 'error');
   }
 }

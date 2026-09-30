@@ -12,7 +12,6 @@
 import { el, icono, reemplazar } from './dom.js';
 import { nombreRuta, formatearTiempo } from './ui.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
-import { motivoDeViaje } from './motivos.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
 
 // --- Formato -----------------------------------------------------------------
@@ -344,9 +343,9 @@ function textoExtra(v) {
  *
  * @param {Array<{id, datos}>} viajes  lo cargado hasta ahora, en orden
  * @param {string} filtro
- * @param {{ alImpugnar: Function }} acciones
+ * @param {{ alAbrir: Function }} acciones  alAbrir(viaje con id, fila)
  */
-export function nodosHistorial(viajes, filtro, { alImpugnar }) {
+export function nodosHistorial(viajes, filtro, { alAbrir }) {
   const vale = (FILTROS.find((f) => f.clave === filtro) || FILTROS[0]).vale;
   const visibles = viajes.filter((v) => vale(v.datos));
 
@@ -373,10 +372,9 @@ export function nodosHistorial(viajes, filtro, { alImpugnar }) {
     const estado = v.estado === 'aprobado' && v.fueraDeCupo
       ? { clase: 'pendiente', texto: 'Sin puntos · pasado el cupo' }
       : ESTADOS[v.estado] || ESTADOS.pendiente;
-    const detalle = el('div', { clase: 'detalle-viaje oculto' }, nodosDetalle(id, v, alImpugnar));
     const fila = el('button', {
       clase: 'fila-viaje',
-      attrs: { type: 'button', 'aria-expanded': 'false' },
+      attrs: { type: 'button', 'data-viaje': id },
     }, [
       el('span', { clase: 'ruta-viaje', texto: nombreRuta(v.ruta) }),
       el('span', { clase: 'tiempo', texto: formatearTiempo(v.tiempoSegundos) }),
@@ -384,54 +382,10 @@ export function nodosHistorial(viajes, filtro, { alImpugnar }) {
       el('span', { clase: 'extra', texto: textoExtra(v) }),
     ]);
 
-    fila.addEventListener('click', () => {
-      const abierto = fila.getAttribute('aria-expanded') === 'true';
-      fila.setAttribute('aria-expanded', String(!abierto));
-      detalle.classList.toggle('oculto', abierto);
-    });
+    // 6c: cada fila abre el detalle de 3k / 3l (en escritorio, al lado).
+    fila.addEventListener('click', () => alAbrir({ id, ...v }, fila));
 
-    nodos.push(el('div', {}, [fila, detalle]));
-  }
-
-  return nodos;
-}
-
-/** Lo que se ve al abrir una fila: el motivo si no cuenta, y que se puede hacer. */
-function nodosDetalle(id, v, alImpugnar) {
-  const nodos = [];
-
-  if (v.estado === 'rechazado') {
-    // El texto sale de `motivos.js`: el resumen de la auditoria esta escrito
-    // para quien revisa y lleva dentro los numeros del antifraude.
-    const motivo = motivoDeViaje(v);
-    nodos.push(el('div', { clase: 'aviso error' }, [
-      el('p', { clase: 'etiqueta', texto: motivo.dePersona ? 'Lo que dice quien lo ha revisado' : 'Por qué no cuenta' }),
-      el('p', { texto: motivo.texto }),
-      motivo.queHacer ? el('p', { texto: motivo.queHacer }) : null,
-    ]));
-  }
-
-  if (impugnable(v)) {
-    const boton = el('button', { clase: 'btn plano', texto: 'Pedir revisión humana', attrs: { type: 'button' } });
-    boton.addEventListener('click', () => alImpugnar(id, boton));
-    nodos.push(boton);
-  } else if (v.impugnado) {
-    nodos.push(el('p', { clase: 'menor apagado', estilo: { margin: '0' },
-      texto: 'Has pedido revisión humana. La va a mirar una persona.' }));
-  }
-
-  if (v.estado === 'aprobado' && v.distanciaMetros) {
-    const km = (v.distanciaMetros / 1000).toFixed(1).replace('.', ',');
-    nodos.push(el('p', { clase: 'menor apagado', estilo: { margin: '0' },
-      texto: `${km} km${v.velocidadKmh ? ` · ${String(v.velocidadKmh.toFixed(1)).replace('.', ',')} km/h` : ''}` }));
-  }
-  if (v.estado === 'pendiente') {
-    nodos.push(el('p', { clase: 'menor apagado', estilo: { margin: '0' },
-      texto: 'En cola: el análisis automático tarda de 5 a 15 minutos.' }));
-  }
-  if (v.estado === 'revision' && !v.impugnado) {
-    nodos.push(el('p', { clase: 'menor apagado', estilo: { margin: '0' },
-      texto: 'Una persona lo va a revisar. No hace falta que hagas nada.' }));
+    nodos.push(fila);
   }
 
   return nodos;
@@ -446,11 +400,6 @@ export function diasQueQuedan(ahora = new Date()) {
   return ultimo - d;
 }
 
-/**
- * @param {object} perfil
- * @param {Array<{temporada, nombre, puntos, posicion, division}>} cerradas
- *   ya ordenadas y con nombre (lo decide la pagina)
- */
 /**
  * 8m: las ultimas cinco temporadas como barras (80 px la mejor), la actual en
  * azul, y la mejor posicion a la derecha del titulo.
@@ -475,6 +424,11 @@ function pintarBarrasTemporadas(actual, cerradas) {
     : '';
 }
 
+/**
+ * @param {object} perfil
+ * @param {Array<{temporada, nombre, puntos, posicion, division}>} cerradas
+ *   ya ordenadas y con nombre (lo decide la pagina)
+ */
 export function pintarTemporadas(perfil, cerradas, puesto = null) {
   const actual = perfil.puntosTemporada || 0;
   const mejor = Math.max(actual, ...cerradas.map((t) => t.puntos || 0), 1);

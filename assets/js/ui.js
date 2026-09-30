@@ -333,10 +333,12 @@ function montarAtajosDeSubida(enSubir) {
   document.addEventListener('click', (evento) => {
     const enlace = evento.target.closest?.('[data-subir]');
     if (!enlace) return;
+    // En escritorio el boton lleva SIEMPRE a /subir/ (8f: la captura a la
+    // izquierda y el billete a la derecha); nada de saltarse la pagina.
+    if (window.matchMedia('(min-width: 900px)').matches) return;
     // 3a: las dos primeras veces, en el movil, la hoja de subida sobre esta
-    // misma pantalla. En escritorio el + lleva a /subir/ (8b).
+    // misma pantalla.
     if (vecesSubidaAbierta() < 2) {
-      if (window.matchMedia('(min-width: 900px)').matches) return;
       evento.preventDefault();
       anotarSubidaAbierta();
       import('./hoja-subir.js').then((m) => m.abrirHojaSubir());

@@ -19,7 +19,7 @@ import {
   getAdditionalUserInfo, verifyPasswordResetCode, confirmPasswordReset, applyActionCode,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
-  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
   deleteDoc, query, where, orderBy, limit, startAfter, serverTimestamp, increment,
   arrayUnion, arrayRemove, writeBatch, Timestamp, onSnapshot, getDocsFromCache,
@@ -88,8 +88,25 @@ export const auth = initializeAuth(app, {
  * Es `initializeFirestore` y no `getFirestore` porque la cache solo se puede
  * declarar en la creacion. Y va con try: en modo privado de Safari IndexedDB
  * puede no estar disponible, y quedarse sin cache es peor que quedarse sin web.
+ *
+ * EXCEPTO EN WEBKIT (Safari, y cualquier navegador de iPhone, que por dentro
+ * son Safari). Ahi la cache persistente con varias pestañas se quedaba
+ * colgada: las lecturas con sesion no volvian nunca, sin lanzar ningun error,
+ * y la web entera parecia muerta (sin nombre en Tu, sin tema, sin Hoy). Sin
+ * sesion no se notaba porque esas paginas apenas leen. En WebKit va en memoria:
+ * se pagan algunas lecturas mas, pero la web funciona.
  */
+function esWebKit() {
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent || '';
+  // En iPhone todos los navegadores son WebKit (CriOS, FxiOS…); en el resto,
+  // Safari es el unico que dice AppleWebKit sin decir Chrome/Chromium/Edge.
+  return /iP(hone|ad|od)/.test(ua)
+    || (/Macintosh/.test(ua) && typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1)
+    || (/AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg|Android/.test(ua));
+}
+
 function crearFirestore() {
+  if (esWebKit()) return initializeFirestore(app, { localCache: memoryLocalCache() });
   try {
     return initializeFirestore(app, {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),

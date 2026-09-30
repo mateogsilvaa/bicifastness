@@ -324,6 +324,20 @@ Es la llave con la que el worker y el CI hablan con Firebase.
 3. Ábrelo con el Bloc de notas y copia **todo** el contenido (de la primera
    `{` a la última `}`).
 
+4. **Dale permiso para desplegar las reglas.** La clave que genera Firebase
+   puede leer y escribir datos, pero no desplegar reglas ni índices: sin esto,
+   el trabajo `reglas` de Actions falla con *«HTTP Error: 403, Permission denied
+   to get service [firestore.googleapis.com]»*. La web se publica igual, pero
+   las reglas no se actualizan.
+   - https://console.cloud.google.com/iam-admin/iam?project=bicifastness
+   - Busca la cuenta que acaba en `@bicifastness.iam.gserviceaccount.com` y
+     empieza por `firebase-adminsdk-` → el lápiz (Editar) → **Añadir otro rol**,
+     tres veces: **Consumidor de Service Usage** (*Service Usage Consumer*),
+     **Administrador de reglas de Firebase** (*Firebase Rules Admin*) y
+     **Administrador de índices de Cloud Datastore** (*Cloud Datastore Index
+     Admin*) → Guardar.
+   - No hace falta generar otra clave: los permisos van con la cuenta.
+
 **No guardes ese fichero dentro de la carpeta del proyecto** ni lo subas a
 ningún sitio. Lo vas a necesitar otra vez en el paso 7 y en el 14; después,
 bórralo.

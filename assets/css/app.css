@@ -2342,7 +2342,7 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 .veredicto-botones { display: flex; flex-direction: column; gap: inherit; }
 .veredicto-botones:empty { display: none; }
 .migas { display: none; }
-.nota-aviso, .datos-escritorio, .indice-ajustes { display: none; }
+.nota-aviso, .datos-escritorio, .indice-ajustes, .acceso-atajo { display: none; }
 .hoja-cuenta.derecha { align-self: flex-end; }
 @media (min-width: 900px) {
   .velo.solo-escritorio { display: block !important; z-index: 79; }
@@ -3219,8 +3219,18 @@ body.sin-navegacion .lateral { display: none; }
 }
 @media (min-width: 900px) {
   body.con-marca .acceso { max-width: 440px; justify-content: center; }
+  /* 8e: el formulario, centrado en lo que deja el panel azul; titulo de 36,
+     casillas de 22 y el atajo de Intro debajo del boton. */
+  body.con-marca.sin-navegacion { padding-left: min(560px, 42vw); }
+  body.con-marca .acceso-titulo { font-size: 36px; }
+  body.con-marca .acceso-sub { line-height: normal; }
+  body.con-marca .casillas { gap: 12px; }
+  body.con-marca .casilla input[type='checkbox'] { width: 22px; min-width: 22px; height: 22px; }
+  body.con-marca .acceso-atajo { display: block; margin: 0; font-size: 13px; line-height: normal; color: var(--tinta-3); }
+  body.con-marca .acceso-marca .logo-palabra { font-size: 19px; }
   body.con-marca .acceso-cuerpo { flex: none; }
-  body.con-marca .acceso-hueco { flex: none; height: var(--e2); }
+  body.con-marca .acceso-hueco { display: none; }
+  body.con-marca .acceso > .btn.grande { margin-top: 6px; }
 }
 
 /* 8m · Tu en escritorio ancho: el resumen a la izquierda (640) e insignias y

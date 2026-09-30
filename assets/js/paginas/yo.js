@@ -16,9 +16,9 @@ import {
   collection, getDocs, getCountFromServer, query, where, orderBy, limit, startAfter, doc, getDoc,
 } from '/assets/js/firebase.js';
 import { iniciarPagina, nombreRuta, temaElegido, elegirTema } from '/assets/js/ui.js';
-import { id, el, estado, reemplazar, icono, pedirTexto } from '/assets/js/dom.js';
+import { id, el, estado, reemplazar, icono } from '/assets/js/dom.js';
 import {
-  impugnarViaje, exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo, guardarFavoritas,
+  exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo, guardarFavoritas,
 } from '/assets/js/acciones.js';
 import { vaciarCache } from '/assets/js/cache.js';
 import { abrirResuelto } from '/assets/js/veredicto.js';
@@ -369,9 +369,15 @@ function abrirViaje(viaje, fila) {
   const ancho = anchoHistorial();
   for (const f of id('historial').querySelectorAll('.fila-viaje.elegida')) f.classList.remove('elegida');
   if (ancho) fila.classList.add('elegida');
+  // 3m: la hoja de "Que lo mire una persona" es la de veredicto.js; al
+  // enviarla, el historial se vuelve a pedir para enseñar que esta pedida.
   abrirResuelto(viaje, {
     destino: ancho ? id('detalle-historial') : null,
-    pedir: (boton) => impugnar(viaje.id, boton),
+    alPedirRevision: () => {
+      estado(id('msg-historial'), 'Revisión pedida. Verás la respuesta en el propio trayecto.', 'ok');
+      reemplazar(id('detalle-historial'));
+      cargarHistorial();
+    },
   });
 }
 
@@ -413,32 +419,6 @@ function botonVerMas() {
     await cargarHistorial({ mas: true });
   });
   return boton;
-}
-
-/**
- * Pide que una persona revise un rechazo automatico.
- * Es un derecho del art. 22.3 del RGPD, no una cortesia: la politica de
- * privacidad lo promete.
- */
-async function impugnar(viajeId, boton) {
-  const alegacion = await pedirTexto(
-    'Explica por qué crees que el rechazo es un error. Lo leerá una persona.',
-    { etiqueta: 'Tu explicación', textoAceptar: 'Pedir revisión', minimo: 15,
-      marcador: 'Por ejemplo: la captura es auténtica, el trayecto lo hice el…' }
-  );
-  if (!alegacion) return;
-
-  boton.disabled = true;
-  try {
-    await impugnarViaje(viajeId, alegacion);
-    estado(id('msg-historial'), 'Revisión pedida. Verás la respuesta en el propio trayecto.', 'ok');
-    document.querySelector('.pantalla-veredicto .veredicto-cerrar')?.click();
-    reemplazar(id('detalle-historial'));
-    await cargarHistorial();
-  } catch (error) {
-    boton.disabled = false;
-    estado(id('msg-historial'), error.message, 'error');
-  }
 }
 
 // --- Ajustes ---------------------------------------------------------------------

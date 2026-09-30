@@ -262,7 +262,7 @@ export function pedirRevisionHumana(viaje, alTerminar) {
     ]),
     enviar,
     error,
-  ], { etiqueta: 'Pedir revisión humana' });
+  ], { etiqueta: 'Pedir revisión humana', clase: 'hoja-revision dialogo-escritorio' });
 
   enviar.addEventListener('click', async () => {
     enviar.disabled = true;

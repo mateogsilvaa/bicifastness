@@ -1531,6 +1531,11 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 .hoja p { line-height: 1.45; }
 .hoja .mensaje:empty { display: none; }
 .hoja > .btn.plano { min-height: 44px; font-size: 15px; }
+/* 3m: titulo de 22, rotulo de 13 y el texto sobre papel, de 148. */
+.hoja.hoja-revision h2 { font-size: 22px; line-height: normal; }
+.hoja-revision label { font-size: 13px; line-height: normal; color: var(--tinta-2); }
+.hoja-revision textarea { min-height: 148px; border-radius: 12px; background: var(--papel); border-color: var(--papel); }
+.hoja-revision .hoja-cuenta { font-size: 12px; line-height: normal; }
 .confirmar-nombre { margin: 0; }
 .confirmar-nombre > span { font-size: 13px; line-height: normal; color: var(--tinta-2); }
 .confirmar-nombre strong { color: var(--tinta); }

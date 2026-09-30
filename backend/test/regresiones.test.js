@@ -402,7 +402,9 @@ test('los eventos del embudo los emite alguien', () => {
 
 test('se puede impugnar un rechazo automatico (RGPD art. 22.3)', () => {
   assert.match(leerCodigo('assets/js/acciones.js'), /export async function impugnarViaje/);
-  assert.match(leerCodigo('assets/js/paginas/yo.js'), /impugnarViaje\(/);
+  // La hoja de 3m vive en veredicto.js, que abren el historial y Hoy.
+  assert.match(leerCodigo('assets/js/veredicto.js'), /impugnarViaje\(/);
+  assert.match(leerCodigo('assets/js/paginas/yo.js'), /abrirResuelto\(/);
   assert.match(bloque('tiempos_viaje'), /previo\(\)\.revisadoPor == 'automatico'/);
 });
 

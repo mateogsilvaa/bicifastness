@@ -47,6 +47,11 @@ http.createServer((peticion, respuesta) => {
 
   if (url.endsWith('/')) destino = path.join(destino, 'index.html');
   if (MAQUETA && url === '/assets/js/firebase.js') destino = path.join(__dirname, 'maqueta', 'firebase.js');
+  // El lector, con lecturas fijas a peticion (scripts/maqueta/extraccion.js);
+  // `?real` es el de verdad, que el de la maqueta usa por debajo.
+  if (MAQUETA && url === '/assets/js/extraccion.js' && !peticion.url.includes('?real')) {
+    destino = path.join(__dirname, 'maqueta', 'extraccion.js');
+  }
 
   if (!fs.existsSync(destino) || fs.statSync(destino).isDirectory()) {
     const cuatrocientos = path.join(RAIZ, '404.html');

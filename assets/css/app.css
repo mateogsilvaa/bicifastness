@@ -2323,6 +2323,8 @@ body:has(.subir) #pie-legal { display: none; }
 .subir-acciones .btn.secundario { min-height: 50px; border-radius: 14px; font-size: 16px; }
 .avisos-previos .aviso { margin: 0; border-radius: 14px; }
 .subir-enviar .hoy-pista.error { color: var(--rojo); }
+.subir-enviar { gap: 14px; }
+.subir-enviar .hoy-pista { font-size: 12px; line-height: normal; color: var(--tinta-3); }
 .captura-grande { display: block; width: 100%; max-height: 80vh; object-fit: contain; border-radius: 14px; }
 
 /* 3a · Inicio. */

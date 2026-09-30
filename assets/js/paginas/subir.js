@@ -582,7 +582,8 @@ function pintarConfirmar() {
         el('div', { clase: 'subir-hueco' }),
         el('div', { clase: 'subir-enviar' }, [
           boton,
-          el('span', { clase: 'hoy-pista', texto: lleno ? textoPuesto() : `${textoPuesto()} · Toca cualquier dato para corregirlo` }),
+          // 3c: "1.º de 3 que puntúan hoy"; cada dato del billete ya se ve tocable.
+          el('span', { clase: 'hoy-pista', texto: textoPuesto() }),
         ]),
       ]),
     ]),

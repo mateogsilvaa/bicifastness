@@ -2038,6 +2038,8 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 .hoy-titulo h1 { margin: 0; font-size: 24px; font-weight: 800; font-stretch: 88%; letter-spacing: -.03em; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hoy-avatar { width: 40px; height: 40px; font-size: 16px; font-weight: 700; text-decoration: none; }
 .hoy-avatar:hover { color: var(--blanco); }
+/* 2h: en oscuro la tinta es clara, asi que la inicial va en el color del fondo. */
+[data-theme='dark'] .avatar-inicial:not([style*="background"]), [data-theme='dark'] .hoy-avatar:not([style*="background"]):hover { color: var(--papel); }
 
 .hoy-rejilla { display: flex; flex-direction: column; gap: 14px; }
 .hoy-principal, .hoy-lateral { display: flex; flex-direction: column; gap: 14px; min-width: 0; }

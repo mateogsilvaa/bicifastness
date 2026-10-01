@@ -11,6 +11,7 @@ import { el, icono, abrirHoja } from '/assets/js/dom.js';
 import { auth, db, doc, getDoc } from '/assets/js/firebase.js';
 import { LIMITES_CLIENTE } from '/assets/js/precheck.js';
 import { guardarPendiente } from '/assets/js/captura-pendiente.js';
+import { atajoCompartir } from '/assets/js/ui.js';
 
 const CUPO = LIMITES_CLIENTE.VIAJES_POR_DIA;
 
@@ -83,7 +84,7 @@ export function abrirHojaSubir() {
         el('span', { clase: 'mal' }, [icono('cerrar', 'icono peq'), el('span', { texto: 'Reenviada por WhatsApp' })]),
       ]),
     ]),
-    el('span', { clase: 'subir-truco' }, [icono('compartir', 'icono peq'), el('span', { texto: 'Más rápido: en Fotos, Compartir → bicifastness' })]),
+    atajoCompartir() ? el('span', { clase: 'subir-truco' }, [icono('compartir', 'icono peq'), el('span', { texto: atajoCompartir().texto })]) : null,
     selector,
   ], { etiqueta: 'Subir trayecto', clase: 'hoja-subir' });
 }

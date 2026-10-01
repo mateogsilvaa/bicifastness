@@ -193,7 +193,12 @@ function extraerEstaciones(texto) {
   // Respaldo: numero al principio de linea seguido de guion.
   const alPrincipio = [...texto.matchAll(/^\s*(\d{1,3})\s*[-–]\s*\S/gm)].map((m) => m[1]);
   // Una linea sola con su "(124)": la lectura por lineas de extraerTrayectos.
-  return alPrincipio.length ? alPrincipio : conParentesis;
+  if (alPrincipio.length) return alPrincipio;
+  if (conParentesis.length) return conParentesis;
+  // Nombre cortado por la app ("176 - Plaza de la Beata María Ana de Jesús (17..."):
+  // numero, guion y nombre, en una linea sin mas numeros de estacion.
+  const cortada = String(texto).match(/(?:^|\s)(\d{1,3})\s*[-–]\s*[A-Za-zÁÉÍÓÚÑáéíóúñ][^\n]*\(\d{0,3}\.{2,}/);
+  return cortada ? [cortada[1]] : [];
 }
 
 /**
@@ -265,8 +270,83 @@ function biciSuelta(texto) {
  * la primera es la salida y la segunda la llegada). La fecha es la del
  * trayecto, y con ella se comprueba que no tenga mas de un mes.
  */
+
+/**
+ * Tiempo de una barra leida aparte ("llm. 44s." es 11m. 44s.): la letra de
+ * BiciMAD hace que el 1 salga l, I o |, y el 0, o u O.
+ */
+function tiempoDeBarra(texto) {
+  const t = String(texto || '').replace(/[lI|]/g, '1').replace(/[oO]/g, '0');
+  const m = t.match(/(\d{1,3})\s*m\.?\s*(\d{1,2})\s*s/);
+  if (!m || Number(m[2]) > 59) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/**
+ * Numero de bici de la pasada de solo numeros: "7518853" es el icono leido
+ * como "75" seguido de la bici. Fechas, horas y tiempos no valen.
+ */
+function biciDeNumero(texto) {
+  const t = String(texto || '');
+  if (!/^\d{4,7}$/.test(t)) return '';
+  if (t.length <= 5) return t;
+  // "235 - Sodio (235)" sin letras es "235235": eso es una estacion, no una bici.
+  if (t.length === 6 && t.slice(0, 3) === t.slice(3)) return '';
+  return t.slice(-5);
+}
+
+/**
+ * Pone a cada trayecto el tiempo y la bici que le tocan por ALTURA en la
+ * captura, cuando el historial trae varias tarjetas. La barra del tiempo va
+ * debajo de su salida; la bici, encima.
+ *
+ * @param {Array} trayectos  los de extraerTrayectos
+ * @param {Array<{texto: string, y: number}>} lineas  las de la pasada principal
+ * @param {Array<{segundos: number, y: number}>} tiempos
+ * @param {Array<{bici: string, y: number}>} bicis
+ */
+/**
+ * Los campos sueltos de la lectura (origen, tiempo, bici…) son los del primer
+ * trayecto, que es el que mejor se ha leido: con su tiempo sacado de las horas
+ * y su bici por altura. Sin trayectos, se quedan como estaban.
+ */
+function conPrimerTrayecto(lectura) {
+  const [t] = lectura.trayectos || [];
+  if (!t) return lectura;
+  const sale = { ...lectura };
+  for (const campo of ['origen', 'destino', 'horaSalida', 'horaLlegada', 'segundosDuracion', 'numeroBici', 'fecha']) {
+    if (t[campo] !== '' && t[campo] !== null && t[campo] !== undefined) sale[campo] = t[campo];
+  }
+  return sale;
+}
+
+function asignarPorAltura(trayectos, lineas, tiempos, bicis) {
+  // La altura de la salida de cada trayecto: cada dos estaciones, uno nuevo.
+  const salidas = [];
+  let estaciones = 0;
+  for (const { texto, y } of lineas) {
+    for (let i = 0; i < extraerEstaciones(texto).length; i++) {
+      if (estaciones % 2 === 0) salidas.push(y);
+      estaciones++;
+    }
+  }
+  if (salidas.length !== trayectos.length) return trayectos;
+  const porHoras = trayectos.map((t) => Boolean(t.tiempoPorHoras));
+  const conDatos = trayectos.map((t) => ({ ...t }));
+  for (const { segundos, y } of tiempos) {
+    let k = -1;
+    salidas.forEach((ys, i) => { if (ys < y) k = i; });
+    if (k >= 0 && segundos && !porHoras[k]) conDatos[k].segundosDuracion = segundos;
+  }
+  for (const { bici, y } of bicis) {
+    const k = salidas.findIndex((ys) => ys > y);
+    if (k >= 0 && (k === 0 || salidas[k - 1] < y) && bici) conDatos[k].numeroBici = bici;
+  }
+  return conDatos;
+}
+
 function extraerFechas(texto) {
-  const re = /\b(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})\s+([01]?\d|2[0-3]):([0-5]\d)/g;
+  const re = /\b(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})\s+([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?/g;
   return [...String(texto || '').matchAll(re)].flatMap((m) => {
     const dia = Number(m[1]);
     const mes = Number(m[2]);
@@ -275,6 +355,8 @@ function extraerFechas(texto) {
     return [{
       fecha: `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
       hora: `${m[4].padStart(2, '0')}:${m[5]}`,
+      // Segundos desde medianoche, si la captura trae los segundos.
+      segundosDia: m[6] !== undefined ? Number(m[4]) * 3600 + Number(m[5]) * 60 + Number(m[6]) : null,
     }];
   });
 }
@@ -327,6 +409,8 @@ function extraerTrayectos(texto) {
   });
 
   let biciPendiente = '';
+  const segundosSalida = new WeakMap();
+  const porHoras = new WeakMap();
   for (const linea of String(texto || '').split(/\r?\n/)) {
     const estaciones = extraerEstaciones(linea);
 
@@ -353,10 +437,20 @@ function extraerTrayectos(texto) {
     if (horas.salida && !actual.horaSalida) actual.horaSalida = horas.salida;
     if (horas.llegada && !actual.horaLlegada) actual.horaLlegada = horas.llegada;
 
-    for (const { fecha, hora } of extraerFechas(linea)) {
+    for (const { fecha, hora, segundosDia } of extraerFechas(linea)) {
       if (!actual.fecha) actual.fecha = fecha;
-      if (!actual.horaSalida) actual.horaSalida = hora;
-      else if (!actual.horaLlegada && hora !== actual.horaSalida) actual.horaLlegada = hora;
+      if (!actual.horaSalida) {
+        actual.horaSalida = hora;
+        segundosSalida.set(actual, segundosDia);
+      } else if (!actual.horaLlegada && hora !== actual.horaSalida) {
+        actual.horaLlegada = hora;
+        // De la salida a la llegada, con segundos: es el tiempo del trayecto.
+        const desde = segundosSalida.get(actual);
+        if (desde !== null && desde !== undefined && segundosDia !== null) {
+          const duracion = (segundosDia - desde + 86400) % 86400;
+          if (duracion > 0 && duracion <= 3 * 3600) porHoras.set(actual, duracion);
+        }
+      }
     }
 
     const duracion = extraerDuracion(linea);
@@ -367,6 +461,15 @@ function extraerTrayectos(texto) {
   }
 
   guardar();
+  // El tiempo sacado de las horas manda sobre el leido en la barra. Se marca
+  // (sin enumerar, para no cambiar la forma del trayecto) para que la pasada
+  // de la barra no lo pise.
+  for (const t of trayectos) {
+    if (porHoras.has(t)) {
+      t.segundosDuracion = porHoras.get(t);
+      Object.defineProperty(t, 'tiempoPorHoras', { value: true, enumerable: false });
+    }
+  }
   // La bici suelta va antes de la primera estacion, fuera de cualquier trayecto.
   const suelta = biciSuelta(texto);
   if (suelta && trayectos[0] && !trayectos[0].numeroBici) trayectos[0].numeroBici = suelta;
@@ -475,7 +578,7 @@ async function leerCaptura({ buffer }) {
     // pedirla, porque el manejador se instala una vez y el worker se reutiliza.
     fallo = null;
 
-    const reconocer = worker.recognize(preparada.buffer);
+    const reconocer = worker.recognize(preparada.buffer, {}, { text: true, blocks: true });
     const limite = new Promise((_, rechazar) => {
       temporizador = setTimeout(() => rechazar(new Error('Tiempo de espera agotado')), TIMEOUT_MS);
     });
@@ -492,15 +595,40 @@ async function leerCaptura({ buffer }) {
     const texto = String(data.text || '');
     const plano = texto.toLowerCase();
 
+    // Pasadas de solo numeros, con el mismo motor: el tiempo de cada barra azul
+    // (una linea cada una) y las bicis (dispersas por la captura). Asi no se
+    // confunde el 1 con una T ni el 0 con una o.
+    const lineas = (data.blocks || []).flatMap((b) => (b.paragraphs || []).flatMap((pa) => pa.lines || []))
+      .map((l) => ({ texto: String(l.text || ''), y: l.bbox.y0 }));
+    const tiempos = [];
+    const bicisLeidas = [];
+    try {
+      await worker.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '0123456789msIl|oO. ' });
+      for (const recorte of await normalizar.recortesDeFranjas(preparada.buffer, preparada.franjas, preparada.ancho)) {
+        const { data: d } = await worker.recognize(recorte.buffer);
+        const segundos = tiempoDeBarra(d.text);
+        if (segundos) tiempos.push({ segundos, y: recorte.y });
+      }
+      await worker.setParameters({ tessedit_pageseg_mode: '11', tessedit_char_whitelist: '0123456789' });
+      const { data: n } = await worker.recognize(preparada.buffer, {}, { text: true, blocks: true });
+      for (const palabra of (n.blocks || []).flatMap((b) => b.paragraphs.flatMap((pa) => pa.lines.flatMap((l) => l.words)))) {
+        const bici = biciDeNumero(palabra.text);
+        if (bici) bicisLeidas.push({ bici, y: palabra.bbox.y0 });
+      }
+    } finally {
+      await worker.setParameters({ tessedit_pageseg_mode: SEGMENTACION, tessedit_char_whitelist: '' });
+    }
+    const trayectosLeidos = asignarPorAltura(extraerTrayectos(texto), lineas, tiempos, bicisLeidas);
+
     const horas = extraerHoras(texto);
     const estaciones = extraerEstaciones(texto);
 
-    return {
+    return conPrimerTrayecto({
       disponible: true,
       // Todos los trayectos que hay en la captura (#11). Los campos sueltos de
       // abajo siguen siendo los del primero, para no cambiarle la forma a quien
       // solo espera uno.
-      trayectos: extraerTrayectos(texto),
+      trayectos: trayectosLeidos,
       esBicimad: (MARCADORES.some((m) => plano.includes(m)) || (estaciones.length >= 2 && extraerDuracion(texto) !== null)),
       // De donde venia la captura. No decide nada: sirve para poder MEDIR
       // despues donde falla la extraccion. Sin esto, "el OCR falla a veces" no
@@ -518,7 +646,7 @@ async function leerCaptura({ buffer }) {
       fecha: extraerFechas(texto)[0]?.fecha || '',
       relojBarra: extraerRelojBarra(texto),
       texto,
-    };
+    });
   } catch (err) {
     // Tesseract rechaza con una cadena suelta, no con un Error, asi que
     // `err.message` sale undefined y el motivo se pierde. El motivo acaba en la
@@ -620,6 +748,10 @@ module.exports = {
   extraerDuracion,
   extraerBici,
   extraerFechas,
+  tiempoDeBarra,
+  biciDeNumero,
+  asignarPorAltura,
+  conPrimerTrayecto,
   biciDeLinea,
   biciSuelta,
   extraerRelojBarra,

@@ -226,7 +226,10 @@ function pintarInicio() {
   // 8b: en escritorio, la pagina de subir ES la zona de soltar del diseño
   // (el mismo marco que sale al arrastrar una captura sobre cualquier pagina).
   // Toda ella es clicable para elegir la captura.
-  if (!b && window.matchMedia('(min-width: 900px)').matches) {
+  // En el movil, la misma composicion adaptada: no se arrastra, se toca, y
+  // abajo va el atajo de Compartir en vez de las teclas.
+  if (!b) {
+    const escritorio = window.matchMedia('(min-width: 900px)').matches;
     const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     reemplazar(id('s-inicio'), el('div', {
       clase: 'subir-8b', attrs: { role: 'button', tabindex: '0', 'aria-label': 'Elegir captura' },
@@ -241,18 +244,24 @@ function pintarInicio() {
           el('span', { clase: 'capa-soltar-captura' }, [el('img', { attrs: { src: '/images/ejemplo.jpg', alt: '' } })]),
           el('span', { clase: 'capa-soltar-mas' }, [icono('mas', 'icono')]),
         ]),
-        el('strong', { texto: 'Suéltala para leerla' }),
-        el('span', { texto: 'Leemos estaciones, tiempo y horas en tu navegador. Puedes soltar varias a la vez: cada una es un trayecto.' }),
+        el('strong', { texto: escritorio ? 'Suéltala para leerla' : 'Toca para elegirla' }),
+        el('span', {
+          texto: escritorio
+            ? 'Leemos estaciones, tiempo y horas en tu navegador. Puedes soltar varias a la vez: cada una es un trayecto.'
+            : 'La captura del trayecto en la app de BiciMAD. Leemos estaciones, tiempo, fecha y bici en tu móvil; si salen varios viajes, los subes todos.',
+        }),
         el('span', { clase: 'capa-soltar-chips' }, [
           el('span', { texto: 'JPG · PNG · WebP · HEIC' }),
           el('span', { texto: 'Hasta 30 días atrás' }),
           el('span', { texto: `Hoy puntúan ${CUPO} · llevas ${usados}` }),
         ]),
       ]),
-      el('div', { clase: 'capa-soltar-teclas' }, [
-        el('kbd', { texto: 'Clic' }), 'elegir captura', el('span', { clase: 'hueco' }),
-        el('kbd', { texto: mac ? '⌘ V' : 'Ctrl V' }), 'también pega una captura copiada',
-      ]),
+      escritorio
+        ? el('div', { clase: 'capa-soltar-teclas' }, [
+          el('kbd', { texto: 'Clic' }), 'elegir captura', el('span', { clase: 'hueco' }),
+          el('kbd', { texto: mac ? '⌘ V' : 'Ctrl V' }), 'también pega una captura copiada',
+        ])
+        : el('div', { clase: 'capa-soltar-teclas' }, [icono('compartir', 'icono peq'), 'Más rápido: en Fotos, Compartir → bicifastness']),
     ]));
     return;
   }

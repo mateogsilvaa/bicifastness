@@ -139,7 +139,7 @@ export function extraerHoras(texto) {
 export function extraerEstaciones(texto) {
   // Solo el "(124)" que cierra "124 - Nombre (124)": un parentesis suelto (el
   // icono del reloj leido como "(5)") no es una estacion.
-  const conParentesis = [...texto.matchAll(/-[^\n()]*\S\s*\((\d{1,3}[a-zA-Z]?)\)/g)].map((m) => m[1]);
+  const conParentesis = [...texto.matchAll(/-[^\n()]*?\S\s*\(?(\d{1,3}[a-zA-Z]?)\)/g)].map((m) => m[1]);
   if (conParentesis.length >= 2) return conParentesis;
 
   const alPrincipio = [...texto.matchAll(/^\s*(\d{1,3})\s*[-–]\s*\S/gm)].map((m) => m[1]);
@@ -179,6 +179,17 @@ export function extraerBici(texto) {
  * corrige lo que el OCR confunde en ese gris claro (l, I, | por 1; o, O por 0:
  * "lo310" es la 10310).
  */
+/** El numero de bici de una linea suelta ("7 18853 O", "— 75 lo310"), o ''. */
+export function biciDeLinea(linea) {
+  if (/[:/€]/.test(linea)) return '';
+  for (const trozo of String(linea || '').split(/\s+/)) {
+    if (!/^[0-9lIioO|]{4,6}$/.test(trozo) || (trozo.match(/\d/g) || []).length < 3) continue;
+    const numero = trozo.replace(/[lIi|]/g, '1').replace(/[oO]/g, '0');
+    if (/^\d{4,5}$/.test(numero)) return numero;
+  }
+  return '';
+}
+
 export function biciSuelta(texto) {
   const lineas = String(texto || '').split(/\r?\n/);
   const primera = lineas.findIndex((l) => /\(\d{1,3}[a-zA-Z]?\)/.test(l));
@@ -244,13 +255,22 @@ export function extraerTrayectos(texto) {
     origen: '', destino: '', horaSalida: '', horaLlegada: '', segundosDuracion: null, numeroBici: '', fecha: '',
   });
 
+  let biciPendiente = '';
   for (const linea of String(texto || '').split(/\r?\n/)) {
     const estaciones = extraerEstaciones(linea);
+
+    // En el historial cada tarjeta empieza con su bici ("18853"), antes de sus
+    // estaciones: se guarda y se da al trayecto que empieza despues.
+    if (!estaciones.length && !extraerBici(linea)) {
+      const suelta = biciDeLinea(linea);
+      if (suelta && (!actual || (actual.origen && actual.destino))) biciPendiente = suelta;
+    }
 
     for (const estacion of estaciones) {
       if (!actual) actual = nuevo();
       // Ya tenia las dos: esta estacion abre el siguiente trayecto.
       if (actual.origen && actual.destino) { guardar(); actual = nuevo(); }
+      if (biciPendiente && !actual.origen && !actual.numeroBici) { actual.numeroBici = biciPendiente; biciPendiente = ''; }
 
       if (!actual.origen) actual.origen = estacion;
       else actual.destino = estacion;
@@ -432,6 +452,27 @@ export function prepararParaOcr(imagen, { niveles = true } = {}) {
 
   const media = suma / (datos.length / 4);
   const invertir = media < UMBRAL_OSCURO;
+
+  // Franjas oscuras (la barra azul del tiempo): blanco sobre oscuro se lee muy
+  // mal. Cada fila oscura en mas de la mitad de su ancho se invierte y se
+  // estira. Gemela de invertirFranjas (backend/src/normalizar.js).
+  for (let y = 0; y < lienzo.height; y++) {
+    const fila = y * lienzo.width * 4;
+    let oscuros = 0;
+    for (let x = 0; x < lienzo.width; x++) {
+      const g = invertir ? 255 - datos[fila + x * 4] : datos[fila + x * 4];
+      if (g < 130) oscuros++;
+    }
+    if (oscuros / lienzo.width <= 0.55) continue;
+    for (let x = 0; x < lienzo.width; x++) {
+      const i = fila + x * 4;
+      const g = invertir ? 255 - datos[i] : datos[i];
+      // Se guarda ya "invertido de vuelta" para que el bucle de abajo, que
+      // invierte en modo oscuro, lo deje como debe quedar.
+      const claro = Math.min(255, Math.round(((255 - g) * 255) / 170));
+      datos[i] = invertir ? 255 - claro : claro;
+    }
+  }
 
   // El numero de la bici y la fecha y hora de cada estacion van en gris muy
   // claro: lo que este entre DESDE y HASTA se estira a 0..255 (el gris pasa a

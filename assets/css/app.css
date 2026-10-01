@@ -2049,6 +2049,8 @@ section.acceso .acceso-paso + .acceso-titulo { margin-top: 0; }
 .hoy-principal > div:empty, .hoy-lateral > div:empty { display: none; }
 .hoy-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .hoy-dos > div:empty { display: none; }
+/* Si solo hay una (sin clan o sin la otra), ocupa todo el ancho. */
+.hoy-dos:has(> div:empty) { grid-template-columns: 1fr; }
 .hoy.es-nuevo .hoy-lateral { display: none; }
 
 @media (min-width: 900px) {
@@ -3634,11 +3636,13 @@ body.pagina-admin { font-size: 14px; padding: 0; }
   .hoy-division .barras-grupo, .hoy-division .leyenda-grupo { display: none; }
   .hoy-division .division-puesto span:not(.cifra-grande) { font-size: 15px; }
   #ultima-marca { display: none; }
+  /* Con la ultima marca fuera, el clan ocupa todo el ancho de su columna. */
+  .hoy-dos { grid-template-columns: 1fr; }
   /* El boton de subir de movil va dentro de la tarjeta en escritorio: su hueco
      vacio sumaba otros 18 px de separacion. */
   #bloque-subir:has(> .solo-movil:only-child) { display: none; }
   .hoy-misiones { gap: 18px; margin-top: 0; }
-  .hoy-clan-fila { display: flex; align-items: center; gap: 12px; padding: 20px; border-radius: 24px; background: var(--papel-2); color: var(--tinta); text-decoration: none; }
+  .hoy-clan-fila { box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 12px; padding: 20px; border-radius: 24px; background: var(--papel-2); color: var(--tinta); text-decoration: none; }
   .hoy-clan-fila:hover { color: var(--tinta); }
   .hoy-clan-fila .insignia-clan { flex: none; width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--blanco); font-size: 13px; font-weight: 800; }
   .hoy-clan-fila .datos { display: flex; flex-direction: column; min-width: 0; }
@@ -3818,4 +3822,14 @@ body.soltando .capa-soltar { background: rgba(243, 241, 236, .55); padding: 24px
   html body .subir-paso.leyendo:has(.leyendo-8f) .boton-icono { color: var(--tinta); }
   html body .subir-paso.leyendo:has(.leyendo-8f) .boton-icono:hover { background: var(--papel-3); }
   .leyendo-8f .escaner-linea::after { background: rgba(17, 17, 16, .16); }
+}
+
+/* 8b como pagina: /subir/ en escritorio es la zona de soltar del diseño, a
+   24 px de los bordes del hueco que deja el lateral. */
+@media (min-width: 900px) {
+  .subir-8b { position: fixed; left: 240px; top: 0; right: 0; bottom: 0; padding: 24px; cursor: pointer; }
+  .subir-8b .capa-soltar-marco { height: 100%; box-sizing: border-box; }
+  .subir-8b:hover .capa-soltar-marco, .subir-8b:focus-visible .capa-soltar-marco { background: rgba(27, 128, 229, .09); }
+  .subir-8b .capa-soltar-teclas { position: absolute; }
+  body:has(.subir-8b):not(:has(#s-inicio.oculto)) .subir-paso:not(#s-inicio) { display: none; }
 }

@@ -24,6 +24,7 @@ import {
 import {
   iniciarPagina, normalizarEstacion, nombreEstacion, formatearTiempo, formatearFecha,
   anotarSubidaAbierta, VERSION_LEGAL, pedirReaceptacion, kmEstimados,
+  atajoCompartir,
 } from '/assets/js/ui.js';
 import { id, el, icono, reemplazar, abrirHoja, avisar } from '/assets/js/dom.js';
 import { diaMadrid, diaMadridHace, diaProbableDelViaje } from '/assets/js/dia.js';
@@ -261,7 +262,7 @@ function pintarInicio() {
           el('kbd', { texto: 'Clic' }), 'elegir captura', el('span', { clase: 'hueco' }),
           el('kbd', { texto: mac ? '⌘ V' : 'Ctrl V' }), 'también pega una captura copiada',
         ])
-        : el('div', { clase: 'capa-soltar-teclas' }, [icono('compartir', 'icono peq'), 'Más rápido: en Fotos, Compartir → bicifastness']),
+        : el('div', { clase: 'capa-soltar-teclas' }, atajoCompartir() ? [icono('compartir', 'icono peq'), atajoCompartir().texto] : ['Puedes elegir varias capturas a la vez']),
     ]));
     return;
   }
@@ -287,7 +288,7 @@ function pintarInicio() {
         el('span', { clase: 'mal' }, [icono('cerrar', 'icono peq'), el('span', { texto: 'Reenviada por WhatsApp' })]),
       ]),
     ]),
-    el('span', { clase: 'subir-truco' }, [icono('compartir', 'icono peq'), el('span', { texto: 'Más rápido: en Fotos, Compartir → bicifastness' })]),
+    atajoCompartir() ? el('span', { clase: 'subir-truco' }, [icono('compartir', 'icono peq'), el('span', { texto: atajoCompartir().texto })]) : null,
     el('span', { clase: 'subir-truco solo-escritorio' }, [el('kbd', { texto: 'Ctrl V' }), el('span', { texto: 'pega una captura copiada, o arrástrala a la ventana' })]),
   ]));
 }

@@ -432,3 +432,14 @@ test('la misma bici a la misma hora con dos personas va a revision', () => {
   assert.strictEqual(mia.decision, 'aprobado');
   assert.strictEqual(luego.decision, 'aprobado');
 });
+
+test('el minuto de redondeo de las horas no hace la captura desviada', () => {
+  // 22:46:37 -> 23:03:20 son 16:43, pero en minutos (22:46 -> 23:03) son 17.
+  const { evaluar } = require('../src/verificacion');
+  const v = evaluar({
+    ruta: '001-002', tiempoSegundos: 1003,
+    lectura: { disponible: true, esBicimad: true, confianza: 90, origen: '001', destino: '002', horaSalida: '22:46', horaLlegada: '23:03', segundosDuracion: 1003 },
+    shaPrevios: [], hashesPrevios: [], velocidadesPrevias: [], usosBici: [],
+  });
+  assert.ok(!v.señales.some((s) => s.codigo === 'captura_desviada' || s.codigo === 'captura_incoherente'));
+});

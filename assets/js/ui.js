@@ -607,3 +607,21 @@ function vigilarCarga() {
     document.body.append(aviso);
   }, 12000);
 }
+
+/**
+ * El atajo de Compartir: Fotos -> Compartir -> bicifastness (share_target del
+ * manifiesto). SOLO funciona en Android con la app instalada; Safari en iPhone
+ * no deja que una web reciba lo que se comparte. Asi que se dice lo que es
+ * verdad en cada movil, o nada.
+ *
+ * @returns {{texto: string, corto: string}|null}
+ */
+export function atajoCompartir() {
+  const ua = navigator.userAgent || '';
+  const iphone = /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  if (iphone || !/Android/i.test(ua)) return null;
+  const instalada = window.matchMedia('(display-mode: standalone)').matches;
+  return instalada
+    ? { texto: 'Más rápido: en Fotos, Compartir → bicifastness', corto: 'también desde Fotos → Compartir' }
+    : { texto: 'Instala bicifastness y podrás enviar capturas desde Compartir', corto: '' };
+}

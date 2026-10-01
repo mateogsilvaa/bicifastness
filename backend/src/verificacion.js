@@ -123,7 +123,14 @@ function comprobarCaptura({ ruta, tiempoSegundos, lectura }) {
   if (salida !== null && llegada !== null && lectura.segundosDuracion !== null) {
     let diferencia = llegada - salida;
     if (diferencia < 0) diferencia += 24 * 3600; // el viaje cruza la medianoche
-    const desviacion = Math.abs(diferencia - lectura.segundosDuracion);
+    // Las horas se guardan en minutos ("22:46") y la captura las da con
+    // segundos ("22:46:37"): entre minutos enteros cabe hasta un minuto de
+    // diferencia sin que haya nada raro. 22:46 -> 23:03 son 17 min, y el viaje
+    // de 22:46:37 a 23:03:20 dura 16:43. Sin este margen, capturas buenas del
+    // historial salian "desviadas" y, sumadas a otra señal, rechazadas.
+    const sinSegundos = !/:d{2}:d{2}/.test(`${lectura.horaSalida}${lectura.horaLlegada}`);
+    const margen = sinSegundos ? 59 : 0;
+    const desviacion = Math.max(0, Math.abs(diferencia - lectura.segundosDuracion) - margen);
 
     if (desviacion > 90) {
       señales.push(fatal('captura_incoherente',

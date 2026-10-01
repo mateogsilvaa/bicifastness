@@ -426,8 +426,21 @@ export function elegirTrayecto(lectura, ruta) {
 
 export const MARCADORES = [
   'bicimad', 'emt', 'trayecto', 'recorrido', 'duracion', 'duración',
-  'estacion', 'estación', 'salida', 'llegada', 'bicicleta',
+  'estacion', 'estación', 'salida', 'llegada', 'bicicleta', 'viajes realizados',
 ];
+
+/**
+ * ¿Es una captura de la app de BiciMAD? Una palabra suya, o dos estaciones con
+ * su forma ("124 - Nombre (124)") y ademas el tiempo o la fecha y hora de cada
+ * una. Antes pedia el tiempo del texto principal, y en el historial la barra
+ * azul se lee mal en esa pasada ("Tim. 00s."): capturas buenas acababan
+ * rechazadas como "no es BiciMAD", que ademas es un rechazo directo.
+ */
+export function esCapturaBicimad(texto, plano, estaciones) {
+  if (MARCADORES.some((m) => plano.includes(m))) return true;
+  if (estaciones.length < 2) return false;
+  return extraerDuracion(texto) !== null || extraerFechas(texto).length >= 2 || extraerTrayectos(texto).length > 0;
+}
 
 /** Lo que se puede sacar de un texto ya leido. Sin navegador: se puede probar. */
 export function interpretar(texto) {
@@ -436,7 +449,7 @@ export function interpretar(texto) {
   const estaciones = extraerEstaciones(texto);
 
   return conPrimerTrayecto({
-    esBicimad: (MARCADORES.some((m) => plano.includes(m)) || (estaciones.length >= 2 && extraerDuracion(texto) !== null)),
+    esBicimad: esCapturaBicimad(texto, plano, estaciones),
     // Todos los trayectos de la captura (#11). Los campos sueltos siguen siendo
     // los del primero, para quien solo espera uno.
     trayectos: extraerTrayectos(texto),

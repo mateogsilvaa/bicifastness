@@ -57,18 +57,37 @@ const NIVELES = { DESDE: 140, HASTA: 240 };
  * Cada fila oscura en mas de la mitad de su ancho se invierte y se estira, y el
  * texto queda negro sobre casi blanco. Gemela de la del navegador.
  */
-const FRANJA = { OSCURO: 130, PROPORCION: 0.55 };
+const FRANJA = { OSCURO: 130, PROPORCION: 0.55, ALTO_MINIMO: 25 };
 function invertirFranjas(pixeles, ancho, alto) {
+  const franjas = [];
+  let desde = -1;
+  const cerrarFranja = (y) => {
+    if (desde >= 0 && y - desde >= FRANJA.ALTO_MINIMO) franjas.push([desde, y]);
+    desde = -1;
+  };
   for (let y = 0; y < alto; y++) {
     const fila = y * ancho;
     let oscuros = 0;
     for (let x = 0; x < ancho; x++) if (pixeles[fila + x] < FRANJA.OSCURO) oscuros++;
-    if (oscuros / ancho <= FRANJA.PROPORCION) continue;
+    if (oscuros / ancho <= FRANJA.PROPORCION) { cerrarFranja(y); continue; }
+    if (desde < 0) desde = y;
+    // El fondo de la franja (la mediana de la fila, ya invertida) pasa a blanco
+    // puro y lo que es bastante mas oscuro que el, el texto, a casi negro. Con
+    // un estirado fijo el fondo quedaba gris y la letra fina de BiciMAD se leia
+    // "Tim." o "9m." donde pone "11m.".
+    const invertida = [];
+    for (let x = 0; x < ancho; x++) invertida.push(255 - pixeles[fila + x]);
+    const fondo = [...invertida].sort((a, b) => a - b)[Math.floor(ancho / 2)] || 1;
+    const corte = fondo * 0.72;
     for (let x = 0; x < ancho; x++) {
-      pixeles[fila + x] = Math.min(255, Math.round(((255 - pixeles[fila + x]) * 255) / 170));
+      const v = invertida[x];
+      pixeles[fila + x] = v >= corte ? 255 : Math.round((v * 110) / corte);
     }
   }
-  return pixeles;
+  cerrarFranja(alto);
+  // Donde estaban (filas [desde, hasta)): son las barras del tiempo, que luego
+  // se leen aparte como una linea de numeros.
+  return franjas;
 }
 
 function aclararGrises(pixeles) {
@@ -220,7 +239,7 @@ async function preparar(entrada) {
       .toColourspace('b-w')
       .raw()
       .toBuffer({ resolveWithObject: true });
-    invertirFranjas(crudo.data, crudo.info.width, crudo.info.height);
+    const franjas = invertirFranjas(crudo.data, crudo.info.width, crudo.info.height);
     aclararGrises(crudo.data);
 
     // Sin `sharpen()`: con el gris ya oscurecido, el enfoque se comia el numero
@@ -229,15 +248,32 @@ async function preparar(entrada) {
       .png()
       .toBuffer();
 
-    return { buffer, variante, oscura, recortado: arriba + abajo };
+    return { buffer, variante, oscura, recortado: arriba + abajo, franjas, ancho: crudo.info.width };
   } catch (error) {
     console.warn('La captura no se puede decodificar:', error.message);
     return null;
   }
 }
 
+/**
+ * La parte del tiempo de cada franja (sin el reloj de la izquierda ni el
+ * importe de la derecha), ampliada al doble: se lee como una sola linea.
+ */
+async function recortesDeFranjas(buffer, franjas, ancho) {
+  if (!sharp || !franjas?.length) return [];
+  return Promise.all(franjas.map(async ([desde, hasta]) => ({
+    y: desde,
+    buffer: await sharp(buffer)
+      .extract({ left: Math.round(ancho * 0.12), top: desde, width: Math.round(ancho * 0.42), height: hasta - desde })
+      .resize({ height: (hasta - desde) * 2 })
+      .png()
+      .toBuffer(),
+  })));
+}
+
 module.exports = {
   preparar,
+  recortesDeFranjas,
   clasificar,
   margenesUniformes,
   luminanciaMedia,

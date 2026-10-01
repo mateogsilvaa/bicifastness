@@ -3833,3 +3833,17 @@ body.soltando .capa-soltar { background: rgba(243, 241, 236, .55); padding: 24px
   .subir-8b .capa-soltar-teclas { position: absolute; }
   body:has(.subir-8b):not(:has(#s-inicio.oculto)) .subir-paso:not(#s-inicio) { display: none; }
 }
+
+/* 8b en el movil: el mismo marco, dentro de la pagina (entre la barra de
+   estado y la barra inferior) y tocable entero. */
+@media (max-width: 899px) {
+  .subir-8b { position: relative; box-sizing: border-box; height: calc(100dvh - var(--alto-barra, 64px) - var(--pie-barra, 0px)); padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px; cursor: pointer; }
+  .subir-8b .capa-soltar-marco { height: 100%; box-sizing: border-box; padding: 24px 18px 64px; gap: 14px; }
+  .subir-8b .capa-soltar-marco strong { font-size: 32px; }
+  .subir-8b .capa-soltar-marco > span:not(.capa-soltar-chips) { font-size: 15px; }
+  .subir-8b .capa-soltar-chips { gap: 6px; }
+  .subir-8b .capa-soltar-chips span { font-size: 12px; padding: 5px 10px; }
+  .subir-8b .capa-soltar-teclas { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); white-space: normal; text-align: center; width: calc(100% - 64px); justify-content: center; }
+  .subir-8b .capa-soltar-teclas .icono { width: 16px; height: 16px; flex: none; }
+  .subir-8b:active .capa-soltar-marco { background: rgba(27, 128, 229, .1); }
+}

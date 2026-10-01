@@ -228,3 +228,42 @@ test('en el historial de la app cada tarjeta se lleva su bici', () => {
   // "Embajadores 47)": el OCR se comio el "(" y la estacion vale igual.
   assert.deepStrictEqual([b.origen, b.destino, b.segundosDuracion, b.numeroBici], ['235', '47', 704, '19461']);
 });
+
+// --- Lectura del historial: tiempo por horas, barras y bicis por altura -------
+
+test('el tiempo sale de las horas con segundos, aunque la barra se lea mal', () => {
+  const texto = '7 18853 O\nO 222 - Calle Uno (222)\n02/09/26 22:46:37\nQ 415 - Calle Dos (415)\n02/09/26 23:03:20\n(O lom. 455. 0.00 €\n';
+  const [t] = ocr.extraerTrayectos(texto);
+  assert.strictEqual(t.segundosDuracion, 16 * 60 + 43);
+});
+
+test('una estacion vale aunque la app corte su nombre', () => {
+  const texto = 'O 235 - Calle Uno (235)\n18/09/26 21:45:56\nLo) 176 - Plaza de un nombre muy largo (17...\n18/09/26 21:49:18\n';
+  const [t] = ocr.extraerTrayectos(texto);
+  assert.deepStrictEqual([t.origen, t.destino, t.segundosDuracion], ['235', '176', 202]);
+});
+
+test('el tiempo de la barra entiende la letra de BiciMAD', () => {
+  assert.strictEqual(ocr.tiempoDeBarra('llm. 44s.'), 11 * 60 + 44);
+  assert.strictEqual(ocr.tiempoDeBarra('O2m. 24s.'), 144);
+  assert.strictEqual(ocr.tiempoDeBarra('lom. 455.'), null);
+});
+
+test('la bici de la pasada de numeros quita el icono y no confunde estaciones', () => {
+  assert.strictEqual(ocr.biciDeNumero('7518853'), '18853');
+  assert.strictEqual(ocr.biciDeNumero('19419'), '19419');
+  assert.strictEqual(ocr.biciDeNumero('235235'), '');
+  assert.strictEqual(ocr.biciDeNumero('30092621'), '');
+});
+
+test('cada barra y cada bici van al trayecto que les toca por altura', () => {
+  const lineas = [
+    { texto: 'O 001 - Uno (001)', y: 100 }, { texto: 'O 002 - Dos (002)', y: 200 },
+    { texto: 'O 003 - Tres (003)', y: 500 }, { texto: 'O 004 - Cuatro (004)', y: 600 },
+  ];
+  const trayectos = ocr.extraerTrayectos(lineas.map((l) => l.texto).join('\n'));
+  const [a, b] = ocr.asignarPorAltura(trayectos, lineas,
+    [{ segundos: 120, y: 300 }, { segundos: 240, y: 700 }],
+    [{ bici: '11111', y: 50 }, { bici: '22222', y: 450 }]);
+  assert.deepStrictEqual([a.segundosDuracion, a.numeroBici, b.segundosDuracion, b.numeroBici], [120, '11111', 240, '22222']);
+});

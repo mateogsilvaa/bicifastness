@@ -267,3 +267,11 @@ test('cada barra y cada bici van al trayecto que les toca por altura', () => {
     [{ bici: '11111', y: 50 }, { bici: '22222', y: 450 }]);
   assert.deepStrictEqual([a.segundosDuracion, a.numeroBici, b.segundosDuracion, b.numeroBici], [120, '11111', 240, '22222']);
 });
+
+test('una captura del historial sin palabras clave sigue siendo de BiciMAD', () => {
+  // Lo que salia antes: la barra mal leida y ninguna palabra de la app. Se
+  // rechazaba como "no es BiciMAD", y ese rechazo es directo.
+  const texto = '30 viajes realizados\nO 047 - Uno (047)\n30/09/26 21:22:13\nO 235 - Dos (235)\n30/09/26 21:33:13\n(Y Tim. 00s. 0.00 €\n';
+  const sinMarcas = texto.replace('30 viajes realizados\n', '');
+  assert.ok(ocr.esCapturaBicimad(sinMarcas, sinMarcas.toLowerCase(), ocr.extraerEstaciones(sinMarcas)));
+});

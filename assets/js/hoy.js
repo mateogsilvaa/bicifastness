@@ -15,7 +15,7 @@ import {
   db, doc, getDoc, collection, getDocs, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
 import { el, icono, reemplazar, abrirHoja } from '/assets/js/dom.js';
-import { nombreEstacion, formatearTiempo, kmEstimados } from '/assets/js/ui.js';
+import { nombreEstacion, formatearTiempo, kmEstimados, atajoCompartir } from '/assets/js/ui.js';
 import { traerAgregado, puestoPorMarca } from '/assets/js/agregados.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
 import { diaMadrid, diaMadridHace, minutosMadrid } from '/assets/js/dia.js';
@@ -95,7 +95,7 @@ function pintarSubir(perfil, modo) {
   // 2c: con la racha en peligro, el boton solo; la ayuda va debajo.
   reemplazar($('bloque-subir'), el('div', { clase: 'hoy-subir solo-movil' }, [
     botonSubir('Subir trayecto'),
-    modo === 'riesgo' ? null : el('span', { clase: 'hoy-pista', texto: `Hoy puntúan ${CUPO} · llevas ${lleva} · también desde Fotos → Compartir` }),
+    modo === 'riesgo' ? null : el('span', { clase: 'hoy-pista', texto: [`Hoy puntúan ${CUPO} · llevas ${lleva}`, atajoCompartir()?.corto].filter(Boolean).join(' · ') }),
   ]));
 }
 

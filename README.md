@@ -380,7 +380,7 @@ backend/
   src/puntuacion.js         BiciRating y dominio de estaciones
   test/                     pruebas de regresion y del motor de decision
 .github/workflows/
-  verificar-viajes.yml      worker: cron cada 5 min, cada ejecucion vigila 9 min y se solapa con la siguiente
+  verificar-viajes.yml      worker: cada ejecucion vigila 9 min y lanza la siguiente (el cron de GitHub no se cumple); cron cada 5 min como red
   periodicas.yml            cierre de temporada y divisiones (cron apagado)
   ci.yml                    tests, reglas de Firestore y la web en GitHub Pages
 CNAME                       el dominio de la web (lo leen Pages y los correos)

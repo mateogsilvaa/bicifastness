@@ -3,17 +3,30 @@ name: Verificar viajes
 # El worker es el servidor de confianza de la app. Coge los viajes que esperan
 # analisis y los aprueba, los rechaza o los manda a revision humana.
 #
-# SIEMPRE ENCENDIDO, A EFECTOS PRACTICOS. El cron pide una ejecucion cada 5
-# minutos (el minimo que admite GitHub), pero GitHub retrasa las programadas
-# cuando hay carga: el hueco real esta entre 5 y 15 minutos. Antes cada
-# ejecucion vigilaba la cola 4 minutos y se iba, asi que entre una y la
-# siguiente habia tramos de hasta 10 minutos en los que nadie miraba. Ahora cada
-# ejecucion vigila 9 minutos y se SOLAPA con la siguiente: mientras una corre, la
-# siguiente espera en cola (`concurrency`, abajo) y arranca en cuanto la otra
-# termina. El resultado es una vigilancia casi continua con revision cada 30 s.
+# POR QUE HAY UN RELEVO ADEMAS DEL CRON. El cron pide una ejecucion cada 5
+# minutos, pero GitHub NO LO CUMPLE: lo medimos (4-6 ejecuciones al dia en lugar
+# de 288, huecos de 3 a 6 horas). Los programados son de baja prioridad y se
+# descartan sin avisar cuando hay carga. Con eso, un viaje subido a las 12:01
+# podia esperar hasta las 14:25 para ser verificado.
 #
-# Es gratis porque el repositorio es publico. En uno privado esto consumiria
-# ~1.400 minutos de Actions al dia: para eso se baja VENTANA_MINUTOS a 0.
+# Por eso cada ejecucion, al terminar, LANZA LA SIGUIENTE (paso final,
+# `workflow_dispatch`, que GitHub si deja disparar con su token). El cron queda
+# como red de seguridad: si el relevo se rompe, el cron lo reanuda.
+#
+#   - Cada ejecucion vigila la cola 9 minutos, cada 30 s (ventana de worker.js).
+#   - La siguiente espera en `concurrency` y arranca en cuanto esta termina: unos
+#     segundos de hueco por ejecucion, no horas.
+#   - Si el worker falla, el relevo ESPERA 5 minutos antes de reintentar, para no
+#     encadenar ejecuciones fallidas (cada una mandaria un correo).
+#   - Sin credenciales no hay relevo: no se encadena nada que no vaya a hacer nada.
+#   - Para pararlo: variable del repositorio ENCADENAR_WORKER = no, o cancelar la
+#     ejecucion en curso (una cancelada no lanza la siguiente).
+#
+# RIESGO A TENER PRESENTE. Esto deja el worker corriendo casi sin parar en
+# Actions. Es gratis en un repositorio publico, pero los terminos de GitHub no
+# quieren Actions como servicio siempre encendido, y a escala de lanzamiento lo
+# razonable es sacar el worker a un servicio de verdad (Cloud Run Job + Cloud
+# Scheduler, que cuesta centimos). Ver docs/MANTENIMIENTO.md.
 #
 # Va aqui y no en Cloud Functions porque desplegar funciones en Firebase exige
 # el plan Blaze (tarjeta), mientras que Actions es gratis e ilimitado en
@@ -37,7 +50,7 @@ on:
 # Dos workers a la vez procesarian los mismos viajes, asi que solo corre uno. Si
 # llega otra ejecucion mientras hay una en marcha, ESPERA (no cancela a la que
 # corre) y arranca cuando acabe; si llegan varias, se queda la mas reciente. Es
-# lo que permite que cada ejecucion dure mas que el periodo del cron sin pisarse.
+# lo que hace que el relevo y el cron convivan sin pisarse.
 concurrency:
   group: verificar-viajes
   cancel-in-progress: false
@@ -45,6 +58,10 @@ concurrency:
 jobs:
   verificar:
     runs-on: ubuntu-latest
+    # `actions: write` solo para lanzar la siguiente ejecucion (paso final).
+    permissions:
+      contents: read
+      actions: write
     # La ejecucion se queda dando pasadas a la cola (VENTANA_MINUTOS en
     # worker.js), asi que el limite tiene que dejar sitio a la ventana mas el
     # trabajo periodico del final y el arranque.
@@ -90,6 +107,7 @@ jobs:
       # ejecucion para reescribir dos ficheros identicos.
 
       - name: Procesar la cola
+        id: cola
         working-directory: backend
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -136,3 +154,28 @@ jobs:
             exit 0
           fi
           node worker.js ${{ inputs.simular && '--simular' || '' }}
+
+      # El relevo: lanza la siguiente ejecucion. Va con `!cancelled()` y no con
+      # `always()` para que cancelar una ejecucion a mano pare la cadena.
+      - name: Lanzar la siguiente ejecucion
+        if: ${{ !cancelled() && !inputs.simular && vars.ENCADENAR_WORKER != 'no' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RESULTADO: ${{ steps.cola.outcome }}
+        run: |
+          # Sin credenciales el worker no hace nada: no se encadena.
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::notice::Sin credenciales: no se lanza la siguiente ejecucion."
+            exit 0
+          fi
+
+          # Si ha fallado, espera antes de reintentar. Sin este freno, un fallo
+          # persistente (un indice que falta, una clave caducada) encadenaria una
+          # ejecucion fallida por minuto y un correo por cada una.
+          if [ "$RESULTADO" != "success" ]; then
+            echo "::warning::El worker ha fallado: espero 5 minutos antes de reintentar."
+            sleep 300
+          fi
+
+          gh workflow run verificar-viajes.yml --ref "${{ github.ref_name }}"

@@ -2739,6 +2739,15 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 .fila-ranking .clan-escritorio, .fila-ranking .col-modo { display: none; }
 /* 4a: la flecha de ayer, en su columna de 18 px. */
 .fila-ranking.con-flecha { grid-template-columns: 4px 30px minmax(0, 1fr) auto 18px; }
+/* 12: la insignia de la division en lugar de la franja de ascenso. */
+.fila-ranking.con-insignia { grid-template-columns: 30px 32px minmax(0, 1fr) auto; }
+.fila-ranking.con-insignia .insignia-division { justify-self: center; }
+.cabeza-mi-liga { display: flex; align-items: center; gap: var(--e3); padding: var(--e3) 0 var(--e1); }
+.cabeza-mi-liga > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cabeza-mi-liga strong { font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.cabeza-mi-liga span { font-size: 13px; color: var(--tinta-2); }
+#ambito-grupo { display: inline-flex; align-items: center; gap: 6px; }
+#ambito-grupo.oculto { display: none; }
 .flecha-cambio { display: flex; color: var(--linea-fuerte); }
 .flecha-cambio .icono { width: 16px; height: 16px; stroke-width: 2.2; }
 .flecha-cambio.sube { color: var(--verde); }
@@ -3851,52 +3860,38 @@ body.soltando .capa-soltar { background: rgba(243, 241, 236, .55); padding: 24px
 /* --- Ligas: emblemas y la vista de todas (04 Ranking · Ligas) --------------
    Cada liga tiene su color y su FORMA (barras, galones, estrella): asi se
    distinguen tambien sin ver bien el color. */
-:root {
-  --liga-hierro: #6E7177;
-  --liga-bronce: #A8642E;
-  --liga-plata: #8E99A6;
-  --liga-oro: #C99A12;
-  --liga-platino: #3F9C9C;
-  --liga-leyenda: #6B45C9;
-  --liga-marca: #FFFFFF;
-}
-[data-theme='dark'] {
-  --liga-hierro: #8A8D93;
-  --liga-bronce: #C27C44;
-  --liga-plata: #A9B3BF;
-  --liga-oro: #E0B12A;
-  --liga-platino: #57B7B7;
-  --liga-leyenda: #8E6BE8;
-  --liga-marca: #0E0F10;
-}
-.emblema-liga { flex: none; display: block; }
-.emblema-liga .escudo { fill: var(--liga-color, var(--liga-hierro)); }
-.emblema-liga .brillo { fill: #FFFFFF; opacity: .14; }
-.emblema-liga .marca { stroke: var(--liga-marca); }
-.emblema-liga .marca.relleno { fill: var(--liga-marca); stroke: none; }
-.emblema-liga.apagado { opacity: .35; filter: grayscale(1); }
-.liga-hierro { --liga-color: var(--liga-hierro); }
-.liga-bronce { --liga-color: var(--liga-bronce); }
-.liga-plata { --liga-color: var(--liga-plata); }
-.liga-oro { --liga-color: var(--liga-oro); }
-.liga-platino { --liga-color: var(--liga-platino); }
-.liga-leyenda { --liga-color: var(--liga-leyenda); }
+.insignia-division { flex: none; display: inline-flex; align-items: flex-end; justify-content: center; line-height: 0; }
+.insignia-division img { display: block; width: auto; }
+/* La version -oscuro (borde blanco de pegatina) solo en tema oscuro. */
+.insignia-division .insignia-oscuro { display: none; }
+[data-theme='dark'] .insignia-division .insignia-claro { display: none; }
+[data-theme='dark'] .insignia-division .insignia-oscuro { display: block; }
+.insignia-division.apagado { opacity: .35; filter: grayscale(1); }
 
 .con-emblema { display: inline-flex; align-items: center; gap: var(--e2); }
 .insignia .disco.con-emblema { background: none; }
-.hoja-division .emblema-liga { margin: 0 auto var(--e2); }
+.hoja-division .insignia-division { margin: 0 auto var(--e2); }
+/* 2g: la insignia nueva cae desde 8 px y rebota una vez al tocar su sombra. */
+@keyframes insignia-cae {
+  0% { transform: translateY(-8px); opacity: 0; }
+  55% { transform: translateY(0); opacity: 1; }
+  75% { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+.hoja-division .insignia-division { animation: insignia-cae 420ms cubic-bezier(.3, .7, .4, 1) both; }
+@media (prefers-reduced-motion: reduce) { .hoja-division .insignia-division { animation: none; } }
 
 .ligas-calendario { display: flex; align-items: center; gap: var(--e2); margin: var(--e2) 0 0; font-size: 13px; color: var(--tinta-2); }
 .ligas-calendario .icono { width: 16px; height: 16px; flex: none; }
 .lista-ligas { display: flex; flex-direction: column; gap: var(--e3); padding-top: var(--e3); }
-.tarjeta-liga { border-radius: var(--radio); background: var(--papel-2); padding: var(--e3) var(--e4); border-left: 4px solid var(--liga-color); }
-.tarjeta-liga.tuya { box-shadow: inset 0 0 0 1.5px var(--liga-color); }
+.tarjeta-liga { border-radius: var(--radio); background: var(--papel-2); padding: var(--e3) var(--e4); }
+.tarjeta-liga.tuya { box-shadow: inset 0 0 0 1.5px var(--azul); }
 .tarjeta-liga.vacia { opacity: .7; }
 .cabeza-liga { display: flex; align-items: center; gap: var(--e3); min-height: 48px; }
 .texto-liga { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .texto-liga h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
 .texto-liga span { font-size: 13px; color: var(--tinta-2); }
-.chip-tu-liga { flex: none; padding: var(--e1) 10px; border-radius: 999px; background: var(--liga-color); color: var(--liga-marca); font-size: 12px; font-weight: 800; }
+.chip-tu-liga { flex: none; padding: var(--e1) 10px; border-radius: 999px; background: var(--azul-tinte); color: var(--azul); font-size: 12px; font-weight: 800; }
 .grupos-liga { display: flex; flex-direction: column; margin-top: var(--e2); border-top: var(--borde); }
 .grupo-liga { border-bottom: var(--borde); }
 .grupo-liga:last-child { border-bottom: 0; }

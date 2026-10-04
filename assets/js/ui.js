@@ -261,7 +261,9 @@ export function logoAnillo(tam = 28) {
 }
 
 export const NOMBRE_DIVISION = {
-  hierro: 'Hierro', bronce: 'Bronce', plata: 'Plata', oro: 'Oro', platino: 'Platino', leyenda: 'Leyenda',
+  'sin-clasificar': 'Sin clasificar',
+  cobre: 'Cobre', plata: 'Plata', oro: 'Oro', platino: 'Platino',
+  esmeralda: 'Esmeralda', rubi: 'Rubí', diamante: 'Diamante',
 };
 
 /**

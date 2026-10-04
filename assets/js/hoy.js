@@ -25,7 +25,10 @@ import { anilloSemana, estadosSemana, activoHoy } from '/assets/js/anillo.js';
 import { seguirViaje, viajeRecordado, olvidarViaje } from '/assets/js/estado-viaje.js';
 import { abrirVerificado, abrirResuelto, tramoDe } from '/assets/js/veredicto.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
-import { NOMBRES as DIVISIONES, NIVELES, emblemaLiga, cuandoCambia } from '/assets/js/ligas.js';
+import {
+  NOMBRES as DIVISIONES, NIVELES, SIN_CLASIFICAR, emblemaLiga, cuandoCambia, divisionDeClave,
+  nombreGrupo as nombreDeGrupo,
+} from '/assets/js/ligas.js';
 
 const CUPO = 3;
 /** Lo mismo que `PUNTOS_MISION` del worker, para las misiones publicadas antes. */
@@ -557,13 +560,10 @@ export async function miGrupo(nombre) {
   if (!grupo) return null;
   const filas = grupo.filas || [];
   const yo = filas.find((f) => f.nombre === nombre);
-  return { clave, filas, yo, mueven: grupo.mueven ?? 5, total: grupo.total ?? filas.length };
+  return { clave, filas, yo, mueven: grupo.mueven ?? 4, total: grupo.total ?? filas.length };
 }
 
-export function nombreGrupo(clave) {
-  const [nivel, numero] = String(clave || '').split('-');
-  return `${DIVISIONES[nivel] || nivel} · grupo ${numero}`;
-}
+export const nombreGrupo = nombreDeGrupo;
 
 async function pintarDivision(perfil) {
   const destino = $('division');
@@ -572,14 +572,18 @@ async function pintarDivision(perfil) {
     if (!grupo?.yo) { reemplazar(destino); return; }
     const { yo, filas, mueven, total } = grupo;
     const umbral = filas[mueven - 1];
-    const detalle = yo.pos <= mueven
-      ? 'en zona de subida'
-      : umbral ? `a ${Math.max(1, umbral.puntos - yo.puntos + 1)} pts de subir` : '';
+    const sinClasificar = grupo.clave === SIN_CLASIFICAR;
+    // Sin clasificar no se sube ni se baja: se entra en la escalera al cerrar.
+    const detalle = sinClasificar
+      ? 'entras en la escalera al cerrar la liga'
+      : yo.pos <= mueven
+        ? 'en zona de subida'
+        : umbral ? `a ${Math.max(1, umbral.puntos - yo.puntos + 1)} pts de subir` : '';
 
     reemplazar(destino, el('a', { clase: 'tarjeta-grande hoy-division', attrs: { href: '/clasificacion/' } }, [
       el('div', { clase: 'hoy-seccion' }, [
         el('strong', { clase: 'con-emblema' }, [
-          emblemaLiga(String(grupo.clave).split('-')[0], { tamano: 20 }),
+          emblemaLiga(divisionDeClave(grupo.clave), { tamano: 20 }),
           el('span', { texto: nombreGrupo(grupo.clave) }),
         ]),
         // La liga dura dos semanas: se dice que dia se decide, no "el lunes".
@@ -690,9 +694,12 @@ function avisarCambioDivision(perfil) {
   } catch { return; }
 
   const niveles = NIVELES;
-  const sube = niveles.indexOf(cambio.hasta) > niveles.indexOf(cambio.desde);
+  // Quien sale de sin clasificar no sube ni baja: ENTRA en la escalera.
+  const entra = cambio.desde === SIN_CLASIFICAR || !niveles.includes(cambio.desde);
+  const sube = entra || niveles.indexOf(cambio.hasta) > niveles.indexOf(cambio.desde);
   const desde = DIVISIONES[cambio.desde] || cambio.desde;
   const hasta = DIVISIONES[cambio.hasta] || cambio.hasta;
+  const titulo = entra ? `Entras en ${hasta}` : sube ? `Subes a ${hasta}` : `Bajas a ${hasta}`;
 
   const { cerrar } = abrirHoja([
     el('div', { clase: 'cambio-division' }, [
@@ -702,20 +709,24 @@ function avisarCambioDivision(perfil) {
         icono('flecha', 'icono'),
         el('span', { clase: `chip-division despues ${cambio.hasta}`, texto: hasta }),
       ]),
-      el('h2', { texto: sube ? `Subes a ${hasta}` : `Bajas a ${hasta}` }),
+      el('h2', { texto: titulo }),
       el('p', {
-        texto: sube
-          ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Estas dos semanas compites con pilotos nuevos, todos desde 0.`
-          : `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total}. Tienes dos semanas para recuperar ${desde}.`,
+        texto: entra
+          ? `Ya estás en la escalera. Compites en un grupo de 20 de ${hasta}, todos desde 0, y en dos semanas se decide quién sube.`
+          : sube
+            ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Estas dos semanas compites con pilotos nuevos, todos desde 0.`
+            : `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total}. Tienes dos semanas para recuperar ${desde}.`,
       }),
     ]),
     el('div', { clase: 'cifras-cambio' }, [
       el('div', {}, [el('strong', { texto: String(cambio.puntos || 0) }), el('span', { texto: 'pts de liga' })]),
-      el('div', {}, [el('strong', { texto: ordinal(cambio.puesto) }), el('span', { texto: `de ${cambio.total}` })]),
+      cambio.puesto
+        ? el('div', {}, [el('strong', { texto: ordinal(cambio.puesto) }), el('span', { texto: `de ${cambio.total}` })])
+        : null,
     ]),
     el('a', { clase: 'btn', texto: 'Ver mi grupo nuevo', attrs: { href: '/clasificacion/' } }),
   ], {
-    etiqueta: sube ? `Subes a ${hasta}` : `Bajas a ${hasta}`,
+    etiqueta: titulo,
     clase: 'dialogo-escritorio hoja-division',
     alCerrar: () => { try { localStorage.setItem(clave, cambio.fecha); } catch { /* modo privado */ } },
   });

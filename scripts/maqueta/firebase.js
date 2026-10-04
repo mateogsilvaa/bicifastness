@@ -101,14 +101,14 @@ const perfiles = {
   sinclan: { ...perfilBase, clanId: null, rolClan: null },
   peligro: { ...perfilBase, escudos: 0 },
   encola: { ...perfilBase },
-  division: { ...perfilBase, ultimoCambioDivision: { fecha: hoy, desde: 'bronce', hasta: 'plata', puesto: 3, total: 30, puntos: 412 } },
+  division: { ...perfilBase, ultimoCambioDivision: { fecha: hoy, desde: 'cobre', hasta: 'plata', puesto: 3, total: 20, puntos: 412 } },
   escudo: { ...perfilBase, escudos: 0, ultimoCierreRacha: { dia: hoy, escudosGastados: 1 } },
   perdida: { ...perfilBase, racha: 0, ultimoCierreRacha: { dia: hoy, rota: true, rachaPrevia: 23 } },
   lider: { ...perfilBase, rolClan: 'lider' },
 };
 const perfil = perfiles[variante] || perfilBase;
 
-const filasGrupo = nombres.map((n, i) => ({ pos: i + 1, nombre: n, clan: ['c1', 'c2', 'c3'][i % 3], puntos: Math.max(0, 420 - i * 14 - (i === 6 ? 0 : 0)), viajes: 30 - i }));
+const filasGrupo = nombres.slice(0, 20).map((n, i) => ({ pos: i + 1, nombre: n, clan: ['c1', 'c2', 'c3'][i % 3], puntos: Math.max(0, 420 - i * 14 - (i === 6 ? 0 : 0)), viajes: 30 - i, division: 'plata' }));
 filasGrupo[6].puntos = 322;
 const ruta = (marcaBase) => nombres.slice(0, 9).map((n, i) => ({ pos: i + 1, nombre: n, clan: ['c1', 'c2', 'c3'][i % 3], marca: marcaBase + i * 21, viajeId: `v${i}`, fecha: dia(i % 4) }));
 const estaciones = {};
@@ -126,7 +126,9 @@ ids.forEach((id, i) => {
 ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].forEach((id, i) => {
   estaciones[id] = i % 3 === 0 ? { clan: null, lider: 'c1', disputa: true, cuota: { c1: 46, c2: 41, c3: 13 } } : { clan: ['c1', 'c2', 'c3'][i % 3], lider: ['c1', 'c2', 'c3'][i % 3], disputa: false, cuota: { [['c1', 'c2', 'c3'][i % 3]]: 64, c3: 20 } };
 });
-const rankingPilotos = (valor) => nombres.map((n, i) => ({ pos: i + 1, nombre: n, clan: ['c1', 'c2', 'c3'][i % 3], puntos: valor(i), viajes: 40 - i }));
+// La division de cada uno, de arriba abajo, para la insignia de cada fila (12).
+const divisionDePuesto = (i) => ['diamante', 'rubi', 'esmeralda', 'platino', 'oro', 'plata', 'cobre'][Math.min(6, Math.floor(i / 4))];
+const rankingPilotos = (valor) => nombres.map((n, i) => ({ pos: i + 1, nombre: n, clan: ['c1', 'c2', 'c3'][i % 3], puntos: valor(i), viajes: 40 - i, division: divisionDePuesto(i) }));
 
 const datos = {
   // Sin documento de perfil: la sesion esta, pero falta el nombre (1c).
@@ -146,18 +148,20 @@ const datos = {
   'agregados/ruta-1-102': { filas: ruta(349), total: 9, pagina: 1, paginas: 1, actualizado: hace(4) },
   'agregados/ruta-102-124': { filas: ruta(560), total: 9, pagina: 1, paginas: 1, actualizado: hace(4) },
   'agregados/rutas': { rutas: ['124-115', '1-102', '102-124'], viajesPorRuta: { '124-115': 31, '1-102': 18, '102-124': 12 }, actualizado: hace(4) },
-  'agregados/grupos': { porPiloto: Object.fromEntries(nombres.map((n) => [n, 'plata-4'])), actualizado: hace(4) },
-  'agregados/grupo-plata-4': { filas: filasGrupo, grupo: 'plata-4', mueven: 5, total: 30, pagina: 1, paginas: 1, actualizado: hace(4) },
+  'agregados/grupos': { porPiloto: Object.fromEntries(nombres.slice(0, 20).map((n) => [n, 'plata-4'])), actualizado: hace(4) },
+  'agregados/grupo-plata-4': { filas: filasGrupo, grupo: 'plata-4', mueven: 4, total: 20, pagina: 1, paginas: 1, actualizado: hace(4) },
   // Todas las ligas (04 · Ligas): unas con gente, otras vacias, como al principio.
   'agregados/ligas': {
     inicio: '2026-11-01', fin: '2026-11-15',
     niveles: [
-      { nivel: 'leyenda', pilotos: 0, grupos: [] },
-      { nivel: 'platino', pilotos: 4, grupos: [{ clave: 'platino-1', pilotos: 4, mueven: 1, podio: rankingPilotos((i) => 610 - i * 40).slice(0, 3) }] },
-      { nivel: 'oro', pilotos: 21, grupos: [{ clave: 'oro-1', pilotos: 21, mueven: 5, podio: rankingPilotos((i) => 540 - i * 30).slice(5, 8).map((f, i) => ({ ...f, pos: i + 1 })) }] },
-      { nivel: 'plata', pilotos: 118, grupos: [1, 2, 3, 4].map((n) => ({ clave: `plata-${n}`, pilotos: n === 4 ? 30 : 29, mueven: 5, podio: rankingPilotos((i) => 480 - i * 25 - n * 9).slice(n, n + 3).map((f, i) => ({ ...f, pos: i + 1 })) })) },
-      { nivel: 'bronce', pilotos: 57, grupos: [1, 2].map((n) => ({ clave: `bronce-${n}`, pilotos: n === 1 ? 29 : 28, mueven: 5, podio: rankingPilotos((i) => 300 - i * 20).slice(n * 3, n * 3 + 3).map((f, i) => ({ ...f, pos: i + 1 })) })) },
-      { nivel: 'hierro', pilotos: 212, grupos: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ clave: `hierro-${n}`, pilotos: n === 8 ? 2 : 30, mueven: n === 8 ? 0 : 5, podio: rankingPilotos((i) => 200 - i * 12).slice(n, n + 3).map((f, i) => ({ ...f, pos: i + 1 })) })) },
+      { nivel: 'diamante', pilotos: 20, grupos: [{ clave: 'diamante-1', pilotos: 20, mueven: 4, podio: rankingPilotos((i) => 700 - i * 30).slice(0, 3) }] },
+      { nivel: 'rubi', pilotos: 20, grupos: [{ clave: 'rubi-1', pilotos: 20, mueven: 4, podio: rankingPilotos((i) => 640 - i * 30).slice(3, 6).map((f, i) => ({ ...f, pos: i + 1 })) }] },
+      { nivel: 'esmeralda', pilotos: 20, grupos: [{ clave: 'esmeralda-1', pilotos: 20, mueven: 4, podio: rankingPilotos((i) => 600 - i * 30).slice(6, 9).map((f, i) => ({ ...f, pos: i + 1 })) }] },
+      { nivel: 'platino', pilotos: 20, grupos: [{ clave: 'platino-1', pilotos: 20, mueven: 4, podio: rankingPilotos((i) => 560 - i * 30).slice(9, 12).map((f, i) => ({ ...f, pos: i + 1 })) }] },
+      { nivel: 'oro', pilotos: 40, grupos: [1, 2].map((n) => ({ clave: `oro-${n}`, pilotos: 20, mueven: 4, podio: rankingPilotos((i) => 500 - i * 25).slice(n, n + 3).map((f, i) => ({ ...f, pos: i + 1 })) })) },
+      { nivel: 'plata', pilotos: 80, grupos: [1, 2, 3, 4].map((n) => ({ clave: `plata-${n}`, pilotos: 20, mueven: 4, podio: rankingPilotos((i) => 480 - i * 25 - n * 9).slice(n, n + 3).map((f, i) => ({ ...f, pos: i + 1 })) })) },
+      { nivel: 'cobre', pilotos: 100, grupos: [1, 2, 3, 4, 5].map((n) => ({ clave: `cobre-${n}`, pilotos: 20, mueven: 4, podio: rankingPilotos((i) => 300 - i * 20).slice(n, n + 3).map((f, i) => ({ ...f, pos: i + 1 })) })) },
+      { nivel: 'sin-clasificar', pilotos: 14, grupos: [{ clave: 'sin-clasificar', pilotos: 14, mueven: 0, podio: rankingPilotos((i) => 120 - i * 9).slice(20, 23).map((f, i) => ({ ...f, pos: i + 1 })) }] },
     ],
     actualizado: hace(4),
   },
@@ -189,7 +193,7 @@ if (variante === 'encola') {
 }
 
 // 6d: temporadas cerradas, con sus premios en `logros`.
-[['2026-08', 1132, 212, 'plata'], ['2026-07', 1214, 3, 'oro'], ['2026-06', 702, 401, 'bronce'], ['2026-05', 388, 688, 'hierro']]
+[['2026-08', 1132, 212, 'plata'], ['2026-07', 1214, 3, 'oro'], ['2026-06', 702, 401, 'cobre'], ['2026-05', 388, 688, 'sin-clasificar']]
   .forEach(([temporada, puntos, posicion, division]) => { datos[`usuarios/${UID}/temporadas/${temporada}`] = { temporada, puntos, posicion, division }; });
 datos['agregados/clan-c1'] = {
   clanId: 'c1', nombre: CLANES.c1.nombre, color: CLANES.c1.color,
@@ -199,7 +203,7 @@ datos['agregados/clan-c1'] = {
   ],
   candidatos: variante === 'lider' ? [
     { uid: 's1', nombre: 'sergio.bm', puntos: 1400, viajes: 38, metros: 80000, division: 'plata', clanId: null },
-    { uid: 's2', nombre: 'carla_fx', puntos: 300, viajes: 6, metros: 9000, division: 'bronce', clanId: 'c2' },
+    { uid: 's2', nombre: 'carla_fx', puntos: 300, viajes: 6, metros: 9000, division: 'cobre', clanId: 'c2' },
   ] : [],
 };
 nombres.slice(0, 8).forEach((n, i) => {

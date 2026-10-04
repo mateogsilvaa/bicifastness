@@ -265,7 +265,7 @@ async function recalcularClan(clanId) {
       metros: datos.metrosTotales || 0,
       // 5d: la liga y el clan (el actual, o del que acaba de salir) ya salen
       // en las clasificaciones; el lider los ve al decidir una solicitud.
-      division: datos.division || 'hierro',
+      division: datos.division || 'sin-clasificar',
       clanId: datos.clanId || null,
       // 5c/8l: lo que suma esta semana (la temporada es semanal y publica).
       semana: datos.puntosTemporada || 0,

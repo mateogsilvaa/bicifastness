@@ -323,40 +323,54 @@
       "icono": "medalla",
       "regla": { "campo": "misionesCompletadas", "minimo": 250 }
     },
-    "liga-bronce": {
-      "titulo": "Liga Bronce",
-      "descripcion": "Has subido a la liga Bronce.",
+    "liga-cobre": {
+      "titulo": "Cobre",
+      "descripcion": "Has entrado en la escalera: división Cobre.",
       "modo": "liga",
       "icono": "escudo",
       "regla": { "campo": "nivelLiga", "minimo": 1 }
     },
     "liga-plata": {
-      "titulo": "Liga Plata",
-      "descripcion": "Has subido a la liga Plata.",
+      "titulo": "Plata",
+      "descripcion": "Has subido a la división Plata.",
       "modo": "liga",
       "icono": "escudo",
       "regla": { "campo": "nivelLiga", "minimo": 2 }
     },
     "liga-oro": {
-      "titulo": "Liga Oro",
-      "descripcion": "Has subido a la liga Oro.",
+      "titulo": "Oro",
+      "descripcion": "Has subido a la división Oro.",
       "modo": "liga",
       "icono": "escudo",
       "regla": { "campo": "nivelLiga", "minimo": 3 }
     },
     "liga-platino": {
-      "titulo": "Liga Platino",
-      "descripcion": "Has subido a la liga Platino.",
+      "titulo": "Platino",
+      "descripcion": "Has subido a la división Platino.",
       "modo": "liga",
       "icono": "escudo",
       "regla": { "campo": "nivelLiga", "minimo": 4 }
     },
-    "liga-leyenda": {
-      "titulo": "Liga Leyenda",
-      "descripcion": "Has llegado a Leyenda, la liga más alta.",
+    "liga-esmeralda": {
+      "titulo": "Esmeralda",
+      "descripcion": "Has llegado a Esmeralda, la primera de las gemas.",
       "modo": "liga",
       "icono": "medalla",
       "regla": { "campo": "nivelLiga", "minimo": 5 }
+    },
+    "liga-rubi": {
+      "titulo": "Rubí",
+      "descripcion": "Has llegado a Rubí: tres grupos en toda la ciudad.",
+      "modo": "liga",
+      "icono": "medalla",
+      "regla": { "campo": "nivelLiga", "minimo": 6 }
+    },
+    "liga-diamante": {
+      "titulo": "Diamante",
+      "descripcion": "Has llegado a Diamante: un solo grupo, el de arriba del todo.",
+      "modo": "liga",
+      "icono": "medalla",
+      "regla": { "campo": "nivelLiga", "minimo": 7 }
     },
     "clan-fundador": {
       "titulo": "Fundador",

@@ -57,7 +57,10 @@ const CAMPOS_PUBLICABLES = ['pos', 'nombre', 'avatar', 'clan', 'puntos', 'marca'
   // "rosa.pedal · 14 sep" del rediseño 04. Solo el dia: ni la hora ni nada mas.
   'fecha',
   // Puestos ganados (+) o perdidos (-) en el grupo desde ayer: la flecha de 4a.
-  'cambio'];
+  'cambio',
+  // La division de cada piloto ('plata'), para pintar su insignia en la fila
+  // del ranking (diseño 12). Ya sale en su grupo, que es publico.
+  'division'];
 
 /**
  * Un documento de Firestore tiene un tope duro de 1 MiB. Un ranking largo no
@@ -105,15 +108,20 @@ async function escribirAgregado(nombre, filas, extra = {}) {
  * recibe los grupos ya repartidos (`divisiones.repartirEnGrupos`).
  */
 function resumenLigas(grupos, hoy) {
-  const niveles = [...divisiones.NIVELES].reverse().map((nivel) => {
-    const suyos = [...grupos.entries()].filter(([clave]) => clave.split('-')[0] === nivel);
+  // De la mejor a la peor, y al final los sin clasificar: los que entraran en
+  // la escalera al cerrar esta liga.
+  const orden = [...[...divisiones.NIVELES].reverse(), divisiones.SIN_CLASIFICAR];
+  const niveles = orden.map((nivel) => {
+    const suyos = [...grupos.entries()]
+      .filter(([clave]) => divisiones.divisionDeClave(clave) === nivel)
+      .sort(([a], [b]) => Number(a.split('-').pop()) - Number(b.split('-').pop()));
     return {
       nivel,
       pilotos: suyos.reduce((total, [, miembros]) => total + miembros.length, 0),
       grupos: suyos.map(([clave, miembros]) => ({
         clave,
         pilotos: miembros.length,
-        mueven: Math.min(divisiones.MUEVEN, Math.floor(miembros.length / 3)),
+        mueven: nivel === divisiones.SIN_CLASIFICAR ? 0 : divisiones.cuantosMueven(miembros.length),
         podio: miembros.slice(0, 3).map((p, i) => limpiar({
           pos: i + 1,
           nombre: (p.u && p.u.username) || 'Piloto',
@@ -432,6 +440,7 @@ async function reconstruir({
         pos: i + 1,
         nombre: u.username || 'Piloto',
         avatar: u.avatarUrl || null,
+        division: divisiones.esClasificado(u.division) ? u.division : divisiones.SIN_CLASIFICAR,
         clan: u.clanId || null,
         puntos,
         viajes: extra(u),
@@ -448,10 +457,11 @@ async function reconstruir({
   // "El puesto 180 de 400 no motiva; el 7.º de 30 a dos trayectos de subir, si."
   // El ranking se abre en TU grupo, y Hoy dice a cuantos puntos estas de subir.
   //
-  // Los grupos salen de la MISMA funcion que decide los ascensos del lunes
-  // (`divisiones.repartirEnGrupos`), sobre los puntos de hoy: lo que se ve aqui
-  // es exactamente lo que pasaria si el lunes fuera ahora. No se guarda en el
-  // perfil de nadie ni cuesta una lectura: `usuarios` ya esta cargado.
+  // El grupo de cada uno es el que le dio el ultimo cierre (`grupoLiga`): no
+  // cambia en mitad de la liga. Sale de la MISMA funcion que usa el cierre
+  // (`divisiones.repartirEnGrupos`), asi que lo que se ve aqui es lo que se
+  // cerraria si el lunes fuera ahora. No cuesta una lectura: `usuarios` ya
+  // esta cargado.
   //
   // El indice `agregados/grupos` dice en que grupo esta cada nombre de piloto
   // (los nombres ya son publicos en cualquier clasificacion): con el, una
@@ -462,7 +472,8 @@ async function reconstruir({
   const grupos = divisiones.repartirEnGrupos(usuarios.map((u) => ({
     uid: u.uid,
     puntos: u.puntosLiga || 0,
-    division: u.division || 'hierro',
+    division: divisiones.esClasificado(u.division) ? u.division : divisiones.SIN_CLASIFICAR,
+    grupo: u.grupoLiga || null,
     u,
   })));
   const porPiloto = {};
@@ -484,6 +495,7 @@ async function reconstruir({
         clan: p.u.clanId || null,
         puntos: p.puntos,
         viajes: p.u.viajesVerificados || 0,
+        division: p.division,
         // Solo si ayer estaba en ESTE grupo: entre grupos, un puesto no se compara.
         cambio: antes && antes.grupo === clave ? antes.pos - (i + 1) : null,
       };
@@ -493,7 +505,7 @@ async function reconstruir({
       // Cuantos suben y cuantos bajan en ESTE grupo: un grupo incompleto mueve
       // menos (`divisiones.movimientos`), y pintar "suben 5" en uno de siete
       // seria mentir.
-      mueven: Math.min(divisiones.MUEVEN, Math.floor(miembros.length / 3)),
+      mueven: clave === divisiones.SIN_CLASIFICAR ? 0 : divisiones.cuantosMueven(miembros.length),
     });
     for (const f of filas) porPiloto[f.nombre] = clave;
   }

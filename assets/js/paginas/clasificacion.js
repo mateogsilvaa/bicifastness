@@ -15,7 +15,10 @@ import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 import { diaMadrid } from '/assets/js/dia.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
-import { NOMBRES as DIVISIONES, emblemaLiga, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo } from '/assets/js/ligas.js';
+import {
+  NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
+  divisionDeClave, numeroDeGrupo,
+} from '/assets/js/ligas.js';
 
 iniciarPagina('clasificacion');
 
@@ -133,22 +136,27 @@ async function claveDeMiGrupo() {
   return indice?.porPiloto?.[perfil.username] || null;
 }
 
-function filaPiloto(f, { yo, zona, valor, clanes, columnas = null, flecha = false }) {
+function filaPiloto(f, { yo, zona, valor, clanes, columnas = null, flecha = false, insignia = false }) {
   const clan = clanes[f.clan];
   // 4a: puestos ganados o perdidos desde ayer en el grupo (el worker los calcula).
   const cambio = Number(f.cambio) || 0;
+  // 12: en las tablas de toda la ciudad la insignia de la division sustituye a
+  // la franja de ascenso, y debajo del nombre va "Diamante · Lavapies Crew".
+  const conInsignia = insignia && Boolean(f.division);
+  const division = conInsignia ? DIVISIONES[f.division] || '' : '';
   return el('button', {
-    clase: `fila-ranking ${yo ? 'tuya' : ''} ${flecha ? 'con-flecha' : ''}`,
-    attrs: { type: 'button', 'aria-label': `${f.pos}.º ${f.nombre}, ${valor}` },
+    clase: `fila-ranking ${yo ? 'tuya' : ''} ${flecha ? 'con-flecha' : ''} ${conInsignia ? 'con-insignia' : ''}`,
+    attrs: { type: 'button', 'aria-label': `${f.pos}.º ${f.nombre}${division ? `, ${division}` : ''}, ${valor}` },
     on: { click: () => abrirPiloto(f.nombre) },
   }, [
-    el('span', { clase: `zona ${zona || ''}`, attrs: { 'aria-hidden': 'true' } }),
+    conInsignia ? null : el('span', { clase: `zona ${zona || ''}`, attrs: { 'aria-hidden': 'true' } }),
     el('span', { clase: 'pos', texto: String(f.pos) }),
+    conInsignia ? emblemaLiga(f.division, { tamano: 28 }) : null,
     el('span', { clase: 'quien' }, [
       el('span', { clase: 'nombre', texto: yo ? `Tú · ${f.nombre}` : f.nombre }),
       el('span', { clase: 'clan' }, [
-        el('span', { clase: 'punto-clan', estilo: { background: clan?.color || 'transparent' } }),
-        el('span', { texto: clan?.nombre || 'Sin clan' }),
+        conInsignia ? null : el('span', { clase: 'punto-clan', estilo: { background: clan?.color || 'transparent' } }),
+        el('span', { texto: conInsignia ? `${division} · ${clan?.nombre || 'Sin clan'}` : clan?.nombre || 'Sin clan' }),
       ]),
     ]),
     el('span', { clase: 'clan-escritorio' }, [
@@ -174,7 +182,10 @@ async function pintarPilotos() {
 
   // El grupo compite por puntos de la liga en juego: los modos son de Madrid.
   $('ambito-grupo').classList.toggle('oculto', !clave);
-  $('ambito-grupo').textContent = clave ? nombreGrupo(clave) : 'Tu grupo';
+  // 12 · Chip junto al nombre: la insignia de TU division y "Plata · grupo 4".
+  reemplazar($('ambito-grupo'), clave
+    ? [emblemaLiga(divisionDeClave(clave), { tamano: 20 }), el('span', { texto: nombreGrupo(clave) })]
+    : ['Tu grupo']);
   $('ambito-grupo').setAttribute('aria-pressed', String(ambito === 'grupo'));
   document.querySelector('.ranking')?.classList.toggle('en-grupo', ambito === 'grupo');
   document.querySelector('.ranking')?.classList.toggle('en-ligas', ambito === 'ligas');
@@ -199,7 +210,20 @@ async function pintarPilotos() {
   if (ambito === 'grupo') {
     const grupo = await traer(`grupo-${clave}`);
     if (!grupo?.filas?.length) { reemplazar(destino, fallo ? errorRed(pintarPilotos) : vacio('Tu grupo aún no tiene tabla', 'Se forma en cuanto se verifique el primer trayecto de la liga.')); return; }
-    const mueven = grupo.mueven ?? 5;
+    const mueven = grupo.mueven ?? 4;
+    const miDivision = divisionDeClave(clave);
+    // Tu division, con su insignia grande, encima de la tabla de tu grupo.
+    const cabeza = el('div', { clase: 'cabeza-mi-liga' }, [
+      emblemaLiga(miDivision, { tamano: 48 }),
+      el('div', {}, [
+        el('strong', { texto: nombreGrupo(clave) }),
+        el('span', {
+          texto: miDivision === SIN_CLASIFICAR
+            ? `Entras en la escalera ${cuandoCambia()}: la mayoría en Cobre, y quien destaca, más arriba.`
+            : `${grupo.filas.length} pilotos · la liga se decide ${cuandoCambia()}`,
+        }),
+      ]),
+    ]);
     // En escritorio, la tabla de verdad con una columna por modo (8c).
     const extras = escritorio ? await Promise.all(['sprint', 'fondo', 'constancia'].map((m) => traer(`ranking-${m}`))) : null;
     const valorDe = (m, nombre) => {
@@ -207,6 +231,7 @@ async function pintarPilotos() {
       return f ? MODOS[m].formato(f.puntos) : '—';
     };
     reemplazar(destino, [
+      cabeza,
       el('div', { clase: 'lista-ranking con-columnas' }, [
         // 8c: en escritorio, la cabecera de una tabla de verdad; 4a: en movil,
         // quien sube el lunes y la unidad.
@@ -219,7 +244,7 @@ async function pintarPilotos() {
             el('span', { clase: 'col-cab num', texto: 'Total ↓' }),
           ]
           : [
-            el('span', { clase: 'sube', texto: `Suben ${cuandoCambia()}` }),
+            el('span', { clase: 'sube', texto: mueven ? `Suben ${cuandoCambia()}` : '' }),
             el('span', { clase: 'col-cab num', texto: 'pts' }),
           ]),
         ...grupo.filas.map((f, i) => filaPiloto(f, {
@@ -255,7 +280,7 @@ async function pintarPilotos() {
   reemplazar(destino, [
     podio,
     el('div', { clase: 'lista-ranking' }, resto.map((f) => filaPiloto(f, {
-      yo: f.nombre === perfil?.username, valor: formato(f.puntos), clanes,
+      yo: f.nombre === perfil?.username, valor: formato(f.puntos), clanes, insignia: true,
     }))),
     agregado.paginas > 1 ? el('p', { clase: 'pie-actualizado', texto: `Se ven los ${resto.length + (podio ? 3 : 0)} primeros de ${numero(agregado.total)}.` }) : null,
     pieActualizado(agregado),
@@ -265,8 +290,8 @@ async function pintarPilotos() {
 
 // --- Todas las ligas (4l) -------------------------------------------------------
 //
-// Una lectura (`agregados/ligas`) para ver todas las ligas, de Leyenda a
-// Hierro, cada una con su emblema, sus grupos y el podio de cada grupo. Un
+// Una lectura (`agregados/ligas`) para ver todas las ligas, de Diamante a
+// Cobre y los sin clasificar al final, cada una con su insignia, sus grupos y el podio de cada grupo. Un
 // grupo se despliega para ver su tabla entera: esa lectura solo se paga al
 // abrirlo.
 
@@ -292,7 +317,8 @@ async function pintarLigas(destino, miClave) {
 }
 
 function tarjetaLiga(n, miClave, clanes) {
-  const mia = Boolean(miClave) && miClave.split('-')[0] === n.nivel;
+  const mia = Boolean(miClave) && divisionDeClave(miClave) === n.nivel;
+  const sinClasificar = n.nivel === SIN_CLASIFICAR;
   return el('section', {
     clase: `tarjeta-liga liga-${n.nivel}${mia ? ' tuya' : ''}${n.pilotos ? '' : ' vacia'}`,
     attrs: { 'aria-label': `Liga ${DIVISIONES[n.nivel]}` },
@@ -302,9 +328,11 @@ function tarjetaLiga(n, miClave, clanes) {
       el('div', { clase: 'texto-liga' }, [
         el('h2', { texto: DIVISIONES[n.nivel] || n.nivel }),
         el('span', {
-          texto: n.pilotos
-            ? `${numero(n.pilotos)} ${n.pilotos === 1 ? 'piloto' : 'pilotos'} · ${n.grupos.length} ${n.grupos.length === 1 ? 'grupo' : 'grupos'}`
-            : 'Nadie ha llegado todavía',
+          texto: sinClasificar
+            ? (n.pilotos ? `${numero(n.pilotos)} ${n.pilotos === 1 ? 'piloto' : 'pilotos'} · entran ${cuandoCambia()}` : 'Nadie esperando')
+            : n.pilotos
+              ? `${numero(n.pilotos)} ${n.pilotos === 1 ? 'piloto' : 'pilotos'} · ${n.grupos.length} ${n.grupos.length === 1 ? 'grupo' : 'grupos'}`
+              : 'Nadie ha llegado todavía',
         }),
       ]),
       mia ? el('span', { clase: 'chip-tu-liga', texto: 'Tu liga' }) : null,
@@ -318,7 +346,7 @@ function grupoDeLiga(g, miClave, clanes) {
   const contenido = el('div', { clase: 'contenido-grupo' });
   const plegable = el('details', { clase: `grupo-liga${mio ? ' tuyo' : ''}`, attrs: { open: mio ? '' : null } }, [
     el('summary', {}, [
-      el('span', { clase: 'nombre-grupo', texto: `Grupo ${String(g.clave).split('-')[1]}${mio ? ' · el tuyo' : ''}` }),
+      el('span', { clase: 'nombre-grupo', texto: `${numeroDeGrupo(g.clave) ? `Grupo ${numeroDeGrupo(g.clave)}` : 'Todos'}${mio ? ' · el tuyo' : ''}` }),
       el('span', { clase: 'podio-mini' }, (g.podio || []).map((p) => el('span', {}, [
         el('span', { clase: 'pos-mini', texto: `${p.pos}` }),
         el('span', { clase: 'nombre-mini', texto: p.nombre }),

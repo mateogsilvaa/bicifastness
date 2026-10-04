@@ -59,6 +59,7 @@ test('el navegador y el worker cuentan las ligas igual', async () => {
   assert.strictEqual(cliente.LANZAMIENTO, divisiones.LANZAMIENTO);
   assert.strictEqual(cliente.DIAS_POR_LIGA, divisiones.DIAS_POR_LIGA);
   assert.deepStrictEqual(cliente.NIVELES, divisiones.NIVELES);
+  assert.strictEqual(cliente.SIN_CLASIFICAR, divisiones.SIN_CLASIFICAR);
   for (let d = 0; d < 90; d++) {
     const dia = divisiones.sumarDias('2026-10-15', d);
     assert.strictEqual(cliente.inicioLiga(dia), divisiones.inicioLiga(dia), dia);
@@ -69,19 +70,24 @@ test('el navegador y el worker cuentan las ligas igual', async () => {
 test('el resumen de ligas va de Leyenda a Hierro y solo publica lo publicable', () => {
   const pilotos = [
     ...Array.from({ length: 35 }, (_, i) => ({
-      uid: `h${i}`, division: 'hierro', puntos: 100 - i,
-      u: { username: `hierro${i}`, clanId: null, email: 'no@debe.salir' },
+      uid: `h${i}`, division: 'cobre', puntos: 100 - i,
+      u: { username: `cobre${i}`, clanId: null, email: 'no@debe.salir' },
     })),
     { uid: 'o1', division: 'oro', puntos: 50, u: { username: 'dorada', clanId: 'c1', email: 'x@y.z' } },
+    { uid: 'n1', division: 'sin-clasificar', puntos: 30, u: { username: 'novata', clanId: null } },
   ];
   const grupos = divisiones.repartirEnGrupos(pilotos);
   const r = resumenLigas(grupos, '2026-11-20');
 
-  assert.deepStrictEqual(r.niveles.map((n) => n.nivel), [...divisiones.NIVELES].reverse());
-  const hierro = r.niveles.find((n) => n.nivel === 'hierro');
-  assert.strictEqual(hierro.pilotos, 35);
-  assert.strictEqual(hierro.grupos.length, 2, '35 pilotos son dos grupos de hasta 30');
-  assert.deepStrictEqual(hierro.grupos[0].podio.map((p) => p.nombre), ['hierro0', 'hierro1', 'hierro2']);
+  assert.deepStrictEqual(r.niveles.map((n) => n.nivel), [...[...divisiones.NIVELES].reverse(), 'sin-clasificar']);
+  const cobre = r.niveles.find((n) => n.nivel === 'cobre');
+  assert.strictEqual(cobre.pilotos, 35);
+  assert.strictEqual(cobre.grupos.length, 2, '35 pilotos son dos grupos de hasta 20');
+  // Parejos: los dos mejores, cada uno en un grupo.
+  assert.deepStrictEqual(cobre.grupos.map((g) => g.podio[0].nombre).sort(), ['cobre0', 'cobre1']);
+  const sin = r.niveles.find((n) => n.nivel === 'sin-clasificar');
+  assert.strictEqual(sin.pilotos, 1);
+  assert.strictEqual(sin.grupos[0].mueven, 0, 'sin clasificar no sube ni baja');
   assert.strictEqual(r.niveles.find((n) => n.nivel === 'plata').pilotos, 0);
   assert.strictEqual(r.inicio, '2026-11-16');
   assert.strictEqual(r.fin, '2026-11-29');
@@ -89,21 +95,32 @@ test('el resumen de ligas va de Leyenda a Hierro y solo publica lo publicable', 
   assert.ok(!JSON.stringify(r.niveles).includes('"uid"'), 'ni uids');
 });
 
-test('cada liga por encima de Hierro tiene su insignia, y se gana al llegar', () => {
+test('cada division tiene su insignia, y se gana al llegar', () => {
   const logros = require('../src/logros');
-  for (const nivel of divisiones.NIVELES.slice(1)) {
+  for (const nivel of divisiones.NIVELES) {
     assert.ok(logros.CATALOGO.insignias[`liga-${nivel}`], `falta la insignia de ${nivel}`);
   }
   const nuevas = logros.nuevas({ division: 'oro', logros: [] });
-  assert.ok(['liga-bronce', 'liga-plata', 'liga-oro'].every((k) => nuevas.includes(k)));
+  assert.ok(['liga-cobre', 'liga-plata', 'liga-oro'].every((k) => nuevas.includes(k)));
   assert.ok(!nuevas.includes('liga-platino'));
+  // Vuelta a sin clasificar: las de lo mejor que tuvo no se pierden ni se piden de nuevo.
+  const vuelta = logros.nuevas({ division: 'sin-clasificar', divisionMaxima: 4, logros: [] });
+  assert.ok(vuelta.includes('liga-esmeralda'));
+  assert.deepStrictEqual(logros.nuevas({ division: 'sin-clasificar', logros: [] }).filter((k) => k.startsWith('liga-')), []);
+});
+
+test('las insignias del diseño se piden donde estan y con su version oscura', () => {
+  const ligas = fs.readFileSync(path.join(RAIZ, 'assets', 'js', 'ligas.js'), 'utf8');
+  assert.match(ligas, /\/assets\/img\/divisiones/);
+  assert.match(ligas, /-oscuro\.svg/);
 });
 
 test('el cierre de liga solo actua el lunes que toca y no se repite', () => {
   const codigo = fs.readFileSync(path.join(RAIZ, 'backend', 'periodicas.js'), 'utf8');
   assert.match(codigo, /esCambioDeLiga\(hoy\)/, 'tiene que mirar si hoy cierra liga');
   assert.match(codigo, /config\/ligas\/cerradas\//, 'tiene que marcar la liga cerrada');
-  assert.ok(codigo.indexOf('await marca.set(') < codigo.indexOf('lote.update('),
+  assert.ok(codigo.indexOf('await marca.set(', codigo.indexOf('actualizarDivisiones')) < codigo.lastIndexOf('lote.update('),
     'la marca va ANTES de tocar a nadie, como en el cierre de temporada');
   assert.match(codigo, /puntosLiga: 0/, 'los puntos de liga vuelven a cero');
+  assert.match(codigo, /divisiones\.cerrarLiga\(/, 'la regla vive en divisiones.cerrarLiga, no en el script');
 });

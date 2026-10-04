@@ -189,38 +189,34 @@ test('el cierre no supera el limite de 500 operaciones por lote', async () => {
 
 // --- Divisiones ---------------------------------------------------------------------
 
-test('el cambio semanal de division mueve gente sin dejar a nadie fuera', () => {
+test('el cierre de liga coloca a todo el mundo sin dejar a nadie fuera', () => {
   const pilotos = DATOS.usuarios.map((u) => ({
-    uid: u.uid, puntos: u.puntosTemporada, division: u.division,
+    uid: u.uid, puntos: u.puntosTemporada, division: u.division, grupo: u.grupoLiga,
   }));
 
-  const cambios = divisiones.calcularSemana(pilotos);
+  const salida = divisiones.cerrarLiga(pilotos);
 
-  assert.ok(cambios.length > 0, 'con 200 pilotos alguien tiene que moverse');
-  assert.ok(cambios.length < pilotos.length, 'no puede moverse todo el mundo');
-
-  // Nadie sale del rango de niveles ni aparece dos veces.
+  assert.strictEqual(salida.length, pilotos.length, 'alguien se ha perdido en el cierre');
   const vistos = new Set();
-  for (const c of cambios) {
-    assert.ok(divisiones.NIVELES.includes(c.division), `division invalida: ${c.division}`);
-    assert.ok(!vistos.has(c.uid), `${c.uid} cambia dos veces en la misma semana`);
-    vistos.add(c.uid);
-    assert.ok(pilotos.some((p) => p.uid === c.uid), 'un cambio para alguien que no existe');
+  for (const x of salida) {
+    assert.ok(x.division === divisiones.SIN_CLASIFICAR || divisiones.NIVELES.includes(x.division),
+      `division invalida: ${x.division}`);
+    assert.ok(!vistos.has(x.uid), `${x.uid} sale dos veces`);
+    vistos.add(x.uid);
   }
+  assert.ok(salida.some((x) => x.cambia), 'con 200 pilotos alguien tiene que moverse');
 });
 
 test('quien no tiene puntos no sube de division', () => {
   const pilotos = DATOS.usuarios.map((u) => ({
-    uid: u.uid, puntos: u.puntosTemporada, division: u.division,
+    uid: u.uid, puntos: u.puntosTemporada, division: u.division, grupo: u.grupoLiga,
   }));
-  const cambios = divisiones.calcularSemana(pilotos);
   const porUid = new Map(pilotos.map((p) => [p.uid, p]));
-
-  for (const c of cambios) {
-    const antes = porUid.get(c.uid);
+  for (const x of divisiones.cerrarLiga(pilotos)) {
+    const antes = porUid.get(x.uid);
     if (antes.puntos > 0) continue;
-    const subida = divisiones.NIVELES.indexOf(c.division) > divisiones.NIVELES.indexOf(antes.division);
-    assert.ok(!subida, `${c.uid} sube de division con 0 puntos`);
+    const subida = divisiones.nivelDe(x.division) > divisiones.nivelDe(antes.division);
+    assert.ok(!subida, `${x.uid} sube de division con 0 puntos`);
   }
 });
 

@@ -16,7 +16,7 @@ import { diaMadrid } from '/assets/js/dia.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
 import {
-  NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
+  NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, chipDivision, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
   divisionDeClave, numeroDeGrupo,
 } from '/assets/js/ligas.js';
 
@@ -184,7 +184,7 @@ async function pintarPilotos() {
   $('ambito-grupo').classList.toggle('oculto', !clave);
   // 12 · Chip junto al nombre: la insignia de TU division y "Plata · grupo 4".
   reemplazar($('ambito-grupo'), clave
-    ? [emblemaLiga(divisionDeClave(clave), { tamano: 20 }), el('span', { texto: nombreGrupo(clave) })]
+    ? [emblemaLiga(divisionDeClave(clave), { tamano: 22 }), el('span', { texto: nombreGrupo(clave) })]
     : ['Tu grupo']);
   $('ambito-grupo').setAttribute('aria-pressed', String(ambito === 'grupo'));
   document.querySelector('.ranking')?.classList.toggle('en-grupo', ambito === 'grupo');
@@ -775,7 +775,9 @@ async function abrirPiloto(nombre, desde = null) {
       el('span', { clase: 'avatar-inicial', estilo: { background: clan?.color || 'var(--tinta)' }, texto: [...nombre][0]?.toUpperCase() || 'P' }),
       el('div', {}, [
         el('h2', { texto: nombre }),
-        el('span', { clase: 'apagado', texto: [clan?.nombre || 'Sin clan', clave ? nombreGrupo(clave) : null, enGrupo ? ordinal(enGrupo.pos) : null].filter(Boolean).join(' · ') }),
+        el('span', { clase: 'apagado', texto: [clan?.nombre || 'Sin clan', enGrupo ? `${ordinal(enGrupo.pos)} de su grupo` : null].filter(Boolean).join(' · ') }),
+        // 12 · Chip junto al nombre en el perfil publico.
+        clave ? chipDivision(divisionDeClave(clave), nombreGrupo(clave)) : null,
       ]),
     ]),
     el('div', { clase: 'cifras-piloto' }, [

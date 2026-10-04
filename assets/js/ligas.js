@@ -87,51 +87,16 @@ export function nombreGrupo(clave) {
   return n ? `${NOMBRES[division] || division} · grupo ${n}` : (NOMBRES[division] || division);
 }
 
-const SVG = 'http://www.w3.org/2000/svg';
-function nodo(tipo, attrs) {
-  const n = document.createElementNS(SVG, tipo);
-  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
-  return n;
-}
-
 /** Donde viven las insignias del diseño 12: `{id}.svg` y `{id}-oscuro.svg`. */
 const RUTA = '/assets/img/divisiones';
 
 /**
- * Colores de cada insignia (diseño 12: base, sombra y luz). Solo para la forma
- * de respaldo de abajo: la insignia de verdad es el SVG del diseño.
- */
-const PALETA = {
-  'sin-clasificar': ['none', '#6E6C66', '#FFFFFF'],
-  cobre: ['#D98A5A', '#A65C34', '#F2B58C'],
-  plata: ['#C3C9D1', '#8B939E', '#EEF1F4'],
-  oro: ['#F2C230', '#C08E0E', '#FFE17A'],
-  platino: ['#8DBBD6', '#4F86A6', '#CFE8F5'],
-  esmeralda: ['#26B377', '#12784C', '#8BEBBE'],
-  rubi: ['#E0435E', '#A41F3A', '#FF9DAE'],
-  diamante: ['#7AD3F7', '#2D8FC9', '#E3F7FF'],
-};
-
-/**
- * Forma de respaldo, solo si el SVG del diseño no carga (o aun no esta en el
- * repositorio): un disco del color de la division con su sombra solida. Que
- * nunca se vea un icono roto donde va una insignia.
- */
-function respaldo(id, tamano) {
-  const [base, sombra, luz] = PALETA[id] || PALETA['sin-clasificar'];
-  const svg = nodo('svg', { viewBox: '0 0 32 34', width: tamano, height: Math.round(tamano * 34 / 32), 'aria-hidden': 'true', focusable: 'false' });
-  svg.append(nodo('circle', { cx: 16, cy: 18, r: 13, fill: sombra }));
-  svg.append(nodo('circle', { cx: 16, cy: 15, r: 13, fill: base === 'none' ? 'var(--papel-2)' : base, stroke: '#111110', 'stroke-width': 2.5 }));
-  if (base !== 'none') svg.append(nodo('path', { d: 'M9.5 12.5a7.5 7.5 0 0 1 5.5-4.5', stroke: luz, 'stroke-width': 2.5, 'stroke-linecap': 'round', fill: 'none' }));
-  return svg;
-}
-
-/**
  * La insignia de una division (diseño 12 · Insignias de division).
  *
- * Son los SVG del diseño, en `assets/img/divisiones/`: la version clara y la
- * `-oscuro` (borde blanco de pegatina en vez de sombra), y el CSS enseña la del
- * tema. Las `-compacto` son copias identicas, asi que no se piden aparte.
+ * Son los SVG del diseño, tal cual, en `assets/img/divisiones/`: la version
+ * clara y la `-oscuro` (borde blanco de pegatina en vez de sombra), y el CSS
+ * enseña la del tema. Las `-compacto` son copias identicas, asi que no se
+ * piden aparte.
  *
  * @param {string} division  'cobre' ... 'diamante' o 'sin-clasificar'
  * @param {{tamano?: number, apagado?: boolean}} opciones  `tamano` es el ALTO
@@ -149,9 +114,24 @@ export function emblemaLiga(division, { tamano = 32, apagado = false } = {}) {
     img.alt = '';
     img.decoding = 'async';
     img.style.height = `${tamano}px`;
-    // Sin el fichero, la forma de respaldo en su sitio.
-    img.addEventListener('error', () => { if (!caja.querySelector('svg')) caja.replaceChildren(respaldo(id, tamano)); }, { once: true });
     caja.append(img);
   }
   return caja;
+}
+
+/**
+ * 12 · Chip junto al nombre (Hoy, Tu, perfil publico): la insignia a 22 px y
+ * "Plata · grupo 4" en negrita, sobre blanco.
+ *
+ * @param {string} division
+ * @param {string} texto  lo que va al lado; por defecto, el nombre de la division
+ */
+export function chipDivision(division, texto = null) {
+  const id = NOMBRES[division] ? division : SIN_CLASIFICAR;
+  const chip = document.createElement('span');
+  chip.className = 'chip-insignia';
+  const rotulo = document.createElement('span');
+  rotulo.textContent = texto || NOMBRES[id];
+  chip.append(emblemaLiga(id, { tamano: 22 }), rotulo);
+  return chip;
 }

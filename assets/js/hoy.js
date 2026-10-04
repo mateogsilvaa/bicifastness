@@ -26,7 +26,7 @@ import { seguirViaje, viajeRecordado, olvidarViaje } from '/assets/js/estado-via
 import { abrirVerificado, abrirResuelto, tramoDe } from '/assets/js/veredicto.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import {
-  NOMBRES as DIVISIONES, NIVELES, SIN_CLASIFICAR, emblemaLiga, cuandoCambia, divisionDeClave,
+  NOMBRES as DIVISIONES, NIVELES, SIN_CLASIFICAR, emblemaLiga, chipDivision, cuandoCambia, divisionDeClave,
   nombreGrupo as nombreDeGrupo,
 } from '/assets/js/ligas.js';
 
@@ -582,10 +582,7 @@ async function pintarDivision(perfil) {
 
     reemplazar(destino, el('a', { clase: 'tarjeta-grande hoy-division', attrs: { href: '/clasificacion/' } }, [
       el('div', { clase: 'hoy-seccion' }, [
-        el('strong', { clase: 'con-emblema' }, [
-          emblemaLiga(divisionDeClave(grupo.clave), { tamano: 20 }),
-          el('span', { texto: nombreGrupo(grupo.clave) }),
-        ]),
+        chipDivision(divisionDeClave(grupo.clave), nombreGrupo(grupo.clave)),
         // La liga dura dos semanas: se dice que dia se decide, no "el lunes".
         el('span', {}, [el('span', { clase: 'solo-movil-i', texto: 'se decide ' }), cuandoCambia()]),
       ]),
@@ -703,11 +700,12 @@ function avisarCambioDivision(perfil) {
 
   const { cerrar } = abrirHoja([
     el('div', { clase: 'cambio-division' }, [
-      emblemaLiga(cambio.hasta, { tamano: 56 }),
-      el('div', { clase: 'cambio-chips' }, [
-        el('span', { clase: 'chip-division antes', texto: desde }),
+      // 12 · Lunes: la insignia de antes (apagada), la flecha y la nueva, que
+      // cae y rebota. Quien entra desde sin clasificar, con la suya.
+      el('div', { clase: 'cambio-insignias', attrs: { 'aria-label': `De ${desde} a ${hasta}` } }, [
+        (() => { const a = emblemaLiga(entra ? SIN_CLASIFICAR : cambio.desde, { tamano: 64 }); a.classList.add('antes'); return a; })(),
         icono('flecha', 'icono'),
-        el('span', { clase: `chip-division despues ${cambio.hasta}`, texto: hasta }),
+        (() => { const n = emblemaLiga(cambio.hasta, { tamano: 130 }); n.classList.add('nueva'); return n; })(),
       ]),
       el('h2', { texto: titulo }),
       el('p', {

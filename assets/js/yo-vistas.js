@@ -12,7 +12,7 @@
 import { el, icono, reemplazar } from './dom.js';
 import { nombreRuta, formatearTiempo } from './ui.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
-import { NIVELES, NOMBRES as LIGAS, emblemaLiga, numeroDeGrupo } from './ligas.js';
+import { NIVELES, NOMBRES as LIGAS, emblemaLiga, chipDivision, numeroDeGrupo } from './ligas.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
 
 // --- Formato -----------------------------------------------------------------
@@ -149,8 +149,9 @@ export function pintarCabecera(perfil, clan, grupo = null) {
   const desde = creado
     ? `desde ${MESES[creado.getMonth()]}${creado.getFullYear() === new Date().getFullYear() ? '' : ` de ${creado.getFullYear()}`}`
     : '';
-  const division = nombreDivision(perfil.division);
-  const liga = division ? (numeroDeGrupo(grupo) ? `${division} · grupo ${numeroDeGrupo(grupo)}` : division) : null;
+  // Sin division guardada es que aun no ha cerrado ninguna liga: sin clasificar.
+  const division = nombreDivision(perfil.division) || nombreDivision('sin-clasificar');
+  const liga = numeroDeGrupo(grupo) ? `${division} · grupo ${numeroDeGrupo(grupo)}` : division;
   // 8m: en escritorio la liga va en esta linea, sin etiquetas debajo.
   reemplazar(document.getElementById('clan'), [
     clan?.nombre || 'Sin clan',
@@ -161,7 +162,8 @@ export function pintarCabecera(perfil, clan, grupo = null) {
   const escudos = perfil.escudos || 0;
   reemplazar(document.getElementById('etiquetas'), [
     // 6a: "Plata · grupo 4" en cuanto se sabe el grupo de la liga.
-    liga ? el('span', { clase: 'etiqueta-juego', texto: liga }) : null,
+    // 12 · Chip junto al nombre, con la insignia de su division.
+    chipDivision(LIGAS[perfil.division] ? perfil.division : 'sin-clasificar', liga),
     // Los escudos, a la vista: son lo que protege la racha.
     el('span', {
       clase: 'etiqueta-juego',

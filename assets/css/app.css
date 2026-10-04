@@ -2740,8 +2740,17 @@ body.en-paso:has(.subir-paso.leyendo:not(.oculto)) { background: #111110; }
 /* 4a: la flecha de ayer, en su columna de 18 px. */
 .fila-ranking.con-flecha { grid-template-columns: 4px 30px minmax(0, 1fr) auto 18px; }
 /* 12: la insignia de la division en lugar de la franja de ascenso. */
-.fila-ranking.con-insignia { grid-template-columns: 30px 32px minmax(0, 1fr) auto; }
+.fila-ranking.con-insignia { grid-template-columns: 28px 28px minmax(0, 1fr) auto; gap: 12px; }
+.fila-ranking.con-insignia .pos { font-size: 17px; }
 .fila-ranking.con-insignia .insignia-division { justify-self: center; }
+/* 12 · Chip junto al nombre (Hoy, Tu, perfil publico). */
+.chip-insignia { display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; padding: 5px 12px 5px 8px; border-radius: 999px; background: var(--papel-2); font-size: 14px; font-weight: 700; color: var(--tinta); white-space: nowrap; }
+.tarjeta-grande .chip-insignia, .piloto-cabeza .chip-insignia { background: var(--papel); }
+/* 2g con la escala nueva: la insignia de antes apagada, la flecha y la nueva grande. */
+.cambio-insignias { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.cambio-insignias .antes { opacity: .45; filter: grayscale(.4); }
+.cambio-insignias .icono { width: 22px; height: 22px; color: var(--azul-relleno); }
+.hoja-division h2 { font-size: 24px; letter-spacing: -.03em; font-stretch: 88%; }
 .cabeza-mi-liga { display: flex; align-items: center; gap: var(--e3); padding: var(--e3) 0 var(--e1); }
 .cabeza-mi-liga > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .cabeza-mi-liga strong { font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
@@ -2878,6 +2887,7 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
 .panel-cabeza { display: flex; align-items: center; justify-content: space-between; min-height: 36px; }
 .panel-cabeza .rotulo { font-size: 13px; color: var(--tinta-3); }
 .piloto-cabeza { display: flex; align-items: center; gap: 14px; }
+.piloto-cabeza > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .piloto-cabeza h2 { font-size: 24px; letter-spacing: -.03em; }
 .piloto-cabeza .apagado { font-size: 13px; }
 .cifras-piloto { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--e2); }
@@ -3870,7 +3880,7 @@ body.soltando .capa-soltar { background: rgba(243, 241, 236, .55); padding: 24px
 
 .con-emblema { display: inline-flex; align-items: center; gap: var(--e2); }
 .insignia .disco.con-emblema { background: none; }
-.hoja-division .insignia-division { margin: 0 auto var(--e2); }
+
 /* 2g: la insignia nueva cae desde 8 px y rebota una vez al tocar su sombra. */
 @keyframes insignia-cae {
   0% { transform: translateY(-8px); opacity: 0; }
@@ -3878,8 +3888,8 @@ body.soltando .capa-soltar { background: rgba(243, 241, 236, .55); padding: 24px
   75% { transform: translateY(-3px); }
   100% { transform: translateY(0); }
 }
-.hoja-division .insignia-division { animation: insignia-cae 420ms cubic-bezier(.3, .7, .4, 1) both; }
-@media (prefers-reduced-motion: reduce) { .hoja-division .insignia-division { animation: none; } }
+.hoja-division .cambio-insignias .nueva { animation: insignia-cae 420ms cubic-bezier(.3, .7, .4, 1) both; }
+@media (prefers-reduced-motion: reduce) { .hoja-division .cambio-insignias .nueva { animation: none; } }
 
 .ligas-calendario { display: flex; align-items: center; gap: var(--e2); margin: var(--e2) 0 0; font-size: 13px; color: var(--tinta-2); }
 .ligas-calendario .icono { width: 16px; height: 16px; flex: none; }

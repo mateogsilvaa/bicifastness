@@ -72,8 +72,26 @@ usuarios y 5.000 viajes sin tocar nada, y esta en el CI.
 
 ### El worker no se ejecuta
 
-GitHub retrasa las ejecuciones programadas cuando hay carga: un retraso de 5 a
-15 minutos es **normal**, no es un fallo.
+**El cron de GitHub no se cumple**, y no es un fallo nuestro. Se midio: 4 a 6
+ejecuciones al dia en lugar de 288, con huecos de 3 a 6 horas. Los programados
+son de baja prioridad y GitHub los descarta sin avisar cuando hay carga.
+
+Por eso el worker **se relanza solo**: cada ejecucion vigila la cola 9 minutos y,
+al terminar, lanza la siguiente (`workflow_dispatch`). El cron queda de red de
+seguridad. Para saber si el relevo va: Actions → "Verificar viajes" tiene que
+mostrar ejecuciones seguidas (`workflow_dispatch`), una cada ~10 minutos.
+
+- **Pararlo**: variable del repositorio `ENCADENAR_WORKER` = `no` (Settings →
+  Secrets and variables → Actions → Variables), o cancelar la ejecucion en
+  curso. Una cancelada no lanza la siguiente.
+- **Si falla**, espera 5 minutos antes de reintentar: no encadena fallos.
+- **Sin `FIREBASE_SERVICE_ACCOUNT`** no se encadena nada.
+
+**Riesgo**: es gratis en un repositorio publico, pero los terminos de GitHub no
+quieren Actions como servicio siempre encendido. Hasta unas decenas de personas
+es razonable; antes de anunciarlo a lo grande, el worker deberia vivir en un
+servicio de verdad (un Cloud Run Job con Cloud Scheduler cada minuto cuesta
+centimos, y necesita el plan Blaze que ya se contempla en COSTE.md).
 
 Si lleva horas sin correr:
 

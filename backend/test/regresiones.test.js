@@ -333,6 +333,26 @@ test('el worker vigila la cola sin huecos: su ventana es mayor que el periodo de
   assert.match(worker, /const daVueltas = [^;]*!degradado/, 'en degradado no se vigila en vacio');
 });
 
+test('el worker se relanza solo, pero sin encadenar fallos ni correr sin credenciales', () => {
+  // El cron de GitHub no se cumple (4-6 ejecuciones al dia en lugar de 288), asi
+  // que cada ejecucion lanza la siguiente.
+  const flujo = leer('.github/workflows/verificar-viajes.yml');
+  assert.match(flujo, /gh workflow run verificar-viajes\.yml/, 'falta el relevo');
+  assert.match(flujo, /actions: write/, 'sin este permiso el relevo no puede lanzar nada');
+  // Cancelar a mano tiene que parar la cadena: con `always()` no pararia.
+  assert.match(flujo, /if: \$\{\{ !cancelled\(\)/);
+  assert.ok(!/Lanzar la siguiente[\s\S]*if: \$\{\{ always\(\)/.test(flujo), 'el relevo no puede usar always()');
+  // Un interruptor sin tocar codigo.
+  assert.match(flujo, /vars\.ENCADENAR_WORKER != 'no'/);
+  // Ni en simulacion ni sin credenciales.
+  assert.match(flujo, /!inputs\.simular/);
+  const relevo = flujo.slice(flujo.indexOf('Lanzar la siguiente ejecucion'));
+  assert.match(relevo, /-z "\$FIREBASE_SERVICE_ACCOUNT"[\s\S]*exit 0/, 'sin credenciales no hay relevo');
+  // Si falla, espera antes de reintentar: un fallo persistente no puede
+  // convertirse en un correo por minuto.
+  assert.match(relevo, /!= "success"[\s\S]*sleep 300/);
+});
+
 test('el workflow del worker no puede solaparse consigo mismo', () => {
   const flujo = leer('.github/workflows/verificar-viajes.yml');
   assert.match(flujo, /concurrency:/, 'dos workers a la vez procesarian los mismos viajes');

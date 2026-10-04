@@ -130,6 +130,9 @@ if (!HAY_IDIOMA_LOCAL) {
 const MARCADORES = [
   'bicimad', 'emt', 'trayecto', 'recorrido', 'duracion', 'duración',
   'estacion', 'estación', 'salida', 'llegada', 'bicicleta', 'viajes realizados',
+  // El historial y el resumen de la app, con las palabras que el OCR si suele
+  // leer bien aunque se coma las grandes.
+  'mis viajes', 'historial', 'anclaje', 'tarifa', 'importe', 'kcal', 'co2',
 ];
 
 /**
@@ -141,12 +144,42 @@ const MARCADORES = [
  */
 function esCapturaBicimad(texto, plano, estaciones) {
   if (MARCADORES.some((m) => plano.includes(m))) return true;
-  if (estaciones.length < 2) return false;
-  return extraerDuracion(texto) !== null || extraerFechas(texto).length >= 2 || extraerTrayectos(texto).length > 0;
+  // Sin palabras de la app, por INDICIOS: dos de estos y es BiciMAD. Dos
+  // estaciones con su forma "124 - Nombre (124)" ya cuentan por dos, porque
+  // ninguna otra pantalla las pinta asi. Antes hacia falta, ademas de las dos
+  // estaciones, leer el tiempo: una captura buena con la barra azul mal leida
+  // y una estacion cortada era "no es BiciMAD", que es un rechazo directo.
+  const indicios = Math.min(estaciones.length, 2)
+    + (extraerDuracion(texto) !== null ? 1 : 0)
+    + (extraerFechas(texto).length >= 2 ? 1 : 0)
+    + (extraerTrayectos(texto).length > 0 ? 1 : 0);
+  return indicios >= 2;
 }
 
 /** Una hora suelta: "HH:MM" o "H:MM". */
 const HORA = '\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b';
+
+/**
+ * Una hora con etiqueta delante: ahi el OCR lee a menudo los dos puntos como
+ * punto o punto y coma ("Salida 18.42"). Con la etiqueta no hay confusion
+ * posible con un importe o una fecha, asi que se admite.
+ */
+const HORA_ETIQUETADA = '\\b([01]?\\d|2[0-3])[:.;]([0-5]\\d)\\b';
+
+/**
+ * Arregla lo que el OCR confunde DENTRO de un numero: l, I, | por 1 y o, O por
+ * 0. Solo en trozos que ya son casi todo cifras ("(l24)", "l7m. l8s."): en
+ * cualquier otro sitio cambiaria palabras de verdad.
+ */
+function corregirCifras(texto) {
+  const arreglar = (trozo) => trozo.replace(/[lI|]/g, '1').replace(/[oO]/g, '0');
+  return String(texto || '')
+    // "(l24)", "(1O5)": el numero de estacion entre parentesis.
+    .replace(/\(([0-9lI|oO]{1,3})([a-zA-Z]?)\)/g, (todo, n, letra) => (/\d/.test(n) ? `(${arreglar(n)}${letra})` : todo))
+    // "l7m. l8s.", "lh. O5m. 12s.": el tiempo de la barra.
+    .replace(/(?:\b[0-9lI|oO]{1,2}\s*h\.?\s*)?\b[0-9lI|oO]{1,3}\s*m\.?\s*[0-9lI|oO]{1,2}\s*s\b/g,
+      (todo) => ((todo.match(/\d/g) || []).length ? arreglar(todo) : todo));
+}
 
 /**
  * Horas de salida y de llegada, normalizadas a HH:MM.
@@ -170,7 +203,7 @@ function horasEtiquetadas(texto) {
     // Hasta 12 caracteres que no sean parte de la hora entre la etiqueta y el
     // numero: cabe "Salida:  ", "Salida ---" y lo que el OCR meta por medio,
     // pero no la siguiente linea entera.
-    const m = texto.match(new RegExp(`(?:${etiquetas})\\W{0,12}${HORA}`, 'i'));
+    const m = texto.match(new RegExp(`(?:${etiquetas})\\W{0,12}${HORA_ETIQUETADA}`, 'i'));
     return m ? `${m[1].padStart(2, '0')}:${m[2]}` : null;
   };
 
@@ -198,6 +231,7 @@ function extraerHoras(texto) {
  * ya venia contemplado en el prompt de la IA y sigue siendo cierto.
  */
 function extraerEstaciones(texto) {
+  texto = corregirCifras(texto);
   // Solo el "(124)" que cierra "124 - Nombre (124)": un parentesis suelto (el
   // icono del reloj leido como "(5)") no es una estacion.
   const conParentesis = [...texto.matchAll(/-[^\n()]*?\S\s*\(?(\d{1,3}[a-zA-Z]?)\)/g)].map((m) => m[1]);
@@ -219,6 +253,16 @@ function extraerEstaciones(texto) {
  * Acepta "12:34", "12 min 34 s" y "12 min".
  */
 function extraerDuracion(texto) {
+  texto = corregirCifras(texto);
+
+  // Mas de una hora: "1h. 05m. 12s.", "1 h 5 min". Va primero porque el patron
+  // de minutos y segundos de abajo, sobre "1h. 05m. 12s.", se quedaba con
+  // "05m. 12s." y un trayecto de una hora salia de cinco minutos.
+  const conHoras = texto.match(/\b(\d{1,2})\s*h(?:oras?|\.)?\s*(\d{1,2})\s*m(?:in(?:utos?)?|\.)?\s*(?:(\d{1,2})\s*s)?/i);
+  if (conHoras && Number(conHoras[2]) < 60 && Number(conHoras[3] || 0) < 60) {
+    return Number(conHoras[1]) * 3600 + Number(conHoras[2]) * 60 + Number(conHoras[3] || 0);
+  }
+
   const conUnidades = texto.match(/(\d{1,3})\s*min(?:utos?)?(?:\s*(?:y\s*)?(\d{1,2})\s*s)?/i);
   if (conUnidades) {
     return Number(conUnidades[1]) * 60 + Number(conUnidades[2] || 0);
@@ -227,7 +271,7 @@ function extraerDuracion(texto) {
   // "mm:ss" pegado a una etiqueta de duracion, para no confundirlo con una hora.
   // "17m. 18s.", el de la app actual.
   const abreviado = texto.match(/(\d{1,3})\s*m\.?\s*(\d{1,2})\s*s\b/i);
-  if (abreviado) return Number(abreviado[1]) * 60 + Number(abreviado[2]);
+  if (abreviado && Number(abreviado[2]) < 60) return Number(abreviado[1]) * 60 + Number(abreviado[2]);
 
   const junto = texto.match(/(?:duraci[oó]n|tiempo)\D{0,20}(\d{1,3}):([0-5]\d)/i);
   if (junto) return Number(junto[1]) * 60 + Number(junto[2]);
@@ -290,6 +334,9 @@ function biciSuelta(texto) {
  */
 function tiempoDeBarra(texto) {
   const t = String(texto || '').replace(/[lI|]/g, '1').replace(/[oO]/g, '0');
+  // "1h. 05m. 12s.": la barra de un trayecto de mas de una hora.
+  const h = t.match(/(\d{1,2})\s*h\.?\s*(\d{1,2})\s*m\.?\s*(\d{1,2})\s*s/);
+  if (h && Number(h[2]) < 60 && Number(h[3]) < 60) return Number(h[1]) * 3600 + Number(h[2]) * 60 + Number(h[3]);
   const m = t.match(/(\d{1,3})\s*m\.?\s*(\d{1,2})\s*s/);
   if (!m || Number(m[2]) > 59) return null;
   return Number(m[1]) * 60 + Number(m[2]);
@@ -359,12 +406,17 @@ function asignarPorAltura(trayectos, lineas, tiempos, bicis) {
 }
 
 function extraerFechas(texto) {
-  const re = /\b(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})\s+([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?/g;
+  // Con lo que el OCR hace a esta linea: la barra leida como guion o punto
+  // ("21-09-25"), el espacio perdido ("21/09/2502:51:12") o una coma de mas, y
+  // los dos puntos de la hora como punto. Tras una fecha no hay confusion
+  // posible con otra cosa.
+  const re = /\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})[\s,]*([01]?\d|2[0-3])[:.;]([0-5]\d)(?:[:.;]([0-5]\d))?/g;
   return [...String(texto || '').matchAll(re)].flatMap((m) => {
     const dia = Number(m[1]);
     const mes = Number(m[2]);
     if (dia < 1 || dia > 31 || mes < 1 || mes > 12) return [];
     const anio = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    if (anio < 2015 || anio > 2099) return [];
     return [{
       fecha: `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
       hora: `${m[4].padStart(2, '0')}:${m[5]}`,
@@ -642,7 +694,12 @@ async function leerCaptura({ buffer }) {
       // abajo siguen siendo los del primero, para no cambiarle la forma a quien
       // solo espera uno.
       trayectos: trayectosLeidos,
-      esBicimad: esCapturaBicimad(texto, plano, estaciones),
+      // Una barra azul con su tiempo leido ("17m. 18s.") es de la app aunque el
+      // texto principal no lo diga: es la pasada que mejor lee esa barra.
+      esBicimad: esCapturaBicimad(texto, plano, estaciones) || tiempos.length > 0,
+      // Cuantas franjas del azul de la app hay en la imagen. No decide nada por
+      // si sola: es un indicio para no rechazar sin mas una captura mal leida.
+      franjasAzules: (preparada.franjas || []).length,
       // De donde venia la captura. No decide nada: sirve para poder MEDIR
       // despues donde falla la extraccion. Sin esto, "el OCR falla a veces" no
       // se convierte nunca en "falla en recortes de iPhone".
@@ -766,6 +823,7 @@ module.exports = {
   asignarPorAltura,
   conPrimerTrayecto,
   esCapturaBicimad,
+  corregirCifras,
   biciDeLinea,
   biciSuelta,
   extraerRelojBarra,

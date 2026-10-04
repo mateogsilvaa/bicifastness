@@ -3847,3 +3847,107 @@ body.soltando .capa-soltar { background: rgba(243, 241, 236, .55); padding: 24px
   .subir-8b .capa-soltar-teclas .icono { width: 16px; height: 16px; flex: none; }
   .subir-8b:active .capa-soltar-marco { background: rgba(27, 128, 229, .1); }
 }
+
+/* --- Ligas: emblemas y la vista de todas (04 Ranking · Ligas) --------------
+   Cada liga tiene su color y su FORMA (barras, galones, estrella): asi se
+   distinguen tambien sin ver bien el color. */
+:root {
+  --liga-hierro: #6E7177;
+  --liga-bronce: #A8642E;
+  --liga-plata: #8E99A6;
+  --liga-oro: #C99A12;
+  --liga-platino: #3F9C9C;
+  --liga-leyenda: #6B45C9;
+  --liga-marca: #FFFFFF;
+}
+[data-theme='dark'] {
+  --liga-hierro: #8A8D93;
+  --liga-bronce: #C27C44;
+  --liga-plata: #A9B3BF;
+  --liga-oro: #E0B12A;
+  --liga-platino: #57B7B7;
+  --liga-leyenda: #8E6BE8;
+  --liga-marca: #0E0F10;
+}
+.emblema-liga { flex: none; display: block; }
+.emblema-liga .escudo { fill: var(--liga-color, var(--liga-hierro)); }
+.emblema-liga .brillo { fill: #FFFFFF; opacity: .14; }
+.emblema-liga .marca { stroke: var(--liga-marca); }
+.emblema-liga .marca.relleno { fill: var(--liga-marca); stroke: none; }
+.emblema-liga.apagado { opacity: .35; filter: grayscale(1); }
+.liga-hierro { --liga-color: var(--liga-hierro); }
+.liga-bronce { --liga-color: var(--liga-bronce); }
+.liga-plata { --liga-color: var(--liga-plata); }
+.liga-oro { --liga-color: var(--liga-oro); }
+.liga-platino { --liga-color: var(--liga-platino); }
+.liga-leyenda { --liga-color: var(--liga-leyenda); }
+
+.con-emblema { display: inline-flex; align-items: center; gap: var(--e2); }
+.insignia .disco.con-emblema { background: none; }
+.hoja-division .emblema-liga { margin: 0 auto var(--e2); }
+
+.ligas-calendario { display: flex; align-items: center; gap: var(--e2); margin: var(--e2) 0 0; font-size: 13px; color: var(--tinta-2); }
+.ligas-calendario .icono { width: 16px; height: 16px; flex: none; }
+.lista-ligas { display: flex; flex-direction: column; gap: var(--e3); padding-top: var(--e3); }
+.tarjeta-liga { border-radius: var(--radio); background: var(--papel-2); padding: var(--e3) var(--e4); border-left: 4px solid var(--liga-color); }
+.tarjeta-liga.tuya { box-shadow: inset 0 0 0 1.5px var(--liga-color); }
+.tarjeta-liga.vacia { opacity: .7; }
+.cabeza-liga { display: flex; align-items: center; gap: var(--e3); min-height: 48px; }
+.texto-liga { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.texto-liga h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+.texto-liga span { font-size: 13px; color: var(--tinta-2); }
+.chip-tu-liga { flex: none; padding: var(--e1) 10px; border-radius: 999px; background: var(--liga-color); color: var(--liga-marca); font-size: 12px; font-weight: 800; }
+.grupos-liga { display: flex; flex-direction: column; margin-top: var(--e2); border-top: var(--borde); }
+.grupo-liga { border-bottom: var(--borde); }
+.grupo-liga:last-child { border-bottom: 0; }
+.grupo-liga > summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto 20px; gap: var(--e3); align-items: center; min-height: var(--toque); cursor: pointer; list-style: none; font-size: 14px; -webkit-tap-highlight-color: transparent; }
+.grupo-liga > summary::-webkit-details-marker { display: none; }
+.grupo-liga > summary:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; border-radius: 6px; }
+.grupo-liga .nombre-grupo { font-weight: 700; white-space: nowrap; }
+.grupo-liga.tuyo .nombre-grupo { color: var(--azul); }
+.podio-mini { display: flex; gap: var(--e3); min-width: 0; overflow: hidden; color: var(--tinta-2); font-size: 13px; }
+.podio-mini > span { display: inline-flex; gap: 4px; min-width: 0; }
+.podio-mini .pos-mini { color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+.podio-mini .nombre-mini { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grupo-liga .cuantos { font-size: 12px; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+.grupo-liga .flecha-plegar { width: 18px; height: 18px; color: var(--tinta-3); transition: transform var(--transicion); }
+.grupo-liga[open] .flecha-plegar { transform: rotate(180deg); }
+.contenido-grupo { padding-bottom: var(--e2); }
+/* En el movil estrecho, el podio en su propia linea: con tres nombres largos no cabe al lado. */
+@media (max-width: 420px) {
+  .grupo-liga > summary { grid-template-columns: minmax(0, 1fr) auto 20px; row-gap: 2px; padding: var(--e2) 0; }
+  .podio-mini { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (min-width: 900px) {
+  .lista-ligas { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+}
+@media (prefers-reduced-motion: reduce) { .grupo-liga .flecha-plegar { transition: none; } }
+
+/* --- Movil: navegador y app instalada (iPhone y Android) --------------------
+   Desde `viewport-fit=cover` (en el <head> de cada pagina) los
+   `env(safe-area-inset-*)` de este fichero valen de verdad: antes el iPhone los
+   daba a 0 y la barra inferior quedaba pegada al indicador de inicio. */
+html { -webkit-tap-highlight-color: transparent; }
+/* En horizontal, la muesca del iPhone queda a un lado: que no tape nada. */
+body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.nav-inf { padding-left: max(var(--e2), env(safe-area-inset-left, 0px)); padding-right: max(var(--e2), env(safe-area-inset-right, 0px)); }
+/* Sin el retardo del doble toque para hacer zoom: un toque es un toque. */
+a, button, summary, label, select, [role='button'], [role='tab'] { touch-action: manipulation; }
+/* Por debajo de 16 px, Safari hace zoom al enfocar el campo y no lo deshace. */
+@media (max-width: 899px) {
+  .hoja.hoja-confirmar select, .hoja.hoja-invitar .campo-enlace input { font-size: 16px; }
+}
+/* La altura de verdad de la pantalla, con la barra del navegador mostrandose y
+   escondiendose: `100vh` en el movil es mas alto que lo que se ve. */
+@supports (height: 100dvh) {
+  .hoja-alta { max-height: calc(100dvh - 96px); }
+}
+@supports (height: 100dvh) {
+  @media (min-width: 900px) { .pantalla-veredicto { max-height: calc(100dvh - 64px); } }
+}
+/* Instalada como app: sin el rebote que recarga la pagina al tirar hacia abajo
+   en Android, y sin el menu de "copiar" al mantener pulsada la barra. */
+@media (display-mode: standalone) {
+  html, body { overscroll-behavior-y: none; }
+  .nav-inf, .lateral { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+}

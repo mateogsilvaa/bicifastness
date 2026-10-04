@@ -77,7 +77,7 @@ test('se concede lo que se ha ganado, y solo eso', () => {
 test('lo que ya se tiene no se vuelve a conceder', () => {
   // Un `arrayUnion` con lo que ya esta dentro es una escritura por viaje para
   // confirmar que no hay novedad, que es justo la cuota que no sobra.
-  const piloto = { viajesVerificados: 5, logros: ['primer-viaje'] };
+  const piloto = { viajesVerificados: 4, logros: ['primer-viaje'] };
   assert.deepStrictEqual(logros.nuevas(piloto), []);
 });
 

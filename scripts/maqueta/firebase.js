@@ -148,6 +148,19 @@ const datos = {
   'agregados/rutas': { rutas: ['124-115', '1-102', '102-124'], viajesPorRuta: { '124-115': 31, '1-102': 18, '102-124': 12 }, actualizado: hace(4) },
   'agregados/grupos': { porPiloto: Object.fromEntries(nombres.map((n) => [n, 'plata-4'])), actualizado: hace(4) },
   'agregados/grupo-plata-4': { filas: filasGrupo, grupo: 'plata-4', mueven: 5, total: 30, pagina: 1, paginas: 1, actualizado: hace(4) },
+  // Todas las ligas (04 · Ligas): unas con gente, otras vacias, como al principio.
+  'agregados/ligas': {
+    inicio: '2026-10-05', fin: '2026-10-18',
+    niveles: [
+      { nivel: 'leyenda', pilotos: 0, grupos: [] },
+      { nivel: 'platino', pilotos: 4, grupos: [{ clave: 'platino-1', pilotos: 4, mueven: 1, podio: rankingPilotos((i) => 610 - i * 40).slice(0, 3) }] },
+      { nivel: 'oro', pilotos: 21, grupos: [{ clave: 'oro-1', pilotos: 21, mueven: 5, podio: rankingPilotos((i) => 540 - i * 30).slice(5, 8).map((f, i) => ({ ...f, pos: i + 1 })) }] },
+      { nivel: 'plata', pilotos: 118, grupos: [1, 2, 3, 4].map((n) => ({ clave: `plata-${n}`, pilotos: n === 4 ? 30 : 29, mueven: 5, podio: rankingPilotos((i) => 480 - i * 25 - n * 9).slice(n, n + 3).map((f, i) => ({ ...f, pos: i + 1 })) })) },
+      { nivel: 'bronce', pilotos: 57, grupos: [1, 2].map((n) => ({ clave: `bronce-${n}`, pilotos: n === 1 ? 29 : 28, mueven: 5, podio: rankingPilotos((i) => 300 - i * 20).slice(n * 3, n * 3 + 3).map((f, i) => ({ ...f, pos: i + 1 })) })) },
+      { nivel: 'hierro', pilotos: 212, grupos: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ clave: `hierro-${n}`, pilotos: n === 8 ? 2 : 30, mueven: n === 8 ? 0 : 5, podio: rankingPilotos((i) => 200 - i * 12).slice(n, n + 3).map((f, i) => ({ ...f, pos: i + 1 })) })) },
+    ],
+    actualizado: hace(4),
+  },
   'agregados/ranking-general': { filas: rankingPilotos((i) => 1200 - i * 31), total: 30, pagina: 1, paginas: 1, modo: 'general', actualizado: hace(4) },
   'agregados/ranking-sprint': { filas: rankingPilotos((i) => 400 - i * 11), total: 30, pagina: 1, paginas: 1, modo: 'sprint', actualizado: hace(4) },
   'agregados/ranking-fondo': { filas: rankingPilotos((i) => Math.round(310 - i * 8.5)), total: 30, pagina: 1, paginas: 1, modo: 'fondo', actualizado: hace(4) },

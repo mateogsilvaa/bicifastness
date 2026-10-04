@@ -25,14 +25,15 @@ import { anilloSemana, estadosSemana, activoHoy } from '/assets/js/anillo.js';
 import { seguirViaje, viajeRecordado, olvidarViaje } from '/assets/js/estado-viaje.js';
 import { abrirVerificado, abrirResuelto, tramoDe } from '/assets/js/veredicto.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
+import { NOMBRES as DIVISIONES, NIVELES, emblemaLiga, cuandoCambia } from '/assets/js/ligas.js';
 
 const CUPO = 3;
-const DIVISIONES = {
-  hierro: 'Hierro', bronce: 'Bronce', plata: 'Plata', oro: 'Oro', platino: 'Platino', leyenda: 'Leyenda',
-};
 /** Lo mismo que `PUNTOS_MISION` del worker, para las misiones publicadas antes. */
 const PUNTOS_MISION = { distancia: 20, velocidad: 15, trayectos: 15, exploracion: 25 };
-const ICONO_MISION = { distancia: 'ruta', velocidad: 'rayo', exploracion: 'pin', trayectos: 'hoy', largo: 'flecha', minutos: 'reloj' };
+const ICONO_MISION = {
+  distancia: 'ruta', velocidad: 'rayo', exploracion: 'pin', trayectos: 'hoy', largo: 'flecha', minutos: 'reloj',
+  estaciones: 'mapa', temprano: 'sol', tarde: 'luna',
+};
 
 const coma = (n, dec = 1) => Number(n).toFixed(dec).replace('.', ',');
 const ordinal = (n) => `${n}.º`;
@@ -332,6 +333,7 @@ function textoProgreso(m, p) {
   if (m.tipo === 'largo') return `Tu mas largo hoy: ${coma((p.hecho || 0) / 1000)} km`;
   if (m.tipo === 'minutos') return `${Math.floor((p.hecho || 0) / 60)} de ${Math.round(m.objetivo / 60)} min`;
   if (m.tipo === 'velocidad') return `Tu mejor hoy: ${coma(p.hecho)} km/h`;
+  if (m.tipo === 'estaciones') return `${p.hecho || 0} de ${m.objetivo} estaciones`;
   return null;
 }
 
@@ -576,8 +578,12 @@ async function pintarDivision(perfil) {
 
     reemplazar(destino, el('a', { clase: 'tarjeta-grande hoy-division', attrs: { href: '/clasificacion/' } }, [
       el('div', { clase: 'hoy-seccion' }, [
-        el('strong', { texto: nombreGrupo(grupo.clave) }),
-        el('span', {}, [el('span', { clase: 'solo-movil-i', texto: 'se decide el ' }), 'lunes']),
+        el('strong', { clase: 'con-emblema' }, [
+          emblemaLiga(String(grupo.clave).split('-')[0], { tamano: 20 }),
+          el('span', { texto: nombreGrupo(grupo.clave) }),
+        ]),
+        // La liga dura dos semanas: se dice que dia se decide, no "el lunes".
+        el('span', {}, [el('span', { clase: 'solo-movil-i', texto: 'se decide ' }), cuandoCambia()]),
       ]),
       el('div', { clase: 'division-puesto' }, [
         el('span', { clase: 'cifra-grande', texto: ordinal(yo.pos) }),
@@ -683,13 +689,14 @@ function avisarCambioDivision(perfil) {
     if (localStorage.getItem(clave) === cambio.fecha) return;
   } catch { return; }
 
-  const niveles = Object.keys(DIVISIONES);
+  const niveles = NIVELES;
   const sube = niveles.indexOf(cambio.hasta) > niveles.indexOf(cambio.desde);
   const desde = DIVISIONES[cambio.desde] || cambio.desde;
   const hasta = DIVISIONES[cambio.hasta] || cambio.hasta;
 
   const { cerrar } = abrirHoja([
     el('div', { clase: 'cambio-division' }, [
+      emblemaLiga(cambio.hasta, { tamano: 56 }),
       el('div', { clase: 'cambio-chips' }, [
         el('span', { clase: 'chip-division antes', texto: desde }),
         icono('flecha', 'icono'),
@@ -698,12 +705,12 @@ function avisarCambioDivision(perfil) {
       el('h2', { texto: sube ? `Subes a ${hasta}` : `Bajas a ${hasta}` }),
       el('p', {
         texto: sube
-          ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Esta semana compites con pilotos nuevos, todos desde 0.`
-          : `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total}. Esta semana, a recuperar ${desde}.`,
+          ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Estas dos semanas compites con pilotos nuevos, todos desde 0.`
+          : `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total}. Tienes dos semanas para recuperar ${desde}.`,
       }),
     ]),
     el('div', { clase: 'cifras-cambio' }, [
-      el('div', {}, [el('strong', { texto: String(cambio.puntos || 0) }), el('span', { texto: 'pts semana' })]),
+      el('div', {}, [el('strong', { texto: String(cambio.puntos || 0) }), el('span', { texto: 'pts de liga' })]),
       el('div', {}, [el('strong', { texto: ordinal(cambio.puesto) }), el('span', { texto: `de ${cambio.total}` })]),
     ]),
     el('a', { clase: 'btn', texto: 'Ver mi grupo nuevo', attrs: { href: '/clasificacion/' } }),

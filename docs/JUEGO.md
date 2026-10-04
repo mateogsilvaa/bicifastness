@@ -136,6 +136,11 @@ Familias de mision:
 | Velocidad | "Manten mas de 15 km/h en un trayecto" |
 | Exploracion | "Termina en una estacion que no hayas usado nunca" |
 | Tramo | "Compite en la ruta del dia" |
+| Estaciones | "Pasa por 3 estaciones distintas hoy" |
+| Hora del dia | "Un trayecto antes de las 9:30" / "a partir de las 20:00" (hora de salida leida en la captura) |
+
+Cada mision completada suma al contador `misionesCompletadas`, que da sus
+propias insignias (1, 10, 50, 100 y 250).
 
 Cada mision da puntos y progreso hacia el escudo. Siempre hay al menos una de
 distancia y una de velocidad, para que ningun perfil se quede sin poder
@@ -171,15 +176,27 @@ nunca y se va. Con temporadas, cada mes es una carrera nueva.
 
 ---
 
-## Divisiones
+## Divisiones (ligas)
 
-Dentro de la temporada, los pilotos se reparten en grupos de unos 30 por nivel:
+Los pilotos se reparten en grupos de unos 30 por liga, y cada liga tiene su
+emblema y su insignia:
 
 **Hierro → Bronce → Plata → Oro → Platino → Leyenda**
 
-- Cada semana (lunes 00:45) suben los 5 primeros de cada grupo y bajan los 5
-  ultimos.
-- Se compite **contra tu grupo**, no contra toda la web.
+- Cada liga dura **dos semanas** (lunes a domingo de la semana siguiente; la
+  primera empezo el 5 de octubre de 2026, `divisiones.ANCLA_LIGA`).
+- Se compite por `puntosLiga`, que suma lo mismo que un viaje da a la
+  temporada y vuelve a cero al cerrar cada liga.
+- El lunes que cierra la liga suben los 5 primeros de cada grupo y bajan los 5
+  ultimos. El cron es semanal; los lunes que no toca, el script no hace nada.
+- Al llegar a una liga se gana su insignia (`liga-bronce` ... `liga-leyenda`).
+  Bajar despues no la quita.
+- Se compite **contra tu grupo**, no contra toda la web. En el ranking, la
+  pestaña **Ligas** enseña todas a la vez, con los grupos de cada una.
+
+Por que dos semanas y no una: con una, quien se pierde dos dias por trabajo o
+lluvia ya no tiene margen de remontar. Con dos, da tiempo, y el cambio sigue
+lo bastante cerca como para motivar.
 
 Esto es lo que hace que competir tenga sentido para alguien normal: en una tabla
 unica de 400 personas, el puesto 180 no se mueve nunca y no motiva. En un grupo
@@ -250,7 +267,7 @@ Lo que si hay que revisar:
    **mantengo la racha** y avanzo las misiones.
 4. Mi clan gana influencia en las dos estaciones que he tocado; si dejamos de
    pedalear, la perdemos.
-5. El lunes veo si subo de division. El dia 1 empieza temporada nueva.
+5. Cada dos semanas, el lunes, veo si subo de liga. El dia 1 empieza temporada nueva.
 
 Cada paso da una razon distinta para volver manana, y ninguna de ellas exige
 correr.

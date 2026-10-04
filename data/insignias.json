@@ -11,7 +11,7 @@
     "listaban la concedia nadie.",
     "",
     "CAMPOS:",
-    "  modo      con que se gana: fondo | sprint | constancia | exploracion | temporada | clan",
+    "  modo      con que se gana: fondo | sprint | constancia | exploracion | misiones | liga | temporada | clan",
     "  icono     id del sprite de /assets/img/iconos.svg. Nada de fuentes de iconos:",
     "            la CSP no admite dominios externos y las clases `fi fi-*` de la",
     "            version anterior se pintaban como cajas vacias.",
@@ -224,6 +224,139 @@
       "modo": "exploracion",
       "icono": "mapa",
       "regla": { "campo": "estacionesVisitadas", "minimo": 250 }
+    },
+    "cinco-viajes": {
+      "titulo": "Cinco trayectos",
+      "descripcion": "Cinco trayectos verificados. Empieza la costumbre.",
+      "modo": "exploracion",
+      "icono": "comprobado",
+      "regla": { "campo": "viajesVerificados", "minimo": 5 }
+    },
+    "doscientos-cincuenta-viajes": {
+      "titulo": "Doscientos cincuenta",
+      "descripcion": "250 trayectos verificados.",
+      "modo": "exploracion",
+      "icono": "medalla",
+      "regla": { "campo": "viajesVerificados", "minimo": 250 }
+    },
+    "fondo-5000": {
+      "titulo": "5.000 km",
+      "descripcion": "5.000 km sobre una BiciMAD. Media vuelta a la península.",
+      "modo": "fondo",
+      "icono": "ruta",
+      "regla": { "campo": "metrosTotales", "minimo": 5000000 }
+    },
+    "hora-en-bici": {
+      "titulo": "Una hora",
+      "descripcion": "Una hora entera pedaleando, sumando trayectos.",
+      "modo": "fondo",
+      "icono": "reloj",
+      "regla": { "campo": "segundosTotales", "minimo": 3600 }
+    },
+    "diez-horas": {
+      "titulo": "Diez horas",
+      "descripcion": "Diez horas encima de la bici.",
+      "modo": "fondo",
+      "icono": "reloj",
+      "regla": { "campo": "segundosTotales", "minimo": 36000 }
+    },
+    "cincuenta-horas": {
+      "titulo": "Cincuenta horas",
+      "descripcion": "Cincuenta horas de pedal. Más que muchas series.",
+      "modo": "fondo",
+      "icono": "reloj",
+      "regla": { "campo": "segundosTotales", "minimo": 180000 }
+    },
+    "cien-horas": {
+      "titulo": "Cien horas",
+      "descripcion": "Cien horas en BiciMAD.",
+      "modo": "fondo",
+      "icono": "reloj",
+      "regla": { "campo": "segundosTotales", "minimo": 360000 }
+    },
+    "racha-200": {
+      "titulo": "Doscientos días",
+      "descripcion": "Doscientos días seguidos sin fallar.",
+      "modo": "constancia",
+      "icono": "reloj",
+      "regla": { "campo": "mejorRacha", "minimo": 200 }
+    },
+    "racha-365": {
+      "titulo": "Un año entero",
+      "descripcion": "Un año seguido con al menos un trayecto cada día.",
+      "modo": "constancia",
+      "icono": "medalla",
+      "regla": { "campo": "mejorRacha", "minimo": 365 }
+    },
+    "mision-1": {
+      "titulo": "Primera misión",
+      "descripcion": "Has completado tu primera misión diaria.",
+      "modo": "misiones",
+      "icono": "check",
+      "regla": { "campo": "misionesCompletadas", "minimo": 1 }
+    },
+    "misiones-10": {
+      "titulo": "Diez misiones",
+      "descripcion": "Diez misiones diarias completadas.",
+      "modo": "misiones",
+      "icono": "check",
+      "regla": { "campo": "misionesCompletadas", "minimo": 10 }
+    },
+    "misiones-50": {
+      "titulo": "Cincuenta misiones",
+      "descripcion": "Cincuenta misiones diarias completadas.",
+      "modo": "misiones",
+      "icono": "check",
+      "regla": { "campo": "misionesCompletadas", "minimo": 50 }
+    },
+    "misiones-100": {
+      "titulo": "Cien misiones",
+      "descripcion": "Cien misiones. Las haces sin mirar.",
+      "modo": "misiones",
+      "icono": "rayo",
+      "regla": { "campo": "misionesCompletadas", "minimo": 100 }
+    },
+    "misiones-250": {
+      "titulo": "250 misiones",
+      "descripcion": "250 misiones diarias completadas.",
+      "modo": "misiones",
+      "icono": "medalla",
+      "regla": { "campo": "misionesCompletadas", "minimo": 250 }
+    },
+    "liga-bronce": {
+      "titulo": "Liga Bronce",
+      "descripcion": "Has subido a la liga Bronce.",
+      "modo": "liga",
+      "icono": "escudo",
+      "regla": { "campo": "nivelLiga", "minimo": 1 }
+    },
+    "liga-plata": {
+      "titulo": "Liga Plata",
+      "descripcion": "Has subido a la liga Plata.",
+      "modo": "liga",
+      "icono": "escudo",
+      "regla": { "campo": "nivelLiga", "minimo": 2 }
+    },
+    "liga-oro": {
+      "titulo": "Liga Oro",
+      "descripcion": "Has subido a la liga Oro.",
+      "modo": "liga",
+      "icono": "escudo",
+      "regla": { "campo": "nivelLiga", "minimo": 3 }
+    },
+    "liga-platino": {
+      "titulo": "Liga Platino",
+      "descripcion": "Has subido a la liga Platino.",
+      "modo": "liga",
+      "icono": "escudo",
+      "regla": { "campo": "nivelLiga", "minimo": 4 }
+    },
+    "liga-leyenda": {
+      "titulo": "Liga Leyenda",
+      "descripcion": "Has llegado a Leyenda, la liga más alta.",
+      "modo": "liga",
+      "icono": "medalla",
+      "regla": { "campo": "nivelLiga", "minimo": 5 }
     },
     "clan-fundador": {
       "titulo": "Fundador",

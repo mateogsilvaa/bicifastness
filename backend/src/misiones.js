@@ -60,7 +60,21 @@ const PUNTOS_MISION = {
   exploracion: 25,
   largo: 20,
   minutos: 15,
+  estaciones: 20,
+  temprano: 20,
+  tarde: 15,
 };
+
+/** Hora de salida 'HH:MM' en minutos del dia, o null si no se leyo. */
+function minutosDeHora(hora) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(hora || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/** Antes de las 9:30 cuenta como trayecto madrugador. */
+const TEMPRANO_ANTES_DE = 9 * 60 + 30;
+/** Desde las 20:00, de tarde-noche. */
+const TARDE_DESDE = 20 * 60;
 
 /**
  * Las familias de mision.
@@ -133,14 +147,52 @@ const FAMILIAS = {
     ayuda: 'Cualquiera en la que no hayas acabado antes.',
     puntos: PUNTOS_MISION.exploracion,
   }),
+
+  // Moverse por la ciudad, no repetir el mismo tramo: cuentan origen y destino.
+  estaciones: (azar) => {
+    const cuantas = elegir(azar, [3, 4]);
+    return {
+      tipo: 'estaciones',
+      objetivo: cuantas,
+      texto: `Pasa por ${cuantas} estaciones distintas hoy`,
+      ayuda: 'Cuentan la de salida y la de llegada de cada trayecto.',
+      puntos: PUNTOS_MISION.estaciones,
+    };
+  },
+
+  // La hora sale de la captura (la de salida que lee el OCR). Sin hora leida,
+  // ese trayecto no cuenta para esta mision: no hay forma de saberlo.
+  temprano: () => ({
+    tipo: 'temprano',
+    objetivo: 1,
+    texto: 'Un trayecto antes de las 9:30',
+    ayuda: 'Cuenta la hora de salida de la captura.',
+    puntos: PUNTOS_MISION.temprano,
+  }),
+
+  tarde: () => ({
+    tipo: 'tarde',
+    objetivo: 1,
+    texto: 'Un trayecto a partir de las 20:00',
+    ayuda: 'Cuenta la hora de salida de la captura.',
+    puntos: PUNTOS_MISION.tarde,
+  }),
 };
 
 /**
- * Cada hueco rota entre dos familias, para que no sean siempre las mismas tres:
- * uno de distancia o tiempo, uno de velocidad o de trayecto largo, y uno de
- * constancia o de explorar.
+ * Cada hueco rota entre varias familias, para que no sean siempre las mismas
+ * tres: uno de volumen (distancia, tiempo o estaciones), uno de esfuerzo
+ * (velocidad o trayecto largo), y uno de habito (trayectos, explorar, o la
+ * hora del dia).
+ *
+ * El de esfuerzo sigue teniendo solo dos a proposito: es el que mas pesa en
+ * quien va rapido, y la velocidad tiene que salir a menudo.
  */
-const HUECOS = [['distancia', 'minutos'], ['velocidad', 'largo'], ['trayectos', 'exploracion']];
+const HUECOS = [
+  ['distancia', 'minutos', 'estaciones'],
+  ['velocidad', 'largo'],
+  ['trayectos', 'exploracion', 'temprano', 'tarde'],
+];
 
 /**
  * Genera las tres misiones de un dia.
@@ -178,7 +230,15 @@ function progreso(misiones, viajesDelDia, estacionesPrevias = new Set()) {
  * @returns {{metros: number, mejorVelocidad: number, trayectos: number, nuevas: number}}
  */
 function totalesDelDia(viajesDelDia, estacionesPrevias = new Set()) {
+  const estaciones = new Set();
+  for (const v of viajesDelDia) {
+    for (const e of String(v.ruta || '').split('-')) if (e) estaciones.add(e.replace(/^0+/, ''));
+  }
+  const horas = viajesDelDia.map((v) => minutosDeHora(v.horaSalida)).filter((m) => m !== null);
   return {
+    estaciones: [...estaciones],
+    temprano: horas.filter((m) => m < TEMPRANO_ANTES_DE).length,
+    tarde: horas.filter((m) => m >= TARDE_DESDE).length,
     metros: viajesDelDia.reduce((t, v) => t + (v.distanciaMetros || 0), 0),
     mejorVelocidad: Math.max(0, ...viajesDelDia.map((v) => v.velocidadKmh || 0)),
     trayectos: viajesDelDia.length,
@@ -207,6 +267,12 @@ function acumular(totales, fecha, viaje, esEstacionNueva = false) {
     ? totales
     : { fecha, metros: 0, mejorVelocidad: 0, trayectos: 0, nuevas: 0, mejorDistancia: 0, segundos: 0 };
 
+  // Las estaciones del dia, sin repetir y con tope: el documento del usuario no
+  // tiene por que crecer con un dia raro de muchos trayectos.
+  const estaciones = new Set(Array.isArray(base.estaciones) ? base.estaciones : []);
+  for (const e of String(viaje.ruta || '').split('-')) if (e) estaciones.add(e.replace(/^0+/, ''));
+  const minuto = minutosDeHora(viaje.horaSalida);
+
   return {
     fecha,
     metros: (base.metros || 0) + (viaje.distanciaMetros || 0),
@@ -215,6 +281,9 @@ function acumular(totales, fecha, viaje, esEstacionNueva = false) {
     nuevas: (base.nuevas || 0) + (esEstacionNueva ? 1 : 0),
     mejorDistancia: Math.max(base.mejorDistancia || 0, viaje.distanciaMetros || 0),
     segundos: (base.segundos || 0) + (viaje.tiempoSegundos || 0),
+    estaciones: [...estaciones].slice(0, 20),
+    temprano: (base.temprano || 0) + (minuto !== null && minuto < TEMPRANO_ANTES_DE ? 1 : 0),
+    tarde: (base.tarde || 0) + (minuto !== null && minuto >= TARDE_DESDE ? 1 : 0),
   };
 }
 
@@ -228,6 +297,9 @@ function progresoDeTotales(misiones, totales) {
       exploracion: totales.nuevas || 0,
       largo: totales.mejorDistancia || 0,
       minutos: totales.segundos || 0,
+      estaciones: Array.isArray(totales.estaciones) ? totales.estaciones.length : 0,
+      temprano: totales.temprano || 0,
+      tarde: totales.tarde || 0,
     }[m.tipo] || 0;
 
     return {
@@ -237,6 +309,11 @@ function progresoDeTotales(misiones, totales) {
       completada: hecho >= m.objetivo,
     };
   });
+}
+
+/** Cuantas misiones pasa ESTE viaje de no hechas a hechas (para las insignias). */
+function cuantasCompletadas(antes, despues) {
+  return despues.filter((p, i) => p.completada && !(antes && antes[i] && antes[i].completada)).length;
 }
 
 /**
@@ -295,6 +372,7 @@ function rutaDelDia(viajesPorRuta, recientes = [], fecha = '') {
 module.exports = {
   PUNTOS_MISION,
   puntosCompletadas,
+  cuantasCompletadas,
   FAMILIAS,
   HUECOS,
   generador,

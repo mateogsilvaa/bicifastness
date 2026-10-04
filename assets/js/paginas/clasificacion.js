@@ -15,11 +15,11 @@ import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 import { diaMadrid } from '/assets/js/dia.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
+import { NOMBRES as DIVISIONES, emblemaLiga, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo } from '/assets/js/ligas.js';
 
 iniciarPagina('clasificacion');
 
 const PESTANAS = ['pilotos', 'rutas', 'clanes'];
-const DIVISIONES = { hierro: 'Hierro', bronce: 'Bronce', plata: 'Plata', oro: 'Oro', platino: 'Platino', leyenda: 'Leyenda' };
 
 /**
  * Que mide cada modo, con su frase y su unidad (4b). "120" no dice nada; "120
@@ -168,30 +168,37 @@ async function pintarPilotos() {
   const destino = $('tabla-pilotos');
   const params = parametros();
   const clave = haySesion ? await claveDeMiGrupo() : null;
-  ambito = params.get('ambito') === 'madrid' || !clave ? 'madrid' : 'grupo';
+  const pedido = params.get('ambito');
+  ambito = pedido === 'ligas' ? 'ligas' : pedido === 'madrid' || !clave ? 'madrid' : 'grupo';
   modo = MODOS[params.get('modo')] ? params.get('modo') : 'general';
 
-  // El grupo compite por puntos de temporada: los modos son de Madrid.
+  // El grupo compite por puntos de la liga en juego: los modos son de Madrid.
   $('ambito-grupo').classList.toggle('oculto', !clave);
   $('ambito-grupo').textContent = clave ? nombreGrupo(clave) : 'Tu grupo';
   $('ambito-grupo').setAttribute('aria-pressed', String(ambito === 'grupo'));
   document.querySelector('.ranking')?.classList.toggle('en-grupo', ambito === 'grupo');
+  document.querySelector('.ranking')?.classList.toggle('en-ligas', ambito === 'ligas');
   $('ambito-madrid').setAttribute('aria-pressed', String(ambito === 'madrid'));
+  $('ambito-ligas').setAttribute('aria-pressed', String(ambito === 'ligas'));
   for (const b of document.querySelectorAll('.chip-modo')) {
-    // 4a: el grupo se ordena por el total, asi que "General" va marcado.
-    b.setAttribute('aria-pressed', String(ambito === 'madrid' ? b.value === modo : b.value === 'general'));
+    // 4a: el grupo se ordena por el total, asi que "General" va marcado. En
+    // Ligas no hay modo: se compite por los puntos de la liga.
+    b.setAttribute('aria-pressed', String(ambito === 'madrid' ? b.value === modo : ambito === 'grupo' && b.value === 'general'));
     b.disabled = false;
   }
   // 4b: la frase de cada modo solo en Madrid; en tu grupo (4a) no hay frase.
-  $('explica-modo').textContent = ambito === 'grupo' ? '' : MODOS[modo].explica;
+  $('explica-modo').textContent = ambito === 'grupo' ? ''
+    : ambito === 'ligas' ? 'Cada liga dura dos semanas. Al cerrarla, los primeros de cada grupo suben y los últimos bajan.'
+      : MODOS[modo].explica;
 
   reemplazar(destino, esqueleto());
+  if (ambito === 'ligas') { await pintarLigas(destino, clave); return; }
   const clanes = await clanesDelMapa();
   const escritorio = window.matchMedia('(min-width: 900px)').matches;
 
   if (ambito === 'grupo') {
     const grupo = await traer(`grupo-${clave}`);
-    if (!grupo?.filas?.length) { reemplazar(destino, fallo ? errorRed(pintarPilotos) : vacio('Tu grupo aún no tiene tabla', 'Se forma en cuanto se verifique el primer trayecto de la semana.')); return; }
+    if (!grupo?.filas?.length) { reemplazar(destino, fallo ? errorRed(pintarPilotos) : vacio('Tu grupo aún no tiene tabla', 'Se forma en cuanto se verifique el primer trayecto de la liga.')); return; }
     const mueven = grupo.mueven ?? 5;
     // En escritorio, la tabla de verdad con una columna por modo (8c).
     const extras = escritorio ? await Promise.all(['sprint', 'fondo', 'constancia'].map((m) => traer(`ranking-${m}`))) : null;
@@ -212,7 +219,7 @@ async function pintarPilotos() {
             el('span', { clase: 'col-cab num', texto: 'Total ↓' }),
           ]
           : [
-            el('span', { clase: 'sube', texto: 'Suben el lunes' }),
+            el('span', { clase: 'sube', texto: `Suben ${cuandoCambia()}` }),
             el('span', { clase: 'col-cab num', texto: 'pts' }),
           ]),
         ...grupo.filas.map((f, i) => filaPiloto(f, {
@@ -256,9 +263,89 @@ async function pintarPilotos() {
   filaFija(agregado.filas, (f) => formato(f.puntos), MODOS[modo].unidad);
 }
 
-function nombreGrupo(clave) {
-  const [nivel, n] = String(clave).split('-');
-  return `${DIVISIONES[nivel] || nivel} · grupo ${n}`;
+// --- Todas las ligas (4l) -------------------------------------------------------
+//
+// Una lectura (`agregados/ligas`) para ver todas las ligas, de Leyenda a
+// Hierro, cada una con su emblema, sus grupos y el podio de cada grupo. Un
+// grupo se despliega para ver su tabla entera: esa lectura solo se paga al
+// abrirlo.
+
+async function pintarLigas(destino, miClave) {
+  const datos = await traer('ligas');
+  if (!datos?.niveles?.length) {
+    reemplazar(destino, fallo ? errorRed(pintarPilotos) : vacio('Todavía no hay ligas', 'Se forman en cuanto se verifique el primer trayecto.'));
+    $('fila-fija').classList.add('oculto');
+    return;
+  }
+  const clanes = await clanesDelMapa();
+  reemplazar(destino, [
+    datos.inicio && datos.fin
+      ? el('p', { clase: 'ligas-calendario' }, [
+        icono('calendario'),
+        el('span', { texto: `Liga del ${diaDeLiga(datos.inicio)} al ${diaDeLiga(datos.fin)} · cambia ${cuandoCambia()}` }),
+      ])
+      : null,
+    el('div', { clase: 'lista-ligas' }, datos.niveles.map((n) => tarjetaLiga(n, miClave, clanes))),
+    pieActualizado(datos),
+  ]);
+  $('fila-fija').classList.add('oculto');
+}
+
+function tarjetaLiga(n, miClave, clanes) {
+  const mia = Boolean(miClave) && miClave.split('-')[0] === n.nivel;
+  return el('section', {
+    clase: `tarjeta-liga liga-${n.nivel}${mia ? ' tuya' : ''}${n.pilotos ? '' : ' vacia'}`,
+    attrs: { 'aria-label': `Liga ${DIVISIONES[n.nivel]}` },
+  }, [
+    el('header', { clase: 'cabeza-liga' }, [
+      emblemaLiga(n.nivel, { tamano: 40, apagado: !n.pilotos }),
+      el('div', { clase: 'texto-liga' }, [
+        el('h2', { texto: DIVISIONES[n.nivel] || n.nivel }),
+        el('span', {
+          texto: n.pilotos
+            ? `${numero(n.pilotos)} ${n.pilotos === 1 ? 'piloto' : 'pilotos'} · ${n.grupos.length} ${n.grupos.length === 1 ? 'grupo' : 'grupos'}`
+            : 'Nadie ha llegado todavía',
+        }),
+      ]),
+      mia ? el('span', { clase: 'chip-tu-liga', texto: 'Tu liga' }) : null,
+    ]),
+    n.grupos.length ? el('div', { clase: 'grupos-liga' }, n.grupos.map((g) => grupoDeLiga(g, miClave, clanes))) : null,
+  ]);
+}
+
+function grupoDeLiga(g, miClave, clanes) {
+  const mio = g.clave === miClave;
+  const contenido = el('div', { clase: 'contenido-grupo' });
+  const plegable = el('details', { clase: `grupo-liga${mio ? ' tuyo' : ''}`, attrs: { open: mio ? '' : null } }, [
+    el('summary', {}, [
+      el('span', { clase: 'nombre-grupo', texto: `Grupo ${String(g.clave).split('-')[1]}${mio ? ' · el tuyo' : ''}` }),
+      el('span', { clase: 'podio-mini' }, (g.podio || []).map((p) => el('span', {}, [
+        el('span', { clase: 'pos-mini', texto: `${p.pos}` }),
+        el('span', { clase: 'nombre-mini', texto: p.nombre }),
+      ]))),
+      el('span', { clase: 'cuantos', texto: `${g.pilotos}` }),
+      icono('abajo', 'icono flecha-plegar'),
+    ]),
+    contenido,
+  ]);
+  let cargado = false;
+  const cargar = async () => {
+    if (!plegable.open || cargado) return;
+    cargado = true;
+    reemplazar(contenido, esqueleto(4));
+    const grupo = await traer(`grupo-${g.clave}`);
+    if (!grupo?.filas?.length) { reemplazar(contenido, vacio('Sin tabla todavía', 'Se rellena con los trayectos de esta liga.')); return; }
+    const mueven = grupo.mueven ?? g.mueven ?? 0;
+    reemplazar(contenido, el('div', { clase: 'lista-ranking' }, grupo.filas.map((f, i) => filaPiloto(f, {
+      yo: f.nombre === perfil?.username,
+      zona: mueven && i < mueven ? 'sube' : mueven && i >= grupo.filas.length - mueven ? 'baja' : '',
+      valor: numero(f.puntos),
+      clanes,
+    }))));
+  };
+  plegable.addEventListener('toggle', cargar);
+  if (mio) cargar();
+  return plegable;
 }
 
 /**
@@ -304,7 +391,10 @@ function diferencia(a, b, unidad) {
 }
 
 for (const b of document.querySelectorAll('.chip-filtro')) {
-  b.addEventListener('click', () => { cambiarParametro('ambito', b.dataset.ambito === 'madrid' ? 'madrid' : null); pintarPilotos(); });
+  b.addEventListener('click', () => {
+    cambiarParametro('ambito', ['madrid', 'ligas'].includes(b.dataset.ambito) ? b.dataset.ambito : null);
+    pintarPilotos();
+  });
 }
 for (const b of document.querySelectorAll('.chip-modo')) {
   b.addEventListener('click', () => {

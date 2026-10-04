@@ -96,7 +96,35 @@ function comprobarFisica({ ruta, tiempoSegundos }) {
  * una captura cambia el numero grande y se deja las horas. Es determinista, o
  * sea que no opina ni falla distinto cada vez.
  */
-function comprobarCaptura({ ruta, tiempoSegundos, lectura }) {
+/**
+ * ¿Hay ALGO de BiciMAD en lo leido? Una estacion, un tiempo, una fecha o una
+ * franja del azul de la app. La hora suelta no cuenta: la barra de estado de
+ * cualquier captura lleva una.
+ */
+function indiciosDeBicimad(lectura) {
+  const leidos = [lectura.origen, lectura.destino, lectura.fecha]
+    .filter((v) => v !== null && v !== undefined && v !== '').length;
+  return leidos
+    + (Number.isFinite(lectura.segundosDuracion) ? 1 : 0)
+    + ((lectura.franjasAzules || 0) > 0 ? 1 : 0);
+}
+
+/**
+ * ¿La segunda lectura (`ocr.releerCaptura`) confirma las horas y la duracion de
+ * la primera? Es lo que separa "la captura esta retocada" de "el OCR ha leido
+ * mal un numero": un numero mal leido rara vez se lee mal igual dos veces con
+ * pixeles distintos, y uno retocado se lee igual las dos.
+ */
+function lecturaConfirmada(lectura, segunda) {
+  if (!segunda?.disponible) return false;
+  const d1 = lectura.segundosDuracion;
+  const d2 = segunda.segundosDuracion;
+  return Number.isFinite(d1) && Number.isFinite(d2) && Math.abs(d1 - d2) <= 5
+    && Boolean(segunda.horaSalida) && segunda.horaSalida === lectura.horaSalida
+    && Boolean(segunda.horaLlegada) && segunda.horaLlegada === lectura.horaLlegada;
+}
+
+function comprobarCaptura({ ruta, tiempoSegundos, lectura, segundaLectura }) {
   const señales = [];
 
   if (!lectura.disponible) {
@@ -106,7 +134,17 @@ function comprobarCaptura({ ruta, tiempoSegundos, lectura }) {
   }
 
   if (!lectura.esBicimad) {
-    señales.push(fatal('no_es_bicimad', 'La imagen no parece una captura de la app BiciMAD.'));
+    // Rechazo directo SOLO si no hay nada de BiciMAD y la lectura es nitida: la
+    // foto del gato, una nota, otra app. Si hay una estacion, un tiempo o el
+    // azul de la app, lo mas probable es una captura buena mal leida (borrosa,
+    // recortada, en modo oscuro), y eso lo mira una persona. Rechazar ahi era
+    // decirle a alguien con su viaje delante que no es de BiciMAD.
+    if (indiciosDeBicimad(lectura) === 0 && (lectura.confianza ?? 0) >= 60) {
+      señales.push(fatal('no_es_bicimad', 'La imagen no parece una captura de la app BiciMAD.'));
+    } else {
+      señales.push(señal('bicimad_dudosa', 50,
+        'La captura no se ha podido reconocer como de la app BiciMAD con seguridad. Requiere revision humana.'));
+    }
     return señales;
   }
 
@@ -128,14 +166,21 @@ function comprobarCaptura({ ruta, tiempoSegundos, lectura }) {
     // diferencia sin que haya nada raro. 22:46 -> 23:03 son 17 min, y el viaje
     // de 22:46:37 a 23:03:20 dura 16:43. Sin este margen, capturas buenas del
     // historial salian "desviadas" y, sumadas a otra señal, rechazadas.
-    const sinSegundos = !/:d{2}:d{2}/.test(`${lectura.horaSalida}${lectura.horaLlegada}`);
+    const sinSegundos = !/:\d{2}:\d{2}/.test(`${lectura.horaSalida}${lectura.horaLlegada}`);
     const margen = sinSegundos ? 59 : 0;
     const desviacion = Math.max(0, Math.abs(diferencia - lectura.segundosDuracion) - margen);
 
-    if (desviacion > 90) {
+    if (desviacion > 90 && lecturaConfirmada(lectura, segundaLectura)) {
       señales.push(fatal('captura_incoherente',
         `Entre las horas de la captura hay ${diferencia}s, pero el recuadro de duracion marca ${lectura.segundosDuracion}s. ` +
         'La imagen ha sido retocada.',
+        { diferenciaHoras: diferencia, duracionMostrada: lectura.segundosDuracion }));
+    } else if (desviacion > 90) {
+      // El mismo descuadre, pero sin que una segunda lectura lo confirme: puede
+      // ser un 1 leido como 7. No se rechaza a nadie por un numero mal leido.
+      señales.push(señal('captura_descuadrada', 50,
+        `Entre las horas de la captura hay ${diferencia}s y el recuadro marca ${lectura.segundosDuracion}s, ` +
+        'pero la segunda lectura no lo confirma. Requiere revision humana.',
         { diferenciaHoras: diferencia, duracionMostrada: lectura.segundosDuracion }));
     } else if (desviacion > 5) {
       señales.push(señal('captura_desviada', 30,
@@ -550,6 +595,23 @@ function comprobarBici({ lectura, uid, usosBici }) {
 
 // --- Orquestador --------------------------------------------------------------
 /**
+ * Señales que dependen de que el OCR haya leido bien un numero o una palabra.
+ *
+ * Sumadas pueden mandar un viaje a revision, pero NO rechazarlo: "en la captura
+ * se lee otra ruta" + "no se leen las horas" sumaban 75 y rechazaban solas una
+ * captura buena y borrosa. Un rechazo automatico tiene que salir de algo que no
+ * sea una lectura dudosa: la fisica, un duplicado, una señal decisiva o
+ * indicios de fraude que no dependen del OCR.
+ */
+const DE_LECTURA = new Set([
+  'lectura_no_disponible', 'lectura_poco_segura', 'bicimad_dudosa', 'captura_descuadrada',
+  'captura_desviada', 'horas_ilegibles', 'ruta_no_coincide', 'estaciones_ilegibles',
+  'tiempo_no_coincide', 'tiempo_desviado', 'fecha_captura_distinta', 'llegada_posterior_a_subida',
+  'reloj_anterior_a_llegada', 'reloj_posterior_a_subida', 'lectura_sin_consenso', 'horario_inusual',
+  'formato_no_movil',
+]);
+
+/**
  * Ejecuta todas las comprobaciones y decide.
  * Devuelve siempre un objeto serializable, listo para guardar en el viaje: el
  * admin ve exactamente por que se ha tomado la decision.
@@ -573,6 +635,9 @@ function evaluar(contexto) {
 
   const decisiva = señales.find((s) => s.decisiva);
   const riesgo = señales.reduce((total, s) => total + s.gravedad, 0);
+  const riesgoSinLectura = señales
+    .filter((s) => !DE_LECTURA.has(s.codigo))
+    .reduce((total, s) => total + s.gravedad, 0);
 
   let decision;
   let resumen;
@@ -580,7 +645,7 @@ function evaluar(contexto) {
   if (decisiva) {
     decision = decisiva.decisiva;
     resumen = decisiva.mensaje;
-  } else if (riesgo >= RIESGO.UMBRAL_RECHAZO) {
+  } else if (riesgoSinLectura >= RIESGO.UMBRAL_RECHAZO) {
     decision = 'rechazado';
     resumen = 'Se han acumulado demasiadas señales de fraude.';
   } else if (riesgo < RIESGO.UMBRAL_APROBACION) {
@@ -603,4 +668,4 @@ function evaluar(contexto) {
   };
 }
 
-module.exports = { evaluar, distribucion, distanciaCalleMetros, velocidadKmh };
+module.exports = { evaluar, distribucion, distanciaCalleMetros, velocidadKmh, DE_LECTURA };

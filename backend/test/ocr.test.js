@@ -275,3 +275,38 @@ test('una captura del historial sin palabras clave sigue siendo de BiciMAD', () 
   const sinMarcas = texto.replace('30 viajes realizados\n', '');
   assert.ok(ocr.esCapturaBicimad(sinMarcas, sinMarcas.toLowerCase(), ocr.extraerEstaciones(sinMarcas)));
 });
+
+// --- Lo que el OCR hace con capturas reales ------------------------------------
+
+test('un trayecto de mas de una hora no se lee como de cinco minutos', () => {
+  assert.strictEqual(ocr.extraerDuracion('1h. 05m. 12s.'), 3912);
+  assert.strictEqual(ocr.extraerDuracion('1 h 5 min'), 3900);
+  assert.strictEqual(ocr.tiempoDeBarra('lh. O5m. l2s.'), 3912);
+});
+
+test('las cifras confundidas del tiempo y de la estacion se corrigen', () => {
+  assert.strictEqual(ocr.extraerDuracion('Tiempo l7m. l8s.'), 1038);
+  assert.deepStrictEqual(ocr.extraerEstaciones('124 - Puerta del Sol (l24)\n115 - Prado (1l5)'), ['124', '115']);
+  // Y una palabra normal no se toca.
+  assert.strictEqual(ocr.corregirCifras('Salida del Sol'), 'Salida del Sol');
+});
+
+test('la fecha pegada a la hora, o con guiones, se sigue leyendo', () => {
+  const [a, b] = ocr.extraerFechas('21/09/2502:51:12 y 21-09-25 03:08:30');
+  assert.strictEqual(a.fecha, '2025-09-21');
+  assert.strictEqual(a.hora, '02:51');
+  assert.strictEqual(b.hora, '03:08');
+  // Un año imposible no es una fecha.
+  assert.deepStrictEqual(ocr.extraerFechas('21/09/1890 10:00'), []);
+});
+
+test('la hora con etiqueta admite el punto que pone el OCR', () => {
+  assert.deepStrictEqual(ocr.extraerHoras('Salida 18.42 Llegada 18;54'), ['18:42', '18:54']);
+});
+
+test('una captura con estaciones y tiempo es de BiciMAD aunque no lo diga', () => {
+  const texto = '124 - Puerta del Sol (124)\n115 - Prado (115)\n17m. 18s.';
+  assert.ok(ocr.esCapturaBicimad(texto, texto.toLowerCase(), ocr.extraerEstaciones(texto)));
+  const nota = 'Notas\nComprar pan 18:42';
+  assert.ok(!ocr.esCapturaBicimad(nota, nota.toLowerCase(), ocr.extraerEstaciones(nota)));
+});

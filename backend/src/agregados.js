@@ -101,6 +101,37 @@ async function escribirAgregado(nombre, filas, extra = {}) {
 }
 
 /**
+ * El resumen de todas las ligas, de la mas alta a la mas baja. Funcion pura:
+ * recibe los grupos ya repartidos (`divisiones.repartirEnGrupos`).
+ */
+function resumenLigas(grupos, hoy) {
+  const niveles = [...divisiones.NIVELES].reverse().map((nivel) => {
+    const suyos = [...grupos.entries()].filter(([clave]) => clave.split('-')[0] === nivel);
+    return {
+      nivel,
+      pilotos: suyos.reduce((total, [, miembros]) => total + miembros.length, 0),
+      grupos: suyos.map(([clave, miembros]) => ({
+        clave,
+        pilotos: miembros.length,
+        mueven: Math.min(divisiones.MUEVEN, Math.floor(miembros.length / 3)),
+        podio: miembros.slice(0, 3).map((p, i) => limpiar({
+          pos: i + 1,
+          nombre: (p.u && p.u.username) || 'Piloto',
+          clan: (p.u && p.u.clanId) || null,
+          puntos: p.puntos,
+        })),
+      })),
+    };
+  });
+  return {
+    niveles,
+    inicio: divisiones.inicioLiga(hoy),
+    fin: divisiones.finLiga(hoy),
+    actualizado: admin.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
+/**
  * Cada cuanto se rehacen los agregados, como minimo.
  *
  * Es el segundo de los dos frenos. El otro es el modo parcial de `reconstruir`,
@@ -425,9 +456,12 @@ async function reconstruir({
   // El indice `agregados/grupos` dice en que grupo esta cada nombre de piloto
   // (los nombres ya son publicos en cualquier clasificacion): con el, una
   // pantalla pide su grupo en dos lecturas en vez de probar los treinta.
+  //
+  // Se compite por los puntos de la LIGA en juego (dos semanas), que vuelven a
+  // cero en cada cierre: los de temporada son del mes y mezclarian dos ligas.
   const grupos = divisiones.repartirEnGrupos(usuarios.map((u) => ({
     uid: u.uid,
-    puntos: u.puntosTemporada || 0,
+    puntos: u.puntosLiga || 0,
     division: u.division || 'hierro',
     u,
   })));
@@ -471,6 +505,17 @@ async function reconstruir({
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   });
   escritos.grupos = grupos.size;
+
+  // --- Todas las ligas (04 Ranking · Ligas) -----------------------------------
+  //
+  // Una sola lectura para ver la clasificacion de TODAS las ligas: cuantos
+  // pilotos hay en cada una, sus grupos y el podio de cada grupo. El detalle
+  // de un grupo se pide al abrirlo (`grupo-{clave}`, que ya existe).
+  //
+  // Las filas pasan por `limpiar`, igual que las de cualquier agregado: aqui
+  // tampoco sale nada que no salga ya en un ranking.
+  await db().doc('agregados/ligas').set(resumenLigas(grupos, hoyDia));
+  escritos.ligas = 1;
 
   // --- Clanes ----------------------------------------------------------------
   const dominadas = new Map();
@@ -711,6 +756,7 @@ module.exports = {
   MINUTOS_ENTRE_RECONSTRUCCIONES,
   MINUTOS_SI_APRIETA,
   escribirAgregado,
+  resumenLigas,
   limpiar,
   CAMPOS_PUBLICABLES,
   POR_PAGINA,

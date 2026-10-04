@@ -59,6 +59,7 @@ const agregados = require('./src/agregados');
 const push = require('./src/push');
 const almacen = require('./src/db');
 const misiones = require('./src/misiones');
+const divisiones = require('./src/divisiones');
 const denuncias = require('./src/denuncias');
 const nombres = require('./src/nombres');
 const colaCorreo = require('./src/cola-correo');
@@ -670,7 +671,14 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
   });
 
   if (aprobado) {
-    const sumados = await premiar(doc, viaje);
+    // La franja se acaba de escribir en el documento, pero `viaje` es el de
+    // antes: se le pasa para las misiones de hora del dia.
+    const sumados = await premiar(doc, {
+      ...viaje,
+      franja: viaje.franja || (veredicto.lectura?.horaSalida
+        ? { salida: veredicto.lectura.horaSalida, llegada: veredicto.lectura.horaLlegada || null }
+        : undefined),
+    });
     await avisarPorPush(doc.id, viaje, 'aprobado', sumados);
     await apuntarBiciVista(veredicto.lectura?.numeroBici, viaje);
     // Los puntos de la ruta SI se rehacen viaje a viaje: cambian la
@@ -1066,10 +1074,15 @@ async function premiar(doc, viaje) {
     // No cuesta ni una lectura: el documento ya esta leido para la transaccion,
     // y las reglas del catalogo solo miran campos suyos. Conceder una medalla
     // no puede salir mas caro que verificar el viaje que la gana.
-    const nuevasInsignias = logros.nuevas({
+    //
+    // Se calculan DESPUES de las misiones, que tambien dan insignias: la de la
+    // mision completada con este viaje se concede con este viaje.
+    const insigniasTrasElViaje = () => logros.nuevas({
       ...previo,
       viajesVerificados: (previo.viajesVerificados || 0) + 1,
       metrosTotales: (previo.metrosTotales || 0) + (metros || 0),
+      segundosTotales: (previo.segundosTotales || 0) + (viaje.tiempoSegundos || 0),
+      misionesCompletadas: (previo.misionesCompletadas || 0) + completadasAhora,
       mejorRacha: racha.mejorRacha,
     });
 
@@ -1089,6 +1102,7 @@ async function premiar(doc, viaje) {
     // completar la mision de hoy, por el mismo motivo por el que no toca la
     // racha: no lo has hecho hoy.
     let progresoMisiones = null;
+    let completadasAhora = 0;
     const diaDelViaje = String(viaje.fechaViaje).slice(0, 10);
 
     if (puntua && diaDelViaje === diaMadrid()) {
@@ -1103,7 +1117,14 @@ async function premiar(doc, viaje) {
 
       const totales = misiones.acumular(
         previo.misiones, diaDelViaje,
-        { distanciaMetros: metros, velocidadKmh: kmh, tiempoSegundos: viaje.tiempoSegundos || 0 },
+        {
+          distanciaMetros: metros,
+          velocidadKmh: kmh,
+          tiempoSegundos: viaje.tiempoSegundos || 0,
+          ruta: viaje.ruta,
+          // La hora de salida leida en la captura, para las misiones de hora.
+          horaSalida: viaje.franja?.salida || null,
+        },
         Boolean(destino) && !previas.has(destino)
       );
 
@@ -1117,6 +1138,7 @@ async function premiar(doc, viaje) {
       // Lo que dan las misiones que ESTE viaje completa, sumado a su total:
       // asi sale en el desglose (3e) y se devuelve si el viaje se anula.
       const extra = misiones.puntosCompletadas(delDia, antes, progresoNuevo);
+      completadasAhora = misiones.cuantasCompletadas(antes, progresoNuevo);
       if (extra > 0) {
         puntos = {
           ...puntos,
@@ -1126,11 +1148,19 @@ async function premiar(doc, viaje) {
       }
     }
 
+    const nuevasInsignias = insigniasTrasElViaje();
+
     tx.update(refUsuario, {
       viajesVerificados: admin.firestore.FieldValue.increment(1),
       metrosTotales: admin.firestore.FieldValue.increment(metros || 0),
       segundosTotales: admin.firestore.FieldValue.increment(viaje.tiempoSegundos || 0),
       puntosTemporada: admin.firestore.FieldValue.increment(puntos.total),
+      // Los de la liga de dos semanas en juego (`divisiones.inicioLiga`). Un
+      // viaje de una liga ya cerrada no suma a la nueva: se reclamo tarde.
+      ...(diaDelViaje >= divisiones.inicioLiga(diaMadrid())
+        ? { puntosLiga: admin.firestore.FieldValue.increment(puntos.total) }
+        : {}),
+      ...(completadasAhora ? { misionesCompletadas: admin.firestore.FieldValue.increment(completadasAhora) } : {}),
       ...(puntua ? {} : { viajesSinPuntos: admin.firestore.FieldValue.increment(1) }),
       ...(progresoMisiones ? { misiones: progresoMisiones } : {}),
       racha: racha.racha,
@@ -1195,6 +1225,11 @@ async function revertirPremio(doc, viaje) {
     metrosTotales: menos(-(viaje.distanciaMetros || 0)),
     segundosTotales: menos(-(viaje.tiempoSegundos || 0)),
     puntosTemporada: menos(-(viaje.puntos || 0)),
+    // Solo si el viaje era de la liga en juego: los de una liga cerrada ya no
+    // estan en el marcador, que volvio a cero.
+    ...(String(viaje.fechaViaje).slice(0, 10) >= divisiones.inicioLiga(diaMadrid())
+      ? { puntosLiga: menos(-(viaje.puntos || 0)) }
+      : {}),
     ...(viaje.fueraDeCupo === true ? { viajesSinPuntos: menos(-1) } : {}),
   }).catch((err) => {
     // Si el usuario ya no existe (cuenta borrada), no hay nada que devolver.

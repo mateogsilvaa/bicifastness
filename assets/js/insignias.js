@@ -19,6 +19,8 @@ const MODOS = {
   sprint: 'Sprint',
   constancia: 'Constancia',
   exploracion: 'Exploracion',
+  misiones: 'Misiones',
+  liga: 'Ligas',
   temporada: 'Temporada',
   clan: 'Clan',
   otro: 'Otras',

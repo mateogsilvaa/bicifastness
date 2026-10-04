@@ -34,20 +34,40 @@ test('dias distintos generan misiones distintas', () => {
 
 test('cada dia hay una de fondo, una de ritmo y una de constancia o explorar', () => {
   // Sin esto, un dia podrian salir tres de velocidad y el fondista se queda sin
-  // poder completar ninguna. Cada hueco rota entre dos familias (HUECOS).
+  // poder completar ninguna. Cada hueco rota entre sus familias (HUECOS).
   const vistas = new Set();
-  for (let d = 1; d <= 28; d++) {
-    const fecha = `2026-08-${String(d).padStart(2, '0')}`;
+  for (let d = 0; d < 90; d++) {
+    const fecha = new Date(Date.UTC(2026, 7, 1 + d, 12)).toISOString().slice(0, 10);
     const tipos = misiones.generar(fecha).misiones.map((m) => m.tipo);
     tipos.forEach((t) => vistas.add(t));
 
     assert.strictEqual(tipos.length, 3);
-    assert.ok(['distancia', 'minutos'].includes(tipos[0]), `${fecha}: el primer hueco es de fondo`);
+    assert.ok(['distancia', 'minutos', 'estaciones'].includes(tipos[0]), `${fecha}: el primer hueco es de volumen`);
     assert.ok(['velocidad', 'largo'].includes(tipos[1]), `${fecha}: el segundo es de ritmo`);
-    assert.ok(['trayectos', 'exploracion'].includes(tipos[2]), `${fecha}: el tercero, constancia o explorar`);
+    assert.ok(['trayectos', 'exploracion', 'temprano', 'tarde'].includes(tipos[2]), `${fecha}: el tercero, de habito`);
   }
-  // En un mes salen todas las familias.
-  assert.deepStrictEqual([...vistas].sort(), ['distancia', 'exploracion', 'largo', 'minutos', 'trayectos', 'velocidad']);
+  // En tres meses salen todas las familias.
+  assert.deepStrictEqual([...vistas].sort(), Object.keys(misiones.FAMILIAS).sort());
+});
+
+test('las misiones de hora cuentan la hora de salida de la captura', () => {
+  let t = misiones.acumular(null, '2026-10-05', { ruta: '124-115', horaSalida: '08:40' });
+  t = misiones.acumular(t, '2026-10-05', { ruta: '115-002', horaSalida: '21:05' });
+  t = misiones.acumular(t, '2026-10-05', { ruta: '002-124', horaSalida: null });
+  const [temprano, tarde, estaciones] = misiones.progresoDeTotales(
+    [{ tipo: 'temprano', objetivo: 1 }, { tipo: 'tarde', objetivo: 1 }, { tipo: 'estaciones', objetivo: 3 }], t,
+  );
+  assert.ok(temprano.completada);
+  assert.ok(tarde.completada);
+  assert.strictEqual(estaciones.hecho, 3, 'tres estaciones distintas, sin repetir');
+  assert.ok(estaciones.completada);
+});
+
+test('cuantas misiones completa un viaje, para las insignias', () => {
+  const antes = [{ completada: true }, { completada: false }, { completada: false }];
+  const despues = [{ completada: true }, { completada: true }, { completada: true }];
+  assert.strictEqual(misiones.cuantasCompletadas(antes, despues), 2);
+  assert.strictEqual(misiones.cuantasCompletadas(null, despues), 3);
 });
 
 test('trayecto largo y minutos se llevan con los totales del dia', () => {

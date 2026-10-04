@@ -1,6 +1,10 @@
 name: Operaciones periodicas
 
-# Cierre de temporada (mensual) y divisiones (semanal).
+# Cierre de temporada (mensual) y de liga (cada dos semanas).
+#
+# El cron de `divisiones` es SEMANAL a proposito: corre todos los lunes y el
+# script solo cierra liga el lunes que toca (`divisiones.esCambioDeLiga`). Los
+# demas lunes sale sin tocar nada.
 #
 # Van aparte del worker a proposito: el worker procesa una cola cada pocos
 # minutos, esto toca a TODOS los usuarios. Mezclarlas seria arriesgar que un

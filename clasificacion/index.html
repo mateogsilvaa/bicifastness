@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BiciFastness">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Clasificacion de BiciFastness: mejores tiempos por ruta, pilotos y clanes de BiciMAD en Madrid.">
 <title>Ranking | BiciFastness</title>
 <link rel="icon" href="/images/icono/icono.svg?v=2" type="image/svg+xml">
@@ -23,7 +28,7 @@
   04 Ranking. Se abre en TU grupo de division, no en la tabla de toda la
   ciudad: el puesto 180 de 400 no motiva; el 7.º de 30 a dos trayectos de
   subir, si. Tres pestañas: Pilotos, Rutas, Clanes. Todo publico sin sesion.
-  ?tab=rutas|clanes, ?ruta=124-115 abre el detalle, ?modo=fondo, ?ambito=madrid.
+  ?tab=rutas|clanes, ?ruta=124-115 abre el detalle, ?modo=fondo, ?ambito=madrid|ligas.
 -->
 <main class="container ranking" id="principal">
   <header class="ranking-invitado oculto" id="cabeza-invitado">
@@ -54,6 +59,7 @@
   <section id="panel-pilotos" role="tabpanel" aria-labelledby="tab-pilotos">
     <div class="chips-ranking" role="group" aria-label="Filtros">
       <button type="button" class="chip-filtro" id="ambito-grupo" data-ambito="grupo">Tu grupo</button>
+      <button type="button" class="chip-filtro" id="ambito-ligas" data-ambito="ligas">Ligas</button>
       <button type="button" class="chip-filtro" id="ambito-madrid" data-ambito="madrid">Madrid</button>
       <span class="separador-chips" aria-hidden="true"></span>
       <button type="button" class="chip-modo" value="general">General</button>

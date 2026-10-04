@@ -567,7 +567,7 @@ async function montarAvisosPush(datos) {
   ];
 
   // 8o: a la derecha, cuando o donde llega cada uno.
-  const NOTAS = { viajeResuelto: 'móvil y ordenador', rachaEnPeligro: '20:00', cambioDivision: 'lunes' };
+  const NOTAS = { viajeResuelto: 'móvil y ordenador', rachaEnPeligro: '20:00', cambioDivision: 'lunes, cada dos semanas' };
   for (const [tipo, info] of Object.entries(TIPOS_PUSH)) {
     const fila = interruptor(
       info.etiqueta,

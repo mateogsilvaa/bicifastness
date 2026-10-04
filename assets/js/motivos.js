@@ -112,6 +112,10 @@ const MOTIVOS = {
     texto: 'La imagen no parece la pantalla de resumen de un viaje de BiciMAD.',
     queHacer: 'Sube la captura que sale al terminar el trayecto, con las estaciones y el tiempo.',
   },
+  bicimad_dudosa: {
+    texto: 'No hemos reconocido la captura como de la app de BiciMAD con seguridad.',
+    queHacer: 'No hace falta que hagas nada: lo mira una persona. La próxima vez, mejor la captura original y entera.',
+  },
   lectura_poco_segura: {
     texto: 'La captura se lee con dificultad.',
     queHacer: 'Prueba con la original, a pantalla completa, sin recortar y sin pasarla por mensajeria.',
@@ -119,6 +123,10 @@ const MOTIVOS = {
   captura_incoherente: {
     texto: 'Las horas de la captura no cuadran con la duracion que aparece en ella.',
     queHacer: 'Sube la captura tal cual sale de la app, sin editarla.',
+  },
+  captura_descuadrada: {
+    texto: 'Las horas de la captura y su duración no cuadran, pero puede ser un número mal leído.',
+    queHacer: 'No hace falta que hagas nada: lo mira una persona.',
   },
   captura_desviada: {
     texto: 'Las horas de la captura y la duracion que marca no acaban de cuadrar.',

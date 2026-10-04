@@ -12,6 +12,7 @@
 import { el, icono, reemplazar } from './dom.js';
 import { nombreRuta, formatearTiempo } from './ui.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
+import { NIVELES, NOMBRES as LIGAS, emblemaLiga } from './ligas.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
 
 // --- Formato -----------------------------------------------------------------
@@ -234,13 +235,21 @@ function derivados(perfil) {
     if (o) estaciones.add(o);
     if (d) estaciones.add(d);
   }
-  return { ...perfil, tramosConPuntos: Object.keys(porRuta).length, estacionesVisitadas: estaciones.size };
+  return {
+    ...perfil,
+    tramosConPuntos: Object.keys(porRuta).length,
+    estacionesVisitadas: estaciones.size,
+    nivelLiga: Math.max(0, NIVELES.indexOf(perfil.division || 'hierro')),
+  };
 }
 
 /** "214 de 250 km", "81 de 100". */
 function progresoTexto(campo, valor, minimo) {
   // 6b: "214 de 250"; la unidad ya va en el nombre ("250 km").
   if (campo === 'metrosTotales') return `${numero(Math.floor(valor / 1000))} de ${numero(minimo / 1000)}`;
+  if (campo === 'segundosTotales') return `${numero(Math.floor(valor / 3600))} de ${numero(minimo / 3600)} h`;
+  // La liga no es un contador: se dice donde estas.
+  if (campo === 'nivelLiga') return `ahora en ${LIGAS[NIVELES[valor]] || 'Hierro'}`;
   return `${numero(valor)} de ${numero(minimo)}`;
 }
 
@@ -297,7 +306,10 @@ export function pintarInsignias(perfil) {
       clase: `insignia ${conseguida ? 'conseguida' : 'bloqueada'}`,
       titulo: ins.descripcion,
     }, [
-      el('span', { clase: 'disco' }, [icono(ins.icono)]),
+      // Las de liga llevan el emblema de su liga, el mismo que el ranking.
+      el('span', { clase: `disco${ins.modo === 'liga' ? ' con-emblema' : ''}` }, [
+        ins.modo === 'liga' ? emblemaLiga(NIVELES[regla?.minimo] || 'hierro', { tamano: 26, apagado: !conseguida }) : icono(ins.icono),
+      ]),
       el('span', { clase: 'titulo', texto: ins.titulo }),
       el('span', {
         clase: 'progreso',

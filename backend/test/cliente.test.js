@@ -333,6 +333,12 @@ const TEXTOS = [
   '25:00 y 12:99 y 09:30',
   '2 - Metro Callao\n110 - Moncloa',
   'Notas\nLista de la compra\nPan de molde\nEditada el martes',
+  // Lo que el OCR hace de verdad con la app: cifras confundidas, horas largas,
+  // la fecha pegada a la hora y los dos puntos leidos como punto.
+  '1h. 05m. 12s.',
+  'l7m. l8s.',
+  'Salida 18.42 Llegada 18;54',
+  '124 - Puerta del Sol (l24)\n21/09/2502:51:12\nll5 - Prado (115)\n21-09-25 03:08:30\nl7m. l8s.',
   '',
 ];
 

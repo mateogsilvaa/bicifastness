@@ -7,13 +7,74 @@
  * y no motiva a nadie. En un grupo de 30, subir de division esta a dos buenos
  * trayectos. Es lo que hace que competir tenga sentido para alguien normal.
  *
- * Los lunes suben los 5 primeros de cada grupo y bajan los 5 ultimos.
+ * Cada liga dura DOS SEMANAS. El lunes que la cierra suben los 5 primeros de
+ * cada grupo y bajan los 5 ultimos, y los puntos de liga vuelven a cero.
+ *
+ * Por que dos semanas y no una: con una, quien se pierde dos dias por trabajo
+ * o lluvia ya no tiene margen de remontar, y el ascenso premiaba haber tenido
+ * una buena semana mas que pedalear de verdad. Con dos, da tiempo a remontar y
+ * el cambio sigue estando lo bastante cerca como para motivar.
  *
  * Todo el calculo son funciones puras sobre listas: se puede probar entero sin
  * Firestore, que es donde se esconden los errores de este tipo de reglas.
  */
 
+const { diaMadrid } = require('./util');
+
 const NIVELES = ['hierro', 'bronce', 'plata', 'oro', 'platino', 'leyenda'];
+
+/** Cuantos dias dura una liga. */
+const DIAS_POR_LIGA = 14;
+
+/**
+ * El dia que abre la web. La PRIMERA liga empieza ese dia (domingo) y dura
+ * hasta el domingo de dos semanas despues: asi el fin de semana de apertura
+ * cuenta, y nadie empieza en una liga que se cierra al dia siguiente con un
+ * solo dia de puntos. Lo de antes del lanzamiento (pruebas) no cuenta para
+ * ninguna liga.
+ */
+const LANZAMIENTO = '2026-11-01';
+
+/**
+ * El lunes desde el que se cuentan las ligas de dos semanas. Tiene un gemelo
+ * en `assets/js/ligas.js` (un test los compara): si solo se moviera aqui, la
+ * web diria "cambia el lunes 16" y el cambio caeria el 23.
+ */
+const ANCLA_LIGA = '2026-11-02';
+
+/** Dias entre dos fechas 'YYYY-MM-DD'. */
+const diasEntre = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 864e5);
+
+/** Suma dias a una fecha 'YYYY-MM-DD'. */
+function sumarDias(fecha, n) {
+  // A mediodia UTC, que en Madrid es el mismo dia con cualquier horario.
+  return diaMadrid(new Date(Date.parse(`${fecha}T12:00:00Z`) + n * 864e5));
+}
+
+/** El lunes en que empieza la liga de dos semanas del dia dado, sin la primera. */
+function lunesDeLiga(dia) {
+  const vueltas = Math.floor(diasEntre(ANCLA_LIGA, dia) / DIAS_POR_LIGA);
+  return sumarDias(ANCLA_LIGA, vueltas * DIAS_POR_LIGA);
+}
+
+/** ¿Cae el dia en la primera liga (o antes del lanzamiento)? */
+const enPrimeraLiga = (dia) => diasEntre(ANCLA_LIGA, dia) < DIAS_POR_LIGA;
+
+/** El dia en que empezo la liga que esta en juego el dia dado. */
+function inicioLiga(dia) {
+  return enPrimeraLiga(dia) ? LANZAMIENTO : lunesDeLiga(dia);
+}
+
+/** El ultimo dia (domingo) de la liga en juego el dia dado. */
+function finLiga(dia) {
+  return sumarDias(enPrimeraLiga(dia) ? ANCLA_LIGA : lunesDeLiga(dia), DIAS_POR_LIGA - 1);
+}
+
+/**
+ * ¿Empieza liga nueva este dia? Es cuando toca cerrar la anterior. El dia del
+ * lanzamiento no: antes no hay ninguna liga que cerrar.
+ */
+const esCambioDeLiga = (dia) => !enPrimeraLiga(dia) && lunesDeLiga(dia) === dia;
 
 /** Cuanta gente por grupo. Con mas, deja de sentirse como una liga. */
 const POR_GRUPO = 30;
@@ -53,7 +114,7 @@ const bajaA = (nivel) => NIVELES[Math.max(NIVELES.indexOf(nivel) - 1, 0)];
  *
  * Dos reglas que no son obvias y que importan:
  *
- * 1. Quien no ha competido en toda la semana NO baja. Castigar la ausencia con
+ * 1. Quien no ha competido en toda la liga NO baja. Castigar la ausencia con
  *    un descenso empuja a abandonar del todo, que es justo lo contrario de lo
  *    que busca una liga. Tampoco sube: no ha hecho nada.
  *
@@ -104,7 +165,7 @@ function movimientos(clave, miembros) {
 }
 
 /**
- * Calcula la semana entera. Devuelve solo los pilotos que CAMBIAN de division,
+ * Calcula el cierre de una liga entera. Devuelve solo los pilotos que CAMBIAN de division,
  * para no escribir 400 documentos cuando se mueven 40.
  */
 function calcularSemana(pilotos) {
@@ -129,6 +190,13 @@ function grupoDe(pilotos, uid) {
 
 module.exports = {
   NIVELES,
+  DIAS_POR_LIGA,
+  ANCLA_LIGA,
+  LANZAMIENTO,
+  inicioLiga,
+  finLiga,
+  esCambioDeLiga,
+  sumarDias,
   POR_GRUPO,
   MUEVEN,
   repartirEnGrupos,

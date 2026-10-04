@@ -74,11 +74,15 @@ function comparar(lectura, verdad) {
  * hacen que la gente deje de ejecutarlo.
  */
 const lecturas = new Map();
+// La segunda lectura, como la hace el worker: es la que confirma un descuadre
+// antes de llamarlo retoque.
+const segundas = new Map();
 
 test.before(async () => {
   for (const captura of capturas) {
     const buffer = fs.readFileSync(path.join(DIRECTORIO, captura.fichero));
     lecturas.set(captura.id, await ocr.leerCaptura({ buffer }));
+    if (captura.antifraude) segundas.set(captura.id, await ocr.releerCaptura({ buffer }));
   }
 });
 
@@ -167,6 +171,7 @@ test('el motor decide sobre el banco lo que dice el banco', (t) => {
       ruta,
       tiempoSegundos,
       lectura,
+      segundaLectura: lectura.esBicimad ? ocr.elegirTrayecto(segundas.get(captura.id), ruta) : null,
       hashSha: 'b'.repeat(64),
       hashPerceptual: '0f0f0f0f0f0f0f0f',
       shaPrevios: [],

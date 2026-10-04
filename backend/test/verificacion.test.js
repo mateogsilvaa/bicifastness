@@ -75,9 +75,31 @@ test('una velocidad alta pero posible va a revision, no a la basura', () => {
 test('descuadre entre las horas y el recuadro de duracion = manipulacion', () => {
   const lectura = lecturaLimpia(600);
   lectura.segundosDuracion = 300; // el usuario ha retocado solo el numero grande
-  const r = evaluar(contextoBase({ tiempoSegundos: 300, lectura }));
+  // La segunda lectura lee lo mismo: el numero esta retocado, no mal leido.
+  const r = evaluar(contextoBase({ tiempoSegundos: 300, lectura, segundaLectura: { ...lectura } }));
   assert.strictEqual(r.decision, 'rechazado');
   assert.ok(r.señales.some((s) => s.codigo === 'captura_incoherente'));
+});
+
+test('un descuadre que la segunda lectura no confirma va a revision, no se rechaza', () => {
+  // Un 1 leido como 7 en la barra descuadra igual que un retoque. Sin una
+  // segunda lectura que lo confirme, decide una persona.
+  const lectura = lecturaLimpia(600);
+  lectura.horaLlegada = '10:25:00';
+  const r = evaluar(contextoBase({ lectura }));
+  assert.strictEqual(r.decision, 'revision');
+  assert.ok(r.señales.some((s) => s.codigo === 'captura_descuadrada'));
+});
+
+test('varias dudas de lectura juntas no rechazan una captura: la mira una persona', () => {
+  // "Se lee otra ruta" (60) + "no se leen las horas" (15) sumaban 75 y
+  // rechazaban solas una captura buena y borrosa.
+  const lectura = lecturaLimpia(600);
+  lectura.origen = '3';
+  lectura.horaSalida = '';
+  const r = evaluar(contextoBase({ lectura }));
+  assert.strictEqual(r.decision, 'revision');
+  assert.ok(r.riesgo >= 70);
 });
 
 test('la captura reenviada byte a byte se rechaza', () => {
@@ -122,12 +144,35 @@ test('una captura que no es de BiciMAD se rechaza sola', () => {
   // Esto lo decidia la IA con `es_bicimad`. Ahora sale de si el texto leido
   // contiene marcadores de la app: es heuristica, pero es determinista y basta
   // para descartar una foto cualquiera.
-  const lectura = lecturaLimpia(600);
-  lectura.esBicimad = false;
+  const lectura = {
+    disponible: true, esBicimad: false, confianza: 90,
+    origen: '', destino: '', segundosDuracion: null, horaSalida: '18:42', horaLlegada: '', fecha: '',
+  };
 
   const r = evaluar(contextoBase({ lectura }));
   assert.strictEqual(r.decision, 'rechazado');
   assert.ok(r.señales.some((s) => s.codigo === 'no_es_bicimad'));
+});
+
+test('una captura de BiciMAD mal leida no se rechaza como "no es BiciMAD"', () => {
+  // Lo que se quejaba: con el viaje delante, "no es la app de BiciMAD". Si hay
+  // una estacion, un tiempo o el azul de la app, la mira una persona.
+  for (const parcial of [
+    { origen: '124' },
+    { segundosDuracion: 1038 },
+    { franjasAzules: 1 },
+  ]) {
+    const lectura = {
+      disponible: true, esBicimad: false, confianza: 90,
+      origen: '', destino: '', segundosDuracion: null, horaSalida: '', horaLlegada: '', fecha: '', ...parcial,
+    };
+    const r = evaluar(contextoBase({ lectura }));
+    assert.strictEqual(r.decision, 'revision', JSON.stringify(parcial));
+    assert.ok(r.señales.some((s) => s.codigo === 'bicimad_dudosa'));
+  }
+  // Y una lectura borrosa sin nada legible tampoco se rechaza: no se sabe.
+  const borrosa = { disponible: true, esBicimad: false, confianza: 30, origen: '', destino: '', segundosDuracion: null };
+  assert.strictEqual(evaluar(contextoBase({ lectura: borrosa })).decision, 'revision');
 });
 
 test('si el OCR no responde, el viaje va a revision (no se aprueba a ciegas)', () => {

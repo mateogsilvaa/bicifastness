@@ -30,7 +30,7 @@ function aleatorio(semilla = 42) {
   };
 }
 
-const NIVELES = ['hierro', 'bronce', 'plata', 'oro', 'platino', 'leyenda'];
+const NIVELES = ['sin-clasificar', 'cobre', 'plata', 'oro', 'platino', 'esmeralda', 'rubi', 'diamante'];
 
 const NOMBRES = [
   'Alba', 'Bruno', 'Celia', 'Dario', 'Elena', 'Fer', 'Gema', 'Hugo', 'Ines',

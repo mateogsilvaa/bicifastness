@@ -178,33 +178,75 @@ nunca y se va. Con temporadas, cada mes es una carrera nueva.
 
 ## Divisiones (ligas)
 
-Los pilotos se reparten en grupos de unos 30 por liga, y cada liga tiene su
-emblema y su insignia:
+Siete divisiones y un estado previo (diseño 12 · Insignias de division), de
+peor a mejor:
 
-**Hierro → Bronce → Plata → Oro → Platino → Leyenda**
+**Sin clasificar → Cobre → Plata → Oro → Platino → Esmeralda → Rubí → Diamante**
+
+Las cuatro primeras son piezas de bici en metal y las tres ultimas, gemas. El
+identificador en los datos es el nombre sin tilde (`rubi`). Las insignias estan
+en `assets/img/divisiones/`.
+
+### Grupos de 20, en piramide
+
+Se compite **contra tu grupo de 20**, no contra toda la web. Cuantos grupos
+tiene cada division sale de cuanta gente hay en la escalera
+(`divisiones.gruposPorNivel`):
+
+| | Grupos |
+|---|---|
+| Diamante | 1, nunca mas |
+| Rubí | hasta 3, como mucho la mitad que Esmeralda |
+| Esmeralda | hasta 7, nunca mas que Platino |
+| Platino | 10% de los que quedan |
+| Oro | 20% |
+| Plata | 30% |
+| Cobre | 40% |
+
+Con siete grupos o menos hay **uno por division empezando por abajo**: con tres
+grupos existen Cobre, Plata y Oro, y nadie esta en Diamante porque no hay a
+quien ganar ahi. Los grupos nuevos nacen abajo y la piramide se llena hacia
+arriba. Con 300 personas: 5-4-2-1-1-1-1; con 2.000: 35-27-18-9-7-3-1.
+
+### Cierre cada dos semanas
 
 - Cada liga dura **dos semanas** (lunes a domingo de la semana siguiente). La
   primera empieza el dia del lanzamiento, domingo 1 de noviembre de 2026, y
   llega al domingo 15 (`divisiones.LANZAMIENTO`); desde el lunes 16, una cada
   dos semanas. Los viajes anteriores al lanzamiento no cuentan para ninguna.
 - Se compite por `puntosLiga`, que suma lo mismo que un viaje da a la
-  temporada y vuelve a cero al cerrar cada liga.
-- El lunes que cierra la liga suben los 5 primeros de cada grupo y bajan los 5
-  ultimos. El cron es semanal; los lunes que no toca, el script no hace nada.
-- Al llegar a una liga se gana su insignia (`liga-bronce` ... `liga-leyenda`).
-  Bajar despues no la quita.
-- Se compite **contra tu grupo**, no contra toda la web. En el ranking, la
-  pestaña **Ligas** enseña todas a la vez, con los grupos de cada una.
+  temporada y vuelve a cero en cada cierre.
+- Al cerrar, en cada grupo **suben los 4 primeros y bajan los 4 ultimos** (un
+  grupo pequeño mueve como mucho un tercio por lado). Pero manda el **cupo**:
+  se llenan las divisiones de arriba abajo y lo que no cabe se queda abajo.
+  Primero los que ya estaban, despues los que suben, y dentro, por puntos.
+- Despues se rehacen los grupos de cada division, **parejos** (en serpiente por
+  puntos), y el grupo de cada uno se guarda (`grupoLiga`): no cambia en mitad
+  de la liga.
+- Quien no sale en toda una liga **no baja** ni sube. Tras **dos ligas seguidas
+  sin pedalear** vuelve a sin clasificar.
+- Al llegar a una division se gana su insignia (`liga-cobre` ...
+  `liga-diamante`). Bajar despues no la quita.
+- El cron es semanal; los lunes que no toca, el script no hace nada.
+
+### Sin clasificar
+
+Los nuevos y quien vuelve tras dos ligas sin pedalear. Compiten todos juntos en
+una tabla mientras dura la liga, y al cerrarla **entran en la escalera**
+(`divisiones.nivelDeEntrada`):
+
+- Nuevo: Cobre. Plata si queda por encima del 95% de los puntos de esa liga;
+  Oro por encima del 99%.
+- Vuelve tras estar arriba: dos divisiones por debajo de la mejor que tuvo
+  (como mucho Oro), y una mas si vuelve fuerte (por encima del 90%).
+- Platino solo para quien estuvo en Esmeralda o mas y vuelve por encima del
+  99,5%, o un nuevo por encima del 99,9%.
+- Y siempre con cupo: **al menos el 80% entra en Cobre**, y en Platino como
+  mucho el 0,05% de los que entran.
 
 Por que dos semanas y no una: con una, quien se pierde dos dias por trabajo o
 lluvia ya no tiene margen de remontar. Con dos, da tiempo, y el cambio sigue
 lo bastante cerca como para motivar.
-
-Esto es lo que hace que competir tenga sentido para alguien normal: en una tabla
-unica de 400 personas, el puesto 180 no se mueve nunca y no motiva. En un grupo
-de 30, subir de division esta a dos buenos trayectos de distancia.
-
----
 
 ## Clanes y conquista de estaciones
 

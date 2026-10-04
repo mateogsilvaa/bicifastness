@@ -112,25 +112,33 @@ async function actualizarDivisiones() {
   }
 
   const snap = await db.collection('usuarios').get();
+  const datosDe = new Map(snap.docs.map((d) => [d.id, d.data()]));
 
-  const pilotos = snap.docs.map((d) => ({
-    uid: d.id,
-    // Los puntos de ESTA liga, no los del mes: con ligas de dos semanas, los
-    // de temporada mezclarian dos ligas distintas.
-    puntos: d.data().puntosLiga || 0,
-    division: d.data().division || 'hierro',
-    datos: d.data(),
+  // Toda la regla esta en `divisiones.cerrarLiga`, que es pura y tiene sus
+  // tests: subidas, bajadas, cupos de cada division, quien vuelve a sin
+  // clasificar y donde entra quien sale de ahi. Aqui solo se escribe.
+  const resultado = divisiones.cerrarLiga(snap.docs.map((d) => {
+    const u = d.data();
+    const maxima = Number.isInteger(u.divisionMaxima) ? u.divisionMaxima : divisiones.nivelDe(u.division);
+    return {
+      uid: d.id,
+      division: divisiones.esClasificado(u.division) ? u.division : divisiones.SIN_CLASIFICAR,
+      grupo: u.grupoLiga || null,
+      // Los puntos de ESTA liga, no los del mes.
+      puntos: u.puntosLiga || 0,
+      ligasInactivas: u.ligasInactivas || 0,
+      divisionMaxima: maxima,
+      ligasJugadas: u.ligasJugadas || 0,
+    };
   }));
 
-  const cambios = divisiones.calcularSemana(pilotos);
-  const conPuntos = pilotos.filter((p) => p.puntos !== 0);
-
-  console.log(`${pilotos.length} pilotos, ${cambios.length} cambian de liga, `
-    + `${conPuntos.length} con puntos que vuelven a cero.\n`);
-
+  const cambios = resultado.filter((r) => r.cambia);
   const resumen = {};
-  for (const c of cambios) resumen[c.division] = (resumen[c.division] || 0) + 1;
-  for (const [nivel, n] of Object.entries(resumen)) console.log(`  a ${nivel}: ${n}`);
+  for (const r of resultado) resumen[r.division] = (resumen[r.division] || 0) + 1;
+  console.log(`${resultado.length} pilotos, ${cambios.length} cambian de division.\n`);
+  for (const [nivel, n] of Object.entries(resumen)) console.log(`  ${nivel.padEnd(16)} ${n}`);
+  console.log('\nGrupos por division:', JSON.stringify(divisiones.gruposPorNivel(
+    resultado.filter((r) => r.division !== divisiones.SIN_CLASIFICAR).length)));
 
   if (!APLICAR) {
     console.log('\nSIMULACION: nada se ha modificado. Repite con --aplicar.');
@@ -144,55 +152,59 @@ async function actualizarDivisiones() {
     cambios: cambios.length,
   });
 
-  // Solo se escriben los que cambian: con 400 pilotos y 40 movimientos, escribir
-  // los 400 es tirar cuota.
-  //
-  // Con el cambio va `ultimoCambioDivision`, en la MISMA escritura: es lo que
-  // enseña Hoy una sola vez el lunes (02 Hoy · 2g). Sin el, el piloto veria
-  // otra liga sin saber por que ni desde donde. Y la insignia de la liga, si es
-  // la primera vez que llega.
+  // Se escribe a quien le cambia ALGO: division, grupo, contadores o puntos.
+  // Los que siguen sin clasificar y sin pedalear no se tocan.
   const fecha = hoy;
-  const cambiados = new Set();
-  for (let i = 0; i < cambios.length; i += 400) {
+  const nombre = (n) => ({ rubi: 'Rubí', 'sin-clasificar': 'Sin clasificar' }[n] || (n.charAt(0).toUpperCase() + n.slice(1)));
+  const escribir = resultado.filter((r) => {
+    const u = datosDe.get(r.uid) || {};
+    return r.cambia || r.grupo !== (u.grupoLiga || null) || (u.puntosLiga || 0) !== 0
+      || r.ligasInactivas !== (u.ligasInactivas || 0) || r.divisionMaxima !== u.divisionMaxima;
+  });
+  for (let i = 0; i < escribir.length; i += 400) {
     const lote = db.batch();
-    for (const c of cambios.slice(i, i + 400)) {
-      const insignias = logros.nuevas({ ...c.datos, division: c.division });
-      lote.update(db.doc(`usuarios/${c.uid}`), {
-        division: c.division,
+    for (const r of escribir.slice(i, i + 400)) {
+      const u = datosDe.get(r.uid) || {};
+      // La insignia de la division, si es la primera vez que llega.
+      const insignias = logros.nuevas({ ...u, division: r.division, divisionMaxima: r.divisionMaxima });
+      lote.update(db.doc(`usuarios/${r.uid}`), {
+        division: r.division,
+        grupoLiga: r.grupo,
         puntosLiga: 0,
-        ultimoCambioDivision: {
-          desde: c.desde, hasta: c.division, puesto: c.puesto, total: c.total,
-          puntos: c.puntos || 0, fecha,
-        },
+        ligasInactivas: r.ligasInactivas,
+        divisionMaxima: r.divisionMaxima,
+        ligasJugadas: r.ligasJugadas,
+        // Lo que enseña Hoy una sola vez (02 Hoy · 2g). A quien vuelve a sin
+        // clasificar por no pedalear no se le pone: no hay nada que celebrar ni
+        // nadie mirando, y al volver vera donde entra.
+        ...(r.cambia && r.division !== divisiones.SIN_CLASIFICAR ? {
+          ultimoCambioDivision: {
+            desde: r.desde, hasta: r.division, puesto: r.puesto, total: r.total,
+            puntos: r.puntos, fecha,
+          },
+        } : {}),
         ...(insignias.length ? { logros: admin.firestore.FieldValue.arrayUnion(...insignias) } : {}),
       });
-      cambiados.add(c.uid);
     }
     await lote.commit();
   }
 
-  // Y la liga nueva empieza para todos desde 0: los que no cambian tambien.
-  const aCero = conPuntos.filter((p) => !cambiados.has(p.uid));
-  for (let i = 0; i < aCero.length; i += 400) {
-    const lote = db.batch();
-    for (const p of aCero.slice(i, i + 400)) lote.update(db.doc(`usuarios/${p.uid}`), { puntosLiga: 0 });
-    await lote.commit();
-  }
-
-  console.log(`\n${cambios.length} ligas actualizadas y ${aCero.length + cambiados.size} marcadores a cero.`);
+  console.log(`\n${escribir.length} perfiles escritos, ${cambios.length} con division nueva.`);
 
   // El aviso (07 · 7a: "Subes a Oro"). Desactivado por defecto: solo a quien lo
   // ha pedido. Un fallo aqui no deshace nada de lo anterior.
-  const nombre = (n) => n.charAt(0).toUpperCase() + n.slice(1);
   let avisados = 0;
-  for (const c of cambios) {
-    const sube = divisiones.NIVELES.indexOf(c.division) > divisiones.NIVELES.indexOf(c.desde);
+  for (const c of cambios.filter((x) => x.division !== divisiones.SIN_CLASIFICAR)) {
+    const entra = c.desde === divisiones.SIN_CLASIFICAR;
+    const sube = entra || divisiones.nivelDe(c.division) > divisiones.nivelDe(c.desde);
     try {
       const r = await push.enviar(c.uid, 'cambioDivision', {
-        titulo: sube ? `Subes a ${nombre(c.division)}` : `Bajas a ${nombre(c.division)}`,
-        cuerpo: sube
-          ? `Acabaste ${c.puesto}.º de tu grupo. Dos semanas nuevas, rivales nuevos.`
-          : `Tienes dos semanas para recuperar ${nombre(c.desde)}.`,
+        titulo: entra ? `Entras en ${nombre(c.division)}` : sube ? `Subes a ${nombre(c.division)}` : `Bajas a ${nombre(c.division)}`,
+        cuerpo: entra
+          ? 'Ya compites en un grupo de 20. Dos semanas para subir.'
+          : sube
+            ? `Acabaste ${c.puesto}.º de tu grupo. Dos semanas nuevas, rivales nuevos.`
+            : `Tienes dos semanas para recuperar ${nombre(c.desde)}.`,
         url: '/clasificacion/',
       });
       avisados += r.enviados || 0;

@@ -12,7 +12,7 @@
 import { el, icono, reemplazar } from './dom.js';
 import { nombreRuta, formatearTiempo } from './ui.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
-import { NIVELES, NOMBRES as LIGAS, emblemaLiga } from './ligas.js';
+import { NIVELES, NOMBRES as LIGAS, emblemaLiga, chipDivision, numeroDeGrupo } from './ligas.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
 
 // --- Formato -----------------------------------------------------------------
@@ -59,10 +59,7 @@ export function diaRelativo(fechaViaje, ahora = new Date()) {
   return `${mayuscula(semana)} ${d} ${MESES_CORTOS[m - 1]}${año}`;
 }
 
-const DIVISIONES = {
-  hierro: 'Hierro', bronce: 'Bronce', plata: 'Plata', oro: 'Oro', platino: 'Platino', leyenda: 'Leyenda',
-};
-export const nombreDivision = (d) => DIVISIONES[d] || null;
+export const nombreDivision = (d) => LIGAS[d] || null;
 
 /** Un color de clan solo entra si es un hex de verdad: llega de la base de datos. */
 const colorSeguro = (c) => (/^#[0-9a-f]{6}$/i.test(String(c || '')) ? c : null);
@@ -152,8 +149,9 @@ export function pintarCabecera(perfil, clan, grupo = null) {
   const desde = creado
     ? `desde ${MESES[creado.getMonth()]}${creado.getFullYear() === new Date().getFullYear() ? '' : ` de ${creado.getFullYear()}`}`
     : '';
-  const division = nombreDivision(perfil.division);
-  const liga = division ? (grupo ? `${division} · grupo ${String(grupo).split('-')[1]}` : division) : null;
+  // Sin division guardada es que aun no ha cerrado ninguna liga: sin clasificar.
+  const division = nombreDivision(perfil.division) || nombreDivision('sin-clasificar');
+  const liga = numeroDeGrupo(grupo) ? `${division} · grupo ${numeroDeGrupo(grupo)}` : division;
   // 8m: en escritorio la liga va en esta linea, sin etiquetas debajo.
   reemplazar(document.getElementById('clan'), [
     clan?.nombre || 'Sin clan',
@@ -164,7 +162,8 @@ export function pintarCabecera(perfil, clan, grupo = null) {
   const escudos = perfil.escudos || 0;
   reemplazar(document.getElementById('etiquetas'), [
     // 6a: "Plata · grupo 4" en cuanto se sabe el grupo de la liga.
-    liga ? el('span', { clase: 'etiqueta-juego', texto: liga }) : null,
+    // 12 · Chip junto al nombre, con la insignia de su division.
+    chipDivision(LIGAS[perfil.division] ? perfil.division : 'sin-clasificar', liga),
     // Los escudos, a la vista: son lo que protege la racha.
     el('span', {
       clase: 'etiqueta-juego',
@@ -239,7 +238,9 @@ function derivados(perfil) {
     ...perfil,
     tramosConPuntos: Object.keys(porRuta).length,
     estacionesVisitadas: estaciones.size,
-    nivelLiga: Math.max(0, NIVELES.indexOf(perfil.division || 'hierro')),
+    // Igual que `logros.js`: la mejor division alcanzada (cobre 1 ... diamante 7).
+    nivelLiga: Math.max(0, NIVELES.indexOf(perfil.division) + 1,
+      Number.isInteger(perfil.divisionMaxima) ? perfil.divisionMaxima + 1 : 0),
   };
 }
 
@@ -249,7 +250,7 @@ function progresoTexto(campo, valor, minimo) {
   if (campo === 'metrosTotales') return `${numero(Math.floor(valor / 1000))} de ${numero(minimo / 1000)}`;
   if (campo === 'segundosTotales') return `${numero(Math.floor(valor / 3600))} de ${numero(minimo / 3600)} h`;
   // La liga no es un contador: se dice donde estas.
-  if (campo === 'nivelLiga') return `ahora en ${LIGAS[NIVELES[valor]] || 'Hierro'}`;
+  if (campo === 'nivelLiga') return valor ? `tu mejor: ${LIGAS[NIVELES[valor - 1]]}` : 'sin clasificar';
   return `${numero(valor)} de ${numero(minimo)}`;
 }
 
@@ -308,7 +309,7 @@ export function pintarInsignias(perfil) {
     }, [
       // Las de liga llevan el emblema de su liga, el mismo que el ranking.
       el('span', { clase: `disco${ins.modo === 'liga' ? ' con-emblema' : ''}` }, [
-        ins.modo === 'liga' ? emblemaLiga(NIVELES[regla?.minimo] || 'hierro', { tamano: 26, apagado: !conseguida }) : icono(ins.icono),
+        ins.modo === 'liga' ? emblemaLiga(NIVELES[(regla?.minimo || 1) - 1], { tamano: 30, apagado: !conseguida }) : icono(ins.icono),
       ]),
       el('span', { clase: 'titulo', texto: ins.titulo }),
       el('span', {

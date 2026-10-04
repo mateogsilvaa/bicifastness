@@ -17,7 +17,7 @@
  */
 
 const CATALOGO = require('../lib/insignias.json');
-const { NIVELES } = require('./divisiones');
+const { nivelDe } = require('./divisiones');
 
 /**
  * Campos derivados que no estan en el documento del usuario pero se sacan de
@@ -39,10 +39,11 @@ function derivados(usuario) {
   return {
     tramosConPuntos: Object.keys(porRuta).length,
     estacionesVisitadas: estaciones.size,
-    // La liga en la que esta, como numero (hierro 0 ... leyenda 5): las
-    // insignias de liga se ganan al llegar. Bajar despues no las quita, porque
-    // `logros` solo crece.
-    nivelLiga: Math.max(0, NIVELES.indexOf(usuario.division || 'hierro')),
+    // La mejor division a la que ha llegado, como numero (sin clasificar 0,
+    // cobre 1 ... diamante 7): las insignias de division se ganan al llegar.
+    // Bajar despues no las quita, porque `logros` solo crece.
+    nivelLiga: Math.max(0, nivelDe(usuario.division) + 1,
+      Number.isInteger(usuario.divisionMaxima) ? usuario.divisionMaxima + 1 : 0),
   };
 }
 

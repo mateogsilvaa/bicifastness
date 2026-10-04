@@ -7,11 +7,31 @@
 
 import { diaMadrid, sumarDias } from './dia.js';
 
-export const NIVELES = ['hierro', 'bronce', 'plata', 'oro', 'platino', 'leyenda'];
+/** De peor a mejor (diseño 12). El identificador es el nombre sin tilde. */
+export const NIVELES = ['cobre', 'plata', 'oro', 'platino', 'esmeralda', 'rubi', 'diamante'];
+
+/** Antes de la primera liga con trayectos, y tras dos ligas sin pedalear. */
+export const SIN_CLASIFICAR = 'sin-clasificar';
 
 export const NOMBRES = {
-  hierro: 'Hierro', bronce: 'Bronce', plata: 'Plata', oro: 'Oro', platino: 'Platino', leyenda: 'Leyenda',
+  'sin-clasificar': 'Sin clasificar',
+  cobre: 'Cobre', plata: 'Plata', oro: 'Oro', platino: 'Platino',
+  esmeralda: 'Esmeralda', rubi: 'Rubí', diamante: 'Diamante',
 };
+
+/** La division de una clave de grupo ('plata-4' -> 'plata'). */
+export function divisionDeClave(clave) {
+  const c = String(clave || '');
+  if (c === SIN_CLASIFICAR) return SIN_CLASIFICAR;
+  const i = c.lastIndexOf('-');
+  return i > 0 ? c.slice(0, i) : c;
+}
+
+/** El numero del grupo ('plata-4' -> '4'), o '' para sin clasificar. */
+export function numeroDeGrupo(clave) {
+  const c = String(clave || '');
+  return c === SIN_CLASIFICAR ? '' : c.slice(c.lastIndexOf('-') + 1);
+}
 
 /** Cuantos dias dura una liga. */
 export const DIAS_POR_LIGA = 14;
@@ -60,50 +80,58 @@ export function cuandoCambia(dia = diaMadrid()) {
   return `el ${fechaCorta(proximoCambio(dia))}`;
 }
 
-/** "Hierro · grupo 2" */
+/** "Plata · grupo 4", o "Sin clasificar". */
 export function nombreGrupo(clave) {
-  const [nivel, n] = String(clave).split('-');
-  return `${NOMBRES[nivel] || nivel} · grupo ${n}`;
+  const division = divisionDeClave(clave);
+  const n = numeroDeGrupo(clave);
+  return n ? `${NOMBRES[division] || division} · grupo ${n}` : (NOMBRES[division] || division);
 }
 
-const SVG = 'http://www.w3.org/2000/svg';
-function nodo(tipo, attrs) {
-  const n = document.createElementNS(SVG, tipo);
-  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
-  return n;
+/** Donde viven las insignias del diseño 12: `{id}.svg` y `{id}-oscuro.svg`. */
+const RUTA = '/assets/img/divisiones';
+
+/**
+ * La insignia de una division (diseño 12 · Insignias de division).
+ *
+ * Son los SVG del diseño, tal cual, en `assets/img/divisiones/`: la version
+ * clara y la `-oscuro` (borde blanco de pegatina en vez de sombra), y el CSS
+ * enseña la del tema. Las `-compacto` son copias identicas, asi que no se
+ * piden aparte.
+ *
+ * @param {string} division  'cobre' ... 'diamante' o 'sin-clasificar'
+ * @param {{tamano?: number, apagado?: boolean}} opciones  `tamano` es el ALTO
+ */
+export function emblemaLiga(division, { tamano = 32, apagado = false } = {}) {
+  const id = NOMBRES[division] ? division : SIN_CLASIFICAR;
+  const caja = document.createElement('span');
+  caja.className = `insignia-division division-${id}${apagado ? ' apagado' : ''}`;
+  caja.setAttribute('aria-hidden', 'true');
+  caja.style.height = `${tamano}px`;
+  for (const [variante, fichero] of [['claro', `${id}.svg`], ['oscuro', `${id}-oscuro.svg`]]) {
+    const img = document.createElement('img');
+    img.className = `insignia-${variante}`;
+    img.src = `${RUTA}/${fichero}`;
+    img.alt = '';
+    img.decoding = 'async';
+    img.style.height = `${tamano}px`;
+    caja.append(img);
+  }
+  return caja;
 }
 
 /**
- * Emblema de una liga: un escudo de su color con tantas marcas como niveles
- * ha subido (Hierro, una barra; Leyenda, la estrella). Que se distingan por la
- * FORMA y no solo por el color es lo que los hace legibles a quien no ve bien
- * los colores.
+ * 12 · Chip junto al nombre (Hoy, Tu, perfil publico): la insignia a 22 px y
+ * "Plata · grupo 4" en negrita, sobre blanco.
  *
- * @param {string} nivel
- * @param {{tamano?: number, apagado?: boolean}} opciones
+ * @param {string} division
+ * @param {string} texto  lo que va al lado; por defecto, el nombre de la division
  */
-export function emblemaLiga(nivel, { tamano = 32, apagado = false } = {}) {
-  const i = Math.max(0, NIVELES.indexOf(nivel));
-  const svg = nodo('svg', {
-    viewBox: '0 0 32 36', width: tamano, height: Math.round(tamano * 1.125),
-    class: `emblema-liga liga-${NIVELES[i]}${apagado ? ' apagado' : ''}`,
-    'aria-hidden': 'true', focusable: 'false',
-  });
-  svg.append(nodo('path', { class: 'escudo', d: 'M16 1.5 29 6v11.2c0 8-5.6 14.3-13 17.3C8.6 31.5 3 25.2 3 17.2V6z' }));
-  svg.append(nodo('path', { class: 'brillo', d: 'M16 4.6 26 8.1v9.1c0 6.4-4.3 11.6-10 14.2z' }));
-  const marca = { class: 'marca', fill: 'none', 'stroke-width': 2.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
-  if (i === 0) {
-    svg.append(nodo('path', { ...marca, d: 'M11 18h10' }));
-  } else if (i === 5) {
-    svg.append(nodo('path', { class: 'marca relleno', d: 'm16 9.5 2.2 4.6 5 .6-3.7 3.4 1 5-4.5-2.5-4.5 2.5 1-5-3.7-3.4 5-.6z' }));
-  } else {
-    const cuantas = Math.min(i, 3);
-    const y0 = 18 - (cuantas - 1) * 2.8;
-    for (let k = 0; k < cuantas; k++) {
-      const y = y0 + k * 5.6;
-      svg.append(nodo('path', { ...marca, d: `M10.5 ${y - 2.2} 16 ${y + 2} 21.5 ${y - 2.2}` }));
-    }
-    if (i === 4) svg.append(nodo('circle', { class: 'marca relleno', cx: 16, cy: 8.6, r: 1.9 }));
-  }
-  return svg;
+export function chipDivision(division, texto = null) {
+  const id = NOMBRES[division] ? division : SIN_CLASIFICAR;
+  const chip = document.createElement('span');
+  chip.className = 'chip-insignia';
+  const rotulo = document.createElement('span');
+  rotulo.textContent = texto || NOMBRES[id];
+  chip.append(emblemaLiga(id, { tamano: 22 }), rotulo);
+  return chip;
 }

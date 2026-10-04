@@ -98,8 +98,15 @@ const HORAS_REVISION_LENTA = 24;
  * multiplicaria el consumo por cuatro y NO compensa. Por eso se apaga poniendo
  * VENTANA_MINUTOS=0.
  *
- * La ventana se queda por debajo del periodo del cron para no solaparse con la
- * siguiente ejecucion, que ademas quedaria descartada por `concurrency`.
+ * LA VENTANA SUPERA EL PERIODO DEL CRON, A PROPOSITO. Con el cron cada 5
+ * minutos y la ventana en 9, cada ejecucion se solapa con la siguiente: la
+ * siguiente espera en la cola de `concurrency` (no cancela a la que corre) y
+ * arranca justo cuando esta termina. Asi no hay huecos aunque GitHub retrase
+ * los programados. Una ventana mas corta que el periodo deja la cola sin mirar
+ * entre una ejecucion y la siguiente, que es lo que pasaba con 4.
+ *
+ * Esto cuesta lecturas en vacio (~3 por pasada). Por eso en modo degradado, por
+ * encima del 95% de la cuota, no se da ninguna pasada extra (ver `main`).
  */
 const VENTANA_MS = Number(process.env.VENTANA_MINUTOS ?? 4) * 60000;
 const ESPERA_MS = Number(process.env.ESPERA_SEGUNDOS ?? 45) * 1000;
@@ -2616,7 +2623,9 @@ async function main() {
   // En simulacion NO se dan mas pasadas: como no se escribe el veredicto, los
   // viajes siguen pendientes y la siguiente pasada volveria a analizar los
   // mismos, en bucle, hasta agotar la ventana.
-  const daVueltas = VENTANA_MS > 0 && !SIMULAR && !SOLO_UNO;
+  // En degradado tampoco: vigilar la cola en vacio cada 30 s gastaria justo lo
+  // que queda de cuota, y la siguiente ejecucion ya mira una vez.
+  const daVueltas = VENTANA_MS > 0 && !SIMULAR && !SOLO_UNO && !degradado;
   const hasta = Date.now() + VENTANA_MS;
   let pasadas = 0;
 

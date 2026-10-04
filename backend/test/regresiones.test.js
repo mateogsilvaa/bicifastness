@@ -313,6 +313,26 @@ test('el duplicado exacto se busca por el id del documento, no recorriendo', () 
     'el duplicado byte a byte no se busca por id');
 });
 
+test('el worker vigila la cola sin huecos: su ventana es mayor que el periodo del cron', () => {
+  const flujo = leer('.github/workflows/verificar-viajes.yml');
+  const periodo = Number((flujo.match(/cron: '\*\/(\d+) \* \* \* \*'/) || [])[1]);
+  const ventana = Number((flujo.match(/VENTANA_MINUTOS: '(\d+)'/) || [])[1]);
+  const espera = Number((flujo.match(/ESPERA_SEGUNDOS: '(\d+)'/) || [])[1]);
+  const limite = Number((flujo.match(/timeout-minutes: (\d+)/) || [])[1]);
+
+  assert.ok(periodo >= 5, 'GitHub no admite un cron de menos de 5 minutos');
+  assert.ok(ventana > periodo, `la ventana (${ventana} min) tiene que superar el periodo (${periodo} min) o quedan huecos`);
+  assert.ok(espera <= 30, 'revisar la cola cada mas de 30 s es esperar de mas');
+  // La ejecucion tiene que caber: ventana + arranque + trabajo periodico del final.
+  assert.ok(limite >= ventana + 4, `el limite (${limite} min) no deja sitio tras la ventana (${ventana} min)`);
+  // Y el solape depende de que la siguiente ESPERE, no cancele a la que corre.
+  assert.match(flujo, /cancel-in-progress: false/);
+
+  // Sin pasadas extra cuando la cuota esta casi agotada.
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, /const daVueltas = [^;]*!degradado/, 'en degradado no se vigila en vacio');
+});
+
 test('el workflow del worker no puede solaparse consigo mismo', () => {
   const flujo = leer('.github/workflows/verificar-viajes.yml');
   assert.match(flujo, /concurrency:/, 'dos workers a la vez procesarian los mismos viajes');

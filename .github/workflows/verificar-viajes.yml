@@ -1,27 +1,28 @@
 name: Verificar viajes
 
-# El worker es el servidor de confianza de la app. Se despierta cada 5 minutos,
-# coge los viajes que esperan analisis y los aprueba, los rechaza o los manda a
-# revision humana.
+# El worker es el servidor de confianza de la app. Coge los viajes que esperan
+# analisis y los aprueba, los rechaza o los manda a revision humana.
+#
+# SIEMPRE ENCENDIDO, A EFECTOS PRACTICOS. El cron pide una ejecucion cada 5
+# minutos (el minimo que admite GitHub), pero GitHub retrasa las programadas
+# cuando hay carga: el hueco real esta entre 5 y 15 minutos. Antes cada
+# ejecucion vigilaba la cola 4 minutos y se iba, asi que entre una y la
+# siguiente habia tramos de hasta 10 minutos en los que nadie miraba. Ahora cada
+# ejecucion vigila 9 minutos y se SOLAPA con la siguiente: mientras una corre, la
+# siguiente espera en cola (`concurrency`, abajo) y arranca en cuanto la otra
+# termina. El resultado es una vigilancia casi continua con revision cada 30 s.
+#
+# Es gratis porque el repositorio es publico. En uno privado esto consumiria
+# ~1.400 minutos de Actions al dia: para eso se baja VENTANA_MINUTOS a 0.
 #
 # Va aqui y no en Cloud Functions porque desplegar funciones en Firebase exige
 # el plan Blaze (tarjeta), mientras que Actions es gratis e ilimitado en
 # repositorios publicos.
 
 on:
-  # ---------------------------------------------------------------------------
-  # EL CRON ESTA APAGADO A PROPOSITO HASTA EL LANZAMIENTO. Volver a activarlo es
-  # quitar el comentario de las dos lineas de abajo, y esta anotado en el
-  # checklist del README y en el issue #7.
-  #
-  # Por que: sin `FIREBASE_SERVICE_ACCOUNT` el worker no puede hacer nada, pero
-  # el cron se despierta igual. Ademas de mandar un correo de fallo por
-  # ejecucion, en un repositorio PRIVADO cada una gasta cuota: Actions factura
-  # por minuto empezado, asi que 288 despertares al dia son 288 minutos contra
-  # el limite de 2.000 al mes, para no hacer nada.
-  #
-  # Cada 5 minutos. GitHub puede retrasar las ejecuciones programadas cuando hay
-  # mucha carga, asi que el retardo real ronda los 5-15 minutos.
+  # Cada 5 minutos, que es lo minimo que GitHub deja. Sin `FIREBASE_SERVICE_ACCOUNT`
+  # el worker sale limpio (ver el paso de abajo), asi que despertar sin
+  # credenciales no manda correos de fallo.
   schedule:
   - cron: '*/5 * * * *'
 
@@ -33,8 +34,10 @@ on:
         type: boolean
         default: false
 
-# Si una ejecucion se solapa con la anterior, se descarta: dos workers a la vez
-# procesarian los mismos viajes.
+# Dos workers a la vez procesarian los mismos viajes, asi que solo corre uno. Si
+# llega otra ejecucion mientras hay una en marcha, ESPERA (no cancela a la que
+# corre) y arranca cuando acabe; si llegan varias, se queda la mas reciente. Es
+# lo que permite que cada ejecucion dure mas que el periodo del cron sin pisarse.
 concurrency:
   group: verificar-viajes
   cancel-in-progress: false
@@ -42,10 +45,10 @@ concurrency:
 jobs:
   verificar:
     runs-on: ubuntu-latest
-    # La ejecucion se queda unos minutos dando pasadas a la cola (VENTANA_MINUTOS
-    # en worker.js), asi que el limite tiene que dejar sitio a la ventana mas el
-    # trabajo periodico del final.
-    timeout-minutes: 12
+    # La ejecucion se queda dando pasadas a la cola (VENTANA_MINUTOS en
+    # worker.js), asi que el limite tiene que dejar sitio a la ventana mas el
+    # trabajo periodico del final y el arranque.
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -112,8 +115,14 @@ jobs:
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           # Cuanto se queda vivo dando pasadas, y cada cuanto. Con 0 vuelve al
           # comportamiento de antes: una mirada a la cola y a casa.
-          VENTANA_MINUTOS: '4'
-          ESPERA_SEGUNDOS: '45'
+          #
+          # 9 minutos: mas que el periodo del cron (5), para que cada ejecucion
+          # se solape con la siguiente y no queden huecos. 30 segundos entre
+          # pasadas: son ~3 lecturas por pasada (docs/COSTE.md), unas 8.600
+          # lecturas al dia en vacio, el 17% de la cuota gratuita. Por encima
+          # del 95% de cuota el worker deja de dar vueltas solo.
+          VENTANA_MINUTOS: '9'
+          ESPERA_SEGUNDOS: '30'
         run: |
           # Mientras no haya credenciales no hay nada que verificar, y el cron
           # se despierta igual. Sin esta salida limpia, cada ejecucion cuenta

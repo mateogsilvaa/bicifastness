@@ -589,17 +589,40 @@ function aViaje(t) {
   const destino = normalizarEstacion(t.destino);
   if (!nombreEstacion(origen) || !nombreEstacion(destino) || origen === destino) return null;
   if (!t.segundosDuracion) return null;
+  // La fecha que pone la captura bajo la salida. En el historial cada viaje
+  // lleva la suya, y pueden ser de dias distintos: subirlos todos con el mismo
+  // dia los mandaba a revision por "la fecha no coincide".
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(t.fecha || '')) && t.fecha <= diaMadrid() ? t.fecha : '';
   return {
     origen, destino, ruta: `${origen}-${destino}`, tiempoSegundos: t.segundosDuracion,
     horaSalida: t.horaSalida || '', horaLlegada: t.horaLlegada || '',
     // Para la encuesta de la bici (11a). No va al viaje: lo lee el worker.
     bici: t.numeroBici || '',
+    fecha,
+    // De hace mas de un mes ya no cuenta: se enseña, pero no se ofrece.
+    antiguo: Boolean(fecha) && fecha < diaMadridHace(30),
   };
+}
+
+/** Un trayecto leido que sale y llega a la misma estacion (un paseo de ida y vuelta). */
+function esCircular(t) {
+  const o = normalizarEstacion(t?.origen);
+  return Boolean(o) && Boolean(nombreEstacion(o)) && o === normalizarEstacion(t?.destino);
 }
 
 async function decidirPaso(lectura) {
   const candidatos = (lectura.trayectos || []).map(aViaje).filter(Boolean);
   if (candidatos.length > 1) { await irAElegir(candidatos); return; }
+
+  // Ida y vuelta a la misma estacion: no hay distancia que medir, asi que no
+  // puede competir. Se dice YA, en vez de dejar subirlo y que el worker lo
+  // rechace con un "la estacion no existe" que no se entiende.
+  const circulares = (lectura.trayectos || []).filter(esCircular);
+  if (!candidatos.length && circulares.length) {
+    avisar(`Ese trayecto sale y llega a ${nombreEstacion(normalizarEstacion(circulares[0].origen)).split(' - ')[0]}: `
+      + 'sin dos estaciones distintas no se puede medir la distancia, así que no cuenta. Sube uno entre dos estaciones.', 'info');
+    lectura = { ...lectura, destino: '' };
+  }
 
   const leido = lectura.disponible && lectura.esBicimad ? aViaje(lectura) : null;
   const dia = diaInicial();
@@ -1056,8 +1079,10 @@ async function irAElegir(candidatos) {
   const quedan = Math.max(0, CUPO - llevaHoy());
   const elegidos = new Set();
 
+  // Cada trayecto con SU dia si la captura lo trae; si no, el que se elija abajo.
+  const diaDe = (c) => c.fecha || dia;
   const pintar = () => {
-    const nuevos = candidatos.map((c, i) => ({ c, i, repetido: yaSubidos.has(huellaLogica(c.ruta, c.tiempoSegundos, dia)) }));
+    const nuevos = candidatos.map((c, i) => ({ c, i, repetido: c.antiguo || yaSubidos.has(huellaLogica(c.ruta, c.tiempoSegundos, diaDe(c))) }));
     // Se preseleccionan los que caben en el cupo; los que no, se ven pero no
     // se pueden marcar (3g).
     if (!elegidos.size) nuevos.filter((n) => !n.repetido).slice(0, quedan).forEach((n) => elegidos.add(n.i));
@@ -1066,7 +1091,7 @@ async function irAElegir(candidatos) {
     const boton = el('button', {
       clase: 'btn grande', attrs: { type: 'button', disabled: elegidos.size ? null : '' },
       texto: elegidos.size === 1 ? 'Subir 1 trayecto' : `Subir ${elegidos.size} trayectos`,
-      on: { click: () => subir([...elegidos].map((i) => candidatos[i]), dia) },
+      on: { click: () => subir([...elegidos].map((i) => ({ ...candidatos[i], fecha: diaDe(candidatos[i]) })), dia) },
     });
 
     reemplazar(id('s-varios'), [
@@ -1092,8 +1117,8 @@ async function irAElegir(candidatos) {
               el('span', { clase: 'trayecto-texto' }, [
                 el('strong', {}, [nombreEstacion(c.origen), el('span', { clase: 'solo-escritorio-i', texto: ` → ${nombreEstacion(c.destino).split(' - ')[0]}` })]),
                 el('span', { clase: 'solo-movil-i', texto: `→ ${nombreEstacion(c.destino)}` }),
-                el('small', {}, repetido ? ['Ya lo tienes subido'] : [
-                  el('span', { clase: 'solo-escritorio-i', texto: `${dia === diaMadrid() ? 'hoy' : dia === diaMadridHace(1) ? 'ayer' : new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} ` }),
+                el('small', {}, c.antiguo ? ['De hace más de un mes: ya no cuenta'] : repetido ? ['Ya lo tienes subido'] : [
+                  el('span', { clase: c.fecha ? '' : 'solo-escritorio-i', texto: `${diaDe(c) === diaMadrid() ? 'hoy' : diaDe(c) === diaMadridHace(1) ? 'ayer' : new Date(`${diaDe(c)}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} ` }),
                   [c.horaSalida, c.horaLlegada].filter(Boolean).join(' → '),
                   kmEstimados(c.origen, c.destino) ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${String(kmEstimados(c.origen, c.destino).toFixed(1)).replace('.', ',')} km` }) : null,
                 ]),
@@ -1106,7 +1131,10 @@ async function irAElegir(candidatos) {
             texto: `${noCaben.length === 1 ? `El de las ${noCaben[0].c.horaSalida || 'otra hora'} no cabe` : 'Los demás no caben'} hoy: ya llevas ${llevaHoy()} y puntúan ${CUPO} al día.`,
           }) : null,
           el('div', { clase: 'varios-pie' }, [
-            segmentoDia(dia, (d) => { dia = d; elegidos.clear(); pintar(); }, { rotulo: 'Día de los trayectos' }),
+            // Solo si alguno no trae su fecha: los que la traen ya van con la suya.
+            candidatos.some((c) => !c.fecha)
+              ? segmentoDia(dia, (d) => { dia = d; elegidos.clear(); pintar(); }, { rotulo: 'Día de los trayectos' })
+              : null,
             el('div', { clase: 'subir-hueco' }),
             el('div', { clase: 'subir-enviar' }, [boton]),
           ]),
@@ -1169,7 +1197,8 @@ async function escribirViajes(viajes, fechaViaje) {
       ruta: viaje.ruta,
       tiempoSegundos: viaje.tiempoSegundos,
       tiempoFormateado: `${String(minutos).padStart(2, '0')}m ${String(segundos).padStart(2, '0')}s`,
-      fechaViaje,
+      // El dia de ESE trayecto si se leyo en la captura; si no, el elegido.
+      fechaViaje: viaje.fecha || fechaViaje,
       estado: 'pendiente',
       verificado: false,
       capturaId,

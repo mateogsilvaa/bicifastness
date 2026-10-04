@@ -16,6 +16,10 @@ on:
         description: 'Cuantas capturas medir'
         type: string
         default: '40'
+      todos:
+        description: 'Tambien rechazados y en revision, con el veredicto de hoy'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -23,7 +27,7 @@ permissions:
 jobs:
   medir:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +53,7 @@ jobs:
             echo "::error::Sin FIREBASE_SERVICE_ACCOUNT no hay capturas que medir."
             exit 1
           fi
-          node scripts/medir-ocr.js --limite "${{ inputs.limite }}" --salida informe-ocr.json
+          node scripts/medir-ocr.js --limite "${{ inputs.limite }}" --salida informe-ocr.json ${{ inputs.todos && '--todos' || '' }}
 
       # El informe lleva porcentajes e identificadores de viaje. Ninguna imagen
       # y ningun texto leido: eso no sale de Firestore.

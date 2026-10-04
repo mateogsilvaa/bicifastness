@@ -200,6 +200,14 @@ function apuntarEstaciones(ruta) {
 async function validarBasico(viaje, uid) {
   const problema = (codigo, mensaje) => ({ codigo, mensaje });
 
+  // Ida y vuelta a la misma estacion: sin distancia no hay nada que medir.
+  // Va antes que `construirRuta`, que tambien lo rechaza pero como "la ruta no
+  // existe", y eso a quien ha hecho el paseo de verdad no le explica nada.
+  const [salida, llegada] = String(viaje.ruta || '').split('-').map((v) => v.replace(/^0+/, ''));
+  if (salida && salida === llegada) {
+    return problema('misma_estacion', 'El trayecto sale y llega a la misma estacion: no se puede medir.');
+  }
+
   try {
     construirRuta(...String(viaje.ruta || '').split('-'));
   } catch {
@@ -481,13 +489,15 @@ async function procesar(doc) {
   // De todos los trayectos que haya en la captura, el que dice ser este viaje.
   // Sin esto, subir los tres viajes de una misma captura acabaria con dos
   // rechazados por `ruta_no_coincide`.
-  const lectura = elegirTrayecto(await leerCaptura({ buffer, mime }), viaje.ruta);
+  // Con que trayecto de la captura se compara: el de su ruta, su dia y su tiempo.
+  const cual = { tiempoSegundos: viaje.tiempoSegundos, fecha: String(viaje.fechaViaje || '').slice(0, 10) };
+  const lectura = elegirTrayecto(await leerCaptura({ buffer, mime }), viaje.ruta, cual);
 
   // Y otra vez, con otra preparacion de la imagen: lo que decide el viaje
   // (estaciones y duracion) tiene que salir igual en las dos (consenso). Solo
   // si la primera ha leido una captura de BiciMAD; si no, ya va a revision.
   const segundaLectura = lectura.disponible && lectura.esBicimad
-    ? elegirTrayecto(await releerCaptura({ buffer }), viaje.ruta)
+    ? elegirTrayecto(await releerCaptura({ buffer }), viaje.ruta, cual)
     : null;
 
   // Quien mas ha llevado esa bici ese dia, para ver si coincide en la hora.

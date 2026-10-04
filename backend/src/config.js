@@ -39,6 +39,12 @@ const FISICA = {
   FACTOR_CALLEJERO: 1.35,
   // Distancia minima entre estaciones para que la ruta cuente como trayecto.
   METROS_MINIMOS: 250,
+  // Lo que puede bailar la distancia entre dos estaciones por donde esta el
+  // punto de cada una en el mapa frente a los anclajes de verdad (unos 30 m
+  // por estacion). Solo se usa para el rechazo por velocidad IMPOSIBLE: en un
+  // tramo de 450 m es un 13%, y sin margen una captura real de 1:02 entre
+  // Moncloa y Paseo de Moret se rechazaba como imposible.
+  MARGEN_POSICION_METROS: 60,
   // Un tiempo que mejora el record vigente por mas de este margen siempre pasa
   // por revision humana, aunque todo lo demas este limpio.
   MARGEN_RECORD_REVISION: 0.20,

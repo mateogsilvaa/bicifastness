@@ -67,16 +67,25 @@ function comprobarFisica({ ruta, tiempoSegundos }) {
 
   const kmh = velocidadKmh(metros, tiempoSegundos);
 
-  if (kmh > FISICA.VELOCIDAD_IMPOSIBLE_KMH) {
+  // El rechazo por IMPOSIBLE se decide con la distancia MINIMA que puede haber:
+  // la linea recta, menos lo que baila la posicion de las estaciones. La
+  // estimacion por calle (recta x 1,35) es una suposicion, y un rechazo
+  // automatico no puede apoyarse en una suposicion. Para "sospechosa" (que va
+  // a una persona) si vale la estimacion.
+  const recta = metros / FISICA.FACTOR_CALLEJERO;
+  const kmhMinimo = velocidadKmh(Math.max(0, recta - FISICA.MARGEN_POSICION_METROS), tiempoSegundos);
+
+  if (kmhMinimo !== null && kmhMinimo > FISICA.VELOCIDAD_IMPOSIBLE_KMH) {
     señales.push(fatal('velocidad_imposible',
-      `Velocidad media de ${kmh.toFixed(1)} km/h sobre ${Math.round(metros)} m estimados. ` +
+      `Velocidad media de ${kmh.toFixed(1)} km/h sobre ${Math.round(metros)} m estimados ` +
+      `(al menos ${kmhMinimo.toFixed(1)} km/h en linea recta). ` +
       `Una BiciMAD corta la asistencia a ${FISICA.VELOCIDAD_IMPOSIBLE_KMH} km/h: el tiempo declarado es fisicamente imposible.`,
       { kmh: Number(kmh.toFixed(1)), metros: Math.round(metros) }));
-  } else if (kmh > FISICA.VELOCIDAD_SOSPECHOSA_KMH) {
+  } else if (kmh !== null && kmh > FISICA.VELOCIDAD_SOSPECHOSA_KMH) {
     señales.push(señal('velocidad_sospechosa', 40,
       `Velocidad media de ${kmh.toFixed(1)} km/h: posible, pero muy alta para trafico urbano.`,
       { kmh: Number(kmh.toFixed(1)) }));
-  } else if (kmh < FISICA.VELOCIDAD_MINIMA_KMH) {
+  } else if (kmh !== null && kmh < FISICA.VELOCIDAD_MINIMA_KMH) {
     señales.push(señal('velocidad_muy_baja', 10,
       `Velocidad media de ${kmh.toFixed(1)} km/h, mas lento que andar.`,
       { kmh: Number(kmh.toFixed(1)) }));

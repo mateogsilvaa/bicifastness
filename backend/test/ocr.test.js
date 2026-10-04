@@ -310,3 +310,135 @@ test('una captura con estaciones y tiempo es de BiciMAD aunque no lo diga', () =
   const nota = 'Notas\nComprar pan 18:42';
   assert.ok(!ocr.esCapturaBicimad(nota, nota.toLowerCase(), ocr.extraerEstaciones(nota)));
 });
+
+// --- Formatos reales: la version web del historial y tarjetas cortadas --------
+
+const WEB = `ÓN
+
+fsjoos7 O
+
+9 110 - Intercambiador de Moncloa
+| 16-04-2026 13:13:30
+
+l
+
+l
+
+112 - Paseo de Moret - Parque del
+
+Ó Oeste
+16-04-2026 13:14:32
+
+(5) 00:01:02 0,00 €`;
+const WEB_EURO = `ÓN
+
+712149 0)
+
+€ 122 - Santa Engracia - Zurbarán
+| 17-04-2026 13:44:28
+
+I
+
+ó
+
+33 - Puerta del Sol
+17-04-2026 13:55:00
+
+(5) 00:10:32 0,00 €`;
+const CORTADA = `Q 235 - Sodio - Embajadores (235)
+13/09/26 13:51:08
+
+(O) o2m.46s. 0.00 € 1
+A 19346 o
+
+O 29 - Marqués de Cubas (29)
+
+.
+» 12/09/26 16:04:05
+.
+
+Q 22 - Jacometrezo 3 (22)
+
+12/09/26 16:24:41
+
+(O) 20m. 3es. 0.00 € ]
+
+>» 19129 O
+
+O 177 - Metro Legazpi (177)
+
+11/09/26 12-17-57`;
+const CORTADA_SIN_EURO = `Q 235 - Sodio - Embajadores (235)
+13/09/26 13:51:08
+
+(O) o2m.46s.  1
+A 19346 o
+
+O 29 - Marqués de Cubas (29)
+
+.
+» 12/09/26 16:04:05
+.
+
+Q 22 - Jacometrezo 3 (22)
+
+12/09/26 16:24:41
+
+(O) 20m. 3es.  ]
+
+>» 19129 O
+
+O 177 - Metro Legazpi (177)
+
+11/09/26 12-17-57`;
+
+test('historial web: estaciones con simbolo delante, fecha con guiones y tiempo como reloj', () => {
+  const [t] = ocr.extraerTrayectos(WEB);
+  assert.strictEqual(t.origen, '110');
+  assert.strictEqual(t.destino, '112', 'la fecha 16-04-2026 no es la estacion 16');
+  assert.strictEqual(t.horaSalida, '13:13');
+  assert.strictEqual(t.horaLlegada, '13:14');
+  assert.strictEqual(t.segundosDuracion, 62);
+  assert.strictEqual(t.fecha, '2026-04-16');
+  assert.strictEqual(ocr.extraerDuracion('(5) 00:10:32 0,00 €'), 632);
+  // La hora de una estacion no es un tiempo de trayecto.
+  assert.strictEqual(ocr.extraerDuracion('17-04-2026 13:44:28'), null);
+});
+
+test('un euro delante de la estacion no cierra la tarjeta', () => {
+  const [t] = ocr.extraerTrayectos(WEB_EURO);
+  assert.strictEqual(t.origen, '122');
+  assert.strictEqual(t.destino, '33');
+  assert.strictEqual(t.segundosDuracion, 632);
+});
+
+test('una tarjeta cortada por arriba no se une con la siguiente', () => {
+  // Arriba asoma solo la llegada de un viaje (235). Antes salia un viaje
+  // inventado 235 -> 29 de dos horas uniendo dos tarjetas.
+  for (const texto of [CORTADA, CORTADA_SIN_EURO]) {
+    const trayectos = ocr.extraerTrayectos(texto);
+    assert.strictEqual(trayectos.length, 1, JSON.stringify(trayectos));
+    const [t] = trayectos;
+    assert.strictEqual(t.origen, '29');
+    assert.strictEqual(t.destino, '22');
+    assert.strictEqual(t.segundosDuracion, 1236, 'de las horas con segundos');
+    assert.strictEqual(t.fecha, '2026-09-12');
+  }
+});
+
+test('la misma ruta dos veces en una captura: cada viaje con el suyo', () => {
+  const lectura = {
+    trayectos: [
+      { origen: '177', destino: '235', segundosDuracion: 144, fecha: '2026-09-30' },
+      { origen: '177', destino: '235', segundosDuracion: 132, fecha: '2026-09-29' },
+    ],
+  };
+  assert.strictEqual(ocr.elegirTrayecto(lectura, '177-235', { tiempoSegundos: 132, fecha: '2026-09-29' }).segundosDuracion, 132);
+  assert.strictEqual(ocr.elegirTrayecto(lectura, '177-235', { tiempoSegundos: 144, fecha: '2026-09-30' }).segundosDuracion, 144);
+  assert.strictEqual(ocr.elegirTrayecto(lectura, '177-235').segundosDuracion, 144, 'sin pistas, el primero');
+});
+
+test('ninguna bici empieza por 0', () => {
+  assert.strictEqual(ocr.biciDeNumero('0087'), '');
+  assert.strictEqual(ocr.biciDeNumero('10087'), '10087');
+});

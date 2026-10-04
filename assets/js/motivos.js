@@ -226,6 +226,10 @@ const MOTIVOS = {
   },
 
   // --- Lo que ni siquiera llega al analisis (`worker.validarBasico`) ---
+  misma_estacion: {
+    texto: 'El trayecto sale y llega a la misma estación, así que no hay distancia que medir.',
+    queHacer: 'Cuentan los trayectos entre dos estaciones distintas.',
+  },
   ruta_inexistente: {
     texto: 'Alguna de las dos estaciones no existe.',
     queHacer: 'Comprueba los numeros de estacion en la propia captura.',

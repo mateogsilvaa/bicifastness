@@ -238,7 +238,9 @@ function extraerEstaciones(texto) {
   if (conParentesis.length >= 2) return conParentesis;
 
   // Respaldo: numero al principio de linea seguido de guion.
-  const alPrincipio = [...texto.matchAll(/^\s*(\d{1,3})\s*[-–]\s*\S/gm)].map((m) => m[1]);
+  // El punto azul de delante sale como "9", "O", "Q" o "€" ("9 110 - Moncloa"),
+  // y una fecha "17-04-2026" no es la estacion 17.
+  const alPrincipio = [...texto.matchAll(/^\s*(?:[^\w\s]\s*|[A-Za-z0-9]\s+)?(\d{1,3})\s*[-–]\s*(?!\d{1,2}\s*[-–/.]\s*\d)\S/gm)].map((m) => m[1]);
   // Una linea sola con su "(124)": la lectura por lineas de extraerTrayectos.
   if (alPrincipio.length) return alPrincipio;
   if (conParentesis.length) return conParentesis;
@@ -272,6 +274,15 @@ function extraerDuracion(texto) {
   // "17m. 18s.", el de la app actual.
   const abreviado = texto.match(/(\d{1,3})\s*m\.?\s*(\d{1,2})\s*s\b/i);
   if (abreviado && Number(abreviado[2]) < 60) return Number(abreviado[1]) * 60 + Number(abreviado[2]);
+
+  // "00:10:32": la barra del historial en su version web. Es una hora con
+  // segundos, asi que solo vale en una linea SIN fecha y sin etiqueta: las de
+  // las estaciones ("17-04-2026 13:44:28") llevan la suya.
+  for (const linea of texto.split(/\r?\n/)) {
+    if (/\d{1,2}\s*[/.-]\s*\d{1,2}\s*[/.-]\s*\d{2,4}/.test(linea) || /salida|llegada|inicio|fin/i.test(linea)) continue;
+    const reloj = linea.match(/(?:^|[^\d:])(\d{1,2}):([0-5]\d):([0-5]\d)(?![\d:])/);
+    if (reloj) return Number(reloj[1]) * 3600 + Number(reloj[2]) * 60 + Number(reloj[3]);
+  }
 
   const junto = texto.match(/(?:duraci[oó]n|tiempo)\D{0,20}(\d{1,3}):([0-5]\d)/i);
   if (junto) return Number(junto[1]) * 60 + Number(junto[2]);
@@ -335,6 +346,8 @@ function biciSuelta(texto) {
 function tiempoDeBarra(texto) {
   const t = String(texto || '').replace(/[lI|]/g, '1').replace(/[oO]/g, '0');
   // "1h. 05m. 12s.": la barra de un trayecto de mas de una hora.
+  const reloj = t.match(/(?:^|[^\d:])(\d{1,2}):([0-5]\d):([0-5]\d)(?![\d:])/);
+  if (reloj) return Number(reloj[1]) * 3600 + Number(reloj[2]) * 60 + Number(reloj[3]);
   const h = t.match(/(\d{1,2})\s*h\.?\s*(\d{1,2})\s*m\.?\s*(\d{1,2})\s*s/);
   if (h && Number(h[2]) < 60 && Number(h[3]) < 60) return Number(h[1]) * 3600 + Number(h[2]) * 60 + Number(h[3]);
   const m = t.match(/(\d{1,3})\s*m\.?\s*(\d{1,2})\s*s/);
@@ -349,7 +362,8 @@ function tiempoDeBarra(texto) {
 function biciDeNumero(texto) {
   const t = String(texto || '');
   if (!/^\d{4,7}$/.test(t)) return '';
-  if (t.length <= 5) return t;
+  // Ninguna bici empieza por 0: "0087" es "10087" con el 1 comido.
+  if (t.length <= 5) return t.startsWith('0') ? '' : t;
   // "235 - Sodio (235)" sin letras es "235235": eso es una estacion, no una bici.
   if (t.length === 6 && t.slice(0, 3) === t.slice(3)) return '';
   return t.slice(-5);
@@ -382,15 +396,16 @@ function conPrimerTrayecto(lectura) {
 
 function asignarPorAltura(trayectos, lineas, tiempos, bicis) {
   // La altura de la salida de cada trayecto: cada dos estaciones, uno nuevo.
-  const salidas = [];
-  let estaciones = 0;
+  const alturas = [];
   for (const { texto, y } of lineas) {
-    for (let i = 0; i < extraerEstaciones(texto).length; i++) {
-      if (estaciones % 2 === 0) salidas.push(y);
-      estaciones++;
-    }
+    for (let i = 0; i < extraerEstaciones(texto).length; i++) alturas.push(y);
   }
-  if (salidas.length !== trayectos.length) return trayectos;
+  // Con el indice que deja `extraerTrayectos` (que se salta las estaciones de
+  // tarjetas cortadas); sin el, una salida cada dos estaciones.
+  const salidas = trayectos.every((t) => Number.isInteger(t.indiceOrigen))
+    ? trayectos.map((t) => alturas[t.indiceOrigen])
+    : alturas.filter((_, i) => i % 2 === 0);
+  if (salidas.length !== trayectos.length || salidas.some((y) => y === undefined)) return trayectos;
   const porHoras = trayectos.map((t) => Boolean(t.tiempoPorHoras));
   const conDatos = trayectos.map((t) => ({ ...t }));
   for (const { segundos, y } of tiempos) {
@@ -476,6 +491,16 @@ function extraerTrayectos(texto) {
   let biciPendiente = '';
   const segundosSalida = new WeakMap();
   const porHoras = new WeakMap();
+  // Momento de la salida (segundos desde 1970) y que estacion de la captura
+  // es cada una (la 0.ª, la 1.ª...): con eso se sabe a que altura esta cada
+  // trayecto aunque se descarten estaciones sueltas.
+  const momentoSalida = new WeakMap();
+  const indices = new WeakMap();
+  let vistas = 0;
+  const momento = (fecha, hora, segundosDia) => {
+    const [hh, mm] = String(hora).split(':').map(Number);
+    return Date.parse(`${fecha}T00:00:00Z`) / 1000 + (segundosDia ?? hh * 3600 + mm * 60);
+  };
   for (const linea of String(texto || '').split(/\r?\n/)) {
     const estaciones = extraerEstaciones(linea);
 
@@ -492,8 +517,9 @@ function extraerTrayectos(texto) {
       if (actual.origen && actual.destino) { guardar(); actual = nuevo(); }
       if (biciPendiente && !actual.origen && !actual.numeroBici) { actual.numeroBici = biciPendiente; biciPendiente = ''; }
 
-      if (!actual.origen) actual.origen = estacion;
-      else actual.destino = estacion;
+      if (!indices.has(actual)) indices.set(actual, {});
+      if (!actual.origen) { actual.origen = estacion; indices.get(actual).origen = vistas; } else { actual.destino = estacion; indices.get(actual).destino = vistas; }
+      vistas++;
     }
 
     if (!actual) continue;
@@ -507,7 +533,26 @@ function extraerTrayectos(texto) {
       if (!actual.horaSalida) {
         actual.horaSalida = hora;
         segundosSalida.set(actual, segundosDia);
+        momentoSalida.set(actual, momento(fecha, hora, segundosDia));
       } else if (!actual.horaLlegada && hora !== actual.horaSalida) {
+        // Una "llegada" ANTERIOR a la salida, o tres horas despues, no es de
+        // este trayecto: la salida era la llegada suelta de una tarjeta cortada
+        // por arriba en el historial. Esa se tira, y esta estacion pasa a ser
+        // la salida del trayecto de verdad. Sin esto salia un viaje inventado
+        // (235 -> 29 de dos horas) uniendo dos tarjetas distintas.
+        const empezo = momentoSalida.get(actual);
+        const hasta = momento(fecha, hora, segundosDia);
+        if (actual.destino && empezo !== undefined && (hasta < empezo || hasta - empezo > 3 * 3600)) {
+          const suelto = nuevo();
+          suelto.origen = actual.destino;
+          suelto.horaSalida = hora;
+          suelto.fecha = fecha;
+          indices.set(suelto, { origen: indices.get(actual)?.destino });
+          segundosSalida.set(suelto, segundosDia);
+          momentoSalida.set(suelto, hasta);
+          actual = suelto;
+          continue;
+        }
         actual.horaLlegada = hora;
         // De la salida a la llegada, con segundos: es el tiempo del trayecto.
         const desde = segundosSalida.get(actual);
@@ -523,6 +568,15 @@ function extraerTrayectos(texto) {
 
     const bici = extraerBici(linea);
     if (bici && !actual.numeroBici) actual.numeroBici = bici;
+
+    // La barra azul ("20m. 43s.  0.00 €") cierra la tarjeta. Si llega con una
+    // sola estacion y una sola fecha, la tarjeta esta cortada por arriba: no
+    // es un trayecto. Con las dos fechas ya leidas se espera a la llegada:
+    // el OCR a veces la pone DESPUES de la barra.
+    if (/€/.test(linea) && !estaciones.length) {
+      if (actual.origen && actual.destino) guardar();
+      else if (!actual.horaLlegada) actual = null;
+    }
   }
 
   guardar();
@@ -530,6 +584,8 @@ function extraerTrayectos(texto) {
   // (sin enumerar, para no cambiar la forma del trayecto) para que la pasada
   // de la barra no lo pise.
   for (const t of trayectos) {
+    const i = indices.get(t)?.origen;
+    if (Number.isInteger(i)) Object.defineProperty(t, 'indiceOrigen', { value: i, enumerable: false });
     if (porHoras.has(t)) {
       t.segundosDuracion = porHoras.get(t);
       Object.defineProperty(t, 'tiempoPorHoras', { value: true, enumerable: false });
@@ -549,14 +605,21 @@ function extraerTrayectos(texto) {
  * primer trayecto que se lea. Si ninguno encaja se devuelve el primero, y
  * entonces la señal salta con razon.
  */
-function elegirTrayecto(lectura, ruta) {
+function elegirTrayecto(lectura, ruta, { tiempoSegundos = null, fecha = '' } = {}) {
   const trayectos = (lectura && lectura.trayectos) || [];
   if (trayectos.length <= 1) return lectura;
 
   const sinCeros = (v) => String(v || '').replace(/^0+/, '');
   const [origen, destino] = String(ruta || '').split('-').map(sinCeros);
 
-  const encaja = trayectos.find((t) => sinCeros(t.origen) === origen && sinCeros(t.destino) === destino);
+  const deLaRuta = trayectos.filter((t) => sinCeros(t.origen) === origen && sinCeros(t.destino) === destino);
+  // La misma ruta dos veces en la captura (la ida al trabajo, dos dias): se
+  // queda con el del mismo dia y el tiempo mas parecido. Sin esto el segundo
+  // viaje se comparaba con el primero y acababa en revision por "el tiempo y
+  // la fecha no coinciden".
+  const coste = (t) => (fecha && t.fecha && t.fecha !== fecha ? 1e6 : 0)
+    + (Number.isFinite(tiempoSegundos) && Number.isFinite(t.segundosDuracion) ? Math.abs(t.segundosDuracion - tiempoSegundos) : 0);
+  const encaja = deLaRuta.sort((x, y) => coste(x) - coste(y))[0];
   return { ...lectura, ...(encaja || trayectos[0]) };
 }
 
@@ -668,7 +731,7 @@ async function leerCaptura({ buffer }) {
     const tiempos = [];
     const bicisLeidas = [];
     try {
-      await worker.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '0123456789msIl|oO. ' });
+      await worker.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '0123456789msIl|oO.: ' });
       for (const recorte of await normalizar.recortesDeFranjas(preparada.buffer, preparada.franjas, preparada.ancho)) {
         const { data: d } = await worker.recognize(recorte.buffer);
         const segundos = tiempoDeBarra(d.text);
@@ -784,7 +847,10 @@ async function releerCaptura({ buffer }) {
     const texto = String(data.text || '');
     const horas = extraerHoras(texto);
     const estaciones = extraerEstaciones(texto);
-    return {
+    // Los campos sueltos, del primer trayecto troceado (como en `leerCaptura`):
+    // del texto entero salia la estacion suelta de una tarjeta cortada, y el
+    // consenso veia dos lecturas "distintas" de una captura buena.
+    return conPrimerTrayecto({
       disponible: true,
       trayectos: extraerTrayectos(texto),
       origen: estaciones[0] || '',
@@ -794,7 +860,7 @@ async function releerCaptura({ buffer }) {
       segundosDuracion: extraerDuracion(texto),
       numeroBici: extraerBici(texto),
       fecha: extraerFechas(texto)[0]?.fecha || '',
-    };
+    });
   } catch {
     await cerrar();
     return { disponible: false };

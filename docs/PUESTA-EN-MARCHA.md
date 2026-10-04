@@ -925,7 +925,7 @@ o más valoraciones en 60 días), fallos y opiniones sin autor.
 |---|---|---|
 | Publicar la web (si pasan las pruebas) | Cada push a `main` | `ci.yml` → `web` |
 | Desplegar reglas e índices de Firestore | Cada push a `main` | `ci.yml` → `reglas` |
-| Verificar cada viaje | Cada 5 min | `verificar-viajes.yml` |
+| Verificar cada viaje | Cada 5 min, vigilando la cola cada 30 s | `verificar-viajes.yml` |
 | Puntos, racha, misiones, insignias, clasificaciones, mapa | En cada viaje aprobado | worker |
 | Correos (con reintentos y cupo diario) y avisos push | Cuando toca | worker |
 | Mensajes del equipo, suspensiones y avisos de contraseña | Cada pasada | worker |

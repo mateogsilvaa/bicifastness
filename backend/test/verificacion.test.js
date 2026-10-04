@@ -488,3 +488,18 @@ test('el minuto de redondeo de las horas no hace la captura desviada', () => {
   });
   assert.ok(!v.señales.some((s) => s.codigo === 'captura_desviada' || s.codigo === 'captura_incoherente'));
 });
+
+test('un trayecto corto y rapido no es "imposible" por la estimacion por calle', () => {
+  // 110 -> 112 son 454 m en linea recta; la estimacion por calle (x1,35) da
+  // 613. Una captura real de 1:02 salia a 35 km/h y se rechazaba sola. Con la
+  // recta y el margen de posicion de las estaciones, va a una persona.
+  const r = evaluar(contextoBase({ ruta: '110-112', tiempoSegundos: 62, lectura: lecturaLimpia(62, '110-112') }));
+  assert.notStrictEqual(r.decision, 'rechazado');
+  assert.ok(!r.señales.some((s) => s.codigo === 'velocidad_imposible'));
+});
+
+test('una ruta sin velocidad calculable no revienta el motor', () => {
+  // Misma estacion de salida y llegada: distancia 0, velocidad nula. Antes
+  // `kmh.toFixed` lanzaba y el viaje acababa como error del worker.
+  assert.doesNotThrow(() => evaluar(contextoBase({ ruta: '235-235', lectura: lecturaLimpia(600, '235-235') })));
+});

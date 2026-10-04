@@ -129,6 +129,25 @@ se salta, **el login no funciona** y no hay mensaje que lo explique.
 - [ ] Probado el borrado de cuenta con una cuenta de usar y tirar: es lo unico
       que no se puede probar dos veces con la misma
 
+## 8 bis. Empezar de cero el 1 de noviembre de 2026
+
+La primera temporada es **noviembre** y la primera liga va del **domingo 1 al
+domingo 15** (`divisiones.LANZAMIENTO`); desde el lunes 16, una liga cada dos
+semanas. Los viajes con fecha anterior al 1 no suman a ninguna liga, pero SI a
+`puntosTemporada`, kilometros, rachas e insignias.
+
+- [ ] **No dejar que el cron cierre "octubre".** El de temporada corre el dia 1
+      a las 01:30 UTC: si esta activo el 1 de noviembre, archiva la temporada
+      de octubre con los datos de prueba y reparte podios e insignias de
+      temporada a cuentas de prueba. Reactivar los cron (paso 7) **despues** del
+      1 de noviembre, o marcar `config/temporadas/cerradas/2026-10` antes.
+- [ ] Cuentas y viajes de prueba borrados, o sus contadores a cero
+      (`puntosTemporada`, `puntosLiga`, `metrosTotales`, `racha`, `logros`...).
+- [ ] `agregados/*` regenerados por el worker tras la limpieza: si no, el
+      ranking sigue enseñando a los pilotos de prueba hasta la siguiente pasada.
+- [ ] El primer cierre de liga es el **lunes 16 de noviembre**: lanzarlo antes
+      a mano con `simular: true` y mirar la salida.
+
 ## 9. Abrir
 
 - [ ] Variable del repositorio `WEB_ABIERTA` = `si`

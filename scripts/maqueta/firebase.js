@@ -150,7 +150,7 @@ const datos = {
   'agregados/grupo-plata-4': { filas: filasGrupo, grupo: 'plata-4', mueven: 5, total: 30, pagina: 1, paginas: 1, actualizado: hace(4) },
   // Todas las ligas (04 · Ligas): unas con gente, otras vacias, como al principio.
   'agregados/ligas': {
-    inicio: '2026-10-05', fin: '2026-10-18',
+    inicio: '2026-11-01', fin: '2026-11-15',
     niveles: [
       { nivel: 'leyenda', pilotos: 0, grupos: [] },
       { nivel: 'platino', pilotos: 4, grupos: [{ clave: 'platino-1', pilotos: 4, mueven: 1, podio: rankingPilotos((i) => 610 - i * 40).slice(0, 3) }] },

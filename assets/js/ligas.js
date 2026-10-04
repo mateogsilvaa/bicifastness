@@ -16,20 +16,30 @@ export const NOMBRES = {
 /** Cuantos dias dura una liga. */
 export const DIAS_POR_LIGA = 14;
 
-/** El lunes en que empezo la primera liga de dos semanas. */
-export const ANCLA_LIGA = '2026-10-05';
+/** El dia que abre la web: la primera liga va de ahi al domingo 15. */
+export const LANZAMIENTO = '2026-11-01';
+
+/** El lunes desde el que se cuentan las ligas de dos semanas. */
+export const ANCLA_LIGA = '2026-11-02';
 
 const diasEntre = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 864e5);
 
-/** El lunes en que empezo la liga en juego el dia dado. */
-export function inicioLiga(dia = diaMadrid()) {
+function lunesDeLiga(dia) {
   const vueltas = Math.floor(diasEntre(ANCLA_LIGA, dia) / DIAS_POR_LIGA);
   return sumarDias(ANCLA_LIGA, vueltas * DIAS_POR_LIGA);
 }
 
+/** ¿Cae el dia en la primera liga (o antes del lanzamiento)? */
+const enPrimeraLiga = (dia) => diasEntre(ANCLA_LIGA, dia) < DIAS_POR_LIGA;
+
+/** El dia en que empezo la liga en juego el dia dado. */
+export function inicioLiga(dia = diaMadrid()) {
+  return enPrimeraLiga(dia) ? LANZAMIENTO : lunesDeLiga(dia);
+}
+
 /** El lunes en que se cierra la liga en juego (y empieza la siguiente). */
 export function proximoCambio(dia = diaMadrid()) {
-  return sumarDias(inicioLiga(dia), DIAS_POR_LIGA);
+  return sumarDias(enPrimeraLiga(dia) ? ANCLA_LIGA : lunesDeLiga(dia), DIAS_POR_LIGA);
 }
 
 /** Dias que quedan hasta el cambio de liga. */

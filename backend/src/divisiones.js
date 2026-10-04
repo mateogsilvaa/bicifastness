@@ -27,12 +27,20 @@ const NIVELES = ['hierro', 'bronce', 'plata', 'oro', 'platino', 'leyenda'];
 const DIAS_POR_LIGA = 14;
 
 /**
- * El lunes en que empezo la primera liga de dos semanas. Desde ahi, una cada
- * `DIAS_POR_LIGA`. Tiene un gemelo en `assets/js/ligas.js` (un test los
- * compara): si solo se moviera aqui, la web diria "cambia el lunes 12" y el
- * cambio caeria el 19.
+ * El dia que abre la web. La PRIMERA liga empieza ese dia (domingo) y dura
+ * hasta el domingo de dos semanas despues: asi el fin de semana de apertura
+ * cuenta, y nadie empieza en una liga que se cierra al dia siguiente con un
+ * solo dia de puntos. Lo de antes del lanzamiento (pruebas) no cuenta para
+ * ninguna liga.
  */
-const ANCLA_LIGA = '2026-10-05';
+const LANZAMIENTO = '2026-11-01';
+
+/**
+ * El lunes desde el que se cuentan las ligas de dos semanas. Tiene un gemelo
+ * en `assets/js/ligas.js` (un test los compara): si solo se moviera aqui, la
+ * web diria "cambia el lunes 16" y el cambio caeria el 23.
+ */
+const ANCLA_LIGA = '2026-11-02';
 
 /** Dias entre dos fechas 'YYYY-MM-DD'. */
 const diasEntre = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 864e5);
@@ -43,17 +51,30 @@ function sumarDias(fecha, n) {
   return diaMadrid(new Date(Date.parse(`${fecha}T12:00:00Z`) + n * 864e5));
 }
 
-/** El lunes en que empezo la liga que esta en juego el dia dado. */
-function inicioLiga(dia) {
+/** El lunes en que empieza la liga de dos semanas del dia dado, sin la primera. */
+function lunesDeLiga(dia) {
   const vueltas = Math.floor(diasEntre(ANCLA_LIGA, dia) / DIAS_POR_LIGA);
   return sumarDias(ANCLA_LIGA, vueltas * DIAS_POR_LIGA);
 }
 
-/** El ultimo dia (domingo) de la liga en juego el dia dado. */
-const finLiga = (dia) => sumarDias(inicioLiga(dia), DIAS_POR_LIGA - 1);
+/** ¿Cae el dia en la primera liga (o antes del lanzamiento)? */
+const enPrimeraLiga = (dia) => diasEntre(ANCLA_LIGA, dia) < DIAS_POR_LIGA;
 
-/** ¿Empieza liga nueva este dia? Es cuando toca cerrar la anterior. */
-const esCambioDeLiga = (dia) => inicioLiga(dia) === dia;
+/** El dia en que empezo la liga que esta en juego el dia dado. */
+function inicioLiga(dia) {
+  return enPrimeraLiga(dia) ? LANZAMIENTO : lunesDeLiga(dia);
+}
+
+/** El ultimo dia (domingo) de la liga en juego el dia dado. */
+function finLiga(dia) {
+  return sumarDias(enPrimeraLiga(dia) ? ANCLA_LIGA : lunesDeLiga(dia), DIAS_POR_LIGA - 1);
+}
+
+/**
+ * ¿Empieza liga nueva este dia? Es cuando toca cerrar la anterior. El dia del
+ * lanzamiento no: antes no hay ninguna liga que cerrar.
+ */
+const esCambioDeLiga = (dia) => !enPrimeraLiga(dia) && lunesDeLiga(dia) === dia;
 
 /** Cuanta gente por grupo. Con mas, deja de sentirse como una liga. */
 const POR_GRUPO = 30;
@@ -171,6 +192,7 @@ module.exports = {
   NIVELES,
   DIAS_POR_LIGA,
   ANCLA_LIGA,
+  LANZAMIENTO,
   inicioLiga,
   finLiga,
   esCambioDeLiga,

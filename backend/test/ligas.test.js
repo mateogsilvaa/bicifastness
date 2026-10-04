@@ -24,15 +24,31 @@ function cargarLigasCliente() {
   return import(`data:text/javascript;base64,${Buffer.from(fuente).toString('base64')}`);
 }
 
-test('una liga dura dos semanas, de lunes a domingo', () => {
-  const inicio = divisiones.inicioLiga('2026-10-14');
-  assert.strictEqual(inicio, '2026-10-05');
-  assert.strictEqual(divisiones.finLiga('2026-10-14'), '2026-10-18');
+test('la primera liga empieza el dia del lanzamiento y llega al domingo 15', () => {
+  assert.strictEqual(divisiones.inicioLiga('2026-11-01'), '2026-11-01');
+  assert.strictEqual(divisiones.inicioLiga('2026-11-10'), '2026-11-01');
+  assert.strictEqual(divisiones.finLiga('2026-11-01'), '2026-11-15');
+  // Ni el dia del lanzamiento ni el lunes siguiente cierran nada.
+  assert.ok(!divisiones.esCambioDeLiga('2026-11-01'));
+  assert.ok(!divisiones.esCambioDeLiga('2026-11-02'));
+  assert.ok(!divisiones.esCambioDeLiga('2026-11-09'));
+  // Lo de antes del lanzamiento no cae en ninguna liga anterior: un viaje de
+  // prueba de octubre es anterior al inicio de la liga en juego, y no suma.
+  assert.strictEqual(divisiones.inicioLiga('2026-10-20'), '2026-11-01');
+  assert.ok('2026-10-20' < divisiones.inicioLiga('2026-10-20'));
+});
+
+test('desde ahi, una liga dura dos semanas, de lunes a domingo', () => {
+  assert.ok(divisiones.esCambioDeLiga('2026-11-16'), 'la primera se cierra el lunes 16');
+  const inicio = divisiones.inicioLiga('2026-11-20');
+  assert.strictEqual(inicio, '2026-11-16');
+  assert.strictEqual(divisiones.finLiga('2026-11-20'), '2026-11-29');
   assert.strictEqual(new Date(`${inicio}T12:00:00Z`).getUTCDay(), 1, 'empieza en lunes');
   // El lunes siguiente NO cambia; el de dos semanas despues, si.
-  assert.ok(!divisiones.esCambioDeLiga('2026-10-12'));
-  assert.ok(divisiones.esCambioDeLiga('2026-10-19'));
-  assert.ok(divisiones.esCambioDeLiga('2026-11-02'));
+  assert.ok(!divisiones.esCambioDeLiga('2026-11-23'));
+  assert.ok(divisiones.esCambioDeLiga('2026-11-30'));
+  // Al cerrar la primera, la que se cierra es la del lanzamiento.
+  assert.strictEqual(divisiones.inicioLiga(divisiones.sumarDias('2026-11-16', -1)), '2026-11-01');
   // Y cruzando de año sigue la cuenta.
   assert.strictEqual(divisiones.inicioLiga('2027-01-01'), '2026-12-28');
 });
@@ -40,10 +56,11 @@ test('una liga dura dos semanas, de lunes a domingo', () => {
 test('el navegador y el worker cuentan las ligas igual', async () => {
   const cliente = await cargarLigasCliente();
   assert.strictEqual(cliente.ANCLA_LIGA, divisiones.ANCLA_LIGA);
+  assert.strictEqual(cliente.LANZAMIENTO, divisiones.LANZAMIENTO);
   assert.strictEqual(cliente.DIAS_POR_LIGA, divisiones.DIAS_POR_LIGA);
   assert.deepStrictEqual(cliente.NIVELES, divisiones.NIVELES);
-  for (let d = 0; d < 60; d++) {
-    const dia = divisiones.sumarDias('2026-10-01', d);
+  for (let d = 0; d < 90; d++) {
+    const dia = divisiones.sumarDias('2026-10-15', d);
     assert.strictEqual(cliente.inicioLiga(dia), divisiones.inicioLiga(dia), dia);
     assert.strictEqual(cliente.proximoCambio(dia), divisiones.sumarDias(divisiones.finLiga(dia), 1), dia);
   }
@@ -58,7 +75,7 @@ test('el resumen de ligas va de Leyenda a Hierro y solo publica lo publicable', 
     { uid: 'o1', division: 'oro', puntos: 50, u: { username: 'dorada', clanId: 'c1', email: 'x@y.z' } },
   ];
   const grupos = divisiones.repartirEnGrupos(pilotos);
-  const r = resumenLigas(grupos, '2026-10-14');
+  const r = resumenLigas(grupos, '2026-11-20');
 
   assert.deepStrictEqual(r.niveles.map((n) => n.nivel), [...divisiones.NIVELES].reverse());
   const hierro = r.niveles.find((n) => n.nivel === 'hierro');
@@ -66,8 +83,8 @@ test('el resumen de ligas va de Leyenda a Hierro y solo publica lo publicable', 
   assert.strictEqual(hierro.grupos.length, 2, '35 pilotos son dos grupos de hasta 30');
   assert.deepStrictEqual(hierro.grupos[0].podio.map((p) => p.nombre), ['hierro0', 'hierro1', 'hierro2']);
   assert.strictEqual(r.niveles.find((n) => n.nivel === 'plata').pilotos, 0);
-  assert.strictEqual(r.inicio, '2026-10-05');
-  assert.strictEqual(r.fin, '2026-10-18');
+  assert.strictEqual(r.inicio, '2026-11-16');
+  assert.strictEqual(r.fin, '2026-11-29');
   assert.ok(!JSON.stringify(r.niveles).includes('@'), 'el resumen no puede llevar correos');
   assert.ok(!JSON.stringify(r.niveles).includes('"uid"'), 'ni uids');
 });

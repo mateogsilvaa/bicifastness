@@ -183,8 +183,10 @@ emblema y su insignia:
 
 **Hierro → Bronce → Plata → Oro → Platino → Leyenda**
 
-- Cada liga dura **dos semanas** (lunes a domingo de la semana siguiente; la
-  primera empezo el 5 de octubre de 2026, `divisiones.ANCLA_LIGA`).
+- Cada liga dura **dos semanas** (lunes a domingo de la semana siguiente). La
+  primera empieza el dia del lanzamiento, domingo 1 de noviembre de 2026, y
+  llega al domingo 15 (`divisiones.LANZAMIENTO`); desde el lunes 16, una cada
+  dos semanas. Los viajes anteriores al lanzamiento no cuentan para ninguna.
 - Se compite por `puntosLiga`, que suma lo mismo que un viaje da a la
   temporada y vuelve a cero al cerrar cada liga.
 - El lunes que cierra la liga suben los 5 primeros de cada grupo y bajan los 5

@@ -168,7 +168,7 @@ onAuthStateChanged(auth, async (usuario) => {
     // Instalar primero: en iOS el push NO existe hasta que la web esta en la
     // pantalla de inicio, asi que ofrecer avisos antes seria ofrecer algo que
     // ahi no se puede dar (#33).
-    const ofrecida = ofrecerInstalacion(id('invitacion-instalar'));
+    const ofrecida = ofrecerInstalacion(id('invitacion-instalar'), { haSubido: (datos.viajesVerificados || 0) > 0 });
     if (!ofrecida) {
       ofrecerAvisos(id('invitacion-instalar'), {
         alAceptar: guardarSuscripcionPush,

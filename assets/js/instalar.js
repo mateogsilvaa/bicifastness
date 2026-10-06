@@ -20,12 +20,19 @@ const CLAVE_RECHAZO = 'bf_instalar_rechazado';
 const CLAVE_VIAJE_SUBIDO = 'bf_primer_viaje_subido';
 
 let eventoInstalacion = null;
+/** Si la invitacion se pidio antes de que Chrome avisara, se pinta al avisar. */
+let pendiente = null;
 
 // Chrome dispara esto cuando la app cumple los requisitos de instalacion. Hay
 // que guardarlo: solo se puede usar una vez y solo desde un gesto del usuario.
+//
+// LLEGA TARDE: un rato despues de cargar, cuando ya se ha decidido si se
+// ofrece. Antes, si no habia llegado aun, no se ofrecia nunca, y a mucha
+// gente con Android no le salia. Ahora, si quedo pendiente, se pinta al llegar.
 window.addEventListener('beforeinstallprompt', (evento) => {
   evento.preventDefault();
   eventoInstalacion = evento;
+  if (pendiente) { const p = pendiente; pendiente = null; ofrecerInstalacion(p.contenedor, p.opciones); }
 });
 
 window.addEventListener('appinstalled', () => {
@@ -50,8 +57,12 @@ export function estaInstalada() {
     || window.navigator.standalone === true;
 }
 
+// En iPhone TODOS los navegadores pueden añadirla a la pantalla de inicio
+// (Safari siempre; Chrome y Firefox desde iOS 16.4). Antes se dejaba fuera a
+// Chrome y Firefox. El iPad moderno se presenta como Mac con pantalla tactil.
 const esIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent)
-  && !/crios|fxios/i.test(navigator.userAgent);
+  || (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const esAndroid = () => /android/i.test(navigator.userAgent);
 
 const guardado = (clave) => { try { return localStorage.getItem(clave); } catch { return null; } };
 const guardar = (clave, valor) => { try { localStorage.setItem(clave, valor); } catch { /* modo privado */ } };
@@ -70,25 +81,41 @@ export function marcarPrimerViaje() {
  * No toca si: ya esta instalada, si aun no ha subido ningun viaje, si ya dijo
  * que no, o si el navegador no lo permite. Devuelve si se ha llegado a mostrar.
  */
-export function ofrecerInstalacion(contenedor) {
+export function ofrecerInstalacion(contenedor, opciones = {}) {
   if (!contenedor) return false;
   if (estaInstalada()) return false;
-  if (!guardado(CLAVE_VIAJE_SUBIDO)) return false;
+  // Ha subido algo: en ESTE movil (la marca local) o en cualquier otro (su
+  // perfil ya tiene viajes). Antes solo valia la marca local, asi que a quien
+  // subia desde otro dispositivo, o antes de existir la marca, no le salia.
+  if (!guardado(CLAVE_VIAJE_SUBIDO) && !opciones.haSubido) return false;
   // "Ahora no" = no volver a ofrecer en 14 dias (07 · 7b).
   if (rechazadoHace(CLAVE_RECHAZO, 14)) return false;
 
   // En iOS no hay `beforeinstallprompt`: no se puede lanzar el dialogo desde
   // JavaScript, hay que explicar el gesto. Es la unica via para que un iPhone
-  // reciba avisos push.
-  if (!eventoInstalacion && !esIOS()) return false;
+  // reciba avisos push. En Android sin el evento (Samsung Internet, Firefox,
+  // o Chrome que aun no ha avisado) se explica el menu. En escritorio, se
+  // espera a que Chrome avise.
+  const manual = !eventoInstalacion && (esIOS() || esAndroid());
+  if (!eventoInstalacion && !manual) {
+    pendiente = { contenedor, opciones };
+    return false;
+  }
 
   const cerrar = () => { contenedor.replaceChildren(); contenedor.classList.add('oculto'); };
-  const pasosIOS = el('div', { clase: 'tarjeta-grande pasos-ios oculto' }, [
-    el('span', { clase: 'rotulo', texto: 'En iPhone (Safari), así:' }),
-    el('div', { clase: 'paso-ios' }, [el('span', { clase: 'paso-numero tonal', texto: '1' }), el('span', {}, ['Toca ', icono('compartir', 'icono peq azul'), ' abajo'])]),
-    el('div', { clase: 'paso-ios' }, [el('span', { clase: 'paso-numero tonal', texto: '2' }), el('span', { texto: '"Añadir a pantalla de inicio"' })]),
-    el('div', { clase: 'paso-ios' }, [el('span', { clase: 'paso-numero tonal', texto: '3' }), el('span', { texto: 'Ábrela desde el icono azul' })]),
-  ]);
+  const pasosIOS = esIOS()
+    ? el('div', { clase: 'tarjeta-grande pasos-ios oculto' }, [
+      el('span', { clase: 'rotulo', texto: 'En iPhone, así:' }),
+      el('div', { clase: 'paso-ios' }, [el('span', { clase: 'paso-numero tonal', texto: '1' }), el('span', {}, ['Toca ', icono('compartir', 'icono peq azul'), /crios|fxios/i.test(navigator.userAgent) ? ' (arriba, junto a la dirección)' : ' abajo'])]),
+      el('div', { clase: 'paso-ios' }, [el('span', { clase: 'paso-numero tonal', texto: '2' }), el('span', { texto: '"Añadir a pantalla de inicio"' })]),
+      el('div', { clase: 'paso-ios' }, [el('span', { clase: 'paso-numero tonal', texto: '3' }), el('span', { texto: 'Ábrela desde el icono azul' })]),
+    ])
+    : el('div', { clase: 'tarjeta-grande pasos-ios oculto' }, [
+      el('span', { clase: 'rotulo', texto: 'En Android, así:' }),
+      el('div', { clase: 'paso-ios' }, [el('span', { clase: 'paso-numero tonal', texto: '1' }), el('span', { texto: 'Abre el menú del navegador (⋮ arriba, o ≡ abajo)' })]),
+      el('div', { clase: 'paso-ios' }, [el('span', { clase: 'paso-numero tonal', texto: '2' }), el('span', { texto: '"Instalar aplicación" o "Añadir a pantalla de inicio"' })]),
+      el('div', { clase: 'paso-ios' }, [el('span', { clase: 'paso-numero tonal', texto: '3' }), el('span', { texto: 'Ábrela desde el icono azul' })]),
+    ]);
 
   reemplazar(contenedor, el('div', { clase: 'pila tarjetas-sistema' }, [
     el('div', { clase: 'tarjeta-grande tarjeta-instalar' }, [
@@ -104,7 +131,7 @@ export function ofrecerInstalacion(contenedor) {
           clase: 'btn', texto: 'Añadir', attrs: { type: 'button' },
           on: {
             click: async () => {
-              if (esIOS() && !eventoInstalacion) { pasosIOS.classList.remove('oculto'); return; }
+              if (!eventoInstalacion) { pasosIOS.classList.remove('oculto'); return; }
               const evento = eventoInstalacion;
               eventoInstalacion = null;
               cerrar();

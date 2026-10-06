@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="format-detection" content="telephone=no">
@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="BiciFastness">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="description" content="Generador de historias y posts de BiciFastness.">
+<meta name="description" content="Piezas para Instagram de BiciFastness.">
 <meta name="robots" content="noindex">
 <title>Redes | BiciFastness</title>
 <link rel="icon" href="/images/icono/icono.svg?v=2" type="image/svg+xml">
@@ -23,26 +23,32 @@
 </head>
 <body>
 <a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<!-- 13f · Admin · Redes: elige pieza y periodo, revisa y descarga. -->
 <main class="adm-pagina" id="principal">
-  <div>
-    <h1 class="d2" style="margin: 0;">Redes</h1>
-    <p class="menor apagado">Historias y posts para Instagram con los datos de verdad de BiciFastness. Elige la pieza y el formato, y descárgala en PNG.</p>
-  </div>
   <p class="mensaje" id="mensaje" aria-live="polite"></p>
-  <div class="redes-rejilla">
-    <div class="redes-opciones">
-      <div class="segmento dos" role="group" aria-label="Formato">
-        <button type="button" id="formato-historia" aria-pressed="true">Historia 9:16</button>
-        <button type="button" id="formato-post" aria-pressed="false">Post 4:5</button>
+  <div class="redes-13f">
+    <div class="redes-panel">
+      <strong class="redes-titulo">Generar pieza</strong>
+      <div class="redes-piezas" id="piezas" role="group" aria-label="Pieza"></div>
+      <div class="redes-campo">
+        <span>Periodo</span>
+        <div class="redes-periodo" id="periodo"></div>
       </div>
-      <div class="redes-lista-piezas" id="piezas" role="group" aria-label="Pieza"></div>
+      <div class="redes-campo">
+        <span>Pilotos que salen</span>
+        <div class="redes-pilotos" id="pilotos"></div>
+      </div>
+      <div class="redes-hueco"></div>
       <button class="btn" type="button" id="btn-descargar">Descargar PNG</button>
-      <button class="btn secundario" type="button" id="btn-todas">Descargar todas</button>
-      <p class="menor apagado" id="nota-datos"></p>
     </div>
-    <div class="redes-lienzo"><canvas id="lienzo" width="1080" height="1920" aria-label="Vista previa de la pieza"></canvas></div>
+    <div class="redes-vista">
+      <div class="redes-vista-cabeza"><strong id="vista-titulo">Vista previa</strong><span id="vista-medida"></span></div>
+      <div class="redes-lienzo" id="lienzo"></div>
+      <span class="redes-nota" id="vista-nota"></span>
+    </div>
   </div>
 </main>
+
 <script type="module" src="/assets/js/paginas/admin-redes.js"></script>
 </body>
 </html>

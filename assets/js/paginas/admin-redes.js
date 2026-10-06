@@ -1,18 +1,21 @@
-// Modulo de la pagina /admin/redes/: historias y posts para Instagram.
+// Modulo de la pagina /admin/redes/ (diseño 13 · Piezas para Instagram, 13f).
 //
 // Vive en un fichero propio y no incrustado en el HTML porque la CSP
 // declara `script-src 'self'`: un <script> en linea quedaria bloqueado.
 //
-// Todo se dibuja en un <canvas> con lo que ya es de la marca: la letra Archivo
-// (la de la web, servida desde aqui), el anillo del logo, el azul, el papel y
-// la tinta, y las insignias de division del diseño 12. Nada se pide fuera, asi
-// que la imagen sale igual en cualquier ordenador y la CSP no se toca.
+// CADA PIEZA ES EL MARCADO DEL DISEÑO 13, TAL CUAL, con los datos reales
+// donde el diseño pone los de ejemplo. Se pinta como HTML en la vista previa
+// y, al descargar, ese mismo HTML se mete en un SVG (<foreignObject>) con la
+// letra Archivo y las insignias incrustadas, se dibuja en un <canvas> y sale
+// en PNG. Asi lo que se ve es exactamente lo que se descarga, y nada se pide
+// fuera de la web.
 //
-// Los datos son los de verdad y salen de los agregados que ya existen (una
-// lectura cada uno), mas una consulta para el trayecto con mas puntos.
-//
-// Formatos: historia 1080x1920 (con margen arriba y abajo para lo que pinta
-// Instagram encima) y post 1080x1350 (4:5).
+// Lo que el diseño no trae y aqui se resuelve con datos de verdad:
+//   - El mapa (`MapaMadrid` en el diseño) son las estaciones reales de BiciMAD
+//     sobre fondo oscuro; la ruta se traza entre sus dos estaciones de verdad.
+//   - Donde el ejemplo usa una cifra que la web no guarda (estaciones ganadas
+//     en el mes, % que vuelve al dia siguiente...), va la mas cercana que si
+//     existe, y se dice en la nota de la vista previa.
 
 import {
   db, doc, getDoc, getDocs, collection, query, orderBy, limit,
@@ -20,468 +23,427 @@ import {
 import { iniciarPagina, nombreEstacion, formatearTiempo, miles } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { montarCabeceraAdmin, exigirAdmin } from '/assets/js/admin-cabecera.js';
-import { NOMBRES as DIVISIONES, fechaCorta } from '/assets/js/ligas.js';
-import { diaMadrid, lunesDeLaSemana } from '/assets/js/dia.js';
+import { NIVELES, NOMBRES as DIVISIONES, fechaCorta } from '/assets/js/ligas.js';
+import { diaMadrid, lunesDeLaSemana, sumarDias } from '/assets/js/dia.js';
+import { ESTACIONES } from '/assets/data/estaciones.js';
 
 iniciarPagina('admin');
 montarCabeceraAdmin('redes');
 
-// --- Marca ------------------------------------------------------------------------
+// --- Utilidades ----------------------------------------------------------------------
 
-const C = {
-  papel: '#F3F1EC',
-  blanco: '#FFFFFF',
-  tinta: '#111110',
-  tinta2: '#55534D',
-  tinta3: '#8B8A87',
-  azul: '#1B80E5',
-  azulOscuro: '#1466C2',
-  azulClaro: '#BFD9F7',
-  lima: '#E8FF3A',
-  linea: 'rgba(243, 241, 236, .14)',
-};
+const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const coma = (n, d = 1) => Number(n).toFixed(d).replace('.', ',');
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const mayus = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const corto = (n) => String(n || '').replace(/^Metro /, '').split(' - ')[0];
+const nombreDe = (cod) => nombreEstacion(cod) || cod;
+const tramoDe = (ruta) => String(ruta || '').split('-');
 
-const FORMATOS = {
-  historia: { w: 1080, h: 1920, arriba: 210, abajo: 250, etiqueta: 'historia' },
-  post: { w: 1080, h: 1350, arriba: 90, abajo: 90, etiqueta: 'post' },
-};
+/** Los pilotos que no quieren salir: se tachan en todas las piezas. */
+const ocultos = new Set();
+const piloto = (n) => (ocultos.has(n) ? 'Piloto anónimo' : n);
 
-let formato = 'historia';
-let piezaActiva = 'campeones';
-let datos = null;
+// --- El mapa (en el diseño, `MapaMadrid`) --------------------------------------------
 
-// --- Lienzo ------------------------------------------------------------------------
-
-const lienzo = id('lienzo');
-const ctx = lienzo.getContext('2d');
-
-/** Fuente de la marca: Archivo, con su anchura (80 condensada, 112 la del logo). */
-function letra(peso, tam, anchura = 100) {
-  ctx.font = `${peso} ${tam}px Archivo, system-ui, sans-serif`;
-  if ('fontStretch' in ctx) {
-    ctx.fontStretch = anchura <= 82 ? 'condensed' : anchura <= 90 ? 'semi-condensed' : anchura >= 110 ? 'semi-expanded' : 'normal';
-  }
-}
-
-function texto(t, x, y, { color = C.papel, alinear = 'left', base = 'alphabetic', espaciado = 0 } = {}) {
-  ctx.fillStyle = color;
-  ctx.textAlign = alinear;
-  ctx.textBaseline = base;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = `${espaciado}px`;
-  ctx.fillText(String(t), x, y);
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-}
-
-/** Escribe `t` en una sola linea, bajando el tamaño hasta que quepa en `ancho`. */
-function textoQueQuepa(t, x, y, ancho, { peso = 800, tam = 120, min = 40, anchura = 80, ...resto } = {}) {
-  let tamano = tam;
-  letra(peso, tamano, anchura);
-  while (ctx.measureText(String(t)).width > ancho && tamano > min) {
-    tamano -= 4;
-    letra(peso, tamano, anchura);
-  }
-  texto(t, x, y, resto);
-  return tamano;
-}
-
-/** Parte un texto en lineas que quepan en `ancho` con la fuente actual. */
-function lineas(t, ancho) {
-  const palabras = String(t).split(/\s+/);
-  const salida = [];
-  let actual = '';
-  for (const p of palabras) {
-    const prueba = actual ? `${actual} ${p}` : p;
-    if (ctx.measureText(prueba).width > ancho && actual) { salida.push(actual); actual = p; } else actual = prueba;
-  }
-  if (actual) salida.push(actual);
-  return salida;
-}
-
-function rect(x, y, w, h, r, color) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
-  ctx.fill();
-}
-
-/** El anillo del logo (24x24 en la web), a `tam` px. */
-function anillo(x, y, tam, { fondo = C.azul, trazo = C.blanco } = {}) {
-  const k = tam / 24;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(k, k);
-  ctx.fillStyle = fondo;
-  ctx.beginPath();
-  ctx.roundRect(0, 0, 24, 24, 6.5);
-  ctx.fill();
-  ctx.strokeStyle = trazo;
-  ctx.lineWidth = 2.6;
-  ctx.lineCap = 'round';
-  ctx.stroke(new Path2D('M12 5 A7 7 0 1 1 5.94 8.5'));
-  ctx.fillStyle = trazo;
-  ctx.beginPath();
-  ctx.arc(5.94, 8.5, 2.1, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
+const PUNTOS = Object.entries(ESTACIONES).filter(([, e]) => Number.isFinite(e.lat) && Number.isFinite(e.lon));
+const LIM = PUNTOS.reduce((a, [, e]) => ({
+  la0: Math.min(a.la0, e.lat), la1: Math.max(a.la1, e.lat), lo0: Math.min(a.lo0, e.lon), lo1: Math.max(a.lo1, e.lon),
+}), { la0: 90, la1: -90, lo0: 180, lo1: -180 });
 
 /**
- * El arco del logo, enorme y a medio salir por una esquina: la firma grafica
- * de las piezas. Es el mismo trazo del anillo, no un adorno nuevo.
+ * Las estaciones de Madrid sobre oscuro, encajadas en w x h. Con `ruta`, el
+ * trazo entre sus dos estaciones (salida circulo azul, meta cuadrado claro,
+ * como el diseño); con `colores`, cada estacion del color de su clan.
  */
-function arcoDeFondo(f, color = C.azul, opacidad = 0.22) {
-  ctx.save();
-  ctx.globalAlpha = opacidad;
-  ctx.strokeStyle = color;
-  ctx.lineCap = 'round';
-  const r = f.w * 0.62;
-  const cx = f.w * 0.92;
-  const cy = f.arriba + r * 0.35;
-  ctx.lineWidth = r * 0.2;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, Math.PI * 0.75, Math.PI * 2.35);
-  ctx.stroke();
-  ctx.fillStyle = color;
-  const fin = Math.PI * 0.75;
-  ctx.beginPath();
-  ctx.arc(cx + r * Math.cos(fin), cy + r * Math.sin(fin), r * 0.16, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-const imagenes = new Map();
-function imagen(src) {
-  if (!imagenes.has(src)) {
-    imagenes.set(src, new Promise((ok) => {
-      const img = new Image();
-      img.onload = () => ok(img);
-      img.onerror = () => ok(null);
-      img.src = src;
-    }));
+function mapa(w, h, { ruta = null, colores = null, fondo = '#0E0F10', margen = 60, etiquetas = false } = {}) {
+  const k = Math.cos((40.42 * Math.PI) / 180);
+  const anchoGeo = (LIM.lo1 - LIM.lo0) * k;
+  const altoGeo = LIM.la1 - LIM.la0;
+  let escala = Math.max((w - margen * 2) / anchoGeo, (h - margen * 2) / altoGeo);
+  // Con ruta, el encuadre va a la ruta (como un mapa de barrio), no a la ciudad.
+  let cx = (LIM.lo0 + LIM.lo1) / 2;
+  let cy = (LIM.la0 + LIM.la1) / 2;
+  const [a, b] = ruta ? tramoDe(ruta).map((c) => ESTACIONES[c] || ESTACIONES[String(Number(c))]) : [];
+  if (a && b) {
+    cx = (a.lon + b.lon) / 2;
+    cy = (a.lat + b.lat) / 2;
+    const d = Math.max(Math.abs(a.lon - b.lon) * k, Math.abs(a.lat - b.lat), 0.004);
+    escala = Math.min(w, h) * 0.55 / d;
   }
-  return imagenes.get(src);
-}
-const insignia = (division, oscuro = true) => imagen(`/assets/img/divisiones/${division}${oscuro ? '-oscuro' : ''}.svg`);
-
-/** Dibuja una insignia de alto `alto`, con su proporcion (80x84). */
-async function dibujarInsignia(division, x, y, alto, oscuro = true) {
-  const img = await insignia(division, oscuro);
-  if (img) ctx.drawImage(img, x, y, alto * (80 / 84), alto);
-}
-
-// --- Partes comunes --------------------------------------------------------------
-
-const MARGEN = 84;
-
-/** Cabecera: logo y palabra a la izquierda, la etiqueta (temporada, liga) a la derecha. */
-function cabecera(f, etiqueta, { claro = false, azul = false } = {}) {
-  const y = f.arriba;
-  // Sobre el azul, el anillo en tinta: azul sobre azul desaparece.
-  anillo(MARGEN, y, 64, azul ? { fondo: C.tinta } : {});
-  letra(800, 40, 112);
-  texto('bicifastness', MARGEN + 84, y + 46, { color: claro ? C.tinta : C.papel, espaciado: -1.4 });
-  if (etiqueta) {
-    letra(700, 28);
-    const ancho = ctx.measureText(etiqueta).width + 44;
-    rect(f.w - MARGEN - ancho, y + 6, ancho, 52, 26, claro ? C.tinta : C.lima);
-    texto(etiqueta, f.w - MARGEN - ancho / 2, y + 42, { color: claro ? C.papel : C.tinta, alinear: 'center' });
+  const px = (e) => [w / 2 + (e.lon - cx) * k * escala, h / 2 - (e.lat - cy) * escala];
+  const puntos = PUNTOS.map(([cod, e]) => {
+    const [x, y] = px(e);
+    if (x < -10 || y < -10 || x > w + 10 || y > h + 10) return '';
+    const color = colores?.[cod] || colores?.[String(Number(cod))] || '#3A3B3E';
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${colores ? 7 : 5}" fill="${color}"/>`;
+  }).join('');
+  let trazo = '';
+  if (a && b) {
+    const [x1, y1] = px(a);
+    const [x2, y2] = px(b);
+    const mx = (x1 + x2) / 2 + (y2 - y1) * 0.18;
+    const my = (y1 + y2) / 2 - (x2 - x1) * 0.18;
+    trazo = `<path d="M${x1} ${y1} Q ${mx} ${my}, ${x2} ${y2}" fill="none" stroke="#1B80E5" stroke-width="16" stroke-linecap="round"/>`
+      + `<circle cx="${x1}" cy="${y1}" r="24" fill="#1B80E5" stroke="${fondo}" stroke-width="8"/>`
+      + `<rect x="${x2 - 22}" y="${y2 - 22}" width="44" height="44" rx="6" fill="#F2F1EE" stroke="${fondo}" stroke-width="8"/>`
+      + (etiquetas ? `<text x="${x1 + 30}" y="${y1 + 60}" fill="#F2F1EE" style="font-size:30px; font-weight:700; font-family:Archivo,sans-serif;">${esc(corto(nombreDe(tramoDe(ruta)[0])))}</text>`
+        + `<text x="${x2 - 30}" y="${y2 + 70}" text-anchor="end" fill="#F2F1EE" style="font-size:30px; font-weight:700; font-family:Archivo,sans-serif;">${esc(corto(nombreDe(tramoDe(ruta)[1])))}</text>` : '');
   }
-  return y + 64;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute; inset:0;"><rect width="${w}" height="${h}" fill="${fondo}"/>${puntos}${trazo}</svg>`;
 }
 
-/** Antetitulo azul en mayusculas y el titulo grande, condensado. Devuelve la y siguiente. */
-function titular(f, antetitulo, titulo, y, { claro = false, azul = false, tam = 112 } = {}) {
-  letra(800, 30, 112);
-  texto(antetitulo.toUpperCase(), MARGEN, y, { color: azul ? C.lima : claro ? C.azulOscuro : C.azul, espaciado: 3 });
-  letra(800, tam, 80);
-  let yy = y + tam * 0.98;
-  for (const l of lineas(titulo, f.w - MARGEN * 2)) {
-    texto(l, MARGEN, yy, { color: azul ? C.blanco : claro ? C.tinta : C.papel, espaciado: -tam * 0.035 });
-    yy += tam * 0.92;
-  }
-  return yy - tam * 0.92 + 44;
-}
+// --- Las piezas del diseño 13 ---------------------------------------------------------
 
-function pie(f, { claro = false, azul = false } = {}) {
-  const y = f.h - f.abajo;
-  ctx.fillStyle = azul ? 'rgba(255,255,255,.3)' : claro ? 'rgba(17,17,16,.12)' : C.linea;
-  ctx.fillRect(MARGEN, y - 70, f.w - MARGEN * 2, 2);
-  letra(600, 28);
-  texto('Sube tu trayecto de BiciMAD y compite', MARGEN, y - 20, { color: azul ? 'rgba(255,255,255,.85)' : claro ? C.tinta2 : C.tinta3 });
-  letra(800, 30, 112);
-  texto('bicifastness.es', f.w - MARGEN, y - 20, { color: azul ? C.blanco : claro ? C.tinta : C.papel, alinear: 'right', espaciado: -1 });
-}
+const FLECHA = (color, t) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+const INSIGNIA = (k, ancho) => `<span style="position:relative; display:block; width:${ancho};"><span style="position:absolute; left:22%; top:22%; width:56%; height:56%; border-radius:50%; background:#111110;"></span><img src="${INSIGNIAS[k] || `/assets/img/divisiones/${k}-oscuro.svg`}" alt="" style="position:relative; width:100%; display:block;"/></span>`;
+let INSIGNIAS = {};
 
-function vacio(f, y, mensaje, claro = false) {
-  letra(600, 40);
-  for (const [i, l] of lineas(mensaje, f.w - MARGEN * 2).entries()) {
-    texto(l, MARGEN, y + 60 + i * 52, { color: claro ? C.tinta2 : 'rgba(243,241,236,.75)' });
-  }
-}
-
-const nombreMes = () => {
-  const m = new Intl.DateTimeFormat('es-ES', { month: 'long', timeZone: 'UTC' }).format(new Date(`${diaMadrid()}T12:00:00Z`));
-  return m.charAt(0).toUpperCase() + m.slice(1);
-};
-const tramo = (ruta) => {
-  const [a, b] = String(ruta).split('-');
-  return [nombreEstacion(a) || a, nombreEstacion(b) || b];
-};
-
-// --- Las piezas ---------------------------------------------------------------------
-
+/** Cada pieza: titulo, formato, y una lista de laminas {w, h, html}. */
 const PIEZAS = {
-  /** Campeones de la temporada en los tres modos: Sprint, Fondo y Constancia. */
-  async campeones(f) {
-    fondo(f, C.tinta);
-    arcoDeFondo(f);
-    cabecera(f, `Temporada · ${nombreMes()}`);
-    let y = titular(f, 'Campeones de la temporada', 'Rápidos, lejanos y constantes', f.arriba + 190, { tam: f.h > 1500 ? 116 : 92 });
-    const modos = [
-      { clave: 'sprint', nombre: 'Sprint', que: 'Velocidad', color: C.azul, tintaSobre: C.blanco, valor: (p) => `${miles(p)} pts` },
-      { clave: 'fondo', nombre: 'Fondo', que: 'Distancia', color: C.papel, tintaSobre: C.tinta, valor: (p) => `${miles(p)} km` },
-      { clave: 'constancia', nombre: 'Constancia', que: 'Racha', color: C.azulClaro, tintaSobre: C.tinta, valor: (p) => `${p} ${p === 1 ? 'día' : 'días'}` },
-    ];
-    const disponible = f.h - f.abajo - 110 - y;
-    const alto = Math.min(330, (disponible - 2 * 24) / 3);
-    for (const m of modos) {
-      const filas = datos.rankings[m.clave] || [];
-      const [p1, p2, p3] = filas;
-      rect(MARGEN, y, f.w - MARGEN * 2, alto, 40, m.color);
-      // En el post (4:5) las tarjetas son bajas: solo el campeon, sin el 2.º y
-      // el 3.º, para que nada se monte.
-      const compacta = alto < 280;
-      letra(800, 28, 112);
-      texto(`${m.nombre.toUpperCase()} · ${m.que.toLowerCase()}`, MARGEN + 44, y + 64, { color: m.tintaSobre, espaciado: 2 });
-      if (p1) {
-        const base = y + alto * (compacta ? 0.76 : 0.58);
-        textoQueQuepa(p1.nombre, MARGEN + 44, base, f.w - MARGEN * 2 - 420, { tam: Math.min(alto * 0.3, 96), color: m.tintaSobre });
-        textoQueQuepa(m.valor(p1.puntos), f.w - MARGEN - 44, base, 360, { tam: Math.min(alto * 0.24, 76), color: m.tintaSobre, alinear: 'right' });
-        if (!compacta) {
-          letra(600, 28);
-          const resto = [p2, p3].filter(Boolean).map((p, i) => `${i + 2}. ${p.nombre} · ${m.valor(p.puntos)}`).join('    ');
-          texto(resto, MARGEN + 44, y + alto - 44, { color: m.tintaSobre === C.blanco ? 'rgba(255,255,255,.8)' : C.tinta2 });
-        }
-      } else {
-        letra(700, 40);
-        texto('Todavía nadie: ¿serás tú?', MARGEN + 44, y + alto * 0.6, { color: m.tintaSobre });
+  campeones: {
+    titulo: 'Campeones', formato: '9:16',
+    laminas: (d) => [{ w: 1080, h: 1920, html: `
+      <div style="width:1080px; height:1920px; background:#1B80E5; color:#fff; display:flex; flex-direction:column; padding:120px 84px 110px; box-sizing:border-box; position:relative; overflow:hidden; isolation:isolate;">
+        <svg width="1080" height="1920" viewBox="0 0 1080 1920" style="position:absolute; inset:0; pointer-events:none; z-index:-1;"><path d="M820 520 A420 420 0 1 1 456 730" fill="none" stroke="#3F95EA" stroke-width="90" stroke-linecap="round"/><circle cx="456" cy="730" r="76" fill="#3F95EA"/></svg>
+        <span style="position:absolute; right:70px; top:690px; transform:rotate(-6deg); border:5px solid #fff; border-radius:16px; padding:14px 26px; font-size:40px; font-weight:800; letter-spacing:.02em;">${d.cerrada ? 'TEMPORADA CERRADA' : 'TEMPORADA EN JUEGO'}</span>
+        <div style="position:relative; display:flex; align-items:center; justify-content:space-between;">
+          <svg width="76" height="76" viewBox="0 0 24 24"><path d="M12 5 A7 7 0 1 1 5.94 8.5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="5.94" cy="8.5" r="1.9" fill="#fff"/></svg>
+          <span style="font-size:34px; font-weight:700;">Temporada · ${esc(d.mes)} ${d.anio}</span>
+        </div>
+        <span style="font-size:190px; font-weight:800; font-stretch:68%; letter-spacing:-.03em; line-height:.82; margin-top:90px; position:relative;">Los tres<br/>de ${esc(d.mes)}</span>
+        <div style="flex:1;"></div>
+        ${d.campeones.map((c) => `
+          <div style="border-top:3px solid #fff; padding:34px 0 40px; display:grid; grid-template-columns:1fr auto; gap:6px 24px; align-items:end;">
+            <span style="font-size:34px; font-weight:700; opacity:.85;">${esc(c.modo)}</span>
+            <span style="font-size:34px; font-weight:700; opacity:.85; text-align:right;">${esc(c.uni)}</span>
+            <span style="font-size:84px; font-weight:800; font-stretch:88%; letter-spacing:-.035em; line-height:1;">${esc(c.n)}</span>
+            <span style="font-size:150px; font-weight:800; font-stretch:68%; line-height:.8; font-variant-numeric:tabular-nums;">${esc(c.v)}</span>
+          </div>`).join('')}
+        <div style="border-top:3px solid #fff; padding-top:30px; display:flex; justify-content:space-between; font-size:32px; font-weight:700;"><span>bicifastness.es</span><span style="opacity:.85;">${esc(d.cierre)}</span></div>
+      </div>` }],
+  },
+
+  viaje: {
+    titulo: 'El viaje del mes', formato: '9:16',
+    laminas: (d) => {
+      const v = d.viaje;
+      if (!v) return [vacia(1080, 1920, 'Todavía no hay trayectos verificados en este periodo.')];
+      const [o, m] = tramoDe(v.ruta);
+      return [{ w: 1080, h: 1920, html: `
+      <div style="width:1080px; height:1920px; background:#111110; color:#F2F1EE; display:flex; flex-direction:column; padding:120px 84px 110px; box-sizing:border-box;">
+        <span style="font-size:34px; font-weight:700; color:#B3B2AE;">El trayecto que más puntuó en ${esc(d.mes)}</span>
+        <span style="font-size:400px; font-weight:800; font-stretch:64%; letter-spacing:-.04em; line-height:.8; color:#1B80E5; margin-top:60px; font-variant-numeric:tabular-nums;">+${esc(miles(v.puntos))}</span>
+        <span style="font-size:44px; font-weight:700; margin-top:24px;">puntos en un solo viaje</span>
+        <div style="flex:1; margin:50px -84px 40px; position:relative; overflow:hidden;">
+          ${mapa(1080, 560, { ruta: v.ruta, fondo: '#111110', etiquetas: true })}
+        </div>
+        <div style="background:#F3F1EC; color:#111110; border-radius:44px; overflow:hidden;">
+          <div style="padding:56px 56px 48px; display:grid; grid-template-columns:40px 1fr; gap:0 28px;">
+            <span style="width:28px; height:28px; border-radius:50%; background:#1B80E5; margin:14px 6px 0;"></span>
+            <span style="display:flex; flex-direction:column;"><span style="font-size:28px; color:#6E6C66;">Salida · ${esc(o)}</span><span style="font-size:52px; font-weight:800; letter-spacing:-.02em;">${esc(corto(nombreDe(o)))}</span></span>
+            <span style="width:4px; height:64px; margin:10px 18px; background-image:linear-gradient(#9CC4EE 50%, transparent 50%); background-size:4px 14px;"></span><span></span>
+            <span style="width:28px; height:28px; border-radius:6px; background:#111110; margin:14px 6px 0;"></span>
+            <span style="display:flex; flex-direction:column;"><span style="font-size:28px; color:#6E6C66;">Meta · ${esc(m)}</span><span style="font-size:52px; font-weight:800; letter-spacing:-.02em;">${esc(corto(nombreDe(m)))}</span></span>
+          </div>
+          <div style="border-top:4px dashed #D6D2C8; margin:0 40px;"></div>
+          <div style="padding:44px 56px 56px; display:flex; align-items:flex-end; justify-content:space-between;">
+            <span style="display:flex; flex-direction:column;"><span style="font-size:28px; color:#6E6C66;">${esc(piloto(v.username || 'Piloto'))}${v.x2 ? ' · ruta de la semana ×2' : ''}</span><span style="font-size:150px; font-weight:800; font-stretch:68%; line-height:.82;">${esc(formatearTiempo(v.tiempoSegundos))}</span></span>
+            <span style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; font-size:34px; color:#55534D;"><span><strong style="color:#111110;">${v.distanciaMetros ? coma(v.distanciaMetros / 1000) : '—'}</strong> km</span><span><strong style="color:#111110;">${v.velocidadKmh ? coma(v.velocidadKmh) : '—'}</strong> km/h</span><span><strong style="color:#111110;">${esc(fechaCorta(String(v.fechaViaje).slice(0, 10)).replace(/^\S+ /, ''))}</strong></span></span>
+          </div>
+        </div>
+        <div style="padding-top:56px; display:flex; justify-content:space-between; font-size:32px; font-weight:700;"><span>bicifastness.es</span><span style="color:#B3B2AE;">Respeta los semáforos</span></div>
+      </div>` }];
+    },
+  },
+
+  rutas: {
+    titulo: 'Dueños de las rutas', formato: '9:16',
+    laminas: (d) => [{ w: 1080, h: 1920, html: `
+      <div style="width:1080px; height:1920px; background:#F3F1EC; color:#111110; display:flex; flex-direction:column; padding:120px 84px 110px; box-sizing:border-box;">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:34px; font-weight:700; color:#55534D;">${esc(d.semana)}</span><span style="padding:10px 20px; border-radius:14px; background:#1B80E5; color:#fff; font-size:30px; font-weight:800;">Récords</span></div>
+        <span style="font-size:170px; font-weight:800; font-stretch:68%; letter-spacing:-.03em; line-height:.82; margin-top:70px;">Las rutas<br/>tienen dueño</span>
+        <div style="flex:1;"></div>
+        ${d.rutas.slice(0, 5).map((r) => `
+          <div style="border-top:2px solid #111110; padding:30px 0; display:grid; grid-template-columns:1fr auto; gap:8px 24px; align-items:center;">
+            <span style="font-size:42px; font-weight:800; letter-spacing:-.02em; line-height:1.1;">${esc(r.a)}<span style="color:#1B80E5;"> → </span>${esc(r.b)}</span>
+            <span style="grid-row:span 2; font-size:124px; font-weight:800; font-stretch:68%; line-height:.8; font-variant-numeric:tabular-nums;">${esc(r.t)}</span>
+            <span style="font-size:30px; color:#55534D;">${esc(r.n)} · <strong style="color:${r.nuevo ? '#1466C2' : '#55534D'};">${esc(r.d)}</strong></span>
+          </div>`).join('')}
+        <div style="border-top:2px solid #111110; padding-top:30px; display:flex; justify-content:space-between; font-size:32px; font-weight:700;"><span>bicifastness.es</span><span style="color:#55534D;">¿Cuánto tardas tú?</span></div>
+      </div>` }],
+  },
+
+  top10: {
+    titulo: 'Top 10', formato: '9:16',
+    laminas: (d) => {
+      const [p1, ...resto] = d.top;
+      return [{ w: 1080, h: 1920, html: `
+      <div style="width:1080px; height:1920px; background:#F3F1EC; display:flex; flex-direction:column; box-sizing:border-box;">
+        <div style="background:#1B80E5; color:#fff; padding:120px 84px 60px; display:flex; flex-direction:column; gap:30px;">
+          <span style="font-size:34px; font-weight:700; opacity:.9;">BiciRating · ${esc(d.mes)} ${d.anio} · ${esc(miles(d.pilotos))} pilotos</span>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between;">
+            <span style="font-size:250px; font-weight:800; font-stretch:64%; letter-spacing:-.04em; line-height:.78;">Top 10</span>
+            <span style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;"><span style="font-size:32px; font-weight:700; opacity:.9;">1.º</span><span style="font-size:64px; font-weight:800; letter-spacing:-.03em;">${esc(p1?.n || '—')}</span><span style="font-size:104px; font-weight:800; font-stretch:68%; line-height:.85;">${esc(p1?.v || '')}</span></span>
+          </div>
+        </div>
+        <div style="flex:1; padding:30px 84px 0; display:flex; flex-direction:column;">
+          ${resto.slice(0, 9).map((t) => `
+            <div style="display:grid; grid-template-columns:90px 1fr auto auto; gap:24px; align-items:center; height:128px; border-bottom:2px solid #E0DDD5;">
+              <span style="font-size:64px; font-weight:800; font-stretch:72%; color:#1466C2;">${esc(t.p)}</span>
+              <span style="font-size:46px; font-weight:700; letter-spacing:-.02em;">${esc(t.n)}</span>
+              <span style="width:20px; height:20px; border-radius:50%; background:${t.c};"></span>
+              <span style="font-size:58px; font-weight:800; font-stretch:80%; font-variant-numeric:tabular-nums; width:170px; text-align:right;">${esc(t.v)}</span>
+            </div>`).join('')}
+        </div>
+        <div style="padding:40px 84px 110px; display:flex; justify-content:space-between; font-size:32px; font-weight:700;"><span>bicifastness.es</span><span style="color:#55534D;">Todos empiezan de cero el día 1</span></div>
+      </div>` }];
+    },
+  },
+
+  ligas: {
+    titulo: 'Ganadores de liga', formato: '3 × 3:4',
+    nota: 'Una sola imagen de 3240 × 1440 cortada en tres de 1080 × 1440: al deslizar se sigue la carretera.',
+    laminas: (d) => {
+      const X = [270, 790, 1290, 1630, 1970, 2430, 2850];
+      const Y = [1060, 960, 880, 760, 640, 470, 330];
+      const SZ = [200, 220, 230, 240, 250, 260, 290];
+      const pts = [[-40, 1150], ...X.map((x, i) => [x, Y[i]]), [3280, 260]];
+      let road = `M${pts[0][0]} ${pts[0][1]}`;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[Math.max(0, i - 1)]; const p1 = pts[i]; const p2 = pts[i + 1]; const p3 = pts[Math.min(pts.length - 1, i + 2)];
+        road += ` C${p1[0] + (p2[0] - p0[0]) / 6} ${p1[1] + (p2[1] - p0[1]) / 6}, ${p2[0] - (p3[0] - p1[0]) / 6} ${p2[1] - (p3[1] - p1[1]) / 6}, ${p2[0]} ${p2[1]}`;
       }
-      y += alto + 24;
-    }
-    pie(f);
+      const ligas = NIVELES.map((k, i) => {
+        const g = d.ganadores[k];
+        return `
+          <div style="position:absolute; left:${X[i] - 150}px; top:${Y[i] - SZ[i] / 2}px; width:300px; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center;">
+            ${INSIGNIA(k, `${SZ[i]}px`)}
+            <span style="font-size:30px; font-weight:700; color:#B3B2AE; margin-top:8px;">${esc(DIVISIONES[k])}</span>
+            <span style="font-size:48px; font-weight:800; letter-spacing:-.02em;">${esc(g ? g.n : '—')}</span>
+            <span style="font-size:64px; font-weight:800; font-stretch:68%; line-height:.9; color:${i === 6 ? '#5AA8F2' : '#F2F1EE'};">${g ? `${esc(g.v)} pts` : ''}</span>
+          </div>`;
+      }).join('');
+      const html = `
+        <div style="width:3240px; height:1440px; background:#111110; color:#F2F1EE; position:relative;">
+          <svg width="3240" height="1440" viewBox="0 0 3240 1440" style="position:absolute; inset:0;">
+            <path d="${road}" fill="none" stroke="#1B80E5" stroke-width="18" stroke-linecap="round"/>
+            <path d="${road}" fill="none" stroke="#F2F1EE" stroke-width="3" stroke-dasharray="26 22"/>
+          </svg>
+          <div style="position:absolute; left:84px; top:110px; display:flex; flex-direction:column; gap:20px; width:900px;">
+            <span style="font-size:34px; font-weight:700; color:#B3B2AE;">${esc(mayus(d.mes))} ${d.anio} · las 7 ligas</span>
+            <span style="font-size:170px; font-weight:800; font-stretch:68%; letter-spacing:-.03em; line-height:.82;">De cobre<br/>a diamante</span>
+            <span style="font-size:36px; color:#B3B2AE; display:flex; align-items:center; gap:14px;">Desliza${FLECHA('#1B80E5', 40)}</span>
+          </div>
+          ${ligas}
+          <div style="position:absolute; right:84px; bottom:100px; display:flex; flex-direction:column; align-items:flex-end; gap:10px;">
+            <span style="font-size:36px; color:#B3B2AE;">Cada dos semanas se sube y se baja.</span>
+            <span style="font-size:44px; font-weight:800;">bicifastness.es</span>
+          </div>
+        </div>`;
+      return [{ w: 3240, h: 1440, html, cortes: 3 }];
+    },
   },
 
-  /** Los ganadores de las grandes ligas: el podio de Diamante y los lideres de Rubi. */
-  async ligas(f) {
-    fondo(f, C.tinta);
-    arcoDeFondo(f, C.azul, 0.16);
-    const l = datos.ligas;
-    cabecera(f, l?.inicio ? `Liga ${fechaCorta(l.inicio).replace(/^\S+ /, '')} – ${fechaCorta(l.fin).replace(/^\S+ /, '')}` : 'Ligas');
-    const diamante = l?.niveles?.find((n) => n.nivel === 'diamante');
-    const rubi = l?.niveles?.find((n) => n.nivel === 'rubi');
-    const arriba = diamante?.pilotos ? 'diamante' : (l?.niveles || []).find((n) => n.pilotos && n.nivel !== 'sin-clasificar')?.nivel;
-    let y = f.arriba + 150;
-    if (!arriba) {
-      titular(f, 'Las grandes ligas', 'La escalera empieza ya', y + 40);
-      vacio(f, y + 330, 'Las ligas se forman al cerrar la primera con trayectos. Sube los tuyos y entra en la escalera.');
-      pie(f);
-      return;
-    }
-    const grande = f.h > 1500 ? 300 : 220;
-    await dibujarInsignia(arriba, (f.w - grande * (80 / 84)) / 2, y, grande);
-    y += grande + 70;
-    letra(800, 30, 112);
-    texto('LA LIGA MÁS ALTA', f.w / 2, y, { color: C.azul, alinear: 'center', espaciado: 3 });
-    letra(800, f.h > 1500 ? 132 : 104, 80);
-    texto(DIVISIONES[arriba], f.w / 2, y + (f.h > 1500 ? 120 : 96), { alinear: 'center', espaciado: -4 });
-    y += f.h > 1500 ? 180 : 140;
-    const nivel = l.niveles.find((n) => n.nivel === arriba);
-    const podio = nivel?.grupos?.[0]?.podio || [];
-    for (const p of podio.slice(0, 3)) {
-      const alto = f.h > 1500 ? 118 : 96;
-      rect(MARGEN, y, f.w - MARGEN * 2, alto, 30, p.pos === 1 ? C.lima : 'rgba(243,241,236,.08)');
-      const sobre = p.pos === 1 ? C.tinta : C.papel;
-      letra(800, alto * 0.42, 80);
-      texto(`${p.pos}`, MARGEN + 40, y + alto * 0.64, { color: sobre });
-      textoQueQuepa(p.nombre, MARGEN + 110, y + alto * 0.64, f.w - MARGEN * 2 - 420, { tam: alto * 0.4, color: sobre, anchura: 100, peso: 700 });
-      letra(800, alto * 0.36, 80);
-      texto(`${miles(p.puntos)} pts`, f.w - MARGEN - 40, y + alto * 0.64, { color: sobre, alinear: 'right' });
-      y += alto + 16;
-    }
-    if (arriba === 'diamante' && rubi?.grupos?.length && f.h > 1500) {
-      y += 40;
-      await dibujarInsignia('rubi', MARGEN, y - 10, 70);
-      letra(800, 34, 112);
-      texto(`Líderes de Rubí`, MARGEN + 90, y + 40, { color: C.papel });
-      y += 120;
-      letra(600, 32);
-      for (const g of rubi.grupos.slice(0, 3)) {
-        const lider = g.podio?.[0];
-        if (!lider) continue;
-        texto(`Grupo ${String(g.clave).split('-').pop()} · ${lider.nombre}`, MARGEN, y, { color: C.papel });
-        texto(`${miles(lider.puntos)} pts`, f.w - MARGEN, y, { color: C.tinta3, alinear: 'right' });
-        y += 52;
-      }
-    }
-    pie(f);
+  ruta: {
+    titulo: 'Ruta destacada', formato: '9:16',
+    laminas: (d) => {
+      const r = d.rutaSemana;
+      if (!r) return [vacia(1080, 1920, 'Esta semana todavía no hay ruta destacada.')];
+      const [o, m] = tramoDe(r.ruta);
+      const s = { bg: '#1B80E5', ink: '#fff', acc: '#111110', line: 'rgba(255,255,255,.35)', tagBg: '#fff', tagInk: '#1466C2' };
+      return [{ w: 1080, h: 1920, html: `
+        <div style="width:1080px; height:1920px; background:${s.bg}; color:${s.ink}; display:grid; grid-template-rows:auto 1fr auto auto;">
+          <div style="padding:110px 72px 40px; display:flex; flex-direction:column; gap:26px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;"><span style="padding:12px 22px; border-radius:14px; background:${s.tagBg}; color:${s.tagInk}; font-size:34px; font-weight:800;">Ruta de la semana · ×2</span><span style="font-size:32px; font-weight:700; opacity:.85;">Hasta el domingo</span></div>
+            <span style="font-size:150px; font-weight:800; font-stretch:66%; letter-spacing:-.035em; line-height:.84;">${esc(corto(nombreDe(o)))}<br/><span style="color:${s.acc};">→</span> ${esc(corto(nombreDe(m)))}</span>
+            <span style="font-size:34px; font-weight:700; opacity:.85;">Puntúa doble toda la semana. La tabla empieza vacía el lunes.</span>
+          </div>
+          <div style="position:relative; overflow:hidden;">
+            ${mapa(1080, 760, { ruta: r.ruta })}
+            ${r.km ? `<span style="position:absolute; right:72px; bottom:40px; padding:14px 22px; border-radius:16px; background:#0E0F10; color:#F2F1EE; font-size:32px; font-weight:700;">${esc(r.km)}</span>` : ''}
+          </div>
+          <div style="padding:48px 72px 40px; display:grid; grid-template-columns:1fr 1fr; gap:0 48px;">
+            <div style="display:flex; flex-direction:column; gap:6px;"><span style="font-size:32px; opacity:.8;">Récord histórico</span><span style="font-size:230px; font-weight:800; font-stretch:60%; line-height:.8; color:${s.acc};">${esc(r.rec || '—')}</span><span style="font-size:36px; font-weight:800;">${esc(r.recN || 'Sin récord todavía')}</span></div>
+            <div style="display:flex; flex-direction:column;">
+              ${r.top.slice(0, 4).map((t) => `<div style="display:grid; grid-template-columns:44px 1fr auto; gap:14px; align-items:center; height:90px; border-bottom:2px solid ${s.line}; font-size:34px;"><span style="font-weight:800; opacity:.6;">${esc(t.p)}</span><span style="font-weight:600;">${esc(t.n)}</span><strong>${esc(t.t)}</strong></div>`).join('')}
+            </div>
+          </div>
+          <div style="padding:40px 72px 120px; display:flex; align-items:center; justify-content:space-between; font-size:34px; font-weight:800; border-top:2px solid ${s.line};"><span>bicifastness.es</span><span style="opacity:.85; font-weight:700;">${r.rec ? `¿La bajas de ${esc(r.rec)}?` : 'Pon tú el primer tiempo'}</span></div>
+        </div>` }];
+    },
   },
 
-  /** El trayecto con mas puntos de la temporada. */
-  async trayecto(f) {
-    fondo(f, C.azul);
-    arcoDeFondo(f, C.blanco, 0.14);
-    cabecera(f, `Temporada · ${nombreMes()}`, { azul: true });
-    const v = datos.mejorViaje;
-    let y = titular(f, 'El trayecto de la temporada', 'El que más puntos ha sumado', f.arriba + 190, { azul: true, tam: f.h > 1500 ? 104 : 84 });
-    if (!v) { vacio(f, y, 'Todavía no hay trayectos verificados esta temporada.'); pie(f, { azul: true }); return; }
-    y += f.h > 1500 ? 60 : 20;
-    letra(800, f.h > 1500 ? 330 : 240, 80);
-    texto(miles(v.puntos), MARGEN - 10, y + (f.h > 1500 ? 280 : 200), { color: C.lima, espaciado: -14 });
-    letra(800, 52, 112);
-    texto('PUNTOS', MARGEN, y + (f.h > 1500 ? 350 : 262), { color: C.blanco, espaciado: 4 });
-    y += f.h > 1500 ? 430 : 320;
-    const [a, b] = tramo(v.ruta);
-    letra(700, 46, 100);
-    for (const l of lineas(`${a} → ${b}`, f.w - MARGEN * 2).slice(0, 2)) { texto(l, MARGEN, y, { color: C.blanco }); y += 56; }
-    y += 30;
-    const datosViaje = [
-      ['Tiempo', formatearTiempo(v.tiempoSegundos)],
-      ['Distancia', v.distanciaMetros ? `${(v.distanciaMetros / 1000).toFixed(1).replace('.', ',')} km` : '—'],
-      ['Media', v.velocidadKmh ? `${Number(v.velocidadKmh).toFixed(1).replace('.', ',')} km/h` : '—'],
-    ];
-    const ancho = (f.w - MARGEN * 2 - 32) / 3;
-    datosViaje.forEach(([k, val], i) => {
-      const x = MARGEN + i * (ancho + 16);
-      rect(x, y, ancho, 170, 30, 'rgba(255,255,255,.14)');
-      letra(600, 28);
-      texto(k, x + 30, y + 54, { color: 'rgba(255,255,255,.8)' });
-      textoQueQuepa(val, x + 30, y + 128, ancho - 60, { tam: 60, color: C.blanco });
-    });
-    y += 230;
-    letra(600, 34);
-    texto(`Lo hizo ${v.username || 'un piloto'}${v.fechaViaje ? ` · ${fechaCorta(String(v.fechaViaje).slice(0, 10))}` : ''}`, MARGEN, y, { color: C.blanco });
-    pie(f, { azul: true });
+  resumen: {
+    titulo: 'Resumen de temporada', formato: '9 × 3:4',
+    nota: 'El carrusel del día 1 de cada mes, 9 láminas de 1080 × 1440.',
+    laminas: (d) => laminasResumen(d),
   },
 
-  /** Los mas rapidos de las rutas mas transitadas. */
-  async rutas(f) {
-    fondo(f, C.papel);
-    arcoDeFondo(f, C.azul, 0.1);
-    cabecera(f, 'Récords de ruta', { claro: true });
-    let y = titular(f, 'Reyes de las rutas', 'Los más rápidos de Madrid', f.arriba + 190, { claro: true, tam: f.h > 1500 ? 112 : 88 });
-    const lista = datos.reyes.slice(0, f.h > 1500 ? 5 : 3);
-    if (!lista.length) { vacio(f, y, 'Todavía no hay récords de ruta.', true); pie(f, { claro: true }); return; }
-    const alto = Math.min(210, (f.h - f.abajo - 120 - y) / lista.length - 18);
-    for (const r of lista) {
-      rect(MARGEN, y, f.w - MARGEN * 2, alto, 34, C.blanco);
-      const [a, b] = tramo(r.ruta);
-      letra(600, 28);
-      const linea = lineas(`${a} → ${b}`, f.w - MARGEN * 2 - 380)[0];
-      texto(linea, MARGEN + 36, y + 56, { color: C.tinta2 });
-      textoQueQuepa(r.nombre, MARGEN + 36, y + alto - 40, f.w - MARGEN * 2 - 420, { tam: alto * 0.3, color: C.tinta, anchura: 100, peso: 700 });
-      letra(800, alto * 0.42, 80);
-      texto(formatearTiempo(r.marca), f.w - MARGEN - 36, y + alto * 0.66, { color: C.azulOscuro, alinear: 'right', espaciado: -2 });
-      y += alto + 18;
-    }
-    pie(f, { claro: true });
-  },
-
-  /** El top de la temporada en la clasificacion general. */
-  async top(f) {
-    fondo(f, C.tinta);
-    arcoDeFondo(f);
-    cabecera(f, `Temporada · ${nombreMes()}`);
-    let y = titular(f, `Top de ${nombreMes().toLowerCase()}`, 'La clasificación general', f.arriba + 190, { tam: f.h > 1500 ? 116 : 92 });
-    const filas = (datos.rankings.general || []).slice(0, f.h > 1500 ? 5 : 3);
-    if (!filas.length) { vacio(f, y, 'La temporada acaba de empezar: todavía no hay nadie con puntos.'); pie(f); return; }
-    const [p1, ...resto] = filas;
-    const altoUno = f.h > 1500 ? 300 : 230;
-    rect(MARGEN, y, f.w - MARGEN * 2, altoUno, 44, C.lima);
-    if (p1.division) await dibujarInsignia(p1.division, f.w - MARGEN - 40 - altoUno * 0.5, y + 34, altoUno * 0.5, false);
-    letra(800, 30, 112);
-    texto('1.º', MARGEN + 44, y + 70, { color: C.tinta, espaciado: 2 });
-    textoQueQuepa(p1.nombre, MARGEN + 44, y + altoUno * 0.66, f.w - MARGEN * 2 - altoUno * 0.6 - 90, { tam: altoUno * 0.28, color: C.tinta });
-    letra(800, 46, 80);
-    texto(`${miles(p1.puntos)} pts${p1.division ? ` · ${DIVISIONES[p1.division] || ''}` : ''}`, MARGEN + 44, y + altoUno - 40, { color: C.tinta });
-    y += altoUno + 24;
-    const alto = f.h > 1500 ? 120 : 100;
-    for (const p of resto) {
-      ctx.fillStyle = C.linea;
-      ctx.fillRect(MARGEN, y + alto, f.w - MARGEN * 2, 2);
-      letra(800, alto * 0.46, 80);
-      texto(`${p.pos}`, MARGEN + 10, y + alto * 0.68, { color: C.tinta3 });
-      if (p.division) await dibujarInsignia(p.division, MARGEN + 86, y + alto * 0.2, alto * 0.6);
-      textoQueQuepa(p.nombre, MARGEN + 86 + alto * 0.6 + 28, y + alto * 0.68, f.w - MARGEN * 2 - 500, { tam: alto * 0.4, anchura: 100, peso: 700 });
-      letra(800, alto * 0.4, 80);
-      texto(`${miles(p.puntos)} pts`, f.w - MARGEN, y + alto * 0.68, { alinear: 'right' });
-      y += alto + 8;
-    }
-    pie(f);
-  },
-
-  /** La ruta de la semana: el tramo y el podio de la semana. */
-  async semana(f) {
-    fondo(f, C.lima);
-    arcoDeFondo(f, C.tinta, 0.08);
-    cabecera(f, 'Ruta de la semana · ×2', { claro: true });
-    const r = datos.rutaSemana;
-    let y = f.arriba + 200;
-    if (!r) { titular(f, 'Ruta de la semana', 'Muy pronto', y, { claro: true }); pie(f, { claro: true }); return; }
-    const [a, b] = tramo(r.ruta);
-    letra(800, 30, 112);
-    texto('ESTA SEMANA PUNTÚA DOBLE', MARGEN, y, { color: C.tinta, espaciado: 3 });
-    y += 40;
-    const tam = f.h > 1500 ? 112 : 88;
-    letra(800, tam, 80);
-    for (const l of [...lineas(a, f.w - MARGEN * 2), `→ ${b}`].slice(0, 4)) {
-      y += tam * 0.92;
-      textoQueQuepa(l, MARGEN, y, f.w - MARGEN * 2, { tam, color: C.tinta });
-    }
-    y += 70;
-    if (!r.filas.length) {
-      vacio(f, y, 'Nadie tiene tiempo todavía esta semana. El primero se lleva el récord semanal.', true);
-    } else {
-      for (const p of r.filas.slice(0, 3)) {
-        const alto = f.h > 1500 ? 120 : 100;
-        rect(MARGEN, y, f.w - MARGEN * 2, alto, 30, p.pos === 1 ? C.tinta : 'rgba(17,17,16,.08)');
-        const sobre = p.pos === 1 ? C.lima : C.tinta;
-        letra(800, alto * 0.42, 80);
-        texto(`${p.pos}`, MARGEN + 40, y + alto * 0.64, { color: sobre });
-        textoQueQuepa(p.nombre, MARGEN + 110, y + alto * 0.64, f.w - MARGEN * 2 - 420, { tam: alto * 0.4, color: sobre, anchura: 100, peso: 700 });
-        letra(800, alto * 0.4, 80);
-        texto(formatearTiempo(p.marca), f.w - MARGEN - 40, y + alto * 0.64, { color: sobre, alinear: 'right' });
-        y += alto + 16;
-      }
-    }
-    letra(600, 30);
-    texto(`${r.pilotos} ${r.pilotos === 1 ? 'piloto' : 'pilotos'} esta semana · hasta el domingo`, MARGEN, y + 40, { color: C.tinta2 });
-    pie(f, { claro: true });
+  horizontal: {
+    titulo: 'Resumen horizontal', formato: '6 × 1,91:1',
+    nota: 'El formato apaisado: 6 láminas de 1080 × 566.',
+    laminas: (d) => laminasHorizontales(d),
   },
 };
 
-const TITULOS = {
-  campeones: 'Campeones de la temporada',
-  ligas: 'Grandes ligas',
-  trayecto: 'Trayecto con más puntos',
-  rutas: 'Reyes de las rutas',
-  top: 'Top de la temporada',
-  semana: 'Ruta de la semana',
-};
-
-function fondo(f, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, f.w, f.h);
+function vacia(w, h, texto) {
+  return { w, h, html: `<div style="width:${w}px; height:${h}px; background:#111110; color:#B3B2AE; display:flex; align-items:center; justify-content:center; padding:84px; box-sizing:border-box; font-size:44px; font-weight:700; text-align:center;">${esc(texto)}</div>` };
 }
 
-async function dibujar(pieza = piezaActiva) {
-  const f = FORMATOS[formato];
-  lienzo.width = f.w;
-  lienzo.height = f.h;
-  ctx.clearRect(0, 0, f.w, f.h);
-  await PIEZAS[pieza](f);
+const cab = (izq, num, total, color = '#8B8A87') => `<div style="display:flex; justify-content:space-between; font-size:34px; font-weight:700;"><span>${esc(izq)}</span><span style="color:${color};">${String(num).padStart(2, '0')}/${String(total).padStart(2, '0')}</span></div>`;
+
+/** 13g · Carrusel de 9, 1080 x 1440. */
+function laminasResumen(d) {
+  const L = (html) => ({ w: 1080, h: 1440, html });
+  const pad = 'padding:90px 84px; box-sizing:border-box;';
+  return [
+    L(`<div style="width:1080px; height:1440px; background:#1B80E5; color:#fff; ${pad} display:flex; flex-direction:column; position:relative; overflow:hidden; isolation:isolate;">
+        <svg width="1080" height="1440" viewBox="0 0 1080 1440" style="position:absolute; inset:0; z-index:-1;"><path d="M760 380 A470 470 0 1 1 352 615" fill="none" stroke="#3F95EA" stroke-width="110" stroke-linecap="round"/><circle cx="352" cy="615" r="92" fill="#3F95EA"/></svg>
+        <div style="display:flex; justify-content:space-between; font-size:34px; font-weight:700;"><span>bicifastness</span><span>01/09</span></div>
+        <div style="flex:1;"></div>
+        <span style="font-size:40px; font-weight:700;">Resumen de temporada</span>
+        <span style="font-size:262px; font-weight:800; font-stretch:62%; letter-spacing:-.045em; line-height:.78; margin-top:16px;">${esc(mayus(d.mes))}</span>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:40px; font-size:36px; font-weight:700;"><span>${esc(d.periodoTexto)}</span><span style="display:flex; align-items:center; gap:12px;">Desliza${FLECHA('#fff', 44)}</span></div>
+      </div>`),
+    L(`<div style="width:1080px; height:1440px; background:#F3F1EC; color:#111110; ${pad} display:flex; flex-direction:column;">
+        ${cab(`Madrid en ${d.mes}`, 2, 9, '#6E6C66')}
+        <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1.25fr 1fr 1fr; margin-top:60px; border-top:3px solid #111110;">
+          <div style="grid-column:1/-1; display:flex; flex-direction:column; justify-content:center; border-bottom:3px solid #111110;"><span style="font-size:260px; font-weight:800; font-stretch:62%; letter-spacing:-.04em; line-height:.8; color:#1466C2;">${esc(miles(d.km))} km</span><span style="font-size:40px; font-weight:700; margin-top:18px;">pedaleados entre todos.${d.km > 40075 ? ' Más de una vuelta al mundo.' : ''}</span></div>
+          ${d.cifras.map((c, i) => `<div style="display:flex; flex-direction:column; justify-content:center; gap:10px; border-bottom:3px solid #111110; border-left:${i % 2 ? '3px solid #111110' : 'none'}; padding-left:${i % 2 ? '40px' : '0'};"><span style="font-size:130px; font-weight:800; font-stretch:68%; line-height:.82;">${esc(c.v)}</span><span style="font-size:34px; color:#55534D; line-height:1.2;">${esc(c.t)}</span></div>`).join('')}
+        </div>
+      </div>`),
+    L(`<div style="width:1080px; height:1440px; background:#111110; color:#F2F1EE; ${pad} display:flex; flex-direction:column;">
+        ${cab('Campeones por modo', 3, 9)}
+        <div style="flex:1;"></div>
+        ${d.campeones.map((c) => `<div style="border-top:3px solid #3A3B3E; padding:36px 0 40px; display:grid; grid-template-columns:1fr auto; gap:8px 24px; align-items:end;">
+            <span style="font-size:32px; font-weight:700; color:#5AA8F2;">${esc(c.modo)}</span><span style="font-size:32px; color:#B3B2AE; text-align:right;">${esc(c.uni)}</span>
+            <span style="font-size:80px; font-weight:800; font-stretch:88%; letter-spacing:-.035em; line-height:1;">${esc(c.n)}</span><span style="font-size:150px; font-weight:800; font-stretch:64%; line-height:.8;">${esc(c.v)}</span>
+            <span style="grid-column:1/-1; font-size:30px; color:#B3B2AE;">${esc(c.extra)}</span>
+          </div>`).join('')}
+      </div>`),
+    L(`<div style="width:1080px; height:1440px; background:#0E0F10; color:#F2F1EE; box-sizing:border-box; display:flex; flex-direction:column; position:relative;">
+        <div style="position:absolute; left:0; right:0; top:0; height:900px;">${mapa(1080, 900, { colores: d.coloresMapa })}</div>
+        <div style="position:relative; padding:90px 84px 0;">${cab('Quién manda en el mapa', 4, 9)}</div>
+        <div style="flex:1;"></div>
+        <div style="position:relative; background:#0E0F10; padding:50px 84px 90px; display:flex; flex-direction:column; gap:26px;">
+          <div style="display:flex; height:36px; gap:4px;">${d.clanes.map((c) => `<span style="flex:${Math.max(1, c.v)}; background:${c.c};"></span>`).join('')}<span style="flex:${Math.max(1, d.libres)}; background:#3A3B3E;"></span></div>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between;"><span style="display:flex; flex-direction:column;"><span style="font-size:34px; color:#B3B2AE;">Clan campeón</span><span style="font-size:96px; font-weight:800; font-stretch:84%; letter-spacing:-.035em; line-height:1;">${esc(d.clanes[0]?.n || '—')}</span></span><span style="font-size:150px; font-weight:800; font-stretch:64%; line-height:.8; color:${d.clanes[0]?.c || '#F2F1EE'};">${esc(d.clanes[0]?.v ?? 0)}</span></div>
+          <span style="font-size:34px; color:#B3B2AE;">estaciones de ${esc(d.totalEstaciones)} · ${esc(d.numClanes)} clanes se reparten ${esc(d.dominadas)}</span>
+        </div>
+      </div>`),
+    L(`<div style="width:1080px; height:1440px; background:#F3F1EC; color:#111110; ${pad} display:flex; flex-direction:column; gap:40px; justify-content:space-between;">
+        <div style="margin-bottom:60px;">${cab('Clanes · cómo van', 5, 9, '#6E6C66')}</div>
+        ${d.clanMov.map((c) => `<div style="border-top:3px solid #111110; padding-top:30px; display:grid; grid-template-columns:auto 1fr; gap:6px 30px; align-items:center;">
+            <span style="grid-row:span 2; width:120px; height:120px; border-radius:30px; background:${c.c}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:800;">${esc(c.ini)}</span>
+            <span style="font-size:34px; color:#55534D;">${esc(c.t)}</span>
+            <span style="font-size:60px; font-weight:800; letter-spacing:-.03em; line-height:1.05;">${esc(c.n)} <span style="color:${c.c};">${esc(c.v)}</span></span>
+          </div>`).join('')}
+        <div style="flex:1;"></div>
+        <span style="font-size:34px; color:#55534D; line-height:1.35;">${d.disputadas ? `Estaciones en disputa ahora mismo: <strong style="color:#111110;">${esc(d.disputadas)}</strong>.` : 'Ninguna estación en disputa ahora mismo.'}</span>
+      </div>`),
+    L(`<div style="width:1080px; height:1440px; background:#111110; color:#F2F1EE; ${pad} display:flex; flex-direction:column;">
+        ${cab('Ganadores de cada liga', 6, 9)}
+        <div style="flex:1;"></div>
+        ${[...NIVELES].reverse().map((k, i) => {
+    const g = d.ganadores[k];
+    return `<div style="display:grid; grid-template-columns:110px 1fr auto; gap:28px; align-items:center; height:150px; border-top:2px solid #2D2E31;">
+            ${INSIGNIA(k, '100px')}
+            <span style="display:flex; flex-direction:column;"><span style="font-size:28px; color:#B3B2AE;">${esc(DIVISIONES[k])}</span><span style="font-size:52px; font-weight:800; letter-spacing:-.02em;">${esc(g ? g.n : '—')}</span></span>
+            <span style="font-size:76px; font-weight:800; font-stretch:68%; color:${i === 0 ? '#5AA8F2' : '#F2F1EE'};">${esc(g ? g.v : '')}</span>
+          </div>`;
+  }).join('')}
+      </div>`),
+    L(`<div style="width:1080px; height:1440px; background:#1B80E5; color:#fff; ${pad} display:flex; flex-direction:column;">
+        ${cab('Las rutas más peleadas', 7, 9, '#fff')}
+        <div style="flex:1;"></div>
+        ${d.rutasMes.slice(0, 4).map((r) => `<div style="border-top:3px solid #fff; padding:30px 0 34px; display:grid; grid-template-columns:1fr auto; gap:8px 24px; align-items:end;">
+            <span style="font-size:52px; font-weight:800; letter-spacing:-.02em; line-height:1.05;">${esc(r.a)} → ${esc(r.b)}</span>
+            <span style="grid-row:span 2; font-size:130px; font-weight:800; font-stretch:64%; line-height:.8;">${esc(r.t)}</span>
+            <span style="font-size:30px;">${esc(r.info)}</span>
+          </div>`).join('')}
+      </div>`),
+    L(`<div style="width:1080px; height:1440px; background:#F3F1EC; color:#111110; ${pad} display:flex; flex-direction:column;">
+        ${cab(`Los momentos de ${d.mes}`, 8, 9, '#6E6C66')}
+        <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:60px;">
+          <div style="grid-column:1/-1; background:#111110; color:#F2F1EE; border-radius:36px; padding:44px; display:flex; justify-content:space-between; align-items:flex-end;"><span style="display:flex; flex-direction:column; gap:8px;"><span style="font-size:32px; color:#B3B2AE;">El viaje con más puntos</span><span style="font-size:52px; font-weight:800;">${esc(d.viaje ? piloto(d.viaje.username || 'Piloto') : '—')}</span><span style="font-size:30px; color:#B3B2AE;">${d.viaje ? `${esc(corto(nombreDe(tramoDe(d.viaje.ruta)[0])))} → ${esc(corto(nombreDe(tramoDe(d.viaje.ruta)[1])))} · ${esc(formatearTiempo(d.viaje.tiempoSegundos))}` : ''}</span></span><span style="font-size:180px; font-weight:800; font-stretch:62%; line-height:.8; color:#5AA8F2;">${d.viaje ? `+${esc(miles(d.viaje.puntos))}` : ''}</span></div>
+          ${d.hitos.map((h) => `<div style="background:#fff; border-radius:36px; padding:40px; display:flex; flex-direction:column; justify-content:space-between;"><span style="font-size:30px; color:#55534D; line-height:1.25;">${esc(h.t)}</span><span style="display:flex; flex-direction:column; gap:6px;"><span style="font-size:110px; font-weight:800; font-stretch:64%; line-height:.82;">${esc(h.v)}</span><span style="font-size:32px; font-weight:700;">${esc(h.n)}</span></span></div>`).join('')}
+        </div>
+      </div>`),
+    L(`<div style="width:1080px; height:1440px; background:#111110; color:#F2F1EE; ${pad} display:flex; flex-direction:column;">
+        ${cab('Top 5 BiciRating', 9, 9)}
+        <div style="margin-top:50px; display:flex; flex-direction:column;">
+          ${d.top.slice(0, 5).map((t) => `<div style="display:grid; grid-template-columns:100px 1fr auto; gap:20px; align-items:center; height:126px; border-bottom:2px solid #2D2E31;"><span style="font-size:76px; font-weight:800; font-stretch:68%; color:#5AA8F2;">${esc(t.p)}</span><span style="font-size:52px; font-weight:700;">${esc(t.n)}</span><span style="font-size:64px; font-weight:800; font-stretch:72%;">${esc(t.v)}</span></div>`).join('')}
+        </div>
+        <div style="flex:1;"></div>
+        <div style="background:#1B80E5; color:#fff; border-radius:36px; padding:44px; display:flex; flex-direction:column; gap:10px;"><span style="font-size:72px; font-weight:800; font-stretch:84%; letter-spacing:-.035em; line-height:1;">${esc(mayus(d.mesSiguiente))} empieza de cero.</span><span style="font-size:36px;">Todos a 0 puntos. Sube tu primer trayecto en bicifastness.es</span></div>
+      </div>`),
+  ];
 }
 
-// --- Datos -------------------------------------------------------------------------------
+/** 13h · Carrusel horizontal de 6, 1080 x 566. */
+function laminasHorizontales(d) {
+  const H = (html) => ({ w: 1080, h: 566, html });
+  const hCifras = [
+    { v: `${miles(d.km)} km`, t: 'pedaleados entre todos', col: '#5AA8F2' },
+    ...d.cifras.slice(0, 3).map((c) => ({ v: c.v, t: c.t, col: '#F2F1EE' })),
+  ];
+  return [
+    H(`<div style="width:1080px; height:566px; display:grid; grid-template-columns:600px 1fr; background:#111110;">
+        <div style="background:#1B80E5; color:#fff; padding:44px 48px; display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden; isolation:isolate;">
+          <svg width="600" height="566" viewBox="0 0 600 566" style="position:absolute; inset:0; z-index:-1;"><path d="M470 120 A300 300 0 1 1 210 270" fill="none" stroke="#3F95EA" stroke-width="70" stroke-linecap="round"/><circle cx="210" cy="270" r="58" fill="#3F95EA"/></svg>
+          <div style="display:flex; justify-content:space-between; font-size:24px; font-weight:700;"><span>bicifastness</span><span>01/06</span></div>
+          <div style="display:flex; flex-direction:column; gap:10px;"><span style="font-size:26px; font-weight:700;">Resumen de temporada</span><span style="font-size:142px; font-weight:800; font-stretch:62%; letter-spacing:-.045em; line-height:.78;">${esc(mayus(d.mes))}</span><span style="font-size:24px; font-weight:700; margin-top:8px;">${esc(d.periodoTexto)} · desliza →</span></div>
+        </div>
+        <div style="color:#F2F1EE; display:grid; grid-template-rows:repeat(4,1fr);">
+          ${hCifras.map((c) => `<div style="padding:0 40px; display:flex; flex-direction:column; justify-content:center; border-bottom:2px solid #2D2E31;"><span style="font-size:68px; font-weight:800; font-stretch:66%; line-height:.85; color:${c.col};">${esc(c.v)}</span><span style="font-size:20px; color:#B3B2AE;">${esc(c.t)}</span></div>`).join('')}
+        </div>
+      </div>`),
+    H(`<div style="width:1080px; height:566px; background:#111110; color:#F2F1EE; display:grid; grid-template-columns:repeat(3,1fr); gap:2px;">
+        ${d.campeones.map((c) => `<div style="background:#18191B; padding:40px 36px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div style="display:flex; justify-content:space-between; font-size:22px; font-weight:700;"><span style="color:#5AA8F2;">${esc(c.modo)}</span></div>
+            <div style="display:flex; flex-direction:column; gap:8px;"><span style="font-size:150px; font-weight:800; font-stretch:62%; line-height:.8;">${esc(c.v)}</span><span style="font-size:22px; color:#B3B2AE;">${esc(c.uni)}</span></div>
+            <div style="display:flex; flex-direction:column; gap:6px; border-top:2px solid #2D2E31; padding-top:18px;"><span style="font-size:40px; font-weight:800; letter-spacing:-.03em;">${esc(c.n)}</span><span style="font-size:19px; color:#B3B2AE;">${esc(c.extra)}</span></div>
+          </div>`).join('')}
+      </div>`),
+    H(`<div style="width:1080px; height:566px; background:#0E0F10; color:#F2F1EE; display:grid; grid-template-columns:520px 1fr;">
+        <div style="position:relative;">${mapa(520, 566, { colores: d.coloresMapa, margen: 20 })}<span style="position:absolute; left:36px; top:36px; font-size:24px; font-weight:700; background:#0E0F10; padding:8px 14px; border-radius:10px;">Quién manda en el mapa</span></div>
+        <div style="padding:36px 40px; display:grid; grid-template-rows:auto repeat(5,1fr); align-items:center;">
+          <div style="display:flex; justify-content:space-between; font-size:22px; color:#B3B2AE; padding-bottom:10px;"><span>Clanes · estaciones de ${esc(d.totalEstaciones)}</span><span>03/06</span></div>
+          ${[...d.clanes.slice(0, 5), ...Array(Math.max(0, 5 - d.clanes.length)).fill(null)].map((c, i) => (c ? `<div style="display:grid; grid-template-columns:30px 1fr auto; gap:14px; align-items:center; height:100%; border-top:2px solid #2D2E31;">
+              <span style="font-size:30px; font-weight:800; font-stretch:72%; color:#8B8A87;">${i + 1}</span>
+              <span style="display:flex; flex-direction:column; gap:6px;"><span style="font-size:28px; font-weight:${i === 0 ? 800 : 600};">${esc(c.n)}</span><span style="display:block; height:8px; width:${(c.v / Math.max(1, d.clanes[0].v)) * 100}%; background:${c.c};"></span></span>
+              <span style="font-size:54px; font-weight:800; font-stretch:66%; color:${c.c};">${esc(c.v)}</span>
+            </div>` : '<div style="border-top:2px solid #2D2E31; height:100%;"></div>')).join('')}
+        </div>
+      </div>`),
+    H(`<div style="width:1080px; height:566px; background:#111110; color:#F2F1EE; display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">
+        ${NIVELES.map((k, i) => {
+    const g = d.ganadores[k];
+    return `<div style="background:${i === 6 ? '#13263D' : '#18191B'}; padding:34px 16px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center;">
+            <span style="font-size:20px; font-weight:700; color:#B3B2AE;">${esc(DIVISIONES[k])}</span>
+            ${INSIGNIA(k, '118px')}
+            <span style="display:flex; flex-direction:column; gap:6px;"><span style="font-size:19px; font-weight:800; letter-spacing:-.02em; overflow-wrap:anywhere; line-height:1.15;">${esc(g ? g.n : '—')}</span><span style="font-size:44px; font-weight:800; font-stretch:66%; color:${i === 6 ? '#5AA8F2' : '#F2F1EE'};">${esc(g ? g.v : '')}</span></span>
+          </div>`;
+  }).join('')}
+      </div>`),
+    H(`<div style="width:1080px; height:566px; background:#1B80E5; color:#fff; display:grid; grid-template-columns:repeat(4,1fr);">
+        ${d.rutasMes.slice(0, 4).map((r) => `<div style="padding:40px 30px; display:flex; flex-direction:column; justify-content:space-between; border-left:2px solid rgba(255,255,255,.35);">
+            <span style="font-size:20px; font-weight:700;">Ruta más peleada</span>
+            <span style="font-size:34px; font-weight:800; letter-spacing:-.02em; line-height:1.05;">${esc(r.a)}<br/>→ ${esc(r.b)}</span>
+            <span style="font-size:96px; font-weight:800; font-stretch:62%; letter-spacing:-.02em; line-height:.8;">${esc(r.t)}</span>
+            <span style="font-size:19px; line-height:1.3;">${esc(r.info)}</span>
+          </div>`).join('')}
+      </div>`),
+    H(`<div style="width:1080px; height:566px; background:#F3F1EC; color:#111110; display:grid; grid-template-columns:1.25fr 1fr 1fr; grid-template-rows:1fr 1fr; gap:14px; padding:14px; box-sizing:border-box;">
+        <div style="grid-row:span 2; background:#111110; color:#F2F1EE; border-radius:24px; padding:34px; display:flex; flex-direction:column; justify-content:space-between;"><span style="font-size:22px; color:#B3B2AE;">El viaje con más puntos</span><span style="font-size:170px; font-weight:800; font-stretch:60%; line-height:.8; color:#5AA8F2;">${d.viaje ? `+${esc(miles(d.viaje.puntos))}` : '—'}</span><span style="display:flex; flex-direction:column; gap:4px;"><span style="font-size:36px; font-weight:800;">${esc(d.viaje ? piloto(d.viaje.username || 'Piloto') : '')}</span><span style="font-size:20px; color:#B3B2AE;">${d.viaje ? `${esc(corto(nombreDe(tramoDe(d.viaje.ruta)[0])))} → ${esc(corto(nombreDe(tramoDe(d.viaje.ruta)[1])))} · ${esc(formatearTiempo(d.viaje.tiempoSegundos))}` : ''}</span></span></div>
+        ${d.hitos.map((h) => `<div style="background:#fff; border-radius:24px; padding:26px; display:flex; flex-direction:column; justify-content:space-between;"><span style="font-size:19px; color:#55534D; line-height:1.25;">${esc(h.t)}</span><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:70px; font-weight:800; font-stretch:62%; line-height:.82;">${esc(h.v)}</span><span style="font-size:20px; font-weight:700;">${esc(h.n)}</span></span></div>`).join('')}
+      </div>`),
+  ];
+}
+
+// --- Datos ------------------------------------------------------------------------------
 
 async function leer(ruta) {
   try {
@@ -492,100 +454,355 @@ async function leer(ruta) {
   }
 }
 
-async function cargarDatos() {
+let crudo = null;
+
+async function cargarCrudo() {
   const modos = ['general', 'sprint', 'fondo', 'constancia'];
-  const [rankings, ligas, general, indice] = await Promise.all([
+  const [rk, ligas, general, indice, mapaAg, portada] = await Promise.all([
     Promise.all(modos.map((m) => leer(`agregados/ranking-${m}`))),
     leer('agregados/ligas'),
     leer('config/general'),
     leer('agregados/rutas'),
+    leer('agregados/mapa'),
+    leer('agregados/portada'),
   ]);
+  const rankings = Object.fromEntries(modos.map((m, i) => [m, rk[i]?.filas || []]));
 
-  // Reyes de las rutas: el record de las cinco rutas con mas viajes.
-  const populares = Object.entries(indice?.viajesPorRuta || {}).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([r]) => r);
-  const reyes = (await Promise.all(populares.map(async (ruta) => {
+  // Las rutas con mas tiempos, con su record.
+  const populares = Object.entries(indice?.viajesPorRuta || {}).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  const rutas = (await Promise.all(populares.map(async ([ruta, n]) => {
     const ag = await leer(`agregados/ruta-${ruta}`);
-    const r = ag?.filas?.[0];
-    return r ? { ruta, nombre: r.nombre, marca: r.marca } : null;
-  }))).filter(Boolean).slice(0, 5);
+    return ag?.filas?.[0] ? { ruta, n, filas: ag.filas } : null;
+  }))).filter(Boolean);
 
-  // El trayecto con mas puntos de la temporada (el mes en curso): los veinte
-  // con mas puntos de siempre, y de esos el primero verificado de este mes.
-  let mejorViaje = null;
+  // El trayecto con mas puntos del mes en curso (los 60 con mas puntos de
+  // siempre y, de esos, el primero verificado este mes).
+  let viajes = [];
   try {
-    const mes = diaMadrid().slice(0, 7);
     const snap = await getDocs(query(collection(db, 'tiempos_viaje'), orderBy('puntos', 'desc'), limit(60)));
-    mejorViaje = snap.docs.map((d) => d.data())
-      .find((v) => v.estado === 'aprobado' && String(v.fechaViaje || '').startsWith(mes)) || null;
+    viajes = snap.docs.map((d) => d.data()).filter((v) => v.estado === 'aprobado');
   } catch (error) {
-    console.debug('Sin trayecto con mas puntos', error);
+    console.debug('Sin viajes', error);
   }
 
   let rutaSemana = null;
-  if (general?.rutaDestacada) {
-    const ag = await leer(`agregados/ruta-${general.rutaDestacada}`);
-    const deSemana = ag?.semanaDesde === lunesDeLaSemana();
+  if (general?.rutaDestacada) rutaSemana = { ruta: general.rutaDestacada, ag: await leer(`agregados/ruta-${general.rutaDestacada}`) };
+
+  crudo = { rankings, ligas, general, rutas, viajes, mapa: mapaAg, portada, rutaSemana };
+}
+
+/** Lo que pintan las piezas, con los pilotos ocultos ya tachados. */
+function datosDePiezas() {
+  const hoy = diaMadrid();
+  const [anio, mesN] = hoy.split('-').map(Number);
+  const mes = MESES[mesN - 1];
+  const ultimo = new Date(Date.UTC(anio, mesN, 0)).getUTCDate();
+  const clanesInfo = crudo.mapa?.clanes || {};
+  const colorClan = (id) => (/^#[0-9a-f]{6}$/i.test(clanesInfo[id]?.color || '') ? clanesInfo[id].color : '#B3AFA5');
+  const r = crudo.rankings;
+  const n = (f) => piloto(f?.nombre || '—');
+
+  const campeones = [
+    { m: 'sprint', modo: 'Sprint · el más rápido', uni: 'puntos de sprint', v: (f) => miles(f.puntos) },
+    { m: 'fondo', modo: 'Fondo · el que más rueda', uni: `km en ${mes}`, v: (f) => miles(f.puntos) },
+    { m: 'constancia', modo: 'Constancia · quien nunca falla', uni: 'días seguidos', v: (f) => String(f.puntos) },
+  ].map((c) => {
+    const f = r[c.m][0];
+    return { modo: c.modo, uni: c.uni, n: f ? n(f) : '—', v: f ? c.v(f) : '0', extra: f?.viajes ? `${miles(f.viajes)} trayectos verificados` : '' };
+  });
+
+  const top = r.general.slice(0, 10).map((f, i) => ({ p: String(i + 1), n: n(f), c: colorClan(f.clan), v: miles(f.puntos) }));
+
+  const mesTexto = hoy.slice(0, 7);
+  const v = crudo.viajes.find((x) => String(x.fechaViaje || '').startsWith(mesTexto)) || null;
+  const viaje = v ? { ...v, x2: v.ruta === crudo.general?.rutaDestacada } : null;
+
+  const lunes = lunesDeLaSemana();
+  const domingo = sumarDias(lunes, 6);
+  const fc = (f) => `${Number(f.slice(8))} ${MESES_CORTOS[Number(f.slice(5, 7)) - 1]}`;
+  const numSemana = Math.ceil(((Date.parse(`${lunes}T12:00:00Z`) - Date.UTC(anio, 0, 1)) / 864e5 + new Date(Date.UTC(anio, 0, 1)).getUTCDay() + 1) / 7);
+
+  const rutas = crudo.rutas.map((x) => {
+    const [o, d] = tramoDe(x.ruta);
+    const rec = x.filas[0];
+    const nuevo = rec.fecha && rec.fecha >= lunes;
+    const semanas = rec.fecha ? Math.max(1, Math.round((Date.parse(`${hoy}T12:00:00Z`) - Date.parse(`${rec.fecha}T12:00:00Z`)) / (7 * 864e5))) : null;
+    return {
+      a: corto(nombreDe(o)), b: corto(nombreDe(d)), t: formatearTiempo(rec.marca), n: piloto(rec.nombre), nuevo,
+      d: nuevo ? 'récord de esta semana' : semanas ? `aguanta ${semanas} ${semanas === 1 ? 'semana' : 'semanas'}` : 'récord',
+      info: `${miles(x.n)} tiempos · ${piloto(rec.nombre)}`,
+    };
+  });
+
+  const ganadores = {};
+  for (const k of NIVELES) {
+    const nivel = crudo.ligas?.niveles?.find((x) => x.nivel === k);
+    const p = nivel?.grupos?.[0]?.podio?.[0];
+    if (p) ganadores[k] = { n: piloto(p.nombre), v: miles(p.puntos) };
+  }
+
+  // Clanes y mapa.
+  const est = crudo.mapa?.estaciones || {};
+  const porClan = {};
+  let disputadas = 0;
+  const coloresMapa = {};
+  for (const [cod, e] of Object.entries(est)) {
+    if (e.disputa) disputadas++;
+    if (e.clan) { porClan[e.clan] = (porClan[e.clan] || 0) + 1; coloresMapa[cod] = colorClan(e.clan); }
+  }
+  const clanes = Object.entries(porClan).sort((a, b) => b[1] - a[1]).map(([cid, v2]) => ({ n: clanesInfo[cid]?.nombre || 'Clan', c: colorClan(cid), v: v2, id: cid }));
+  const totalEstaciones = Object.keys(ESTACIONES).length;
+  const dominadas = clanes.reduce((t, c) => t + c.v, 0);
+  const iniciales = (t) => String(t).split(/\s+/).map((p) => p[0] || '').join('').slice(0, 2).toUpperCase();
+  const clanMov = clanes.slice(0, 3).map((c, i) => ({
+    ini: iniciales(c.n), c: c.c, n: c.n,
+    t: ['Más estaciones en su poder', 'Segundo en el mapa', 'Tercero en el mapa'][i], v: String(c.v),
+  }));
+
+  // Momentos (los que existen de verdad en la web).
+  const rec = {};
+  for (const x of crudo.rutas) rec[x.filas[0].nombre] = (rec[x.filas[0].nombre] || 0) + 1;
+  const masRecords = Object.entries(rec).sort((a, b) => b[1] - a[1])[0];
+  const masViajes = [...r.general].sort((a, b) => (b.viajes || 0) - (a.viajes || 0))[0];
+  const hitos = [
+    { t: 'La racha más larga sigue viva', v: r.constancia[0] ? `${r.constancia[0].puntos} días` : '—', n: n(r.constancia[0]) },
+    { t: 'Más rutas con récord a su nombre', v: masRecords ? String(masRecords[1]) : '—', n: masRecords ? piloto(masRecords[0]) : '—' },
+    { t: 'Más kilómetros este mes', v: r.fondo[0] ? `${miles(r.fondo[0].puntos)} km` : '—', n: n(r.fondo[0]) },
+    { t: 'Más trayectos verificados', v: masViajes?.viajes ? miles(masViajes.viajes) : '—', n: n(masViajes) },
+  ];
+
+  const km = r.fondo.reduce((t, f) => t + (Number(f.puntos) || 0), 0);
+  const cifras = [
+    { v: miles(crudo.portada?.viajes || 0), t: 'trayectos verificados' },
+    { v: miles(crudo.portada?.pilotos || 0), t: `pilotos compitiendo · ${miles(crudo.portada?.usuarios || 0)} cuentas` },
+    { v: miles(Object.keys(est).length), t: `de ${totalEstaciones} estaciones con dueño o en disputa` },
+    { v: miles(crudo.portada?.rutas || 0), t: 'rutas distintas con tiempo' },
+  ];
+
+  let rutaSemana = null;
+  if (crudo.rutaSemana) {
+    const ag = crudo.rutaSemana.ag;
+    const filas = ag?.semanaDesde === lunes ? ag.semana || [] : [];
+    const recH = ag?.filas?.[0];
+    const [o, d] = tramoDe(crudo.rutaSemana.ruta);
+    const a = ESTACIONES[o] || ESTACIONES[String(Number(o))];
+    const b = ESTACIONES[d] || ESTACIONES[String(Number(d))];
+    const kmR = a && b ? (Math.hypot((a.lat - b.lat) * 111, (a.lon - b.lon) * 85) * 1.35) : null;
     rutaSemana = {
-      ruta: general.rutaDestacada,
-      filas: deSemana ? ag.semana || [] : [],
-      pilotos: deSemana ? ag.semanaPilotos || 0 : 0,
+      ruta: crudo.rutaSemana.ruta,
+      km: kmR ? `${coma(kmR)} km` : null,
+      rec: recH ? formatearTiempo(recH.marca) : null,
+      recN: recH ? piloto(recH.nombre) : null,
+      top: (filas.length ? filas : ag?.filas?.slice(1) || []).slice(0, 4).map((f, i) => ({ p: String(filas.length ? i + 1 : i + 2), n: piloto(f.nombre), t: formatearTiempo(f.marca) })),
     };
   }
 
-  datos = {
-    rankings: Object.fromEntries(modos.map((m, i) => [m, rankings[i]?.filas || []])),
-    ligas,
-    reyes,
-    mejorViaje,
+  return {
+    mes, anio, mesSiguiente: MESES[mesN % 12],
+    cerrada: false,
+    cierre: `${mayus(MESES[mesN % 12])} empieza el día 1`,
+    periodoTexto: `1 – ${ultimo} ${MESES_CORTOS[mesN - 1]} ${anio}`,
+    semana: `Semana ${numSemana} · ${fc(lunes)} – ${fc(domingo)}`,
+    campeones, top, viaje, rutas, rutasMes: rutas, ganadores, hitos, km, cifras,
+    pilotos: crudo.portada?.pilotos || 0,
+    clanes, clanMov, coloresMapa, totalEstaciones, numClanes: Object.keys(clanesInfo).length, dominadas, disputadas,
+    libres: Math.max(0, totalEstaciones - dominadas),
     rutaSemana,
   };
 }
 
-// --- Controles ---------------------------------------------------------------------------
+/** Los nombres que salen en alguna pieza, para poder ocultarlos. */
+function pilotosQueSalen() {
+  const r = crudo.rankings;
+  const nombres = new Set();
+  for (const m of ['sprint', 'fondo', 'constancia']) if (r[m][0]) nombres.add(r[m][0].nombre);
+  r.general.slice(0, 10).forEach((f) => nombres.add(f.nombre));
+  crudo.rutas.forEach((x) => nombres.add(x.filas[0].nombre));
+  crudo.ligas?.niveles?.forEach((n) => { const p = n.grupos?.[0]?.podio?.[0]; if (p) nombres.add(p.nombre); });
+  if (crudo.viajes[0]?.username) nombres.add(crudo.viajes[0].username);
+  return [...nombres].filter(Boolean).sort((a, b) => a.localeCompare(b));
+}
+
+// --- Vista previa y PNG ------------------------------------------------------------------
+
+let piezaActiva = 'campeones';
+let laminas = [];
 
 function pintarControles() {
-  reemplazar(id('piezas'), Object.entries(TITULOS).map(([clave, titulo]) => el('button', {
-    attrs: { type: 'button', 'aria-pressed': String(clave === piezaActiva) },
-    on: { click: () => { piezaActiva = clave; pintarControles(); dibujar().catch(fallar); } },
-  }, [el('span', { texto: titulo })])));
-  id('formato-historia').setAttribute('aria-pressed', String(formato === 'historia'));
-  id('formato-post').setAttribute('aria-pressed', String(formato === 'post'));
+  reemplazar(id('piezas'), Object.entries(PIEZAS).map(([clave, p]) => el('button', {
+    clase: 'redes-pieza', attrs: { type: 'button', 'aria-pressed': String(clave === piezaActiva) },
+    on: { click: () => { piezaActiva = clave; pintarControles(); pintar(); } },
+  }, [el('span', { texto: p.titulo }), el('span', { clase: 'redes-formato', texto: p.formato })])));
+  reemplazar(id('pilotos'), pilotosQueSalen().map((nombre) => el('label', { clase: 'redes-piloto' }, [
+    el('input', {
+      attrs: { type: 'checkbox', ...(ocultos.has(nombre) ? {} : { checked: '' }) },
+      on: { change: (e) => { if (e.target.checked) ocultos.delete(nombre); else ocultos.add(nombre); pintar(); } },
+    }),
+    el('span', { texto: nombre }),
+  ])));
 }
 
-function descargarActual(pieza = piezaActiva) {
-  return new Promise((ok) => {
-    lienzo.toBlob((blob) => {
-      if (!blob) { ok(); return; }
-      const url = URL.createObjectURL(blob);
-      const a = el('a', { attrs: { href: url, download: `bicifastness-${pieza}-${FORMATOS[formato].etiqueta}-${diaMadrid()}.png` } });
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      ok();
-    }, 'image/png');
-  });
-}
-
-const fallar = (error) => { estado(id('mensaje'), 'No se ha podido dibujar la pieza.', 'error'); console.debug(error); };
-
-id('formato-historia').addEventListener('click', () => { formato = 'historia'; pintarControles(); dibujar().catch(fallar); });
-id('formato-post').addEventListener('click', () => { formato = 'post'; pintarControles(); dibujar().catch(fallar); });
-id('btn-descargar').addEventListener('click', () => descargarActual());
-id('btn-todas').addEventListener('click', async () => {
-  for (const pieza of Object.keys(TITULOS)) {
-    await dibujar(pieza);
-    await descargarActual(pieza);
+function pintar() {
+  const pieza = PIEZAS[piezaActiva];
+  laminas = pieza.laminas(datosDePiezas());
+  const total = laminas.reduce((t, l) => t + (l.cortes || 1), 0);
+  id('vista-titulo').textContent = `Vista previa · ${pieza.titulo.toLowerCase()}`;
+  const [l0] = laminas;
+  id('vista-medida').textContent = l0.cortes
+    ? `${l0.w} × ${l0.h} · se corta en ${l0.cortes}`
+    : `${total > 1 ? `${total} × ` : ''}${l0.w} × ${l0.h}`;
+  id('vista-nota').textContent = pieza.nota || '';
+  id('btn-descargar').textContent = total > 1 ? `Descargar ${total} PNG (zip)` : 'Descargar PNG';
+  const lienzo = id('lienzo');
+  lienzo.replaceChildren();
+  const ancho = Math.min(lienzo.clientWidth || 900, 1200) - 40;
+  for (const l of laminas) {
+    const escala = Math.min(l.cortes ? ancho / l.w : Math.min(ancho / l.w, 640 / l.h), 1);
+    const caja = document.createElement('div');
+    caja.className = 'redes-lamina';
+    caja.style.width = `${l.w * escala}px`;
+    caja.style.height = `${l.h * escala}px`;
+    const dentro = document.createElement('div');
+    dentro.style.cssText = `width:${l.w}px; height:${l.h}px; transform:scale(${escala}); transform-origin:0 0;`;
+    // El HTML de la pieza escapa cada dato con esc(); se monta como fragmento.
+    dentro.replaceChildren(document.createRange().createContextualFragment(l.html));
+    caja.append(dentro);
+    if (l.cortes) {
+      for (let i = 1; i < l.cortes; i++) {
+        const corte = document.createElement('span');
+        corte.className = 'redes-corte';
+        corte.style.left = `${(l.w * escala * i) / l.cortes}px`;
+        caja.append(corte);
+      }
+    }
+    lienzo.append(caja);
   }
-  await dibujar();
+}
+
+/** Fichero -> data: URL, para que el SVG lo lleve dentro. */
+async function aDataUrl(url, tipo) {
+  const r = await fetch(url);
+  const buf = new Uint8Array(await r.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return `data:${tipo};base64,${btoa(bin)}`;
+}
+
+let fuenteDatos = null;
+async function prepararRecursos() {
+  fuenteDatos = await aDataUrl('/assets/fonts/archivo-latin.woff2', 'font/woff2');
+  const pares = await Promise.all(NIVELES.map(async (k) => [k, await aDataUrl(`/assets/img/divisiones/${k}-oscuro.svg`, 'image/svg+xml')]));
+  INSIGNIAS = Object.fromEntries(pares);
+}
+
+/** Una lamina (HTML) a PNG del tamaño real, via SVG <foreignObject>. */
+async function aPng(l) {
+  // Dentro de <foreignObject> (XHTML) un <svg> sin su espacio de nombres no
+  // se dibuja: el anillo de fondo y el logo se quedaban fuera del PNG.
+  const xhtml = l.html.replace(/&nbsp;/g, '&#160;').replace(/<svg (?!xmlns)/g, '<svg xmlns="http://www.w3.org/2000/svg" ');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${l.w}" height="${l.h}"><foreignObject width="100%" height="100%">`
+    + `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${l.w}px; height:${l.h}px; font-family:Archivo,system-ui,sans-serif; -webkit-font-smoothing:antialiased;">`
+    + `<style>@font-face{font-family:'Archivo';src:url(${fuenteDatos}) format('woff2');font-weight:100 900;font-stretch:62% 125%;}*{box-sizing:border-box}</style>`
+    + `${xhtml}</div></foreignObject></svg>`;
+  const img = new Image();
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  await img.decode();
+  // El navegador a veces pinta antes de aplicar la letra incrustada: una pausa
+  // corta y se vuelve a dibujar es lo que la deja bien siempre.
+  await new Promise((ok) => setTimeout(ok, 120));
+  const lienzo = document.createElement('canvas');
+  lienzo.width = l.w;
+  lienzo.height = l.h;
+  const ctx = lienzo.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const trozos = l.cortes || 1;
+  const salida = [];
+  for (let i = 0; i < trozos; i++) {
+    const c = document.createElement('canvas');
+    c.width = l.w / trozos;
+    c.height = l.h;
+    c.getContext('2d').drawImage(lienzo, (l.w / trozos) * i, 0, c.width, c.height, 0, 0, c.width, c.height);
+    salida.push(await new Promise((ok) => c.toBlob(ok, 'image/png')));
+  }
+  return salida;
+}
+
+// --- Zip sin compresion (los PNG ya van comprimidos) ---------------------------------------
+
+const TABLA_CRC = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
 });
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (const b of bytes) c = TABLA_CRC[(c ^ b) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+async function zip(ficheros) {
+  const partes = [];
+  const central = [];
+  let desplaz = 0;
+  const enc = new TextEncoder();
+  for (const { nombre, blob } of ficheros) {
+    const datos = new Uint8Array(await blob.arrayBuffer());
+    const n = enc.encode(nombre);
+    const crc = crc32(datos);
+    const cab = new DataView(new ArrayBuffer(30));
+    cab.setUint32(0, 0x04034b50, true); cab.setUint16(4, 20, true); cab.setUint32(14, crc, true);
+    cab.setUint32(18, datos.length, true); cab.setUint32(22, datos.length, true); cab.setUint16(26, n.length, true);
+    partes.push(new Uint8Array(cab.buffer), n, datos);
+    const cen = new DataView(new ArrayBuffer(46));
+    cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 20, true); cen.setUint16(6, 20, true); cen.setUint32(16, crc, true);
+    cen.setUint32(20, datos.length, true); cen.setUint32(24, datos.length, true); cen.setUint16(28, n.length, true); cen.setUint32(42, desplaz, true);
+    central.push(new Uint8Array(cen.buffer), n);
+    desplaz += 30 + n.length + datos.length;
+  }
+  const tamCentral = central.reduce((t, p) => t + p.length, 0);
+  const fin = new DataView(new ArrayBuffer(22));
+  fin.setUint32(0, 0x06054b50, true); fin.setUint16(8, ficheros.length, true); fin.setUint16(10, ficheros.length, true);
+  fin.setUint32(12, tamCentral, true); fin.setUint32(16, desplaz, true);
+  return new Blob([...partes, ...central, new Uint8Array(fin.buffer)], { type: 'application/zip' });
+}
+
+function bajar(blob, nombre) {
+  const url = URL.createObjectURL(blob);
+  const a = el('a', { attrs: { href: url, download: nombre } });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+async function descargar() {
+  const boton = id('btn-descargar');
+  boton.disabled = true;
+  const texto = boton.textContent;
+  boton.textContent = 'Preparando…';
+  try {
+    const base = `bicifastness-${piezaActiva}-${diaMadrid()}`;
+    const pngs = (await Promise.all(laminas.map(aPng))).flat();
+    if (pngs.length === 1) bajar(pngs[0], `${base}.png`);
+    else bajar(await zip(pngs.map((blob, i) => ({ nombre: `${base}-${String(i + 1).padStart(2, '0')}.png`, blob }))), `${base}.zip`);
+  } catch (error) {
+    estado(id('mensaje'), 'No se ha podido generar el PNG en este navegador. Prueba con Chrome.', 'error');
+    console.debug(error);
+  } finally {
+    boton.disabled = false;
+    boton.textContent = texto;
+  }
+}
+
+id('btn-descargar').addEventListener('click', descargar);
+window.addEventListener('resize', () => { if (crudo) pintar(); });
 
 exigirAdmin('redes').then(async () => {
+  await Promise.all([document.fonts.load('800 100px Archivo'), cargarCrudo(), prepararRecursos()]);
+  const [anio, mes] = diaMadrid().split('-').map(Number);
+  reemplazar(id('periodo'), [el('span', { texto: `${mayus(MESES[mes - 1])} ${anio} · temporada en juego` })]);
   pintarControles();
-  // La letra de la marca tiene que estar cargada ANTES de dibujar: el canvas no
-  // espera a nadie y pintaria con la del sistema.
-  await Promise.all([document.fonts.load('800 100px Archivo'), document.fonts.load('600 40px Archivo')]).catch(() => {});
-  await cargarDatos();
-  id('nota-datos').textContent = `Datos de ${new Date().toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}. Vuelve a abrir la página para actualizarlos.`;
-  await dibujar();
-}).catch(fallar);
+  pintar();
+}).catch((error) => {
+  estado(id('mensaje'), 'No se han podido cargar los datos.', 'error');
+  console.debug(error);
+});

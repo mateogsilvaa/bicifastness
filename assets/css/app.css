@@ -3956,3 +3956,35 @@ a, button, summary, label, select, [role='button'], [role='tab'] { touch-action:
   html, body { overscroll-behavior-y: none; }
   .nav-inf, .lateral { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 }
+
+/* --- Administracion: puerta, panel y redes ---------------------------------- */
+/* Nada de la pagina se ve hasta que la puerta comprueba el rol. */
+body.adm-bloqueada main { visibility: hidden; }
+.adm-semaforo { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.adm-semaforo::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--tinta-4); }
+.adm-semaforo.ok::before { background: var(--verde); }
+.adm-semaforo.aviso::before { background: var(--ambar); }
+.adm-semaforo.mal::before { background: var(--rojo); }
+.adm-estado-lista { display: flex; flex-direction: column; }
+.adm-estado-lista > div { display: flex; justify-content: space-between; gap: var(--e3); padding: 10px 0; border-bottom: var(--borde); font-size: 14px; }
+.adm-estado-lista > div:last-child { border-bottom: 0; }
+.adm-estado-lista span:last-child { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.adm-acciones { display: flex; flex-wrap: wrap; gap: var(--e2); }
+.adm-acciones .btn { width: auto; }
+.adm-tres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--e4); }
+.adm-divisiones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e2); }
+.adm-divisiones > div { display: flex; align-items: center; gap: var(--e2); padding: var(--e2); border-radius: 12px; background: var(--papel); font-size: 13px; }
+.adm-divisiones strong { margin-left: auto; font-variant-numeric: tabular-nums; }
+.redes-rejilla { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: var(--e5); align-items: start; }
+.redes-opciones { display: flex; flex-direction: column; gap: var(--e3); position: sticky; top: 80px; }
+.redes-opciones .segmento button[aria-pressed='true'] { background: var(--tinta); color: var(--papel); }
+.redes-lista-piezas { display: flex; flex-direction: column; gap: 6px; }
+.redes-lista-piezas button { display: flex; align-items: center; justify-content: space-between; gap: var(--e2); min-height: 44px; padding: 0 var(--e3); border: 0; border-radius: 12px; background: var(--papel-2); font: inherit; font-weight: 600; color: var(--tinta); cursor: pointer; text-align: left; }
+.redes-lista-piezas button[aria-pressed='true'] { background: var(--tinta); color: var(--papel); }
+.redes-lienzo { display: flex; justify-content: center; background: var(--papel-3); border-radius: var(--radio-tarjeta); padding: var(--e5); }
+.redes-lienzo canvas { max-width: 100%; height: auto; max-height: 78vh; border-radius: 18px; }
+@media (max-width: 1100px) {
+  .adm-tres, .adm-kpis { grid-template-columns: 1fr 1fr; }
+  .redes-rejilla { grid-template-columns: 1fr; }
+  .redes-opciones { position: static; }
+}

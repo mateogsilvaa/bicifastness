@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BiciFastness">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="Panel de control de BiciFastness.">
+<meta name="robots" content="noindex">
+<title>Panel | BiciFastness</title>
+<link rel="icon" href="/images/icono/icono.svg?v=2" type="image/svg+xml">
+<link rel="icon" href="/images/icono/icono-48.png?v=2" sizes="48x48" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png?v=2">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<main class="adm-pagina" id="principal">
+  <div class="fila separada">
+    <div>
+      <h1 class="d2" style="margin: 0;">Panel de control</h1>
+      <p class="menor apagado" id="actualizado"></p>
+    </div>
+    <button class="btn secundario" id="btn-recargar" type="button" style="width: auto;">Recargar</button>
+  </div>
+  <p class="mensaje" id="mensaje" aria-live="polite"></p>
+
+  <!-- Lo que pide atencion hoy: gente, trayectos, revision y denuncias. -->
+  <div class="adm-kpis" id="kpis"></div>
+
+  <div class="adm-tres">
+    <section class="adm-tarjeta" aria-labelledby="t-sistema">
+      <h2 id="t-sistema">Sistema</h2>
+      <div class="adm-estado-lista" id="sistema"></div>
+    </section>
+    <section class="adm-tarjeta" aria-labelledby="t-liga">
+      <h2 id="t-liga">Liga en juego</h2>
+      <div id="liga"></div>
+    </section>
+    <section class="adm-tarjeta" aria-labelledby="t-semana">
+      <h2 id="t-semana">Ruta de la semana</h2>
+      <div id="ruta-semana"></div>
+    </section>
+  </div>
+
+  <div class="adm-dos">
+    <section class="adm-tarjeta" aria-labelledby="t-atajos">
+      <h2 id="t-atajos">Accesos</h2>
+      <div class="adm-acciones" id="atajos"></div>
+    </section>
+    <section class="adm-tarjeta" aria-labelledby="t-registro">
+      <h2 id="t-registro">Registro de administración</h2>
+      <p class="menor apagado">Las últimas acciones y entradas. No se puede editar ni borrar.</p>
+      <div class="adm-estado-lista" id="registro"></div>
+    </section>
+  </div>
+</main>
+<script type="module" src="/assets/js/paginas/admin-panel.js"></script>
+</body>
+</html>

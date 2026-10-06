@@ -199,6 +199,10 @@ function alcanzada(ins, datos) {
   return Boolean(ins.regla) && (Number(datos[ins.regla.campo]) || 0) >= ins.regla.minimo;
 }
 
+/** Si quien mira es administrador (sale de su token, no del perfil). */
+let esAdministrador = false;
+export function marcarAdministrador(valor) { esAdministrador = Boolean(valor); }
+
 /**
  * Las entradas a las subpantallas.
  * @param {object} detalles  { enRevision }: lo que cuesta una lectura llega aparte
@@ -213,6 +217,9 @@ export function pintarMenu(perfil, { enRevision = 0 } = {}) {
       detalle: `${numero(perfil.puntosTemporada || 0)} pts este mes` },
     { href: '#rutas', icono: 'pin', texto: 'Rutas ancladas',
       detalle: `${(perfil.favoritas || []).length} de 3` },
+    // Solo para administradores, y solo es un enlace: la puerta de verdad
+    // esta en cada pagina de /admin/ y en las reglas de Firestore.
+    ...(esAdministrador ? [{ href: '/admin/panel/', icono: 'ajustes', texto: 'Administración', detalle: 'Panel' }] : []),
   ];
 
   reemplazar(document.getElementById('menu'), entradas.map((e) => el('a', { attrs: { href: e.href } }, [

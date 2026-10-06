@@ -370,9 +370,12 @@ test('las cuatro paginas legales existen y marcan lo que falta rellenar', () => 
     assert.ok(html.length > 1500, `legal/${doc} parece incompleto`);
     assert.match(html, /pie-legal/, `legal/${doc} no monta el pie legal`);
   }
+  // El responsable es la marca, BiciFastness, con su correo: no puede quedar
+  // ningun hueco "[POR RELLENAR]" en lo que se publica.
   for (const doc of ['aviso-legal', 'privacidad', 'terminos']) {
-    assert.match(leer(`legal/${doc}/index.html`), /class="pendiente"/,
-      `legal/${doc} deberia marcar los datos pendientes del responsable`);
+    const html = leer(`legal/${doc}/index.html`);
+    assert.ok(!/class="pendiente"|\[(NOMBRE|NIF|CORREO|DIRECCION)/.test(html), `legal/${doc} tiene datos sin rellenar`);
+    assert.match(html, /BiciFastness/);
   }
 });
 
@@ -3209,4 +3212,11 @@ test('del 4.º al 6.º viaje del dia se verifican sin puntos, no se rechazan (03
 
   const puntuacion = leerCodigo('backend/src/puntuacion.js');
   assert.match(puntuacion, /viajesSinPuntos/, 'el biciRating contaria los viajes sin puntos');
+});
+
+test('el worker sabe contra que proyecto trabaja la web y avisa si no es el suyo', () => {
+  const web = leer('assets/js/firebase.js').match(/projectId: '([^']+)'/)[1];
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, new RegExp(`PROYECTO_DE_LA_WEB = '${web}'`), 'el proyecto del worker y el de la web no coinciden');
+  assert.match(worker, /cuenta\.project_id/, 'el worker no dice en el log contra que proyecto trabaja');
 });

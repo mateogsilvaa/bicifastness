@@ -58,6 +58,9 @@ const clanes = require('./src/clan-mantenimiento');
 const agregados = require('./src/agregados');
 const push = require('./src/push');
 const almacen = require('./src/db');
+/** El proyecto de Firebase de la web (`projectId` en assets/js/firebase.js). */
+const PROYECTO_DE_LA_WEB = 'bicifastness';
+
 const misiones = require('./src/misiones');
 const divisiones = require('./src/divisiones');
 const denuncias = require('./src/denuncias');
@@ -136,6 +139,17 @@ function arrancar() {
   } catch {
     console.error('FIREBASE_SERVICE_ACCOUNT no es un JSON valido.');
     process.exit(1);
+  }
+
+  // El proyecto sale de la cuenta de servicio, no de un ajuste: si el secreto
+  // es de otro proyecto, el worker verifica la cola de OTRA base de datos y la
+  // web se queda con sus viajes pendientes para siempre, sin ningun error. Se
+  // dice en cada ejecucion para que se vea en el log.
+  const proyecto = cuenta.project_id || '(sin project_id)';
+  console.log(`Proyecto de Firebase: ${proyecto}`);
+  if (proyecto !== PROYECTO_DE_LA_WEB) {
+    console.log(`::warning::El worker trabaja contra "${proyecto}" y la web contra "${PROYECTO_DE_LA_WEB}". `
+      + 'Los viajes que sube la gente no se van a verificar. Cambia el secreto FIREBASE_SERVICE_ACCOUNT.');
   }
 
   admin.initializeApp({ credential: admin.credential.cert(cuenta) });

@@ -84,6 +84,9 @@ modo mantenimiento no protege ni un dato. Lo unico que protege son las reglas.
 - [ ] `RECAPTCHA_SITE_KEY` puesta en `assets/js/firebase.js`
 - [ ] App Check en modo obligatorio para Firestore, **despues** de comprobar que
       el worker no se ve afectado: el Admin SDK no pasa por App Check
+- [ ] La clave de API de la web admite `https://bicifastness.firebaseapp.com/*`
+      (Google Cloud → Credenciales). Sin esto Google no entra: ver
+      PUESTA-EN-MARCHA.md, 8.2 bis
 - [ ] Authentication → Sign-in method → Google habilitado. El boton ya esta en
       `/entrar/`, `/register/` y la portada
 

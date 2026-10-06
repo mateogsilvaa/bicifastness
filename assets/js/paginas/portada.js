@@ -94,7 +94,7 @@ async function pintarPortadaPublica() {
       el('span', { clase: 'rp-movil' }, [
         el('span', { clase: 'punto-vivo', attrs: { 'aria-hidden': 'true' } }),
         el('span', { clase: 'texto' }, [
-          el('span', { texto: 'Ruta del día: ' }),
+          el('span', { texto: 'Ruta de la semana: ' }),
           // 1a: en una fila, sin la segunda parte de cada estacion.
           el('strong', { texto: nombre.replace(/ - [^→]*/g, ' ').replace(/\s+→/, ' →').trim() }),
           el('span', { clase: 'detalle', texto: `${cuantos} · ${marca}` }),
@@ -105,7 +105,7 @@ async function pintarPortadaPublica() {
         el('span', { clase: 'rp-cabeza' }, [
           el('span', { clase: 'rp-etiqueta' }, [
             el('span', { clase: 'punto-vivo', attrs: { 'aria-hidden': 'true' } }),
-            'Ruta del día · en vivo',
+            'Ruta de la semana · en vivo',
           ]),
           el('span', { clase: 'x2', texto: '×2' }),
         ]),

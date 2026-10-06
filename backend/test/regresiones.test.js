@@ -370,9 +370,12 @@ test('las cuatro paginas legales existen y marcan lo que falta rellenar', () => 
     assert.ok(html.length > 1500, `legal/${doc} parece incompleto`);
     assert.match(html, /pie-legal/, `legal/${doc} no monta el pie legal`);
   }
+  // El responsable es la marca, BiciFastness, con su correo: no puede quedar
+  // ningun hueco "[POR RELLENAR]" en lo que se publica.
   for (const doc of ['aviso-legal', 'privacidad', 'terminos']) {
-    assert.match(leer(`legal/${doc}/index.html`), /class="pendiente"/,
-      `legal/${doc} deberia marcar los datos pendientes del responsable`);
+    const html = leer(`legal/${doc}/index.html`);
+    assert.ok(!/class="pendiente"|\[(NOMBRE|NIF|CORREO|DIRECCION)/.test(html), `legal/${doc} tiene datos sin rellenar`);
+    assert.match(html, /BiciFastness/);
   }
 });
 
@@ -1867,12 +1870,27 @@ test('las misiones son las mismas para todo el mundo', () => {
   assert.match(hasta, /allow write: if false/);
 });
 
-test('la ruta del dia se fija una vez al dia', () => {
-  // Cambiarla a media mañana invalidaria la clasificacion diaria que la gente
-  // ya esta compitiendo.
+test('la ruta destacada se fija una vez por semana', () => {
+  // Cambiarla a mitad de semana invalidaria la clasificacion de la semana que
+  // la gente ya esta compitiendo.
   const worker = leerCodigo('backend/worker.js');
-  assert.match(worker, /if \(datos\.rutaDestacadaDia === hoy\) return;/);
-  assert.match(worker, /rutaDestacadaDia: hoy/);
+  assert.match(worker, /const semana = lunesDe\(new Date\(\)\);/);
+  assert.match(worker, /if \(datos\.rutaDestacadaSemana === semana\) return;/);
+  assert.match(worker, /rutaDestacadaSemana: semana/);
+  // Y la tabla de la ruta es la de la semana, desde el lunes.
+  const agregados = leerCodigo('backend/src/agregados.js');
+  assert.match(agregados, /semanaDesde: lunes/);
+});
+
+test('el lunes de la semana es el mismo en el navegador y en el worker', async () => {
+  const { lunesDe } = require('../src/util');
+  const dia = await import(`file://${path.join(RAIZ, 'assets', 'js', 'dia.js')}`);
+  for (let d = 0; d < 21; d++) {
+    const fecha = new Date(Date.UTC(2026, 10, 1 + d, 11));
+    assert.strictEqual(dia.lunesDeLaSemana(fecha), lunesDe(fecha), fecha.toISOString());
+  }
+  assert.strictEqual(dia.diasHastaFinDeSemana(new Date('2026-11-08T11:00:00Z')), 1, 'el domingo queda uno');
+  assert.strictEqual(dia.diasHastaFinDeSemana(new Date('2026-11-02T11:00:00Z')), 7, 'el lunes quedan siete');
 });
 
 test('el panel de inicio pone primero lo que se puede perder', () => {
@@ -3209,4 +3227,11 @@ test('del 4.º al 6.º viaje del dia se verifican sin puntos, no se rechazan (03
 
   const puntuacion = leerCodigo('backend/src/puntuacion.js');
   assert.match(puntuacion, /viajesSinPuntos/, 'el biciRating contaria los viajes sin puntos');
+});
+
+test('el worker sabe contra que proyecto trabaja la web y avisa si no es el suyo', () => {
+  const web = leer('assets/js/firebase.js').match(/projectId: '([^']+)'/)[1];
+  const worker = leerCodigo('backend/worker.js');
+  assert.match(worker, new RegExp(`PROYECTO_DE_LA_WEB = '${web}'`), 'el proyecto del worker y el de la web no coinciden');
+  assert.match(worker, /cuenta\.project_id/, 'el worker no dice en el log contra que proyecto trabaja');
 });

@@ -27,6 +27,22 @@ export function diaMadrid(fecha = new Date()) {
   return FORMATO.format(fecha);
 }
 
+/**
+ * El lunes de la semana (de Madrid) del dia dado, como 'YYYY-MM-DD'. Pareja de
+ * `util.lunesDe` en el backend: la ruta destacada es de lunes a domingo.
+ */
+export function lunesDeLaSemana(fecha = new Date()) {
+  const dia = diaMadrid(fecha);
+  const desdeLunes = (new Date(`${dia}T12:00:00Z`).getUTCDay() + 6) % 7;
+  return sumarDias(dia, -desdeLunes);
+}
+
+/** Dias que quedan hasta el domingo, contando hoy (domingo: 1). */
+export function diasHastaFinDeSemana(fecha = new Date()) {
+  const dia = diaMadrid(fecha);
+  return 7 - ((new Date(`${dia}T12:00:00Z`).getUTCDay() + 6) % 7);
+}
+
 /** Suma dias a una fecha 'YYYY-MM-DD' (a mediodia UTC, sin lios de horario). */
 export function sumarDias(fecha, n) {
   const d = new Date(`${fecha}T12:00:00Z`);

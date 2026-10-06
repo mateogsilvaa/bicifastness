@@ -148,16 +148,17 @@ completarlas.
 
 ---
 
-## Ruta del dia
+## Ruta de la semana
 
-El worker elige cada dia un tramo con historial suficiente y le pone
-`multiplicadorRuta = 2`. Su clasificacion **se muestra aparte y solo cuenta ese
-dia**.
+El worker elige cada lunes un tramo (el del plan del año,
+`data/rutas-destacadas.csv`, o uno con historial suficiente) y le pone
+`multiplicadorRuta = 2` hasta el domingo. Su clasificacion **se muestra aparte y
+solo cuenta esa semana** (lunes a domingo, dia de Madrid).
 
-Es la pieza mas importante para que alguien abra la web hoy: un ranking que
-empieza vacio cada manana es un ranking que puede ganar cualquiera, incluido
-quien se registro ayer. Los records historicos del tramo siguen intactos, en su
-propia tabla.
+Semanal y no diaria: en un dia solo la hace quien ya pasaba por ahi; en una
+semana da tiempo a ir a por ella. Y un ranking que empieza vacio cada lunes lo
+puede ganar cualquiera, incluido quien se registro ayer. Los records historicos
+del tramo siguen intactos, en su propia tabla.
 
 ---
 

@@ -112,7 +112,7 @@ const FILAS = [
 
 const MULTIPLICADORES = [
   ['multiplicadorRacha', 'Racha'],
-  ['multiplicadorRuta', 'Ruta del dia'],
+  ['multiplicadorRuta', 'Ruta de la semana'],
   ['multiplicadorTerritorio', 'Territorio propio'],
 ];
 

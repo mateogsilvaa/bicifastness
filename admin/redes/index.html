@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BiciFastness">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="Generador de historias y posts de BiciFastness.">
+<meta name="robots" content="noindex">
+<title>Redes | BiciFastness</title>
+<link rel="icon" href="/images/icono/icono.svg?v=2" type="image/svg+xml">
+<link rel="icon" href="/images/icono/icono-48.png?v=2" sizes="48x48" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png?v=2">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<main class="adm-pagina" id="principal">
+  <div>
+    <h1 class="d2" style="margin: 0;">Redes</h1>
+    <p class="menor apagado">Historias y posts para Instagram con los datos de verdad de BiciFastness. Elige la pieza y el formato, y descárgala en PNG.</p>
+  </div>
+  <p class="mensaje" id="mensaje" aria-live="polite"></p>
+  <div class="redes-rejilla">
+    <div class="redes-opciones">
+      <div class="segmento dos" role="group" aria-label="Formato">
+        <button type="button" id="formato-historia" aria-pressed="true">Historia 9:16</button>
+        <button type="button" id="formato-post" aria-pressed="false">Post 4:5</button>
+      </div>
+      <div class="redes-lista-piezas" id="piezas" role="group" aria-label="Pieza"></div>
+      <button class="btn" type="button" id="btn-descargar">Descargar PNG</button>
+      <button class="btn secundario" type="button" id="btn-todas">Descargar todas</button>
+      <p class="menor apagado" id="nota-datos"></p>
+    </div>
+    <div class="redes-lienzo"><canvas id="lienzo" width="1080" height="1920" aria-label="Vista previa de la pieza"></canvas></div>
+  </div>
+</main>
+<script type="module" src="/assets/js/paginas/admin-redes.js"></script>
+</body>
+</html>

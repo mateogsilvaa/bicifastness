@@ -10,6 +10,10 @@
 import { entrarConGoogle, getAdditionalUserInfo, traducirErrorAuth } from './firebase.js';
 import { estado } from './dom.js';
 import { anotar, volcar } from './metricas.js';
+import { registrar } from './errores.js';
+
+/** Lo que hace la persona, no un fallo: no se apunta como error. */
+const DE_LA_PERSONA = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/popup-blocked']);
 
 /**
  * @param {HTMLButtonElement} boton
@@ -37,6 +41,15 @@ export function montarBotonGoogle(boton, mensaje, { alEmpezar, alFallar } = {}) 
       boton.disabled = false;
       alFallar?.();
       estado(mensaje, traducirErrorAuth(error), 'error');
+      // Que llegue al panel de errores con su codigo: "Google no funciona" sin
+      // codigo no se puede arreglar. Solo el codigo y el mensaje de Firebase,
+      // nada de la cuenta.
+      if (!DE_LA_PERSONA.has(error?.code)) {
+        // El mensaje de Firebase va en la pila, que es el campo libre que admiten
+        // las reglas de `errores_cliente`.
+        registrar(`Entrar con Google: ${error?.code || 'sin codigo'}`, String(error?.message || '').slice(0, 300))
+          .catch(() => {});
+      }
     }
   });
 }

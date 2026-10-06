@@ -18,7 +18,7 @@ import { el, icono, reemplazar, abrirHoja } from '/assets/js/dom.js';
 import { nombreEstacion, formatearTiempo, kmEstimados, atajoCompartir } from '/assets/js/ui.js';
 import { traerAgregado, puestoPorMarca } from '/assets/js/agregados.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
-import { diaMadrid, diaMadridHace, minutosMadrid } from '/assets/js/dia.js';
+import { diaMadrid, lunesDeLaSemana, diasHastaFinDeSemana, diaMadridHace, minutosMadrid } from '/assets/js/dia.js';
 import { INSIGNIAS } from '/assets/data/insignias.js';
 import { destacar } from '/assets/js/celebrar.js';
 import { anilloSemana, estadosSemana, activoHoy } from '/assets/js/anillo.js';
@@ -498,7 +498,9 @@ async function pintarRutaDelDia(perfil) {
     const ruta = (await configGeneral())?.rutaDestacada;
     if (!ruta) { reemplazar(destino); return; }
     const agregado = await traerAgregado(`ruta-${ruta}`).catch(() => null);
-    const deHoy = agregado?.hoyDia === diaMadrid() ? (agregado.hoy || []) : [];
+    // La de esta semana; una tabla de la semana pasada no se enseña.
+    const deHoy = agregado?.semanaDesde === lunesDeLaSemana() ? (agregado.semana || []) : [];
+    const quedan = diasHastaFinDeSemana();
     const mia = deHoy.find((f) => f.nombre === perfil.username);
     const [a, b] = ruta.split('-');
     const distancia = kmEstimados(a, b);
@@ -508,10 +510,12 @@ async function pintarRutaDelDia(perfil) {
       clase: 'tarjeta-ruta-dia', attrs: { href: `/clasificacion/?ruta=${encodeURIComponent(ruta)}` },
     }, [
       el('div', { clase: 'fila-cola' }, [
-        el('span', { clase: 'x2', texto: 'Ruta del día · ×2' }),
+        el('span', { clase: 'x2', texto: 'Ruta de la semana · ×2' }),
         el('span', { clase: 'cierra' }, [
-          `cierra en ${Math.floor(minutosHastaMedianoche() / 60)} h`,
-          el('span', { clase: 'solo-movil-i', texto: ` ${minutosHastaMedianoche() % 60} min` }),
+          quedan === 1
+            ? `cierra en ${Math.floor(minutosHastaMedianoche() / 60)} h`
+            : `cierra en ${quedan} días`,
+          quedan === 1 ? el('span', { clase: 'solo-movil-i', texto: ` ${minutosHastaMedianoche() % 60} min` }) : null,
         ]),
       ]),
       el('div', { clase: 'ruta-dia-nombre' }, [
@@ -530,20 +534,20 @@ async function pintarRutaDelDia(perfil) {
         ])),
         !deHoy.length ? el('div', { clase: 'ruta-dia-fila' }, [
           el('span', { clase: 'pos', texto: '–' }),
-          el('span', { texto: 'Nadie tiene tiempo hoy todavía' }),
+          el('span', { texto: 'Nadie tiene tiempo esta semana todavía' }),
           el('strong', { texto: '' }),
         ]) : null,
         el('div', { clase: 'ruta-dia-fila tuya' }, mia
           ? [el('span', { clase: 'pos', texto: String(mia.pos) }), el('span', { texto: 'Tú' }), el('strong', { texto: formatearTiempo(mia.marca) })]
           : [
             el('span', { clase: 'pos', texto: '–' }),
-            el('span', { texto: 'Tú, sin tiempo hoy' }),
-            el('strong', { texto: agregado?.hoyPilotos ? `${agregado.hoyPilotos} ${agregado.hoyPilotos === 1 ? 'piloto' : 'pilotos'}` : '' }),
+            el('span', { texto: 'Tú, sin tiempo esta semana' }),
+            el('strong', { texto: agregado?.semanaPilotos ? `${agregado.semanaPilotos} ${agregado.semanaPilotos === 1 ? 'piloto' : 'pilotos'}` : '' }),
           ]),
       ]),
     ]));
   } catch (error) {
-    console.debug('Sin ruta del dia', error);
+    console.debug('Sin ruta de la semana', error);
     reemplazar(destino);
   }
 }

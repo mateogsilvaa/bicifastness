@@ -130,6 +130,13 @@ ids.forEach((id, i) => {
 const divisionDePuesto = (i) => ['diamante', 'rubi', 'esmeralda', 'platino', 'oro', 'plata', 'cobre'][Math.min(6, Math.floor(i / 4))];
 const rankingPilotos = (valor) => nombres.map((n, i) => ({ pos: i + 1, nombre: n, clan: ['c1', 'c2', 'c3'][i % 3], puntos: valor(i), viajes: 40 - i, division: divisionDePuesto(i) }));
 
+// El lunes de esta semana (dia de Madrid), para la tabla de la ruta destacada.
+const lunesDeEstaSemana = (() => {
+  const d = new Date(`${hoy}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+})();
+
 const datos = {
   // Sin documento de perfil: la sesion esta, pero falta el nombre (1c).
   ...(variante === 'sinperfil' ? {} : { [`usuarios/${UID}`]: perfil }),
@@ -144,7 +151,7 @@ const datos = {
       { tipo: 'exploracion', objetivo: 1, texto: 'Termina en una estación nueva', ayuda: 'Cualquiera en la que no hayas acabado antes.', puntos: 25 },
     ],
   },
-  'agregados/ruta-124-115': { filas: ruta(401), total: 9, pagina: 1, paginas: 1, hoyDia: hoy, hoy: ruta(401).slice(0, 5).map((f, i) => ({ ...f, pos: i + 1, marca: f.marca + 5 })), hoyPilotos: 14, actualizado: hace(4) },
+  'agregados/ruta-124-115': { filas: ruta(401), total: 9, pagina: 1, paginas: 1, semanaDesde: lunesDeEstaSemana, semana: ruta(401).slice(0, 5).map((f, i) => ({ ...f, pos: i + 1, marca: f.marca + 5 })), semanaPilotos: 14, actualizado: hace(4) },
   'agregados/ruta-1-102': { filas: ruta(349), total: 9, pagina: 1, paginas: 1, actualizado: hace(4) },
   'agregados/ruta-102-124': { filas: ruta(560), total: 9, pagina: 1, paginas: 1, actualizado: hace(4) },
   'agregados/rutas': { rutas: ['124-115', '1-102', '102-124'], viajesPorRuta: { '124-115': 31, '1-102': 18, '102-124': 12 }, actualizado: hace(4) },

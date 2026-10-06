@@ -12,7 +12,7 @@ import { iniciarPagina, nombreEstacion, formatearTiempo, normalizarEstacion, mil
 import { id, el, icono, estado, reemplazar, pedirTexto, avisar, abrirHoja } from '/assets/js/dom.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
 import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
-import { diaMadrid } from '/assets/js/dia.js';
+import { diaMadrid, lunesDeLaSemana } from '/assets/js/dia.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
 import {
@@ -481,10 +481,10 @@ async function filaRuta(ruta, { rutaDelDia, ancladas, indice, seleccionada }) {
   const mio = miPuesto(agregado);
   const pilotos = agregado?.total ?? agregado?.filas?.length ?? indice?.viajesPorRuta?.[ruta] ?? 0;
   const esDelDia = ruta === rutaDelDia;
-  const hoyN = esDelDia && agregado?.hoyDia === diaMadrid() ? agregado.hoyPilotos || 0 : null;
+  const hoyN = esDelDia && agregado?.semanaDesde === lunesDeLaSemana() ? agregado.semanaPilotos || 0 : null;
   const info = [
     ancladas.has(ruta) ? 'Anclada' : null,
-    esDelDia ? `Ruta del día${hoyN !== null ? ` · ${hoyN} hoy` : ''}` : null,
+    esDelDia ? `Ruta de la semana${hoyN !== null ? ` · ${hoyN} esta semana` : ''}` : null,
     !esDelDia ? `${pilotos} ${pilotos === 1 ? 'piloto' : 'pilotos'}` : null,
   ].filter(Boolean).join(' · ');
   let puesto = '';
@@ -546,10 +546,10 @@ async function pintarListaRutas(filtro = '') {
   let tarjetaDia = null;
   if (rutaDelDia) {
     const ag = await traer(`ruta-${rutaDelDia}`);
-    const deHoy = ag?.hoyDia === diaMadrid() ? ag.hoy || [] : [];
+    const deHoy = ag?.semanaDesde === lunesDeLaSemana() ? ag.semana || [] : [];
     tarjetaDia = el('button', { clase: 'tarjeta-ruta-dia compacta', attrs: { type: 'button' }, on: { click: () => abrirRuta(rutaDelDia) } }, [
-      el('span', { clase: 'x2', texto: 'Ruta del día · ×2' }),
-      el('span', { clase: 'cierra', texto: deHoy.length ? `${ag.hoyPilotos || deHoy.length} hoy` : 'aún sin tiempos hoy' }),
+      el('span', { clase: 'x2', texto: 'Ruta de la semana · ×2' }),
+      el('span', { clase: 'cierra', texto: deHoy.length ? `${ag.semanaPilotos || deHoy.length} esta semana` : 'aún sin tiempos esta semana' }),
       el('strong', { texto: `${corto(nombreDe(rutaDelDia, ORIGEN))} → ${corto(nombreDe(rutaDelDia, DESTINO))}` }),
       el('span', { clase: 'cifra', texto: deHoy[0] ? mmss(deHoy[0].marca) : '' }),
     ]);
@@ -595,11 +595,12 @@ async function pintarDetalleRuta(ruta, vista = null) {
   const agregado = await traer(`ruta-${ruta}`);
   const rutaDelDia = (await configGeneral())?.rutaDestacada || null;
   const esDelDia = ruta === rutaDelDia;
-  // "Hoy": en la ruta del dia, su tabla de hoy; en las demas, las marcas que
-  // se han hecho hoy (el agregado guarda el dia de cada una).
+  // "Esta semana": en la ruta destacada, su tabla de la semana; en las demas,
+  // las marcas que se han hecho desde el lunes (el agregado guarda el dia de
+  // cada una).
   const deHoy = esDelDia
-    ? (agregado?.hoyDia === diaMadrid() ? agregado.hoy || [] : [])
-    : (agregado?.filas || []).filter((f) => f.fecha === diaMadrid()).map((f, i) => ({ ...f, pos: i + 1 }));
+    ? (agregado?.semanaDesde === lunesDeLaSemana() ? agregado.semana || [] : [])
+    : (agregado?.filas || []).filter((f) => (f.fecha || '') >= lunesDeLaSemana()).map((f, i) => ({ ...f, pos: i + 1 }));
   const modoVista = vista || (esDelDia ? 'hoy' : 'siempre');
   const filas = modoVista === 'hoy' ? deHoy : agregado?.filas || [];
   const km = kmRuta(ruta);
@@ -643,7 +644,7 @@ async function pintarDetalleRuta(ruta, vista = null) {
       el('h2', {}, [el('span', { texto: nombreDe(ruta, ORIGEN) }), el('br', { clase: 'solo-movil-inline' }), el('span', { texto: ` → ${nombreDe(ruta, DESTINO)}` })]),
     ]),
     el('div', { clase: 'segmento dos' }, [
-      el('button', { attrs: { type: 'button', 'aria-pressed': String(modoVista === 'hoy') }, texto: 'Hoy', on: { click: () => pintarDetalleRuta(ruta, 'hoy') } }),
+      el('button', { attrs: { type: 'button', 'aria-pressed': String(modoVista === 'hoy') }, texto: 'Esta semana', on: { click: () => pintarDetalleRuta(ruta, 'hoy') } }),
       el('button', { attrs: { type: 'button', 'aria-pressed': String(modoVista === 'siempre') }, texto: 'Siempre', on: { click: () => pintarDetalleRuta(ruta, 'siempre') } }),
     ]),
     record ? el('div', { clase: 'tarjetas-ruta' }, [

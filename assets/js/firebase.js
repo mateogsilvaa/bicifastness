@@ -220,6 +220,13 @@ export function traducirErrorAuth(error) {
     // la consola, o el dominio sin autorizar. Ver docs/PUESTA-EN-MARCHA.md.
     'auth/operation-not-allowed': 'El acceso con Google todavia no esta activado. Usa tu correo por ahora.',
     'auth/unauthorized-domain': 'El acceso con Google todavia no esta activado en esta direccion. Usa tu correo por ahora.',
+    // La clave de la web no admite la pagina de Google de Firebase
+    // (bicifastness.firebaseapp.com): la ventana se abre y falla por dentro.
+    // Tambien es de configuracion: docs/PUESTA-EN-MARCHA.md, "Entrar con Google".
+    'auth/internal-error': 'No hemos podido conectar con Google. Usa tu correo por ahora; ya lo estamos mirando.',
+    'auth/invalid-api-key': 'No hemos podido conectar con Google. Usa tu correo por ahora; ya lo estamos mirando.',
+    'auth/api-key-not-valid': 'No hemos podido conectar con Google. Usa tu correo por ahora; ya lo estamos mirando.',
+    'auth/web-storage-unsupported': 'Este navegador no deja guardar la sesion (modo privado o cookies bloqueadas). Prueba en una ventana normal o entra con tu correo.',
   };
   return mensajes[error?.code] || 'No se ha podido completar la operacion.';
 }

@@ -486,6 +486,30 @@ Google**:
 No hace falta crear credenciales OAuth a mano: Firebase las crea. Comprueba
 también que **Correo electrónico/contraseña** está habilitado.
 
+### 8.2 bis La clave de la web tiene que admitir la página de Google (SIN ESTO, GOOGLE NO ENTRA)
+
+Medido el 6 de octubre de 2026: la clave de API de la web solo admite peticiones
+desde `bicifastness.es`, y la ventana de «Continuar con Google» funciona en
+`bicifastness.firebaseapp.com`. Google la bloquea por dentro («Requests from
+referer https://bicifastness.firebaseapp.com/__/auth/handler are blocked») y el
+acceso con Google falla siempre, aunque el proveedor esté activado.
+
+https://console.cloud.google.com → proyecto `bicifastness` → **APIs y servicios
+→ Credenciales** → la clave que empieza por `AIzaSyBG9Q…` (la de la web) →
+**Restricciones de aplicaciones → Sitios web** → **Añadir**:
+
+- `https://bicifastness.firebaseapp.com/*`
+
+Deja también `https://bicifastness.es/*` y `https://www.bicifastness.es/*`.
+Guardar; tarda unos minutos en aplicarse. Para comprobarlo sin el navegador:
+
+```
+curl -s -H "Referer: https://bicifastness.firebaseapp.com/__/auth/handler" -H "Content-Type: application/json" -X POST "https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=AIzaSyBG9QdjEG9Qmg27Dy05t0eVcVFMMPpSyVk" -d '{"providerId":"google.com","continueUri":"https://bicifastness.firebaseapp.com/__/auth/handler"}'
+```
+
+Tiene que devolver un `authUri`, no «are blocked». Los fallos de Google llegan
+ademas al panel de errores (`/admin/errores/`) con su codigo.
+
 ### 8.3 El nombre en la ventana de Google (recomendado ahora que hay dominio)
 
 Por defecto el popup dice «para ir a bicifastness.firebaseapp.com». Para que

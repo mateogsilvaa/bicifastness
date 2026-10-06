@@ -35,6 +35,7 @@ import { VERSION_APP } from '/assets/data/version.js';
 import {
   pintarCabecera, pintarRating, pintarCifras, pintarMenu, pintarInsignias,
   nodosHistorial, FILTROS, pintarTemporadas, nombreMes,
+  marcarAdministrador,
 } from '/assets/js/yo-vistas.js';
 
 iniciarPagina('yo');
@@ -130,6 +131,8 @@ window.addEventListener('hashchange', mostrarVista);
 onAuthStateChanged(auth, async (u) => {
   if (!u) { window.location.replace('/entrar/'); return; }
   usuario = u;
+  // El rol de administrador va en el token firmado; leerlo no cuesta red.
+  try { marcarAdministrador((await u.getIdTokenResult()).claims.admin === true); } catch { marcarAdministrador(false); }
   try {
     await cargarPerfil();
   } catch (error) {

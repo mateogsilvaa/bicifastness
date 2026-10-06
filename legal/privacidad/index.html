@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="format-detection" content="telephone=no">
@@ -76,13 +76,13 @@
       <thead><tr><th>Categoria</th><th>Datos concretos</th><th>Origen</th></tr></thead>
       <tbody>
         <tr>
-          <td>Identificacion y cuenta</td>
-          <td>Correo electronico, contrasena (cifrada, nunca en claro), identificador interno de usuario, nombre de piloto, imagen de avatar.</td>
-          <td>Los facilitas tu al registrarte.</td>
+          <td data-etiqueta="Categoria">Identificacion y cuenta</td>
+          <td data-etiqueta="Datos concretos">Correo electronico, contrasena (cifrada, nunca en claro), identificador interno de usuario, nombre de piloto, imagen de avatar.</td>
+          <td data-etiqueta="Origen">Los facilitas tu al registrarte.</td>
         </tr>
         <tr>
-          <td>Acceso con Google (solo si lo usas)</td>
-          <td>
+          <td data-etiqueta="Categoria">Acceso con Google (solo si lo usas)</td>
+          <td data-etiqueta="Datos concretos">
             Tu correo de Google y un identificador de tu cuenta de Google. El
             servicio de autenticacion guarda ademas, como parte de la cuenta, el
             nombre y la foto de tu perfil de Google: <strong>no los usamos, no
@@ -91,32 +91,32 @@
             recibimos tu contrasena de Google ni acceso a ningun otro dato de tu
             cuenta.
           </td>
-          <td>Google, cuando eliges entrar con tu cuenta.</td>
+          <td data-etiqueta="Origen">Google, cuando eliges entrar con tu cuenta.</td>
         </tr>
         <tr>
-          <td>Actividad deportiva</td>
-          <td>Estaciones de salida y llegada, duracion del trayecto, fecha, puntuacion, insignias y equipo.</td>
-          <td>Los facilitas tu al subir un tiempo.</td>
+          <td data-etiqueta="Categoria">Actividad deportiva</td>
+          <td data-etiqueta="Datos concretos">Estaciones de salida y llegada, duracion del trayecto, fecha, puntuacion, insignias y equipo.</td>
+          <td data-etiqueta="Origen">Los facilitas tu al subir un tiempo.</td>
         </tr>
         <tr>
-          <td>Capturas de verificacion</td>
-          <td>Imagen de la pantalla de resumen del trayecto. Se reprocesa al recibirla y <strong>se le eliminan los metadatos EXIF</strong>, incluida cualquier geolocalizacion.</td>
-          <td>La subes tu.</td>
+          <td data-etiqueta="Categoria">Capturas de verificacion</td>
+          <td data-etiqueta="Datos concretos">Imagen de la pantalla de resumen del trayecto. Se reprocesa al recibirla y <strong>se le eliminan los metadatos EXIF</strong>, incluida cualquier geolocalizacion.</td>
+          <td data-etiqueta="Origen">La subes tu.</td>
         </tr>
         <tr>
-          <td>Datos de verificacion antifraude</td>
-          <td>Huellas digitales (hash) de las capturas, resultado del analisis automatico y sus motivos, marcas de tiempo de las subidas, y el dia (solo el dia) en que se guardo el fichero de la captura en tu movil, para comprobar que corresponde a la fecha del trayecto.</td>
-          <td>Los genera el sistema.</td>
+          <td data-etiqueta="Categoria">Datos de verificacion antifraude</td>
+          <td data-etiqueta="Datos concretos">Huellas digitales (hash) de las capturas, resultado del analisis automatico y sus motivos, marcas de tiempo de las subidas, y el dia (solo el dia) en que se guardo el fichero de la captura en tu movil, para comprobar que corresponde a la fecha del trayecto.</td>
+          <td data-etiqueta="Origen">Los genera el sistema.</td>
         </tr>
         <tr>
-          <td>Registro de consentimiento</td>
-          <td>Version de los textos legales aceptados y fecha de aceptacion.</td>
-          <td>Los genera el sistema al aceptar.</td>
+          <td data-etiqueta="Categoria">Registro de consentimiento</td>
+          <td data-etiqueta="Datos concretos">Version de los textos legales aceptados y fecha de aceptacion.</td>
+          <td data-etiqueta="Origen">Los genera el sistema al aceptar.</td>
         </tr>
         <tr>
-          <td>Datos tecnicos</td>
-          <td>Direccion IP y registros de acceso, generados por la infraestructura de Google Firebase.</td>
-          <td>Automatico.</td>
+          <td data-etiqueta="Categoria">Datos tecnicos</td>
+          <td data-etiqueta="Datos concretos">Direccion IP y registros de acceso, generados por la infraestructura de Google Firebase.</td>
+          <td data-etiqueta="Origen">Automatico.</td>
         </tr>
       </tbody>
     </table>
@@ -137,32 +137,32 @@
       <thead><tr><th>Finalidad</th><th>Base juridica (art. 6 RGPD)</th></tr></thead>
       <tbody>
         <tr>
-          <td>Crear y mantener tu cuenta y prestarte el servicio.</td>
-          <td>Ejecucion de un contrato — art. 6.1.b.</td>
+          <td data-etiqueta="Finalidad">Crear y mantener tu cuenta y prestarte el servicio.</td>
+          <td data-etiqueta="Base juridica (art. 6 RGPD)">Ejecucion de un contrato — art. 6.1.b.</td>
         </tr>
         <tr>
-          <td>Publicar tu nombre de piloto, avatar, tiempos y puntuacion en las clasificaciones publicas.</td>
-          <td>Ejecucion de un contrato — art. 6.1.b. Es la funcion esencial del servicio: sin publicacion no hay competicion.</td>
+          <td data-etiqueta="Finalidad">Publicar tu nombre de piloto, avatar, tiempos y puntuacion en las clasificaciones publicas.</td>
+          <td data-etiqueta="Base juridica (art. 6 RGPD)">Ejecucion de un contrato — art. 6.1.b. Es la funcion esencial del servicio: sin publicacion no hay competicion.</td>
         </tr>
         <tr>
-          <td>Verificar automaticamente la autenticidad de las capturas y detectar el fraude.</td>
-          <td>Interes legitimo — art. 6.1.f. Garantizar unas clasificaciones limpias es esencial para el servicio y para el resto de participantes.</td>
+          <td data-etiqueta="Finalidad">Verificar automaticamente la autenticidad de las capturas y detectar el fraude.</td>
+          <td data-etiqueta="Base juridica (art. 6 RGPD)">Interes legitimo — art. 6.1.f. Garantizar unas clasificaciones limpias es esencial para el servicio y para el resto de participantes.</td>
         </tr>
         <tr>
-          <td>Conservar las huellas de las capturas para impedir su reutilizacion.</td>
-          <td>Interes legitimo — art. 6.1.f.</td>
+          <td data-etiqueta="Finalidad">Conservar las huellas de las capturas para impedir su reutilizacion.</td>
+          <td data-etiqueta="Base juridica (art. 6 RGPD)">Interes legitimo — art. 6.1.f.</td>
         </tr>
         <tr>
-          <td>Acreditar que aceptaste los textos legales.</td>
-          <td>Obligacion legal — art. 6.1.c, en relacion con el art. 7.1 RGPD.</td>
+          <td data-etiqueta="Finalidad">Acreditar que aceptaste los textos legales.</td>
+          <td data-etiqueta="Base juridica (art. 6 RGPD)">Obligacion legal — art. 6.1.c, en relacion con el art. 7.1 RGPD.</td>
         </tr>
         <tr>
-          <td>Atender tus solicitudes de derechos y responder a tus consultas.</td>
-          <td>Obligacion legal — art. 6.1.c.</td>
+          <td data-etiqueta="Finalidad">Atender tus solicitudes de derechos y responder a tus consultas.</td>
+          <td data-etiqueta="Base juridica (art. 6 RGPD)">Obligacion legal — art. 6.1.c.</td>
         </tr>
         <tr>
-          <td>Enviarte correos operativos (verificacion de la cuenta, restablecimiento de contrasena).</td>
-          <td>Ejecucion de un contrato — art. 6.1.b.</td>
+          <td data-etiqueta="Finalidad">Enviarte correos operativos (verificacion de la cuenta, restablecimiento de contrasena).</td>
+          <td data-etiqueta="Base juridica (art. 6 RGPD)">Ejecucion de un contrato — art. 6.1.b.</td>
         </tr>
       </tbody>
     </table>
@@ -277,24 +277,24 @@
       <thead><tr><th>Proveedor</th><th>Servicio</th><th>Ubicacion</th></tr></thead>
       <tbody>
         <tr>
-          <td>Google Ireland Limited (Firebase / Google Cloud)</td>
-          <td>Autenticacion, base de datos, almacenamiento de imagenes, ejecucion del backend y alojamiento.</td>
-          <td>Union Europea (region <code>europe-west1</code>), con posible acceso desde EE. UU.</td>
+          <td data-etiqueta="Proveedor">Google Ireland Limited (Firebase / Google Cloud)</td>
+          <td data-etiqueta="Servicio">Autenticacion, base de datos, almacenamiento de imagenes, ejecucion del backend y alojamiento.</td>
+          <td data-etiqueta="Ubicacion">Union Europea (region <code>europe-west1</code>), con posible acceso desde EE. UU.</td>
         </tr>
         <tr>
-          <td>Vercel Inc.</td>
-          <td>Alojamiento del sitio web.</td>
-          <td>EE. UU., con red de distribucion en la Union Europea.</td>
+          <td data-etiqueta="Proveedor">Vercel Inc.</td>
+          <td data-etiqueta="Servicio">Alojamiento del sitio web.</td>
+          <td data-etiqueta="Ubicacion">EE. UU., con red de distribucion en la Union Europea.</td>
         </tr>
         <tr>
-          <td>Resend (Plus Five Five, Inc.)</td>
-          <td>Envio de los avisos por correo sobre tus trayectos.</td>
-          <td>EE. UU.</td>
+          <td data-etiqueta="Proveedor">Resend (Plus Five Five, Inc.)</td>
+          <td data-etiqueta="Servicio">Envio de los avisos por correo sobre tus trayectos.</td>
+          <td data-etiqueta="Ubicacion">EE. UU.</td>
         </tr>
         <tr>
-          <td>GitHub, Inc.</td>
-          <td>Ejecucion del proceso que verifica las capturas.</td>
-          <td>EE. UU.</td>
+          <td data-etiqueta="Proveedor">GitHub, Inc.</td>
+          <td data-etiqueta="Servicio">Ejecucion del proceso que verifica las capturas.</td>
+          <td data-etiqueta="Ubicacion">EE. UU.</td>
         </tr>
       </tbody>
     </table>

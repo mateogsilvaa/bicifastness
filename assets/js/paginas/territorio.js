@@ -39,14 +39,17 @@ const TACTIL = window.matchMedia('(pointer: coarse)').matches;
 const mapa = L.map('mapa', { zoomControl: false, attributionControl: true, preferCanvas: TACTIL })
   .setView([40.4230, -3.7000], 14);
 
-// Teselas de OpenStreetMap, apagadas en CSS hasta quedar como Positron (y
-// invertidas en oscuro, como Dark Matter). Las de CARTO empezaron a salir con
-// una marca de "API KEY REQUIRED" encima; las de OSM no piden clave y ya
-// estaban en la CSP. Ver docs/PUESTA-EN-MARCHA.md si se quiere volver a CARTO.
+// Teselas de Esri "Canvas" (gris claro y gris oscuro, sin etiquetas): SOLO
+// las calles, sin cafeterias, tiendas ni nombres de nada. Las de OSM traian
+// todos los locales del barrio encima de las estaciones, y las de CARTO salen
+// con "API KEY REQUIRED". Las de Esri no piden clave; la atribucion va abajo.
 document.documentElement.dataset.mapa = tema === 'dark' ? 'oscuro' : 'claro';
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  maxZoom: 19,
+const BASE = tema === 'dark' ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base';
+L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/${BASE}/MapServer/tile/{z}/{y}/{x}`, {
+  attribution: 'Calles &copy; Esri, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  // Esri Canvas llega hasta el 16; por encima se amplia la del 16.
+  maxZoom: 18,
+  maxNativeZoom: 16,
 }).addTo(mapa);
 
 id('zoom-mas').append(icono('mas'));

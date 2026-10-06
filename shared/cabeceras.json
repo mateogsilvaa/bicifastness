@@ -39,7 +39,8 @@
       "blob:",
       "https://*.basemaps.cartocdn.com",
       "https://tile.openstreetmap.org",
-      "https://*.tile.openstreetmap.org"
+      "https://*.tile.openstreetmap.org",
+      "https://server.arcgisonline.com"
     ],
     "connect-src": [
       "'self'",

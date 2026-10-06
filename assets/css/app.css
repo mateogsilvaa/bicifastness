@@ -860,8 +860,7 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 
 .territorio { position: relative; height: calc(100dvh - var(--alto-barra) - var(--pie-barra)); overflow: hidden; }
 #mapa { position: absolute; inset: 0; background: var(--papel-2); }
-.leaflet-tile-pane { filter: grayscale(.9) brightness(1.12) contrast(.78); }
-[data-mapa='oscuro'] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) grayscale(.8) brightness(.82) contrast(.9); }
+/* Las teselas de Esri ya vienen en gris (claro u oscuro): sin filtros. */
 
 /* 5a: controles flotantes 4 px bajo la barra de estado, sin borde y con una
    sombra suave (lo unico que los separa de las calles). */
@@ -3654,8 +3653,7 @@ body.pagina-admin { font-size: 14px; padding: 0; }
   .hoy-division .hoy-seccion > span { font-size: 12px; }
   .hoy-division .barras-grupo, .hoy-division .leyenda-grupo { display: none; }
   .hoy-division .division-puesto span:not(.cifra-grande) { font-size: 15px; }
-  #ultima-marca { display: none; }
-  /* Con la ultima marca fuera, el clan ocupa todo el ancho de su columna. */
+  /* La ultima marca tambien sale en escritorio: una debajo de otra. */
   .hoy-dos { grid-template-columns: 1fr; }
   /* El boton de subir de movil va dentro de la tarjeta en escritorio: su hueco
      vacio sumaba otros 18 px de separacion. */
@@ -3975,16 +3973,58 @@ body.adm-bloqueada main { visibility: hidden; }
 .adm-divisiones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e2); }
 .adm-divisiones > div { display: flex; align-items: center; gap: var(--e2); padding: var(--e2); border-radius: 12px; background: var(--papel); font-size: 13px; }
 .adm-divisiones strong { margin-left: auto; font-variant-numeric: tabular-nums; }
-.redes-rejilla { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: var(--e5); align-items: start; }
-.redes-opciones { display: flex; flex-direction: column; gap: var(--e3); position: sticky; top: 80px; }
-.redes-opciones .segmento button[aria-pressed='true'] { background: var(--tinta); color: var(--papel); }
-.redes-lista-piezas { display: flex; flex-direction: column; gap: 6px; }
-.redes-lista-piezas button { display: flex; align-items: center; justify-content: space-between; gap: var(--e2); min-height: 44px; padding: 0 var(--e3); border: 0; border-radius: 12px; background: var(--papel-2); font: inherit; font-weight: 600; color: var(--tinta); cursor: pointer; text-align: left; }
-.redes-lista-piezas button[aria-pressed='true'] { background: var(--tinta); color: var(--papel); }
-.redes-lienzo { display: flex; justify-content: center; background: var(--papel-3); border-radius: var(--radio-tarjeta); padding: var(--e5); }
-.redes-lienzo canvas { max-width: 100%; height: auto; max-height: 78vh; border-radius: 18px; }
 @media (max-width: 1100px) {
   .adm-tres, .adm-kpis { grid-template-columns: 1fr 1fr; }
-  .redes-rejilla { grid-template-columns: 1fr; }
-  .redes-opciones { position: static; }
+  .redes-13f { grid-template-columns: 1fr; }
+}
+
+/* 13f · Admin · Redes: elige pieza y periodo, revisa y descarga. */
+.redes-13f { display: grid; grid-template-columns: 320px minmax(0, 1fr); background: var(--papel); border-radius: 18px; overflow: hidden; outline: 1px solid rgba(0, 0, 0, .08); font-size: 14px; }
+.redes-panel { background: var(--papel-2); border-right: 1px solid var(--linea); padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+.redes-titulo { font-size: 18px; }
+.redes-piezas { display: flex; flex-direction: column; gap: 6px; }
+.redes-pieza { display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; font: inherit; font-weight: 500; color: var(--tinta); cursor: pointer; text-align: left; }
+.redes-pieza[aria-pressed='true'] { background: var(--azul-tinte); font-weight: 700; }
+.redes-formato { font-size: 12px; color: var(--tinta-3); font-weight: 500; }
+.redes-campo { display: flex; flex-direction: column; gap: 6px; }
+.redes-campo > span { color: var(--tinta-2); }
+.redes-periodo { min-height: 44px; border-radius: 10px; background: var(--papel); padding: 0 12px; display: flex; align-items: center; }
+.redes-pilotos { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; }
+.redes-piloto { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.redes-piloto input { width: 20px; height: 20px; min-height: 0; accent-color: var(--azul-relleno); }
+.redes-hueco { flex: 1; }
+.redes-panel .btn { width: 100%; }
+.redes-vista { padding: 28px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.redes-vista-cabeza { display: flex; justify-content: space-between; align-items: center; }
+.redes-vista-cabeza strong { font-size: 18px; }
+.redes-vista-cabeza span, .redes-nota { color: var(--tinta-2); line-height: 1.5; }
+.redes-lienzo { display: flex; flex-wrap: wrap; gap: 16px; }
+.redes-lamina { position: relative; flex: none; overflow: hidden; border-radius: 10px; }
+.redes-corte { position: absolute; top: 0; bottom: 0; border-left: 2px dashed rgba(255, 255, 255, .5); }
+
+/* --- Textos legales: que se lean sin esfuerzo --------------------------------
+   Mas aire entre secciones (con una linea fina que las separa), parrafos y
+   listas con respiro, y en el movil las tablas pasan a fichas: cada fila una
+   tarjeta y cada dato con su etiqueta, en vez de dos columnas estrechas. */
+.legal h2 { margin: 56px 0 var(--e3); padding-top: var(--e5); border-top: var(--borde); font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+.legal h3 { margin: var(--e5) 0 var(--e2); font-size: 17px; }
+.legal p { margin: 0 0 var(--e4); }
+.legal p, .legal li { line-height: 1.7; }
+.legal ul, .legal ol { margin: 0 0 var(--e4); }
+.legal li { margin-bottom: var(--e3); padding-left: 2px; }
+.legal li::marker { color: var(--azul); }
+.legal .resumen-legal, .legal .recuadro { margin: var(--e3) 0 var(--e4); }
+.legal .resumen-legal p, .legal .recuadro p { font-size: 15px; line-height: 1.6; }
+.legal table { font-size: 15px; margin: var(--e3) 0 var(--e5); }
+.legal th, .legal td { padding: 14px 12px; line-height: 1.55; }
+.legal thead th { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--tinta-3); border-bottom: 2px solid var(--linea-fuerte); }
+@media (max-width: 699px) {
+  .legal .tabla-scroll { overflow: visible; }
+  .legal table, .legal tbody, .legal tr, .legal td, .legal th { display: block; width: 100%; }
+  .legal thead { display: none; }
+  .legal tr { background: var(--papel); border-radius: var(--radio); padding: var(--e2) var(--e4); margin-bottom: var(--e3); }
+  .legal td, .legal tbody th { padding: 10px 0; border-bottom: var(--borde); }
+  .legal tr > :last-child { border-bottom: 0; }
+  .legal td[data-etiqueta]::before { content: attr(data-etiqueta); display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--tinta-3); }
+  .legal tbody th { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--tinta-3); padding-bottom: 2px; border-bottom: 0; }
 }

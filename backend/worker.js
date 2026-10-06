@@ -36,7 +36,7 @@ const admin = require('firebase-admin');
 
 const { LIMITES, TIEMPO, IMAGEN, PUNTOS } = require('./src/config');
 const {
-  construirRuta, inicioDelDiaMadrid, diaMadrid, buscarEstacion,
+  construirRuta, inicioDelDiaMadrid, diaMadrid, buscarEstacion, lunesDe,
 } = require('./src/util');
 const imagen = require('./src/imagen');
 const rutasDestacadas = require('./src/rutas-destacadas');
@@ -1315,9 +1315,10 @@ async function conteoPorRuta() {
  * evita depender de un cron a medianoche que, si se salta, dejaria el dia sin
  * misiones.
  *
- * La ruta del dia si se fija una vez: se guarda con su fecha y no se vuelve a
- * elegir hasta el dia siguiente. Cambiarla a media mañana invalidaria la
- * clasificacion diaria que la gente ya esta compitiendo.
+ * La ruta destacada es SEMANAL: se elige una vez el lunes, se guarda con su
+ * semana y no se vuelve a elegir hasta el lunes siguiente. Una semana da
+ * tiempo a que la haga quien solo pasa por ahi un par de dias, y cambiarla a
+ * mitad invalidaria la clasificacion de la semana que la gente ya compite.
  */
 async function prepararDia() {
   // El dia en Madrid, que es como cuenta los dias todo el juego. Aqui se
@@ -1336,7 +1337,9 @@ async function prepararDia() {
   const general = await refGeneral.get();
   const datos = general.exists ? general.data() : {};
 
-  if (datos.rutaDestacadaDia === hoy) return;
+  // La semana se cuenta por su lunes (dia de Madrid).
+  const semana = lunesDe(new Date());
+  if (datos.rutaDestacadaSemana === semana) return;
 
   // Cuantos viajes tiene cada tramo, para descartar los que no mueve nadie.
   //
@@ -1347,28 +1350,31 @@ async function prepararDia() {
   // mano una vez, que es exactamente lo que hacia antes siempre.
   // Primero el plan del año (data/rutas-destacadas.csv); sin plan para hoy,
   // entre los tramos con actividad, como antes.
-  const planificada = rutasDestacadas.rutaPlanificada(hoy);
+  // El plan es de un tramo por dia: la semana se queda con el de su lunes, que
+  // ya respeta no repetir tramo en meses.
+  const planificada = rutasDestacadas.rutaPlanificada(semana);
   const porRuta = planificada ? null : await conteoPorRuta();
 
-  const recientes = Array.isArray(datos.rutasHistoricas) ? datos.rutasHistoricas.slice(-7) : [];
-  const elegida = planificada || misiones.rutaDelDia(porRuta, recientes, hoy);
+  const recientes = Array.isArray(datos.rutasHistoricas) ? datos.rutasHistoricas.slice(-8) : [];
+  const elegida = planificada || misiones.rutaDelDia(porRuta, recientes, semana);
 
   if (!elegida) {
-    console.log('Sin tramos con actividad suficiente: hoy no hay ruta del dia.');
+    console.log('Sin tramos con actividad suficiente: esta semana no hay ruta destacada.');
     return;
   }
 
   if (!SIMULAR) {
     await refGeneral.set({
       rutaDestacada: elegida,
-      rutaDestacadaDia: hoy,
+      rutaDestacadaSemana: semana,
+      rutaDestacadaDia: admin.firestore.FieldValue.delete(),
       // Las ya destacadas conservan un multiplicador menor, y ademas sirven
       // para no repetir tramo cada dos por tres.
       rutasHistoricas: admin.firestore.FieldValue.arrayUnion(elegida),
     }, { merge: true });
   }
 
-  console.log(`Ruta del dia: ${elegida}`);
+  console.log(`Ruta de la semana del ${semana}: ${elegida}`);
 }
 
 /**

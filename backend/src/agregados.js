@@ -27,7 +27,7 @@ const admin = require('firebase-admin');
 const { db } = require('./db');
 const { distribucion } = require('./verificacion');
 const divisiones = require('./divisiones');
-const { diaMadrid } = require('./util');
+const { diaMadrid, lunesDe } = require('./util');
 
 /**
  * Lo UNICO que puede viajar a un documento de lectura publica.
@@ -591,13 +591,14 @@ async function reconstruir({
     }
   }
 
-  // La tabla de HOY de cada ruta: el mejor tiempo de cada piloto con viaje de
-  // hoy (dia de Madrid). Es la de la ruta del dia, "la clasificacion que empieza
-  // vacia cada mañana" (04 · 4d), y la que cuenta "14 pilotos hoy".
-  const hoy = diaMadrid();
+  // La tabla de ESTA SEMANA de cada ruta (de lunes a domingo, dia de Madrid):
+  // el mejor tiempo de cada piloto con viaje de la semana. Es la de la ruta
+  // destacada, la clasificacion que empieza vacia cada lunes, y la que cuenta
+  // "14 pilotos esta semana".
+  const lunes = lunesDe(new Date());
   const hoyPorRuta = new Map();
   for (const v of viajes) {
-    if (!v.ruta || String(v.fechaViaje || '').slice(0, 10) !== hoy) continue;
+    if (!v.ruta || String(v.fechaViaje || '').slice(0, 10) < lunes) continue;
     if (!hoyPorRuta.has(v.ruta)) hoyPorRuta.set(v.ruta, new Map());
     const delDia = hoyPorRuta.get(v.ruta);
     const previo = delDia.get(v.uid);
@@ -643,12 +644,12 @@ async function reconstruir({
 
     await escribirAgregado(`ruta-${ruta}`, filas, {
       ruta,
-      // `hoyDia` dice de que dia es `hoy`: una ruta que no se mueve en una
-      // reconstruccion parcial conserva la tabla de ayer, y el navegador la
-      // descarta si no es la de hoy en vez de enseñarla como si lo fuera.
-      hoy: filasHoy.slice(0, 50),
-      hoyDia: hoy,
-      hoyPilotos: filasHoy.length,
+      // `semanaDesde` dice de que semana es: una ruta que no se mueve en una
+      // reconstruccion parcial conserva la tabla de la semana pasada, y el
+      // navegador la descarta si no es la de esta en vez de enseñarla.
+      semana: filasHoy.slice(0, 50),
+      semanaDesde: lunes,
+      semanaPilotos: filasHoy.length,
       distribucion: {
         muestras,
         media: Math.round(media),

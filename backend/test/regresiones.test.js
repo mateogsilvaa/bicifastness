@@ -1870,12 +1870,27 @@ test('las misiones son las mismas para todo el mundo', () => {
   assert.match(hasta, /allow write: if false/);
 });
 
-test('la ruta del dia se fija una vez al dia', () => {
-  // Cambiarla a media mañana invalidaria la clasificacion diaria que la gente
-  // ya esta compitiendo.
+test('la ruta destacada se fija una vez por semana', () => {
+  // Cambiarla a mitad de semana invalidaria la clasificacion de la semana que
+  // la gente ya esta compitiendo.
   const worker = leerCodigo('backend/worker.js');
-  assert.match(worker, /if \(datos\.rutaDestacadaDia === hoy\) return;/);
-  assert.match(worker, /rutaDestacadaDia: hoy/);
+  assert.match(worker, /const semana = lunesDe\(new Date\(\)\);/);
+  assert.match(worker, /if \(datos\.rutaDestacadaSemana === semana\) return;/);
+  assert.match(worker, /rutaDestacadaSemana: semana/);
+  // Y la tabla de la ruta es la de la semana, desde el lunes.
+  const agregados = leerCodigo('backend/src/agregados.js');
+  assert.match(agregados, /semanaDesde: lunes/);
+});
+
+test('el lunes de la semana es el mismo en el navegador y en el worker', async () => {
+  const { lunesDe } = require('../src/util');
+  const dia = await import(`file://${path.join(RAIZ, 'assets', 'js', 'dia.js')}`);
+  for (let d = 0; d < 21; d++) {
+    const fecha = new Date(Date.UTC(2026, 10, 1 + d, 11));
+    assert.strictEqual(dia.lunesDeLaSemana(fecha), lunesDe(fecha), fecha.toISOString());
+  }
+  assert.strictEqual(dia.diasHastaFinDeSemana(new Date('2026-11-08T11:00:00Z')), 1, 'el domingo queda uno');
+  assert.strictEqual(dia.diasHastaFinDeSemana(new Date('2026-11-02T11:00:00Z')), 7, 'el lunes quedan siete');
 });
 
 test('el panel de inicio pone primero lo que se puede perder', () => {

@@ -773,7 +773,7 @@ function pintarConfirmar() {
         ]),
         segmentoDia(b.fecha, (dia) => { borrador.fecha = dia; pintarConfirmar(); }),
         esRutaDelDia && !fueraDeCupo ? el('div', { clase: 'aviso-ruta-dia' }, [
-          el('span', { clase: 'x2', texto: '×2' }), el('span', { texto: 'Es la ruta del día. Hoy puntúa doble.' }),
+          el('span', { clase: 'x2', texto: '×2' }), el('span', { texto: 'Es la ruta de la semana. Puntúa doble hasta el domingo.' }),
         ]) : null,
         fueraDeCupo ? tarjetaCupo(lleno) : null,
         el('div', { clase: 'subir-hueco' }),

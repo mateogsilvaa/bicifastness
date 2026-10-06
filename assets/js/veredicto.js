@@ -47,7 +47,7 @@ export function filasDesglose(viaje, { racha = null } = {}) {
   // ×1,50 y ×2, como en 3e: dos decimales salvo que sea entero.
   const mult = (v) => `×${coma(v, 2).replace(/,00$/, '')}`;
   if ((d.multiplicadorRacha || 1) !== 1) filas.push([`Racha${racha ? ` · ${racha} días` : ''}`, mult(d.multiplicadorRacha)]);
-  if ((d.multiplicadorRuta || 1) !== 1) filas.push(['Ruta del día', mult(d.multiplicadorRuta)]);
+  if ((d.multiplicadorRuta || 1) !== 1) filas.push(['Ruta de la semana', mult(d.multiplicadorRuta)]);
   if ((d.multiplicadorTerritorio || 1) !== 1) filas.push(['Estación de tu clan', mult(d.multiplicadorTerritorio)]);
   if (d.misiones) filas.push(['Misiones completadas', `+${d.misiones}`]);
   return filas;
@@ -129,7 +129,7 @@ export function abrirVerificado(viaje, contexto = {}) {
   // [marca, texto del movil (3e), cifra y resto del escritorio (8h)]
   const logros = [
     contexto.racha ? [String(contexto.racha), `Racha de ${contexto.racha} días. Hoy salvado.`, `${contexto.racha} días`, ' de racha'] : null,
-    contexto.rutaDelDia ? [contexto.rutaDelDia.puesto, contexto.rutaDelDia.texto, contexto.rutaDelDia.puesto, ' en la ruta del día'] : null,
+    contexto.rutaDelDia ? [contexto.rutaDelDia.puesto, contexto.rutaDelDia.texto, contexto.rutaDelDia.puesto, ' en la ruta de la semana'] : null,
     contexto.mision ? [icono('ruta'), contexto.mision, '', contexto.mision] : null,
   ].filter(Boolean);
 

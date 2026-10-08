@@ -35,6 +35,7 @@
 const admin = require('firebase-admin');
 
 const { LIMITES, TIEMPO, IMAGEN, PUNTOS } = require('./src/config');
+const lanzamiento = require('./src/lanzamiento');
 const {
   construirRuta, inicioDelDiaMadrid, diaMadrid, buscarEstacion, lunesDe,
 } = require('./src/util');
@@ -1192,6 +1193,13 @@ async function tocaTerritorioPropio(uid, estaciones) {
  * la captura. Anadirlas al juego no abre superficie nueva de fraude.
  */
 async function premiar(doc, viaje) {
+  // Primera tanda: un viaje de antes del lanzamiento que se verifica despues
+  // no suma nada. Queda en el historial, aparte (src/lanzamiento.js).
+  if (lanzamiento.esPrimeraTanda(viaje)) {
+    if (!SIMULAR) await doc.ref.update({ verificado: false, fase: 'beta', premiado: false });
+    console.log(`  [${doc.id}] primera tanda: verificado, pero no suma`);
+    return 0;
+  }
   const [origen, destino] = String(viaje.ruta).split('-');
 
   // `resolver` y no `resolverConCache`.

@@ -34,6 +34,7 @@ const divisiones = require('./src/divisiones');
 const push = require('./src/push');
 const logros = require('./src/logros');
 const { diaMadrid } = require('./src/util');
+const lanzamiento = require('./src/lanzamiento');
 
 const [operacion] = process.argv.slice(2);
 const APLICAR = process.argv.includes('--aplicar');
@@ -61,6 +62,13 @@ const db = arrancar();
 async function cerrarTemporada() {
   const actual = temporadas.idTemporada(new Date());
   const aCerrar = temporadas.temporadaAnterior(actual);
+
+  // Antes del lanzamiento no hay temporadas de verdad: octubre fue la fase de
+  // pruebas, y cerrarlo repartiria insignias de algo que no cuenta.
+  if (`${aCerrar}-31` < divisiones.LANZAMIENTO) {
+    console.log(`${aCerrar} es anterior al lanzamiento (${divisiones.LANZAMIENTO}): no se cierra.`);
+    return;
+  }
 
   console.log(`Temporada en curso: ${actual}`);
   console.log(`Se va a cerrar:     ${aCerrar}\n`);
@@ -220,8 +228,11 @@ async function main() {
 
   if (operacion === 'temporada') await cerrarTemporada();
   else if (operacion === 'divisiones') await actualizarDivisiones();
-  else {
-    console.error('Operacion desconocida. Usa: temporada | divisiones');
+  else if (operacion === 'lanzamiento') {
+    const r = await lanzamiento.lanzar({ simular: !APLICAR, forzar: FORZAR });
+    console.log(JSON.stringify(r));
+  } else {
+    console.error('Operacion desconocida. Usa: temporada | divisiones | lanzamiento');
     process.exit(1);
   }
 

@@ -4058,3 +4058,9 @@ body.adm-bloqueada main { visibility: hidden; }
   .legal td[data-etiqueta]::before { content: attr(data-etiqueta); display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--tinta-3); }
   .legal tbody th { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--tinta-3); padding-bottom: 2px; border-bottom: 0; }
 }
+
+/* Historial: la primera tanda (antes del lanzamiento), aparte y apagada. */
+.tanda-beta { margin-top: var(--e5); padding: var(--e3) var(--e4); border-radius: 16px; background: var(--papel-3); }
+.tanda-beta h3 { margin: 0 0 4px; font-size: 15px; }
+.tanda-beta p { margin: 0; font-size: 13px; color: var(--tinta-2); line-height: 1.45; }
+.fila-viaje.de-tanda { opacity: .6; }

@@ -21,6 +21,7 @@
  */
 
 const admin = require('firebase-admin');
+const { limpiarComentario } = require('./bicis');
 
 // Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
 // que el contador de cuota (#38) vea TODO lo que hace el backend.
@@ -341,6 +342,22 @@ async function olvidarPendientes() {
  * separarlas es como se acaba con un `disputa` que se lee de un campo que se
  * escribe con otro nombre.
  */
+/**
+ * Lo que se publica de la identidad de un clan (assets/js/escudo-clan.js lo
+ * pinta). El lema pasa por el mismo filtro que los comentarios de las bicis:
+ * sin enlaces ni insultos, o vacio.
+ */
+const EMBLEMAS_CLAN = new Set(['rayo', 'llama', 'corona', 'estrella', 'montana', 'rueda', 'ola', 'diana', 'flecha', 'escudo', 'calavera', 'oso']);
+function identidadClan(c) {
+  return {
+    nombre: c.nombre || c.id,
+    color: c.color || null,
+    emblema: EMBLEMAS_CLAN.has(c.emblema) ? c.emblema : null,
+    siglas: typeof c.siglas === 'string' && /^[A-Z0-9ÑÁÉÍÓÚ]{1,3}$/.test(c.siglas) ? c.siglas : null,
+    lema: limpiarComentario(c.descripcion).slice(0, 80),
+  };
+}
+
 function aEntradaDeMapa(stats) {
   return {
     // `clan` es quien CONTROLA (mas del 50%); `lider` es quien va primero.
@@ -715,10 +732,7 @@ async function reconstruir({
     // Color y nombre de cada clan, para no tener que leer `clanes` ademas. SOLO
     // eso: ni miembros, ni lider, ni puntuacion. Este documento lo lee
     // cualquiera sin sesion (#60).
-    clanes: Object.fromEntries(clanes.map((c) => [c.id, {
-      nombre: c.nombre || c.id,
-      color: c.color || null,
-    }])),
+    clanes: Object.fromEntries(clanes.map((c) => [c.id, identidadClan(c)])),
     // Para la leyenda: cuantas estan en juego y cuantas tienen dueño, sin tener
     // que recorrer el mapa entero en el navegador.
     resumen: { conInfluencia: Object.keys(mapa).length, conDueno, enDisputa },

@@ -11,6 +11,8 @@
  * consulta propia es la de tu ultima marca, acotada a un documento.
  */
 
+import { fotoPropiaLocal, ponerFoto } from '/assets/js/foto-local.js';
+import { escudoClan } from '/assets/js/escudo-clan.js';
 import {
   db, doc, getDoc, collection, getDocs, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
@@ -69,6 +71,7 @@ function pintarCabecera(perfil, nuevo) {
   $('hoy-fecha').textContent = nuevo ? 'Bienvenido' : fechaLarga();
   $('hoy-saludo').textContent = `Hola, ${nombre}`;
   $('hoy-avatar').textContent = [...nombre][0]?.toUpperCase() || 'P';
+  ponerFoto($('hoy-avatar'), fotoPropiaLocal());
 }
 
 // --- Subir --------------------------------------------------------------------
@@ -659,8 +662,6 @@ async function pintarClan(perfil) {
     if (!clan) { reemplazar(destino); return; }
     const suyas = Object.values(mapa.estaciones || {}).filter((e) => e.clan === perfil.clanId);
     const asedio = suyas.filter((e) => e.disputa).length;
-    const iniciales = String(clan.nombre || '').split(/\s+/).filter(Boolean).slice(0, 2)
-      .map((p) => [...p][0]).join('').toUpperCase();
     reemplazar(destino, [
       el('a', { clase: 'tarjeta-grande media hoy-mini solo-movil', attrs: { href: '/territorio/#mi-clan' } }, [
         el('span', { clase: 'rotulo con-punto' }, [
@@ -671,7 +672,7 @@ async function pintarClan(perfil) {
         el('span', { clase: 'rotulo', texto: `estaciones${asedio ? ` · ${asedio} en asedio` : ''}` }),
       ]),
       el('a', { clase: 'hoy-clan-fila solo-escritorio', attrs: { href: '/territorio/#mi-clan' } }, [
-        el('span', { clase: 'insignia-clan', estilo: { background: clan.color || 'var(--tinta-3)' }, texto: iniciales }),
+        escudoClan(clan, { clase: 'insignia-clan', tam: 20 }),
         el('span', { clase: 'datos' }, [
           el('strong', { texto: clan.nombre }),
           el('span', { texto: `${suyas.length} ${suyas.length === 1 ? 'estación' : 'estaciones'}${asedio ? ` · ${asedio} en asedio` : ''}` }),

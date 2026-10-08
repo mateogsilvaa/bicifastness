@@ -26,7 +26,7 @@ const {
   initializeTestEnvironment, assertSucceeds, assertFails,
 } = require('@firebase/rules-unit-testing');
 const {
-  doc, getDoc, setDoc, updateDoc, writeBatch, serverTimestamp, increment, Timestamp,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment, Timestamp,
 } = require('firebase/firestore');
 
 let entorno;
@@ -445,4 +445,40 @@ test('sin viaje no vale la captura de otro ni llevar viaje y captura a la vez', 
 test('la ficha de una bici la lee cualquiera y no la escribe nadie', async () => {
   await assertSucceeds(getDoc(doc(anonimo(), 'bicis', '2471')));
   await assertFails(setDoc(doc(como(UID), 'bicis', '2471'), { media: 5 }));
+});
+
+// --- Foto de perfil e identidad del clan ------------------------------------------
+
+const FOTO = `data:image/webp;base64,${'A'.repeat(2000)}`;
+
+test('la foto la sube la cuenta de ese nombre, pequena y sin URLs', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura' });
+  });
+  const ref = doc(como(UID), 'fotos', 'laura');
+  await assertSucceeds(setDoc(ref, { uid: UID, img: FOTO, actualizado: serverTimestamp() }));
+  await assertSucceeds(getDoc(doc(anonimo(), 'fotos', 'laura')));
+  // La de otro nombre, no.
+  await assertFails(setDoc(doc(como(UID), 'fotos', 'otro'), { uid: UID, img: FOTO, actualizado: serverTimestamp() }));
+  // Ni una URL, ni un SVG, ni una foto enorme.
+  await assertFails(setDoc(ref, { uid: UID, img: 'https://malo.example/x.png', actualizado: serverTimestamp() }));
+  await assertFails(setDoc(ref, { uid: UID, img: 'data:image/svg+xml;base64,AAAA', actualizado: serverTimestamp() }));
+  await assertFails(setDoc(ref, { uid: UID, img: `data:image/webp;base64,${'A'.repeat(14001)}`, actualizado: serverTimestamp() }));
+  await assertSucceeds(deleteDoc(ref));
+});
+
+test('el lider personaliza el clan con emblema, siglas y lema validos', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'clanes', 'c1'), {
+      nombre: 'Clan Uno', color: '#FF5A1F', lider: UID, miembros: [UID, OTRO], oficiales: [], solicitudes: [],
+    });
+  });
+  const ref = doc(como(UID), 'clanes', 'c1');
+  await assertSucceeds(updateDoc(ref, { color: '#1B80E5', emblema: 'rayo', siglas: 'CU', descripcion: 'Los mas rapidos' }));
+  await assertFails(updateDoc(ref, { emblema: 'cohete' }));
+  await assertFails(updateDoc(ref, { siglas: 'DEMASIADO' }));
+  await assertFails(updateDoc(ref, { descripcion: 'Entrad en clan-uno.com' }));
+  await assertFails(updateDoc(ref, { color: 'red' }));
+  // Un miembro que no es lider, no.
+  await assertFails(updateDoc(doc(como(OTRO), 'clanes', 'c1'), { emblema: 'llama' }));
 });

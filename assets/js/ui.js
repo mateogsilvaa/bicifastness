@@ -4,6 +4,7 @@
  */
 
 import { ESTACIONES } from '../data/estaciones.js';
+import { fotoPropiaLocal, ponerFoto } from './foto-local.js';
 import { el, id, icono, reemplazar } from './dom.js';
 import { vigilarErrores } from './errores.js';
 import { medir } from './metricas.js';
@@ -283,7 +284,8 @@ function fichaLateral() {
   }
   const division = NOMBRE_DIVISION[yo.division] || null;
   return el('a', { clase: 'lateral-ficha', attrs: { href: '/yo/' } }, [
-    el('span', { clase: 'avatar-inicial peque', texto: [...yo.username][0]?.toUpperCase() || 'P' }),
+    // La foto sale de la copia local: pintar el lateral no cuesta lecturas.
+    (() => { const a = el('span', { clase: 'avatar-inicial peque', texto: [...yo.username][0]?.toUpperCase() || 'P' }); ponerFoto(a, fotoPropiaLocal()); return a; })(),
     el('span', { clase: 'datos' }, [
       el('strong', { texto: yo.username }),
       yo.grupo || division ? el('small', { texto: yo.grupo || division }) : null,

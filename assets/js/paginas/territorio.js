@@ -9,6 +9,7 @@
 // disputa, gris = libre. La estacion elegida y la pestaña viajan en la URL.
 
 import { iniciarPagina, aplicarTema } from '/assets/js/ui.js';
+import { escudoClan } from '/assets/js/escudo-clan.js';
 import { id, el, icono, estado, reemplazar } from '/assets/js/dom.js';
 import { traerAgregado } from '/assets/js/agregados.js';
 import { auth, onAuthStateChanged, db, doc, getDoc } from '/assets/js/firebase.js';
@@ -228,7 +229,6 @@ id('resumen-mapa').addEventListener('click', (e) => {
 
 // --- 5b · Estacion ---------------------------------------------------------------------
 
-const iniciales = (n) => String(n || '').split(/\s+/).filter(Boolean).map((p) => p[0]).join('').slice(0, 3).toUpperCase();
 const nombreLimpio = (n, numero) => String(n || `Estación ${numero}`).replace(/^\s*\d+[a-zA-Z]?\s*[-–]\s*/, '');
 
 function pintarEstacion(propiedades) {
@@ -352,7 +352,7 @@ function resumenClan() {
   const rivales = [...new Set(asedio.map((a) => a.rival).filter(Boolean))];
   reemplazar(destino, [
     el('div', { clase: 'resumen-clan' }, [
-      el('span', { clase: 'escudo-clan', estilo: { background: colorSeguro(clan.color) || 'var(--tinta-3)' }, texto: iniciales(clan.nombre) }),
+      escudoClan(clan),
       el('span', { clase: 'datos' }, [
         el('strong', { texto: clan.nombre }),
         el('small', { texto: `${suyas.length} ${suyas.length === 1 ? 'estación' : 'estaciones'}${puesto ? ` · ${puesto}.º de ${rankingClanes.length} clanes` : ''}` }),
@@ -389,7 +389,7 @@ function pintarClanes() {
 
   reemplazar(id('lista-clanes'), el('div', { clase: 'lista-ranking clanes' }, orden.map((c, i) => el('div', { clase: `fila-clan ${c.clanId === miClanId ? 'tuya' : ''}` }, [
     el('span', { clase: 'pos', texto: String(c.ranking?.pos || i + 1) }),
-    el('span', { clase: 'escudo-clan', estilo: { background: colorSeguro(c.color) || 'var(--tinta-3)' }, texto: iniciales(c.nombre) }),
+    escudoClan(c),
     el('span', { clase: 'quien' }, [
       el('span', { clase: 'nombre', texto: c.nombre || c.clanId }),
       el('span', { clase: 'clan', texto: `${c.ranking?.viajes ?? '—'} miembros · ${c.dominadas} estaciones` }),

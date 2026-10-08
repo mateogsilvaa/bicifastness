@@ -519,9 +519,19 @@ service cloud.firestore {
       allow update: if esLider()
         && cambia().hasOnly([
           'miembros', 'solicitudes', 'numMiembros',
-          'oficiales', 'lider', 'descripcion', 'color',
+          'oficiales', 'lider', 'descripcion', 'color', 'emblema', 'siglas',
         ])
         && cabeAlguienMas()
+        // La identidad (assets/js/escudo-clan.js). Este documento es publico:
+        // cada campo con su forma, y el lema sin enlaces.
+        && (!('color' in cambia()) || datos().color.matches('^#[0-9a-fA-F]{6}$'))
+        && (!('emblema' in cambia()) || datos().emblema == null
+            || datos().emblema in ['rayo', 'llama', 'corona', 'estrella', 'montana', 'rueda', 'ola', 'diana', 'flecha', 'escudo', 'calavera', 'oso'])
+        && (!('siglas' in cambia()) || datos().siglas == null
+            || (datos().siglas is string && datos().siglas.matches('^[A-Z0-9ÑÁÉÍÓÚ]{1,3}$')))
+        && (!('descripcion' in cambia())
+            || (datos().descripcion is string && datos().descripcion.size() <= 80
+                && !datos().descripcion.lower().matches('(?s).*(https?://|www[.]|[a-z0-9-][.](com|es|net|org|io|me|ly|link|xyz|info|app|gg|co|tk|ru|cat|eu)([^a-z0-9]|$)).*')))
         // El nuevo lider tiene que estar dentro. Ceder el mando a alguien de
         // fuera deja el clan sin nadie que pueda gestionarlo.
         && (!('lider' in cambia()) || datos().miembros.hasAny([datos().lider]))
@@ -837,6 +847,25 @@ service cloud.firestore {
         // arreglar (#67).
         && datos().sesiones is int
         && datos().sesiones == (resource == null ? 1 : previo().sesiones + 1);
+    }
+
+    // --- Foto de perfil --------------------------------------------------------
+    // Aparte del perfil para que los rankings no la arrastren. El id es el
+    // nombre de piloto (en minusculas), que es lo que conoce quien abre una
+    // ficha; solo la escribe la cuenta que tiene ese nombre. Es una imagen ya
+    // reducida en el navegador (assets/js/foto-perfil.js): como mucho 14.000
+    // caracteres, y solo WebP o JPEG en base64 — nada de URLs, que harian que
+    // el navegador de quien la ve pidiera algo a un servidor ajeno.
+    match /fotos/{nombre} {
+      allow read: if true;
+      allow create, update: if autenticado()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.usernameLower == nombre
+        && datos().keys().hasOnly(['uid', 'img', 'actualizado'])
+        && datos().uid == request.auth.uid
+        && datos().img is string && datos().img.size() <= 14000
+        && datos().img.matches('^data:image/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$')
+        && datos().actualizado == request.time;
+      allow delete: if autenticado() && resource.data.uid == request.auth.uid;
     }
 
     // --- Bicirating (11 · Bicis) ---------------------------------------------

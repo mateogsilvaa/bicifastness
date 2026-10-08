@@ -288,6 +288,8 @@ function plantillaClanVacio(clanId, datosClan = {}) {
     nombre: datosClan.nombre || clanId,
     descripcion: datosClan.descripcion || '',
     color: datosClan.color || null,
+    emblema: datosClan.emblema || null,
+    siglas: datosClan.siglas || null,
     lider: datosClan.lider || null,
     oficiales: datosClan.oficiales || [],
     biciRating: 0,

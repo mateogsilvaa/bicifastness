@@ -1042,6 +1042,22 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .muestra-color[aria-checked='true'] { outline: 2px solid var(--tinta); outline-offset: 2px; opacity: 1; }
 .crear-clan .pista { font-size: 12px; color: var(--tinta-3); }
 
+/* Escudo con emblema (assets/js/escudo-clan.js) y personalizacion del clan. */
+.con-emblema { color: var(--blanco); }
+.con-emblema svg { display: block; }
+.lema-clan { display: block; font-size: 13px; font-style: italic; color: var(--tinta-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.personalizar-clan { display: flex; flex-direction: column; gap: var(--e3); }
+.personalizar-muestra { display: flex; align-items: center; gap: var(--e3); padding: var(--e3); border-radius: 16px; background: var(--papel-3); }
+.personalizar-muestra .datos { display: flex; flex-direction: column; min-width: 0; }
+.personalizar-clan .muestras-color { display: grid; grid-template-columns: repeat(8, 30px); gap: 10px; }
+.rejilla-emblemas { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px; }
+.emblema-opcion { height: 44px; border: 0; border-radius: 12px; background: var(--papel-3); color: var(--tinta); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; cursor: pointer; font-family: inherit; }
+.emblema-opcion svg { display: block; }
+.emblema-opcion.elegida { background: var(--tinta); color: var(--papel); }
+.personalizar-campos { display: grid; grid-template-columns: 96px 1fr; gap: 10px; }
+.personalizar-campos .campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--tinta-2); }
+.personalizar-campos input { min-height: 44px; border-radius: 12px; }
+
 @media (min-width: 900px) {
   .territorio { height: 100dvh; }
   .mapa-controles { left: auto; right: 20px; top: 20px; justify-content: flex-end; }
@@ -1289,6 +1305,13 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 .perfil-cabecera .datos { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .perfil-cabecera .sub { font-size: 13px; color: var(--tinta-2); }
 .perfil-cabecera .etiquetas { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Con foto (assets/js/foto-perfil.js): la imagen tapa la inicial. */
+.avatar-inicial.con-foto { background-size: cover; background-position: center; color: transparent; }
+.avatar-editable { position: relative; border: 0; cursor: pointer; padding: 0; font-family: inherit; }
+.avatar-editable::after { content: ''; position: absolute; right: -2px; bottom: -2px; width: 24px; height: 24px; border-radius: 50%; background: var(--azul-relleno) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h3l2-3h6l2 3h3v11H4z'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E") center / 14px no-repeat; border: 2px solid var(--papel); }
+.hoja-foto { display: flex; flex-direction: column; gap: var(--e3); }
+.hoja-foto .avatar-inicial { width: 96px; height: 96px; font-size: 36px; align-self: center; }
 
 /* Sin avatar subido: la inicial sobre el color del clan. El color llega de la
    base de datos y se valida antes de asignarlo (mi-clan.js). */

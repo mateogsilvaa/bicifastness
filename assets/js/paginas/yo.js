@@ -16,11 +16,13 @@ import {
   collection, getDocs, getCountFromServer, query, where, orderBy, limit, startAfter, doc, getDoc,
 } from '/assets/js/firebase.js';
 import { iniciarPagina, nombreRuta, temaElegido, elegirTema } from '/assets/js/ui.js';
-import { id, el, estado, reemplazar, icono } from '/assets/js/dom.js';
+import { id, el, estado, reemplazar, icono, abrirHoja, avisar } from '/assets/js/dom.js';
 import {
   exportarMisDatos, solicitarBorradoCuenta, guardarAvisosCorreo, guardarFavoritas,
 } from '/assets/js/acciones.js';
 import { vaciarCache } from '/assets/js/cache.js';
+import { prepararFoto, subirFoto, quitarFoto } from '/assets/js/foto-perfil.js';
+import { ponerFoto, fotoPropiaLocal } from '/assets/js/foto-local.js';
 import { abrirResuelto } from '/assets/js/veredicto.js';
 import { guardarResumenOffline, olvidarResumenOffline } from '/assets/js/instalar.js';
 import { traerAgregado } from '/assets/js/agregados.js';
@@ -149,6 +151,59 @@ onAuthStateChanged(auth, async (u) => {
 let clanDatos = null;
 let claveGrupo = null;
 let puestoGeneral = null;
+
+// --- Foto de perfil ------------------------------------------------------------
+// Tocar el avatar abre la hoja: elegir una foto (se reduce aqui mismo, en el
+// navegador, a 128 px) o quitar la que hay. Una escritura por cambio.
+function hojaFoto() {
+  if (!perfil) return;
+  const fichero = id('foto-fichero');
+  const muestra = el('span', { clase: 'avatar-inicial', texto: [...(perfil.username || 'P')][0].toUpperCase() });
+  ponerFoto(muestra, fotoPropiaLocal());
+  const nota = el('p', { clase: 'apagado', texto: 'Se recorta en cuadrado y se reduce en tu móvil antes de subirla: nunca sale la foto original.' });
+  const { cerrar } = abrirHoja([
+    el('div', { clase: 'hoja-foto' }, [
+      el('h2', { texto: 'Foto de perfil' }),
+      muestra,
+      nota,
+      el('button', { clase: 'btn', texto: 'Elegir foto', attrs: { type: 'button' }, on: { click: () => fichero.click() } }),
+      fotoPropiaLocal()
+        ? el('button', {
+          clase: 'btn secundario', texto: 'Quitar foto', attrs: { type: 'button' },
+          on: {
+            click: async () => {
+              try {
+                await quitarFoto(perfil);
+                ponerFoto(id('avatar'), null);
+                cerrar();
+              } catch {
+                avisar('No se ha podido quitar la foto. Vuelve a intentarlo.');
+              }
+            },
+          },
+        })
+        : null,
+    ]),
+  ], { etiqueta: 'Foto de perfil', clase: 'dialogo-escritorio' });
+
+  fichero.onchange = async () => {
+    const elegido = fichero.files?.[0];
+    fichero.value = '';
+    if (!elegido) return;
+    try {
+      nota.textContent = 'Subiendo…';
+      const img = await prepararFoto(elegido);
+      await subirFoto(perfil, img);
+      ponerFoto(id('avatar'), img);
+      cerrar();
+    } catch (error) {
+      nota.textContent = error?.message && !/permission|insufficient/i.test(error.message)
+        ? error.message
+        : 'No se ha podido subir la foto. Vuelve a intentarlo.';
+    }
+  };
+}
+id('avatar')?.addEventListener('click', hojaFoto);
 
 async function cargarPerfil() {
   const snap = await getDoc(doc(db, 'usuarios', usuario.uid));

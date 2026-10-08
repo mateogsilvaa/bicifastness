@@ -14,6 +14,7 @@ import { ponerFoto } from '/assets/js/foto-local.js';
 import { iniciarPagina, nombreEstacion, formatearTiempo, normalizarEstacion, miles } from '/assets/js/ui.js';
 import { id, el, icono, estado, reemplazar, pedirTexto, avisar, abrirHoja } from '/assets/js/dom.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
+import { traerAgregado } from '/assets/js/agregados.js';
 import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 import { diaMadrid, lunesDeLaSemana } from '/assets/js/dia.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
@@ -22,6 +23,24 @@ import {
   NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, chipDivision, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
   divisionDeClave, numeroDeGrupo,
 } from '/assets/js/ligas.js';
+
+// --- Fotos en las filas ------------------------------------------------------------
+// Las miniaturas (40 px) de todos los que tienen foto viajan en UN agregado,
+// cacheado como los demas: una lectura por visita al ranking, no una por fila.
+let fotosMini = {};
+traerAgregado('fotos-mini')
+  .then((d) => { fotosMini = d?.fotos || {}; pintarMinis(); })
+  .catch(() => { /* sin miniaturas, las filas se quedan como estaban */ });
+
+function miniFoto(nombre) {
+  const nodo = el('span', { clase: 'mini-foto', attrs: { 'data-piloto': String(nombre || '').toLowerCase(), 'aria-hidden': 'true' } });
+  ponerFoto(nodo, fotosMini[String(nombre || '').toLowerCase()] || null);
+  return nodo;
+}
+
+function pintarMinis() {
+  for (const nodo of document.querySelectorAll('.mini-foto[data-piloto]')) ponerFoto(nodo, fotosMini[nodo.dataset.piloto] || null);
+}
 
 /** La foto de un piloto en su ficha: una lectura al abrirla, nada en las filas. */
 function fotoDe(avatar, nombre) {
@@ -162,7 +181,7 @@ function filaPiloto(f, { yo, zona, valor, clanes, columnas = null, flecha = fals
     el('span', { clase: 'pos', texto: String(f.pos) }),
     conInsignia ? emblemaLiga(f.division, { tamano: 28 }) : null,
     el('span', { clase: 'quien' }, [
-      el('span', { clase: 'nombre', texto: yo ? `Tú · ${f.nombre}` : f.nombre }),
+      el('span', { clase: 'nombre' }, [miniFoto(f.nombre), yo ? `Tú · ${f.nombre}` : f.nombre]),
       el('span', { clase: 'clan' }, [
         conInsignia ? null : el('span', { clase: 'punto-clan', estilo: { background: clan?.color || 'transparent' } }),
         el('span', { texto: conInsignia ? `${division} · ${clan?.nombre || 'Sin clan'}` : clan?.nombre || 'Sin clan' }),

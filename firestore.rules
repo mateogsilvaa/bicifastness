@@ -181,14 +181,19 @@ service cloud.firestore {
         // `avisosCorreo` es la preferencia de correo. Es un booleano suyo y
         // solo suyo: darse de baja no puede depender de que un administrador lo
         // haga por ti (RGPD).
-        && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo'])
+        && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo', 'fotoMini'])
         && (!('favoritas' in datos()) || datos().favoritas.size() <= 3)
         // Solo cuando SE ESCRIBE. Es lo que hay que vigilar —que nadie meta
         // ahi lo que quiera— y ademas no deja fuera a ningun perfil viejo:
         // exigirlo siempre habria dejado sin poder tocar sus preferencias a
         // cualquiera cuyo registro no tenga hoy exactamente esta forma, por
         // ejemplo si viene de la v1.
-        && (!('consentimiento' in cambia()) || consentimientoValido());
+        && (!('consentimiento' in cambia()) || consentimientoValido())
+        // La miniatura de su foto (40 px), para los rankings. Solo una imagen
+        // pequeña en base64: nunca una URL (ver el comentario de `avatarUrl`).
+        && (!('fotoMini' in cambia()) || datos().fotoMini == null
+            || (datos().fotoMini is string && datos().fotoMini.size() <= 3000
+                && datos().fotoMini.matches('^data:image/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$')));
 
       // Avisos push (#33).
       //

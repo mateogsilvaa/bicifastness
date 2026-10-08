@@ -192,8 +192,9 @@ function hojaFoto() {
     if (!elegido) return;
     try {
       nota.textContent = 'Subiendo…';
-      const img = await prepararFoto(elegido);
-      await subirFoto(perfil, img);
+      const foto = await prepararFoto(elegido);
+      await subirFoto(perfil, foto);
+      const { img } = foto;
       ponerFoto(id('avatar'), img);
       cerrar();
     } catch (error) {

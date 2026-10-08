@@ -153,7 +153,13 @@ function arrancar() {
   }
 
   admin.initializeApp({ credential: admin.credential.cert(cuenta) });
-  return admin.firestore();
+  const firestore = admin.firestore();
+  // Un campo `undefined` (un dato que el documento no tenia) tumbaba la
+  // escritura entera: viajes a revision con "el fallo es nuestro" por
+  // `escudos`, y pasadas enteras caidas por `lider`. Se omite el campo, que
+  // es lo que se queria decir, y la pasada sigue.
+  firestore.settings({ ignoreUndefinedProperties: true });
+  return firestore;
 }
 
 /**

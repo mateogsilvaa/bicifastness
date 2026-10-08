@@ -61,6 +61,15 @@ service cloud.firestore {
       return esAdmin() || webAbierta() || enListaBlanca();
     }
 
+    // Una cuenta suspendida no escribe nada mas: ni trayectos, ni
+    // valoraciones, ni clanes, ni foto. Antes la suspension solo se notaba en
+    // el panel y la cuenta podia seguir subiendo.
+    function cuentaActiva() {
+      return autenticado()
+        && (!exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+          || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('suspendido', false) != true);
+    }
+
     function datos() { return request.resource.data; }
     function previo() { return resource.data; }
 
@@ -389,7 +398,8 @@ service cloud.firestore {
           + '_' + string(cupoTras(request.auth.uid).viajes)
         && cupoTras(request.auth.uid).dia == diaUTC()
         && cupoTras(request.auth.uid).viajes <= topeDiario()
-        && puedeUsarLaWeb();
+        && puedeUsarLaWeb()
+        && cuentaActiva();
 
       // El dueno solo puede pedir revision humana de un rechazo automatico
       // (art. 22.3 RGPD). No puede tocar el tiempo, la ruta ni el veredicto.
@@ -535,6 +545,7 @@ service cloud.firestore {
 
       allow create: if autenticado()
         && puedeUsarLaWeb()
+        && cuentaActiva()
         && datos().lider == request.auth.uid
         && datos().miembros == [request.auth.uid]
         && datos().oficiales.size() == 0
@@ -994,7 +1005,8 @@ service cloud.firestore {
         && datos().img is string && datos().img.size() <= 14000
         && datos().img.matches('^data:image/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$')
         && datos().actualizado == request.time
-        && puedeUsarLaWeb();
+        && puedeUsarLaWeb()
+        && cuentaActiva();
       allow delete: if autenticado() && resource.data.uid == request.auth.uid;
     }
 
@@ -1045,7 +1057,8 @@ service cloud.firestore {
         )
         && datos().procesada == false
         && datos().creado == request.time
-        && puedeUsarLaWeb();
+        && puedeUsarLaWeb()
+        && cuentaActiva();
       allow delete: if false;
     }
 

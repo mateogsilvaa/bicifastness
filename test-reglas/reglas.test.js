@@ -512,3 +512,15 @@ test('la lista blanca no la lee nadie salvo su propia entrada, y no da el panel'
   await assertSucceeds(setDoc(doc(admin, 'config', 'acceso'), { modo: 'abierta', mensaje: '', por: 'jefa', actualizado: serverTimestamp() }));
   await assertSucceeds(getDocs(collection(admin, 'acceso_lista')));
 });
+
+test('una cuenta suspendida no puede valorar bicis ni crear clanes', async () => {
+  await conViaje();
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura', suspendido: true });
+  });
+  const db = como(UID);
+  await assertFails(setDoc(doc(db, 'valoraciones_bici', `2471_${UID}_${diaUTC()}`), valoracion()));
+  await assertFails(setDoc(doc(db, 'clanes', 'nuevo'), {
+    nombre: 'Nuevo', color: '#FF5A1F', lider: UID, miembros: [UID], oficiales: [], solicitudes: [], biciRating: 0, logros: [],
+  }));
+});

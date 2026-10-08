@@ -22,9 +22,10 @@ async function main() {
   const atascados = { docs: enRevision.docs.filter((d) => (d.data().motivos || []).includes('error_worker')) };
   atascados.size = atascados.docs.length;
 
-  // Los que ya ha tocado una persona se respetan: solo vuelven los que
-  // siguen esperando sin que nadie los haya mirado.
-  const vuelven = atascados.docs.filter((d) => !d.data().revisadoPor);
+  // Los que ya ha resuelto una persona se respetan. `revisadoPor: 'automatico'`
+  // no cuenta como resuelto: el worker escribe el veredicto ANTES de sumar los
+  // puntos, y era al sumarlos donde fallaba.
+  const vuelven = atascados.docs.filter((d) => [undefined, null, 'automatico'].includes(d.data().revisadoPor));
   console.log(`En revision por un fallo del worker: ${atascados.size}. Vuelven a la cola: ${vuelven.length}.`);
   if (simular) return;
 

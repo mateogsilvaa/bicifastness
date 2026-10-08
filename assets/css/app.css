@@ -1041,6 +1041,9 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .muestra-color.usado { opacity: .3; }
 .muestra-color[aria-checked='true'] { outline: 2px solid var(--tinta); outline-offset: 2px; opacity: 1; }
 .crear-clan .pista { font-size: 12px; color: var(--tinta-3); }
+.crear-clan .colores-clan { display: grid; grid-template-columns: repeat(8, 30px); gap: 10px; }
+.crear-clan > input { min-height: 48px; border-radius: 12px; }
+.crear-clan .btn:disabled { opacity: .45; }
 
 /* Escudo con emblema (assets/js/escudo-clan.js) y personalizacion del clan. */
 .con-emblema { color: var(--blanco); }
@@ -1050,7 +1053,7 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .personalizar-muestra { display: flex; align-items: center; gap: var(--e3); padding: var(--e3); border-radius: 16px; background: var(--papel-3); }
 .personalizar-muestra .datos { display: flex; flex-direction: column; min-width: 0; }
 .personalizar-clan .muestras-color { display: grid; grid-template-columns: repeat(8, 30px); gap: 10px; }
-.rejilla-emblemas { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px; }
+.rejilla-emblemas { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
 .emblema-opcion { height: 44px; border: 0; border-radius: 12px; background: var(--papel-3); color: var(--tinta); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; cursor: pointer; font-family: inherit; }
 .emblema-opcion svg { display: block; }
 .emblema-opcion.elegida { background: var(--tinta); color: var(--papel); }

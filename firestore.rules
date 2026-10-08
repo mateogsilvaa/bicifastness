@@ -516,7 +516,14 @@ service cloud.firestore {
         && datos().logros.size() == 0
         && datos().nombre is string
         && datos().nombre.size() >= 3 && datos().nombre.size() <= 28
-        && datos().color.matches('^#[0-9a-fA-F]{6}$');
+        && datos().color.matches('^#[0-9a-fA-F]{6}$')
+        // La identidad con la que nace: las mismas formas que al cambiarla.
+        && (!('emblema' in datos()) || datos().emblema == null
+            || datos().emblema in ['rayo', 'llama', 'corona', 'estrella', 'montana', 'rueda', 'ola', 'diana', 'flecha', 'escudo', 'calavera', 'oso'])
+        && (!('siglas' in datos()) || datos().siglas == null)
+        && (!('descripcion' in datos())
+            || (datos().descripcion is string && datos().descripcion.size() <= 80
+                && !datos().descripcion.lower().matches('(?s).*(https?://|www[.]|[a-z0-9-][.](com|es|net|org|io|me|ly|link|xyz|info|app|gg|co|tk|ru|cat|eu)([^a-z0-9]|$)).*')));
 
       // --- Lo que puede el lider -------------------------------------------
       // Todo lo de un oficial, mas nombrarlos, ceder el liderazgo y cambiar la

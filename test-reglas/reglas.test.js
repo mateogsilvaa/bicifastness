@@ -26,7 +26,7 @@ const {
   initializeTestEnvironment, assertSucceeds, assertFails,
 } = require('@firebase/rules-unit-testing');
 const {
-  doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment, Timestamp,
+  doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment, Timestamp,
 } = require('firebase/firestore');
 
 let entorno;
@@ -481,4 +481,34 @@ test('el lider personaliza el clan con emblema, siglas y lema validos', async ()
   await assertFails(updateDoc(ref, { color: 'red' }));
   // Un miembro que no es lider, no.
   await assertFails(updateDoc(doc(como(OTRO), 'clanes', 'c1'), { emblema: 'llama' }));
+});
+
+// --- Web en construccion ----------------------------------------------------------
+
+async function enObras() {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'config', 'acceso'), { modo: 'obras', mensaje: '' });
+    await setDoc(doc(ctx.firestore(), 'acceso_lista', 'amiga@ejemplo.es'), { por: 'admin' });
+  });
+}
+
+test('en obras solo se registra la lista blanca, con el correo verificado', async () => {
+  await enObras();
+  await assertFails(altaDePerfil(como(UID, { email: 'otra@ejemplo.es', email_verified: true }), UID, 'Piloto Uno'));
+  // El correo de la lista, pero sin verificar: no (podria ser cualquiera).
+  await assertFails(altaDePerfil(como(UID, { email: 'amiga@ejemplo.es', email_verified: false }), UID, 'Piloto Uno'));
+  await assertSucceeds(altaDePerfil(como(UID, { email: 'Amiga@Ejemplo.es', email_verified: true }), UID, 'Piloto Uno'));
+});
+
+test('la lista blanca no la lee nadie salvo su propia entrada, y no da el panel', async () => {
+  await enObras();
+  const amiga = como(UID, { email: 'amiga@ejemplo.es', email_verified: true });
+  await assertSucceeds(getDoc(doc(amiga, 'acceso_lista', 'amiga@ejemplo.es')));
+  await assertFails(getDoc(doc(amiga, 'acceso_lista', 'otra@ejemplo.es')));
+  await assertFails(getDocs(collection(amiga, 'acceso_lista')));
+  await assertFails(setDoc(doc(amiga, 'config', 'acceso'), { modo: 'abierta', por: UID, actualizado: serverTimestamp() }));
+  await assertFails(setDoc(doc(amiga, 'acceso_lista', 'colega@ejemplo.es'), { por: UID, creado: serverTimestamp() }));
+  const admin = como('jefa', { admin: true });
+  await assertSucceeds(setDoc(doc(admin, 'config', 'acceso'), { modo: 'abierta', mensaje: '', por: 'jefa', actualizado: serverTimestamp() }));
+  await assertSucceeds(getDocs(collection(admin, 'acceso_lista')));
 });

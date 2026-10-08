@@ -13,6 +13,7 @@ import {
 
 const SECCIONES = [
   { clave: 'panel', texto: 'Panel', href: '/admin/panel/' },
+  { clave: 'acceso', texto: 'Acceso', href: '/admin/acceso/' },
   { clave: 'revision', texto: 'Revisión', href: '/admin/#revision', contador: 'adm-cuenta-revision' },
   { clave: 'denuncias', texto: 'Denuncias', href: '/admin/#denuncias', contador: 'adm-cuenta-denuncias' },
   { clave: 'pilotos', texto: 'Pilotos y clanes', href: '/admin/#pilotos' },

@@ -4064,3 +4064,24 @@ body.adm-bloqueada main { visibility: hidden; }
 .tanda-beta h3 { margin: 0 0 4px; font-size: 15px; }
 .tanda-beta p { margin: 0; font-size: 13px; color: var(--tinta-2); line-height: 1.45; }
 .fila-viaje.de-tanda { opacity: .6; }
+
+/* En construccion (assets/js/puerta.js). */
+html.acceso-pendiente body > *:not(#pantalla-obras) { visibility: hidden; }
+#pantalla-obras { position: fixed; inset: 0; z-index: 1000; background: var(--papel); display: flex; align-items: center; justify-content: center; padding: var(--e5); }
+#pantalla-obras .obras-caja { max-width: 420px; display: flex; flex-direction: column; gap: var(--e3); text-align: center; align-items: center; }
+#pantalla-obras h1 { margin: 0; font-size: 32px; font-stretch: 80%; font-weight: 900; letter-spacing: -.02em; }
+#pantalla-obras p { margin: 0; color: var(--tinta-2); line-height: 1.5; }
+#pantalla-obras .obras-nota { font-size: 13px; color: var(--tinta-3); }
+#pantalla-obras .btn { width: auto; padding: 0 var(--e5); }
+body.en-obras { overflow: hidden; }
+
+/* Admin · Acceso */
+.acceso-modos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e2); }
+.acceso-modo { display: flex; gap: 10px; align-items: flex-start; padding: 14px; border-radius: 14px; background: var(--papel); cursor: pointer; }
+.acceso-modo span { display: flex; flex-direction: column; gap: 2px; }
+.acceso-modo small { color: var(--tinta-3); font-size: 12px; }
+.acceso-modo:has(input:checked) { outline: 2px solid var(--tinta); }
+.acceso-alta { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--e2); }
+.acceso-fila { display: flex; justify-content: space-between; align-items: center; gap: var(--e2); }
+.acceso-fila .btn { width: auto; min-height: 36px; }
+@media (max-width: 700px) { .acceso-alta, .acceso-modos { grid-template-columns: 1fr; } }

@@ -37,6 +37,30 @@ service cloud.firestore {
       return autenticado() && request.auth.token.admin == true;
     }
 
+    // --- Web abierta o en construccion (assets/js/puerta.js) ----------------
+    // En obras solo escriben la administracion y la lista blanca. Estar en la
+    // lista NO es ser administrador: el claim `admin` va aparte.
+    //
+    // Sin `config/acceso` la web esta abierta: un documento que falta no puede
+    // cerrar la web a todo el mundo.
+    function webAbierta() {
+      return !exists(/databases/$(database)/documents/config/acceso)
+        || get(/databases/$(database)/documents/config/acceso).data.get('modo', 'abierta') != 'obras';
+    }
+
+    // Con el correo VERIFICADO: si no, cualquiera se registra con contraseña
+    // usando el correo de alguien de la lista y entra.
+    function enListaBlanca() {
+      return autenticado()
+        && request.auth.token.get('email', null) is string
+        && request.auth.token.get('email_verified', false) == true
+        && exists(/databases/$(database)/documents/acceso_lista/$(request.auth.token.email.lower()));
+    }
+
+    function puedeUsarLaWeb() {
+      return esAdmin() || webAbierta() || enListaBlanca();
+    }
+
     function datos() { return request.resource.data; }
     function previo() { return resource.data; }
 
@@ -162,7 +186,8 @@ service cloud.firestore {
         && datos().logros.size() == 0
         && datos().clanId == null
         && datos().suspendido == false
-        && consentimientoValido();
+        && consentimientoValido()
+        && puedeUsarLaWeb();
 
       // Solo se puede tocar lo cosmetico y las rutas ancladas. La puntuacion,
       // las insignias y el estado de la cuenta los escribe unicamente el worker.
@@ -363,7 +388,8 @@ service cloud.firestore {
         && viajeId == request.auth.uid + '_' + string(diaUTC())
           + '_' + string(cupoTras(request.auth.uid).viajes)
         && cupoTras(request.auth.uid).dia == diaUTC()
-        && cupoTras(request.auth.uid).viajes <= topeDiario();
+        && cupoTras(request.auth.uid).viajes <= topeDiario()
+        && puedeUsarLaWeb();
 
       // El dueno solo puede pedir revision humana de un rechazo automatico
       // (art. 22.3 RGPD). No puede tocar el tiempo, la ruta ni el veredicto.
@@ -508,6 +534,7 @@ service cloud.firestore {
       }
 
       allow create: if autenticado()
+        && puedeUsarLaWeb()
         && datos().lider == request.auth.uid
         && datos().miembros == [request.auth.uid]
         && datos().oficiales.size() == 0
@@ -664,6 +691,33 @@ service cloud.firestore {
     }
 
     // --- Configuracion ------------------------------------------------------
+    // El interruptor de la web (assets/js/puerta.js). Lo lee cualquiera —es lo
+    // que decide que pantalla ver— y solo lo cambia la administracion.
+    match /config/acceso {
+      allow read: if true;
+      allow write: if esAdmin()
+        && datos().keys().hasOnly(['modo', 'mensaje', 'actualizado', 'por'])
+        && datos().modo in ['abierta', 'obras']
+        && (!('mensaje' in datos()) || (datos().mensaje is string && datos().mensaje.size() <= 300))
+        && datos().por == request.auth.uid
+        && datos().actualizado == request.time;
+    }
+
+    // La lista blanca, por correo en minusculas. Cada uno solo puede mirar
+    // SU entrada (asi la puerta sabe si pasa), nunca la lista: son correos.
+    match /acceso_lista/{correo} {
+      allow get: if esAdmin()
+        || (autenticado() && request.auth.token.get('email', null) is string
+            && request.auth.token.email.lower() == correo);
+      allow list: if esAdmin();
+      allow create, update: if esAdmin()
+        && correo.matches('^[^@/ ]+@[^@/ ]+[.][^@/ ]+$')
+        && datos().keys().hasOnly(['nota', 'por', 'creado'])
+        && (!('nota' in datos()) || (datos().nota is string && datos().nota.size() <= 80))
+        && datos().por == request.auth.uid;
+      allow delete: if esAdmin();
+    }
+
     match /config/general {
       allow read: if true;     // ruta destacada
       allow write: if esAdmin();
@@ -876,7 +930,8 @@ service cloud.firestore {
         && datos().uid == request.auth.uid
         && datos().img is string && datos().img.size() <= 14000
         && datos().img.matches('^data:image/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$')
-        && datos().actualizado == request.time;
+        && datos().actualizado == request.time
+        && puedeUsarLaWeb();
       allow delete: if autenticado() && resource.data.uid == request.auth.uid;
     }
 
@@ -926,7 +981,8 @@ service cloud.firestore {
             && datos().estacion is string && datos().estacion.size() <= 4)
         )
         && datos().procesada == false
-        && datos().creado == request.time;
+        && datos().creado == request.time
+        && puedeUsarLaWeb();
       allow delete: if false;
     }
 

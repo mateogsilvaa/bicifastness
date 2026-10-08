@@ -365,7 +365,9 @@ service cloud.firestore {
       allow update: if esYo(previo().uid)
         && previo().estado == 'rechazado'
         && previo().revisadoPor == 'automatico'
-        && previo().impugnado != true
+        // `get`: un rechazo que nunca se impugno no lleva el campo, y leerlo
+        // a pelo es un error de evaluacion que deniega.
+        && previo().get('impugnado', false) != true
         // Mientras el worker guarde la captura: sin ella no hay nada que
         // revisar, y la impugnacion llegaba al panel sin imagen.
         && previo().get('capturaCaduca', null) is timestamp

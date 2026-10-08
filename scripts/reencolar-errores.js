@@ -26,6 +26,10 @@ async function main() {
   // no cuenta como resuelto: el worker escribe el veredicto ANTES de sumar los
   // puntos, y era al sumarlos donde fallaba.
   const vuelven = atascados.docs.filter((d) => [undefined, null, 'automatico'].includes(d.data().revisadoPor));
+  // Solo recuentos por motivo: el log de Actions es publico.
+  const porMotivo = {};
+  for (const d of enRevision.docs) for (const m of (d.data().motivos || ['(sin motivos)'])) porMotivo[m] = (porMotivo[m] || 0) + 1;
+  console.log(`En revision: ${enRevision.size}. Por motivo: ${JSON.stringify(porMotivo)}`);
   console.log(`En revision por un fallo del worker: ${atascados.size}. Vuelven a la cola: ${vuelven.length}.`);
   if (simular) return;
 

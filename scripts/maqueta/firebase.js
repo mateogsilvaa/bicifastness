@@ -221,8 +221,29 @@ nombres.slice(0, 8).forEach((n, i) => {
     puntosDesglose: { base: 10, distancia: 13, velocidad: 4, multiplicadorRacha: 1.5, multiplicadorRuta: 1, multiplicadorTerritorio: 1 },
     numeroBici: ['2471', '1180', '932', '2215', '1740', '2471', '318', '1180'][i],
     creado: hace(60 * 24 * i + 30),
+    // La captura vive aparte y con su propio id (#11), y la de un rechazo se
+    // guarda unos dias para poder pedir revision.
+    capturaId: `${UID}_c${i}`,
+    ...(i === 2 ? { capturaCaduca: new Timestamp(Date.now() + 12 * 864e5) } : {}),
   };
 });
+
+/** Una captura de mentira, pintada al vuelo: la maqueta no lleva imagenes de nadie. */
+function capturaDeMentira(texto) {
+  if (typeof document === 'undefined') return 'data:image/png;base64,';
+  const lienzo = document.createElement('canvas');
+  lienzo.width = 360; lienzo.height = 720;
+  const c = lienzo.getContext('2d');
+  c.fillStyle = '#ffffff'; c.fillRect(0, 0, 360, 720);
+  c.fillStyle = '#1466C2'; c.fillRect(0, 0, 360, 90);
+  c.fillStyle = '#111111'; c.font = 'bold 22px sans-serif';
+  c.fillText('BiciMAD (maqueta)', 24, 140);
+  c.font = '18px sans-serif';
+  texto.split('\n').forEach((linea, n) => c.fillText(linea, 24, 190 + n * 30));
+  return lienzo.toDataURL('image/png');
+}
+datos[`capturas/${UID}_c2`] = { uid: UID, datos: capturaDeMentira('Salida 10:02:11\nLlegada 10:14:40\nDuracion 12 min 29 s') };
+datos[`capturas/${UID}_c4`] = { uid: UID, datos: capturaDeMentira('Salida 18:40:03\nLlegada 18:52:10\nDuracion 12 min 7 s') };
 
 // 11 · Bicis: fichas de ejemplo (lo que escribe backend/src/bicis.js).
 const ms = (min) => Date.now() - min * 60000;

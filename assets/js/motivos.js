@@ -166,6 +166,14 @@ const MOTIVOS = {
     texto: 'La captura se parece mucho a la de otro viaje ya registrado.',
     queHacer: 'Comprueba que no estas subiendo dos veces el mismo trayecto.',
   },
+  viaje_repetido: {
+    texto: 'Este trayecto ya lo tienes subido: misma ruta, mismo dia y mismas horas.',
+    queHacer: 'Cada trayecto cuenta una vez. Si es otro viaje, revisa la fecha que has puesto.',
+  },
+  viaje_coincidente: {
+    texto: 'Otra cuenta ha subido el mismo trayecto a la misma hora.',
+    queHacer: 'Si ibais juntos, no hace falta que hagas nada: lo mira una persona.',
+  },
   metadatos_edicion: {
     texto: 'La imagen ha pasado por un editor.',
     queHacer: 'Sube la captura original, sin abrirla en ninguna aplicacion de retoque.',
@@ -340,6 +348,23 @@ export const MOTIVOS_MANUALES = [
   'velocidad_imposible',
   'lectura_no_disponible',
 ];
+
+/**
+ * ¿Se puede pedir que una persona revise este rechazo (art. 22.3 RGPD)?
+ *
+ * Solo los rechazos de la maquina, una vez, y mientras se guarde la captura:
+ * el worker la conserva unos dias (`capturaCaduca`) y luego la borra. Sin
+ * captura, quien revisa no tiene nada que mirar, y lo util es volver a subirla.
+ * Las reglas de Firestore piden lo mismo.
+ */
+export function impugnable(viaje, ahora = Date.now()) {
+  if (viaje?.estado !== 'rechazado' || viaje.revisadoPor !== 'automatico' || viaje.impugnado) return false;
+  // Timestamp de Firestore, o lo que queda de el si el viaje ha pasado por
+  // JSON (la cache del historial).
+  const marca = viaje.capturaCaduca;
+  const caduca = marca?.toMillis?.() ?? (Number.isFinite(marca?.seconds) ? marca.seconds * 1000 : null);
+  return caduca !== null && caduca > ahora;
+}
 
 /** Los codigos con texto propio. Lo usa el test que los ata al motor. */
 export const CODIGOS_CON_TEXTO = Object.keys(MOTIVOS);

@@ -14,6 +14,7 @@ import { nombreRuta, formatearTiempo } from './ui.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
 import { NIVELES, NOMBRES as LIGAS, emblemaLiga, chipDivision, numeroDeGrupo } from './ligas.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
+import { impugnable } from './motivos.js';
 
 // --- Formato -----------------------------------------------------------------
 
@@ -349,7 +350,7 @@ export const FILTROS = [
 ];
 
 /** Se puede pedir que una persona revise un rechazo automatico (art. 22.3 RGPD). */
-export const impugnable = (v) => v.estado === 'rechazado' && v.revisadoPor === 'automatico' && !v.impugnado;
+export { impugnable };
 
 function textoExtra(v) {
   if (v.estado === 'aprobado') return v.puntos ? `+${numero(v.puntos)}` : '';

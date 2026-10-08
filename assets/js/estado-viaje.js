@@ -25,7 +25,7 @@
 
 import { db, doc, onSnapshot } from './firebase.js';
 import { el, reemplazar } from './dom.js';
-import { estadoDeViaje, motivoDeViaje } from './motivos.js';
+import { estadoDeViaje, motivoDeViaje, impugnable } from './motivos.js';
 import { celebrarVerificado } from '/assets/js/celebrar.js';
 
 const CLAVE = 'viaje-en-curso';
@@ -136,7 +136,7 @@ export function tarjetaEstado(viaje, { conEnlace = true } = {}) {
     // El derecho a que lo mire una persona (art. 22.3 RGPD) se ejerce desde el
     // historial, que es donde esta el formulario de alegacion. Aqui solo se
     // enseña la puerta.
-    rechazado && viaje?.revisadoPor === 'automatico' && !viaje?.impugnado
+    impugnable(viaje)
       ? el('p', { clase: 'menor', estilo: { marginBottom: '0' } }, [
         el('a', { texto: 'Si crees que es un error, puedes pedir que lo revise una persona', attrs: { href: '/yo/' } }),
       ])

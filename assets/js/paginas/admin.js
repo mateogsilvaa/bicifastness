@@ -346,7 +346,7 @@ function pintarCaso() {
 
   pintarAnalisis(viajeId, viaje, analisis, etiquetas);
   pintarHistorial(viaje.uid, historial);
-  verCaptura(viajeId)
+  verCaptura(viajeId, viaje)
     .then((datos) => reemplazar(marco, imagen(datos, {
       attrs: { alt: 'Captura del viaje' },
       titulo: 'Pulsa para verla a pantalla completa',

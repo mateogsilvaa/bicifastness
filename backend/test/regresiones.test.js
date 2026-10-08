@@ -3164,7 +3164,7 @@ test('la ventana de huellas cuesta dos lecturas, no ciento cincuenta', () => {
   // Sin uid dentro: el borrado de cuenta no tendria que acordarse de ella.
   const guardado = worker.slice(worker.indexOf('async function guardarVentana'));
   assert.doesNotMatch(guardado.slice(0, guardado.indexOf('\n}\n')), /uid/);
-  assert.match(worker, /huellasRecientes\.unshift\(\{ sha, dhash, tripId, capturaId \}\)/);
+  assert.match(worker, /huellasRecientes\.unshift\(\{ sha, dhash, tripId, capturaId, firma: firma \|\| null \}\)/);
 });
 
 test('en Tu, el historial y las temporadas solo se leen al abrirlos', () => {

@@ -229,11 +229,96 @@ function comprobarCaptura({ ruta, tiempoSegundos, lectura, segundaLectura }) {
 
 // --- Comprobacion 3: reutilizacion de la captura -----------------------------
 /**
+ * Lo que identifica a UN trayecto dentro de una captura: su dia, sus horas, su
+ * duracion y su bici. Es lo que distingue "la misma captura otra vez" de "otra
+ * captura de la misma pantalla de la app".
+ *
+ * El dia solo cuenta si se ha LEIDO en la imagen: el declarado lo escribe la
+ * persona, y quien resube una captura vieja con otra fecha es justo a quien
+ * hay que pillar.
+ */
+function firmaDeLectura(lectura) {
+  if (!lectura?.disponible) return null;
+  const firma = {
+    fecha: /^\d{4}-\d{2}-\d{2}$/.test(String(lectura.fecha || '')) ? lectura.fecha : null,
+    salida: lectura.horaSalida || null,
+    llegada: lectura.horaLlegada || null,
+    duracion: Number.isFinite(lectura.segundosDuracion) ? lectura.segundosDuracion : null,
+    bici: lectura.numeroBici ? String(lectura.numeroBici).replace(/^0+/, '') : null,
+  };
+  return Object.values(firma).some((v) => v !== null) ? firma : null;
+}
+
+/**
+ * ¿Dos firmas son el mismo trayecto?
+ *
+ *   'distinto'    las horas, o el dia leido, no coinciden: otro viaje.
+ *   'igual'       coinciden las horas y algo mas que las ate (segundos, dia o
+ *                 bici), sin nada en contra: la misma captura, por mucho que
+ *                 se haya recortado.
+ *   'desconocido' no hay con que compararlas; o solo coinciden las horas al
+ *                 minuto, que quien hace siempre el mismo trayecto puede
+ *                 repetir otro dia; o coinciden las horas y discrepa otra cosa.
+ *
+ * Lo que separa dos viajes son las horas y el dia. La bici y la duracion NO:
+ * medido sobre el banco, la misma captura algo borrosa da la bici 1903, 1042 o
+ * 19053, y con eso una captura repetida pasaria por otro viaje. Que discrepen
+ * con las horas iguales solo quita certeza (y una duracion distinta con las
+ * mismas horas es justo una captura retocada): lo mira una persona.
+ */
+function compararFirmas(a, b) {
+  if (!a || !b) return 'desconocido';
+  const conSegundos = (h) => /^\d{1,2}:\d{2}:\d{2}$/.test(String(h || ''));
+
+  let horas = 0;
+  let fuerte = false;
+  for (const campo of ['salida', 'llegada']) {
+    const x = horaASegundos(a[campo]);
+    const y = horaASegundos(b[campo]);
+    if (x === null || y === null) continue;
+    const exacto = conSegundos(a[campo]) && conSegundos(b[campo]);
+    // Al minuto, si alguna viene sin segundos: "11:13" y "11:13:40" son lo mismo.
+    const iguales = exacto ? Math.abs(x - y) <= 2 : Math.floor(x / 60) === Math.floor(y / 60);
+    if (!iguales) return 'distinto';
+    horas += 1;
+    if (exacto) fuerte = true;
+  }
+  if (a.fecha && b.fecha && a.fecha !== b.fecha) return 'distinto';
+  if (horas < 2) return 'desconocido';
+
+  const duracionDistinta = Number.isFinite(a.duracion) && Number.isFinite(b.duracion)
+    && Math.abs(a.duracion - b.duracion) > 5;
+  const biciDistinta = Boolean(a.bici && b.bici && a.bici !== b.bici);
+  if (duracionDistinta || biciDistinta) return 'desconocido';
+
+  if (a.fecha && b.fecha) fuerte = true;
+  if (a.bici && b.bici) fuerte = true;
+  return fuerte ? 'igual' : 'desconocido';
+}
+
+/**
+ * Un duplicado cuyo viaje original esta RECHAZADO y es de la misma persona no
+ * es un duplicado: es "Corregir y volver a subir". El original no cuenta para
+ * nada, asi que subir otra vez su captura no puede contar un trayecto dos
+ * veces. Antes eso se rechazaba por "captura ya subida", y la pantalla de
+ * rechazo invitaba justo a hacerlo.
+ */
+const esReintento = (previo, uid) => previo.estado === 'rechazado' && Boolean(uid) && previo.uid === uid;
+
+/**
  * `hashesPrevios` son los dHash de las capturas recientes de CUALQUIER usuario,
  * no solo del que sube. Asi se detecta tambien que dos cuentas suban la misma
  * imagen, que es el patron tipico de las cuentas multiples.
+ *
+ * El dHash es de 9x8 pixeles, y a esa resolucion TODAS las capturas de la app
+ * de BiciMAD se parecen: la misma maqueta, el mismo azul, el mismo blanco.
+ * Medido en el banco de pruebas, dos viajes distintos salen a distancia 5,
+ * dentro del umbral de "la misma imagen". Rechazar por eso era rechazar a quien
+ * repite trayecto, que es quien mas usa la app. Asi que el parecido solo SEÑALA
+ * candidatos, y lo que decide es lo leido: si las horas, el dia o la bici no
+ * coinciden, es otro viaje, por mucho que se parezca la pantalla.
  */
-function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios, capturaId }) {
+function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios, capturaId, lectura, uid }) {
   const señales = [];
 
   // Una misma captura puede sostener VARIOS viajes: el historial de la app es
@@ -246,40 +331,98 @@ function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios
   // sea. Eso es lo que hace un duplicado de verdad.
   const deOtraCaptura = (previo) => !capturaId || !previo.capturaId || previo.capturaId !== capturaId;
 
-  const duplicadoExacto = shaPrevios.filter(deOtraCaptura).find((p) => p.sha === hashSha);
-  if (duplicadoExacto) {
-    señales.push(fatal('captura_reutilizada',
-      duplicadoExacto.uid
-        ? 'Esta captura ya se habia subido antes, byte a byte.'
-        : 'Esta captura ya se habia subido antes.',
-      { viajeOriginal: duplicadoExacto.tripId }));
+  const duplicadoExacto = (shaPrevios || []).filter(deOtraCaptura).find((p) => p.sha === hashSha);
+  if (duplicadoExacto && !esReintento(duplicadoExacto, uid)) {
+    if (duplicadoExacto.estado === 'rechazado') {
+      // De otra persona y rechazado: no cuenta dos veces, pero que una cuenta
+      // suba la captura de otra es el patron de las cuentas multiples.
+      señales.push(señal('captura_reutilizada', 50,
+        'Esta captura ya la habia subido otra cuenta (aquel viaje se rechazo). Requiere revision humana.',
+        { viajeOriginal: duplicadoExacto.tripId }));
+    } else {
+      señales.push(fatal('captura_reutilizada',
+        duplicadoExacto.uid
+          ? 'Esta captura ya se habia subido antes, byte a byte.'
+          : 'Esta captura ya se habia subido antes.',
+        { viajeOriginal: duplicadoExacto.tripId }));
+    }
     return señales;
   }
+  if (duplicadoExacto) return señales;
 
   if (!hashPerceptual) return señales;
 
-  let masParecido = null;
-  for (const previo of hashesPrevios) {
-    if (!previo.dhash) continue;
-    if (!deOtraCaptura(previo)) continue;
-    const distancia = distanciaHamming(hashPerceptual, previo.dhash);
-    if (!masParecido || distancia < masParecido.distancia) {
-      masParecido = { ...previo, distancia };
+  const firma = firmaDeLectura(lectura);
+  const candidatos = (hashesPrevios || [])
+    .filter((previo) => previo.dhash && deOtraCaptura(previo))
+    .map((previo) => ({ ...previo, distancia: distanciaHamming(hashPerceptual, previo.dhash) }))
+    .filter((previo) => previo.distancia <= IMAGEN.MAX_DISTANCIA_PERCEPTUAL)
+    .sort((a, b) => a.distancia - b.distancia);
+
+  let dudoso = null;
+  for (const previo of candidatos) {
+    if (esReintento(previo, uid)) continue;
+    const comparacion = compararFirmas(firma, previo.firma);
+    if (comparacion === 'distinto') continue;
+    if (comparacion === 'igual' && previo.estado !== 'rechazado') {
+      señales.push(fatal('captura_casi_identica',
+        `La captura es la de otro viaje ya registrado (distancia perceptual ${previo.distancia}, ` +
+        'y las horas leidas coinciden). Recomprimir o recortar una imagen no la convierte en nueva.',
+        { viajeOriginal: previo.tripId, distancia: previo.distancia }));
+      return señales;
     }
+    dudoso = dudoso || previo;
   }
 
-  if (masParecido && masParecido.distancia <= IMAGEN.MAX_DISTANCIA_PERCEPTUAL) {
-    señales.push(fatal('captura_casi_identica',
-      `La captura es practicamente identica a la de otro viaje ya registrado ` +
-      `(distancia perceptual ${masParecido.distancia}). Recomprimir o recortar una imagen no la convierte en nueva.`,
-      { viajeOriginal: masParecido.tripId, distancia: masParecido.distancia }));
-  } else if (masParecido && masParecido.distancia <= IMAGEN.MAX_DISTANCIA_PERCEPTUAL + 4) {
+  if (dudoso) {
     señales.push(señal('captura_parecida', 35,
-      `La captura se parece mucho a la de otro viaje (distancia ${masParecido.distancia}).`,
-      { viajeOriginal: masParecido.tripId }));
+      `La captura se parece mucho a la de otro viaje (distancia ${dudoso.distancia}) ` +
+      'y no se ha podido comprobar por lo leido si es el mismo trayecto.',
+      { viajeOriginal: dudoso.tripId }));
   }
 
   return señales;
+}
+
+/**
+ * El mismo trayecto subido otra vez, con OTRA captura: la de la misma pantalla
+ * hecha dos veces, o recortada de forma que ni el dHash la reconoce.
+ *
+ * `viajesMismoDia` son los de la misma ruta y el mismo dia declarado (una
+ * consulta del worker), con la franja leida en su captura. Una persona no
+ * puede hacer la misma ruta dos veces a la misma hora. Dos personas si: dos
+ * amigos que salen juntos. Por eso entre cuentas distintas solo pesa si no se
+ * sabe la bici; con bicis distintas son dos viajes, y con la misma ya lo dice
+ * `bici_en_dos_sitios`.
+ */
+function comprobarViajeRepetido({ lectura, uid, capturaId, viajesMismoDia }) {
+  const firma = firmaDeLectura(lectura);
+  if (!firma || horaASegundos(firma.salida) === null || horaASegundos(firma.llegada) === null) return [];
+
+  for (const otro of viajesMismoDia || []) {
+    if (!otro || otro.estado === 'rechazado') continue;
+    if (capturaId && otro.capturaId === capturaId) continue;
+    const s = horaASegundos(otro.salida);
+    const l = horaASegundos(otro.llegada);
+    if (s === null || l === null) continue;
+    const a = horaASegundos(firma.salida);
+    const b = horaASegundos(firma.llegada);
+    if (Math.abs(a - s) > 90 || Math.abs(b - l) > 90) continue;
+
+    if (otro.uid === uid) {
+      return [fatal('viaje_repetido',
+        `Este trayecto (${firma.salida} → ${firma.llegada}) ya esta subido en otro viaje tuyo.`,
+        { viajeOriginal: otro.tripId || null })];
+    }
+    // Con las dos bicis leidas: distintas son dos viajes, y la misma ya la
+    // señala `bici_en_dos_sitios`.
+    if (!(otro.bici && firma.bici)) {
+      return [señal('viaje_coincidente', 40,
+        `Otra cuenta tiene subido el mismo trayecto a la misma hora (${firma.salida} → ${firma.llegada}) y no se sabe la bici de los dos.`,
+        { viajeOriginal: otro.tripId || null })];
+    }
+  }
+  return [];
 }
 
 // --- Comprobacion 4: contexto del piloto y del record ------------------------
@@ -631,6 +774,7 @@ function evaluar(contexto) {
     ...fisica.señales,
     ...comprobarCaptura(contexto),
     ...comprobarDuplicado(contexto),
+    ...comprobarViajeRepetido(contexto),
     ...comprobarContexto(contexto),
     ...comprobarEstadistica(contexto),
     ...comprobarPerfilPiloto({ ...contexto, kmh: fisica.kmh }),
@@ -677,4 +821,6 @@ function evaluar(contexto) {
   };
 }
 
-module.exports = { evaluar, distribucion, distanciaCalleMetros, velocidadKmh, DE_LECTURA };
+module.exports = {
+  evaluar, distribucion, distanciaCalleMetros, velocidadKmh, DE_LECTURA, firmaDeLectura, compararFirmas,
+};

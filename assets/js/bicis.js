@@ -168,9 +168,31 @@ export function selectorEstrellas(valor, alElegir, { deshabilitado = false, tam 
   return grupo;
 }
 
+/** Tope del comentario de una valoracion (las reglas dicen lo mismo). */
+export const MAX_COMENTARIO = 200;
+
+/**
+ * ¿Lleva un enlace? Los comentarios de una bici son publicos y anonimos: un
+ * enlace ahi es spam o algo peor, y no aporta nada sobre la bici.
+ */
+export function tieneEnlace(texto) {
+  return /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|es|net|org|io|me|ly|link|xyz|info|app|gg|co|tk|ru|cat|eu)\b)/i.test(String(texto || ''));
+}
+
+const inicioDia = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+
 /** Hace cuanto, en palabras cortas. */
-export function haceTiempo(ms) {
+export function haceTiempo(ms, { soloDia = false } = {}) {
   if (!ms) return '';
+  // De la valoracion solo se sabe el DIA en que se uso la bici (el del viaje):
+  // decir "hace 3 h" de un viaje de la semana pasada era mentir.
+  if (soloDia) {
+    const dias = Math.round((inicioDia(Date.now()) - inicioDia(ms)) / 864e5);
+    if (dias <= 0) return 'hoy';
+    if (dias === 1) return 'ayer';
+    if (dias < 7) return `hace ${dias} días`;
+    return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' }).format(new Date(ms));
+  }
   const min = Math.round((Date.now() - ms) / 60000);
   if (min < 60) return min <= 1 ? 'ahora mismo' : `hace ${min} min`;
   const h = Math.round(min / 60);

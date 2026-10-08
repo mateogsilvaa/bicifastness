@@ -14,7 +14,7 @@ on:
       operacion:
         description: 'Que hacer'
         type: choice
-        options: [hacer-admin, quitar-admin, comprobar-datos]
+        options: [hacer-admin, quitar-admin, comprobar-datos, reencolar-errores]
         required: true
       correo:
         description: 'Correo de la cuenta (solo para hacer-admin / quitar-admin)'
@@ -94,5 +94,10 @@ jobs:
                 })().catch((e) => { console.error(e.message); process.exit(1); });
               "
               node scripts/migrar-datos.js --comprobar || true
+              ;;
+            reencolar-errores)
+              # Los viajes que fueron a revision porque el worker fallo (no
+              # por el viaje) vuelven a la cola. Solo imprime recuentos.
+              node scripts/reencolar-errores.js
               ;;
           esac

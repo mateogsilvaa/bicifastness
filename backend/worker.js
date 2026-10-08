@@ -922,13 +922,14 @@ async function comprobarCapturaDeBici(capturaId, bici) {
     const { buffer } = imagen.decodificarDataUrl(snap.data().datos);
     const lectura = await leerCaptura({ buffer });
     if (!lectura.disponible) return { vale: false, motivo: 'captura ilegible' };
+    const usada = /^\d{4}-\d{2}-\d{2}$/.test(lectura.fecha || '') ? lectura.fecha : null;
     const leida = bicis.normalizarBici(lectura.numeroBici);
     if (!leida || leida !== bici) return { vale: false, motivo: `la captura no es de la bici ${bici}` };
     if (lectura.fecha) {
       const dias = (Date.now() - new Date(`${lectura.fecha}T12:00:00Z`).getTime()) / 864e5;
       if (dias > LIMITES.DIAS_MAX_ANTIGUEDAD) return { vale: false, motivo: 'captura de hace mas de un mes' };
     }
-    return { vale: true };
+    return { vale: true, usada };
   } catch (error) {
     return { vale: false, motivo: `error al leerla: ${error.message}` };
   }
@@ -947,10 +948,18 @@ async function procesarValoraciones() {
       // Valorar sin subir viaje (11): la prueba es la captura. Aqui se lee y
       // tiene que ser esa bici y de hace menos de un mes; si no, no cuenta.
       const prueba = v.capturaId ? await comprobarCapturaDeBici(v.capturaId, n) : { vale: true };
+      // El dia en que se uso la bici: el del viaje, no el de la valoracion.
+      let usada = prueba.usada || null;
+      if (!usada && v.viajeId) {
+        const viaje = await db.doc(`tiempos_viaje/${v.viajeId}`).get().catch(() => null);
+        const f = viaje?.exists ? viaje.data().fechaViaje : null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(f || '')) usada = f;
+      }
       if (!SIMULAR) {
         await doc.ref.update({
           procesada: true,
           comentarioPublico: bicis.limpiarComentario(v.comentario),
+          ...(usada ? { usada } : {}),
           ...(prueba.vale ? { rechazada: false } : { rechazada: true, motivoRechazo: prueba.motivo }),
         });
         // La captura solo servia de prueba: fuera, que son 700 KB.

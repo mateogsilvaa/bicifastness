@@ -42,7 +42,7 @@ function estadoInicial() {
 
 
 function valoracion(v) {
-  const fecha = haceTiempo(v.cuando);
+  const fecha = haceTiempo(v.cuando, { soloDia: v.soloDia });
   const desde = v.estacion ? nombreEstacion(v.estacion) || v.estacion : null;
   return el('li', { clase: 'bici-opinion' }, [
     estrellas(v.nota, { tam: 16 }),
@@ -51,7 +51,7 @@ function valoracion(v) {
       (v.fallos || []).length
         ? el('div', { clase: 'bici-etiquetas' }, v.fallos.map((f) => el('span', { texto: NOMBRE_FALLO[f] || f })))
         : null,
-      el('small', { texto: [fechaCorta(v.cuando), fecha, desde ? `desde ${desde}` : null].filter(Boolean).join(' · ') }),
+      el('small', { texto: [...new Set([fechaCorta(v.cuando), fecha])].concat(desde ? `desde ${desde}` : null).filter(Boolean).join(' · ') }),
     ]),
   ]);
 }
@@ -117,7 +117,7 @@ function pintarFicha(n, ficha) {
       ? el('p', { clase: 'bici-vista' }, [
         'Vista por última vez en ',
         el('strong', { texto: nombreEstacion(vista.estacion) || vista.estacion }),
-        `, ${haceTiempo(vista.cuando)}`,
+        `, ${haceTiempo(vista.cuando, { soloDia: vista.soloDia })}`,
       ])
       : null,
   ]);

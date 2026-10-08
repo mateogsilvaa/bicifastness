@@ -866,7 +866,9 @@ service cloud.firestore {
         && datos().nota is int && datos().nota >= 1 && datos().nota <= 5
         && datos().fallos is list && datos().fallos.size() <= 9
         && datos().fallos.hasOnly(['frenos', 'asistencia', 'bateria', 'cambios', 'ruido', 'sillin', 'luces', 'cesta', 'rueda'])
-        && datos().comentario is string && datos().comentario.size() <= 280
+        && datos().comentario is string && datos().comentario.size() <= 200
+        // Sin enlaces (assets/js/bicis.js, `tieneEnlace`): es publico y anonimo.
+        && !datos().comentario.lower().matches('(?s).*(https?://|www[.]|[a-z0-9-][.](com|es|net|org|io|me|ly|link|xyz|info|app|gg|co|tk|ru|cat|eu)([^a-z0-9]|$)).*')
         && (
           // Con un viaje suyo: la estacion es la de salida de ese viaje.
           (!('capturaId' in datos())

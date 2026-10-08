@@ -385,6 +385,16 @@ test('se valora la bici de un trayecto propio, una vez al dia y se puede cambiar
   await assertFails(setDoc(doc(db, 'valoraciones_bici', `2471_${UID}_${diaUTC() - 1}`), valoracion()));
 });
 
+test('el comentario de una bici no lleva enlaces ni pasa de 200 caracteres', async () => {
+  await conViaje();
+  const ref = doc(como(UID), 'valoraciones_bici', `2471_${UID}_${diaUTC()}`);
+  await assertFails(setDoc(ref, valoracion({ comentario: 'Mirad https://spam.example' })));
+  await assertFails(setDoc(ref, valoracion({ comentario: 'Entra en bicis-baratas.com ya' })));
+  await assertFails(setDoc(ref, valoracion({ comentario: 'www.algo raro' })));
+  await assertFails(setDoc(ref, valoracion({ comentario: 'x'.repeat(201) })));
+  await assertSucceeds(setDoc(ref, valoracion({ comentario: 'Frena mal. Es ruidosa y la bici.esta floja' })));
+});
+
 test('no se valora una bici con el viaje de otro ni con datos inventados', async () => {
   await conViaje(OTRO);
   const db = como(UID);

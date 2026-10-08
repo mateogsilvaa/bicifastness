@@ -13,7 +13,7 @@ import { el, reemplazar } from './dom.js';
 import {
   FALLOS, NOTAS, normalizarBici, mostrarBici, cifra,
   guardarValoracion, miValoracionDeHoy, leerFicha, MINIMO_PARA_MEDIA,
-  estrellas, selectorEstrellas,
+  estrellas, selectorEstrellas, tieneEnlace, MAX_COMENTARIO,
 } from './bicis.js';
 
 /**
@@ -86,6 +86,11 @@ export function encuestaBici({ bici = '', viajeId, ruta, captura = null, estacio
 
   async function enviar() {
     if (estado.guardando) return;
+    if (tieneEnlace(estado.comentario)) {
+      estado.error = 'El comentario no puede llevar enlaces.';
+      pintar();
+      return;
+    }
     if (await guardar()) pintarEnviada();
   }
 
@@ -188,11 +193,14 @@ export function encuestaBici({ bici = '', viajeId, ruta, captura = null, estacio
       ]),
       (() => {
         const area = el('textarea', {
-          attrs: { rows: 2, maxlength: '280', placeholder: 'Añade un comentario (opcional)', 'aria-label': 'Comentario', disabled: sinNumero ? '' : null },
+          attrs: { rows: 2, maxlength: String(MAX_COMENTARIO), placeholder: 'Añade un comentario (opcional, sin enlaces)', 'aria-label': 'Comentario', disabled: sinNumero ? '' : null },
         });
-        area.value = estado.comentario;
-        area.addEventListener('input', () => { estado.comentario = area.value; });
-        return area;
+        const quedan = el('span', { clase: 'encuesta-cuenta', attrs: { 'aria-live': 'polite' } });
+        const contar = () => { quedan.textContent = `${area.value.length}/${MAX_COMENTARIO}`; };
+        area.value = estado.comentario.slice(0, MAX_COMENTARIO);
+        area.addEventListener('input', () => { estado.comentario = area.value; contar(); });
+        contar();
+        return el('div', { clase: 'encuesta-comentario' }, [area, quedan]);
       })(),
       estado.error ? el('p', { clase: 'encuesta-pista error', texto: estado.error }) : null,
       el('div', { clase: 'encuesta-enviar' }, [

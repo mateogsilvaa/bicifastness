@@ -2934,7 +2934,9 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
   .ranking-titulo { flex-direction: column; align-items: flex-start; gap: 2px; }
   .pestanas-ranking { display: flex; }
   .pestanas-ranking button { padding: 0 20px; }
-  .lista-ranking.con-columnas, .lista-ranking.clanes, .tabla-ruta { background: var(--papel-2); border-radius: 24px; padding: var(--e2) var(--e5); }
+  /* Clanes: solo en el Ranking. El panel del mapa y "sin clan" usan la misma
+     lista con menos columnas, y la rejilla de cinco los descuadraba. */
+  .lista-ranking.con-columnas, .ranking .lista-ranking.clanes, .tabla-ruta { background: var(--papel-2); border-radius: 24px; padding: var(--e2) var(--e5); }
   .lista-ranking.con-columnas .cabecera-ranking, .lista-ranking.con-columnas .fila-ranking { display: grid; grid-template-columns: 48px minmax(120px, 1fr) minmax(0, 150px) 80px 80px 90px 90px; gap: 12px; align-items: center; }
   .lista-ranking.con-columnas .cabecera-ranking { height: 44px; border-bottom: var(--borde); font-size: 13px; }
   .lista-ranking.con-columnas .cabecera-ranking .sube { grid-column: 1 / 4; }
@@ -2969,9 +2971,9 @@ body.sin-sesion .fila-fija { bottom: calc(var(--alto-barra) + var(--pie-barra) +
   .boton-anclar:not(.activo) { background: var(--papel-2); }
   .subir-aqui { align-self: flex-start; width: auto; padding: 0 18px; min-height: 44px; }
 
-  .lista-ranking.clanes .fila-clan { grid-template-columns: 28px 40px minmax(0, 1fr) 90px 90px; gap: 12px; border-bottom-color: var(--papel); }
-  .lista-ranking.clanes .escudo-clan { width: 40px; height: 40px; border-radius: 12px; }
-  .lista-ranking.clanes .col-modo { display: block; text-align: right; color: var(--tinta-2); }
+  .ranking .lista-ranking.clanes .fila-clan { grid-template-columns: 28px 40px minmax(0, 1fr) 90px 90px; gap: 12px; border-bottom-color: var(--papel); }
+  .ranking .lista-ranking.clanes .escudo-clan { width: 40px; height: 40px; border-radius: 12px; }
+  .ranking .lista-ranking.clanes .col-modo { display: block; text-align: right; color: var(--tinta-2); }
   .reparto-clanes { max-width: 760px; }
   .barra-reparto { height: 12px; border-radius: 6px; }
   #tabla-clanes { max-width: 760px; }

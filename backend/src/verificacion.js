@@ -192,8 +192,14 @@ function comprobarCaptura({ ruta, tiempoSegundos, lectura, segundaLectura }) {
         'pero la segunda lectura no lo confirma. Requiere revision humana.',
         { diferenciaHoras: diferencia, duracionMostrada: lectura.segundosDuracion }));
     } else if (desviacion > 5) {
-      señales.push(señal('captura_desviada', 30,
-        `Descuadre de ${desviacion}s entre las horas y la duracion mostrada.`));
+      // Un descuadre de segundos casi siempre es un digito de los segundos
+      // mal leido (la app de BiciMAD los cuadra al segundo). Solo pesa lo
+      // bastante para mandar a revision si la segunda lectura lee las mismas
+      // horas; si no, se anota pero no frena por si sola un viaje bueno.
+      const confirmada = lecturaConfirmada(lectura, segundaLectura);
+      señales.push(señal('captura_desviada', confirmada ? 30 : 10,
+        `Descuadre de ${desviacion}s entre las horas y la duracion mostrada`
+        + (confirmada ? '.' : ', sin confirmar por la segunda lectura.')));
     }
   } else {
     señales.push(señal('horas_ilegibles', 15, 'No se han podido leer con claridad las horas de la captura.'));

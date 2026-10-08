@@ -766,7 +766,30 @@ async function reconstruir({
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   });
 
+  // --- Miniaturas de las fotos de perfil ------------------------------------
+  // Para los rankings: UN documento con la miniatura (40 px, ~1 KB) de quien
+  // tiene foto, por nombre. Sale de `usuarios`, que ya esta leido: cero
+  // lecturas mas. Y solo se escribe si ha cambiado algo, que es casi nunca.
+  escritos.fotos = await escribirFotosMini(usuarios);
+
   return escritos;
+}
+
+const MINI = /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$/;
+
+async function escribirFotosMini(usuarios) {
+  const fotos = {};
+  for (const u of usuarios) {
+    if (u.suspendido || !u.username || typeof u.fotoMini !== 'string') continue;
+    if (u.fotoMini.length > 3000 || !MINI.test(u.fotoMini)) continue;
+    fotos[String(u.username).toLowerCase()] = u.fotoMini;
+  }
+  const firma = require('crypto').createHash('sha1').update(JSON.stringify(fotos)).digest('hex');
+  const ref = db().doc('agregados/fotos-mini');
+  const previo = await ref.get();
+  if (previo.exists && previo.data().firma === firma) return 0;
+  await ref.set({ fotos, firma, actualizado: admin.firestore.FieldValue.serverTimestamp() });
+  return 1;
 }
 
 module.exports = {

@@ -484,17 +484,43 @@ function clanesCerca() {
 function pintarSinClan(destino) {
   const cerca = clanesCerca();
   const usados = new Set(cerca.map((c) => c.color));
-  let color = COLORES_CLAN.find((c) => !usados.has(c)) || COLORES_CLAN[0];
+  const elegido = {
+    color: COLORES_CLAN.find((c) => !usados.has(c)) || COLORES_CLAN[0],
+    emblema: null,
+  };
 
   const nombre = el('input', { attrs: { type: 'text', id: 'clan-nombre', maxlength: '28', placeholder: 'Nombre del clan', autocomplete: 'off', 'aria-describedby': 'clan-nombre-estado' } });
   const estadoNombre = el('span', { clase: 'estado-nombre', attrs: { id: 'clan-nombre-estado', 'aria-live': 'polite' } });
+  const lema = el('input', { attrs: { type: 'text', maxlength: String(MAX_LEMA), placeholder: 'Lema (opcional)', 'aria-label': 'Lema del clan', autocomplete: 'off' } });
   let espera = null;
   let libre = false;
+
+  // El escudo en vivo: lo que se ve aqui es lo que vera todo el mundo.
+  const muestra = el('div', { clase: 'personalizar-muestra crear' });
+  const pintarMuestra = () => reemplazar(muestra, [
+    escudoClan({ ...elegido, nombre: nombre.value.trim() || 'Tu clan' }, { clase: 'escudo-clan grande', tam: 28 }),
+    el('span', { clase: 'datos' }, [
+      el('strong', { texto: nombre.value.trim() || 'Tu clan' }),
+      lema.value.trim()
+        ? el('span', { clase: 'lema-clan', texto: lema.value.trim() })
+        : el('span', { clase: 'apagado', texto: 'Así lo verán en el mapa y el ranking' }),
+    ]),
+  ]);
+
+  const crear = el('button', { clase: 'btn', texto: 'Crear el clan', attrs: { type: 'button', disabled: '' } });
+  const actualizarBoton = () => { crear.disabled = !libre; };
+
   nombre.addEventListener('input', () => {
     clearTimeout(espera);
     libre = false;
+    actualizarBoton();
+    pintarMuestra();
     const limpio = nombre.value.trim();
     if (limpio.length < 3) { estadoNombre.textContent = limpio ? 'Muy corto' : ''; estadoNombre.className = 'estado-nombre mal'; return; }
+    // Solo letras, numeros, espacios y algun signo corriente: nada de
+    // emojis, simbolos raros ni caracteres invisibles en un nombre publico.
+    if (!/^[\p{L}\p{N}][\p{L}\p{N} '._-]*$/u.test(limpio)) { estadoNombre.textContent = 'Solo letras y números'; estadoNombre.className = 'estado-nombre mal'; return; }
+    if (contienePalabrasProhibidas(limpio)) { estadoNombre.textContent = 'No permitido'; estadoNombre.className = 'estado-nombre mal'; return; }
     estadoNombre.textContent = 'Comprobando…';
     estadoNombre.className = 'estado-nombre espera';
     espera = setTimeout(async () => {
@@ -508,17 +534,56 @@ function pintarSinClan(destino) {
         libre = true; // sin poder mirarlo se deja intentar: crearClan lo comprueba
         estadoNombre.textContent = '';
       }
+      actualizarBoton();
     }, 400);
   });
+  lema.addEventListener('input', pintarMuestra);
 
   const muestras = el('div', { clase: 'colores-clan', attrs: { role: 'radiogroup', 'aria-label': 'Color del clan' } });
   const pintarMuestras = () => reemplazar(muestras, COLORES_CLAN.map((c) => el('button', {
     clase: `muestra-color ${usados.has(c) ? 'usado' : ''}`,
-    attrs: { type: 'button', role: 'radio', 'aria-checked': String(c === color), 'aria-label': `Color ${c}${usados.has(c) ? ', ya lo usa un clan cerca' : ''}` },
+    attrs: { type: 'button', role: 'radio', 'aria-checked': String(c === elegido.color), 'aria-label': `Color ${c}${usados.has(c) ? ', ya lo usa un clan cerca' : ''}` },
     estilo: { background: c },
-    on: { click: () => { color = c; pintarMuestras(); } },
+    on: { click: () => { elegido.color = c; pintarMuestras(); pintarMuestra(); } },
   })));
+
+  const emblemas = el('div', { clase: 'rejilla-emblemas', attrs: { role: 'radiogroup', 'aria-label': 'Emblema' } });
+  const pintarEmblemas = () => reemplazar(emblemas, [
+    el('button', {
+      clase: `emblema-opcion${!elegido.emblema ? ' elegida' : ''}`,
+      texto: 'Aa',
+      attrs: { type: 'button', role: 'radio', 'aria-checked': String(!elegido.emblema), 'aria-label': 'Iniciales', title: 'Iniciales' },
+      on: { click: () => { elegido.emblema = null; pintarEmblemas(); pintarMuestra(); } },
+    }),
+    ...Object.entries(EMBLEMAS).map(([clave, { nombre: titulo }]) => el('button', {
+      clase: `emblema-opcion${elegido.emblema === clave ? ' elegida' : ''}`,
+      attrs: { type: 'button', role: 'radio', 'aria-checked': String(elegido.emblema === clave), 'aria-label': titulo, title: titulo },
+      on: { click: () => { elegido.emblema = clave; pintarEmblemas(); pintarMuestra(); } },
+    }, [svgEmblema(clave, 20)])),
+  ]);
+
+  pintarMuestra();
   pintarMuestras();
+  pintarEmblemas();
+
+  crear.addEventListener('click', async () => {
+    if (!libre) return;
+    const textoLema = lemaSeguro(lema.value);
+    if (lema.value.trim() && (!textoLema || contienePalabrasProhibidas(textoLema))) {
+      avisar('Ese lema no se puede publicar.');
+      return;
+    }
+    crear.disabled = true;
+    try {
+      const nuevo = await crearClan({ nombre: nombre.value.trim(), descripcion: textoLema, color: elegido.color, emblema: elegido.emblema });
+      avisar('Clan creado.', 'exito');
+      clanId = nuevo;
+      await recargar();
+    } catch (error) {
+      avisar(error.message);
+      actualizarBoton();
+    }
+  });
 
   const codigo = el('input', { attrs: { type: 'text', id: 'codigo-invitacion', placeholder: 'Código de invitación', autocomplete: 'off', 'aria-label': 'Código de invitación' } });
   const entrar = boton('Entrar', async () => {
@@ -544,17 +609,16 @@ function pintarSinClan(destino) {
     el('div', { clase: 'fila-codigo' }, [codigo, entrar]),
     el('div', { clase: 'crear-clan' }, [
       el('h3', { texto: 'Crear un clan' }),
+      muestra,
       el('label', { clase: 'solo-lectores', attrs: { for: 'clan-nombre' }, texto: 'Nombre del clan' }),
       el('div', { clase: 'campo-nombre' }, [nombre, estadoNombre]),
+      lema,
+      el('span', { clase: 'rotulo', texto: 'Color' }),
       muestras,
       usados.size ? el('span', { clase: 'pista', texto: 'Los colores apagados ya los usa un clan con estaciones cerca de ti.' }) : null,
-      boton('Crear el clan', async () => {
-        if (!libre) throw new Error('Elige un nombre libre de al menos 3 letras.');
-        const nuevo = await crearClan({ nombre: nombre.value.trim(), descripcion: '', color });
-        avisar('Clan creado.', 'exito');
-        clanId = nuevo;
-        await recargar();
-      }, { clase: 'btn' }),
+      el('span', { clase: 'rotulo', texto: 'Emblema' }),
+      emblemas,
+      crear,
     ]),
   ]));
 }

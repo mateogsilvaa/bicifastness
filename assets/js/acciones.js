@@ -445,7 +445,7 @@ export async function personalizarClan(clanId, { color, emblema, siglas, descrip
   });
 }
 
-export async function crearClan({ nombre, descripcion, color }) {
+export async function crearClan({ nombre, descripcion, color, emblema = null }) {
   const uid = uidActual();
   const limpio = limpiarNombre(nombre, 28);
   const clanId = limpio.toLowerCase()
@@ -465,8 +465,9 @@ export async function crearClan({ nombre, descripcion, color }) {
   await setDoc(doc(db, 'clanes', clanId), {
     clanId,
     nombre: limpio,
-    descripcion: String(descripcion || '').slice(0, 160),
+    descripcion: String(descripcion || '').slice(0, 80),
     color,
+    emblema: emblema || null,
     lider: uid,
     miembros: [uid],
     oficiales: [],

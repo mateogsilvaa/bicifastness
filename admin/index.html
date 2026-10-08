@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="format-detection" content="telephone=no">
@@ -20,6 +20,18 @@
 <link rel="apple-touch-icon" href="/images/icono/icono-180.png?v=2">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
+  /* Ficha de un piloto (Pilotos y clanes). */
+  .ficha-piloto { display: flex; flex-direction: column; gap: 12px; margin: 8px 0 16px; padding: 16px; border-radius: 16px; background: var(--papel); }
+  .fichap-cabeza { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .fichap-cabeza h3 { margin: 0; font-size: 20px; }
+  .ficha-cifras { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+  .ficha-cifra { display: flex; flex-direction: column; padding: 10px; border-radius: 12px; background: var(--papel-2); }
+  .ficha-cifra span { font-size: 12px; color: var(--tinta-3); }
+  .ficha-cifra strong { font-size: 18px; }
+  .ficha-piloto h4 { margin: 4px 0 0; }
+  .ficha-viajes { display: flex; flex-direction: column; }
+  .ficha-viaje { display: grid; grid-template-columns: 90px minmax(0, 1fr) 70px 110px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--linea); font-size: 14px; }
+  @media (max-width: 800px) { .ficha-cifras { grid-template-columns: repeat(3, 1fr); } .ficha-viaje { grid-template-columns: 1fr 1fr; } }
   /* Estilos propios del panel de administracion.
    *
    * Solo lo que NO esta en el sistema de diseno. Aqui no se redefine ninguna
@@ -262,7 +274,7 @@
     <!-- Pilotos y clanes: insignias, ruta destacada y administradores -->
     <section id="seccion-pilotos" class="adm-seccion-normal oculto" aria-label="Pilotos y clanes">
       <section class="seccion">
-        <h2>Insignias</h2>
+        <h2>Buscar piloto o clan</h2>
         <div class="bloque">
           <div class="campo buscador">
             <label for="busca-objetivo">Buscar piloto o clan</label>
@@ -270,6 +282,7 @@
             <div class="resultados" id="resultados-busqueda"></div>
           </div>
           <p id="objetivo-actual" class="meta"></p>
+          <div id="ficha-piloto"></div>
           <div class="insignias" id="rejilla-insignias"></div>
         </div>
       </section>

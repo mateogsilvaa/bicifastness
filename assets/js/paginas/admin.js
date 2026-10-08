@@ -665,7 +665,7 @@ async function cargarObjetivos() {
     getDocs(collection(db, 'clanes')),
   ]);
   objetivos = [
-    ...usuarios.docs.map((d) => ({ id: d.id, tipo: 'usuarios', nombre: d.data().username || d.id, logros: d.data().logros || [] })),
+    ...usuarios.docs.map((d) => ({ id: d.id, tipo: 'usuarios', nombre: d.data().username || d.id, logros: d.data().logros || [], datos: d.data() })),
     ...clanes.docs.map((d) => ({ id: d.id, tipo: 'clanes', nombre: d.data().nombre || d.id, logros: d.data().logros || [] })),
   ];
 }
@@ -701,6 +701,10 @@ function seleccionar(objetivo) {
   id('resultados-busqueda').style.display = 'none';
   id('objetivo-actual').textContent =
     `Editando: ${objetivo.nombre} (${objetivo.tipo === 'usuarios' ? 'piloto' : 'clan'})`;
+
+  // Pilotos: su ficha y sus ultimos trayectos, encima de las insignias.
+  if (objetivo.tipo === 'usuarios') pintarFichaPiloto(objetivo);
+  else reemplazar(id('ficha-piloto'));
 
   const rejilla = id('rejilla-insignias');
   reemplazar(rejilla, Object.entries(INSIGNIAS).map(([clave, info]) => {
@@ -738,4 +742,62 @@ function seleccionar(objetivo) {
     ]);
   }));
   rejilla.style.display = 'grid';
+}
+
+// --- Ficha de un piloto ---------------------------------------------------------
+// Buscar a alguien y verlo entero: sus cifras, su estado y sus ultimos
+// trayectos, con la captura a un clic. Una consulta acotada (15 viajes).
+
+const ESTADO_VIAJE = { aprobado: 'Aprobado', rechazado: 'Rechazado', revision: 'En revisión', pendiente: 'Pendiente' };
+
+function pintarFichaPiloto({ id: uid, nombre, datos = {} }) {
+  const destino = id('ficha-piloto');
+  const km = Math.round((datos.metrosTotales || 0) / 1000);
+  const alta = datos.creado?.toDate?.();
+  const cifra = (t, v) => el('div', { clase: 'ficha-cifra' }, [el('span', { texto: t }), el('strong', { texto: String(v) })]);
+  const viajes = el('div', { clase: 'ficha-viajes' }, [esqueleto(3)]);
+
+  reemplazar(destino, el('div', { clase: 'ficha-piloto' }, [
+    el('div', { clase: 'fichap-cabeza' }, [
+      el('div', {}, [
+        el('h3', { texto: nombre }),
+        el('p', { clase: 'meta', texto: [
+          uid,
+          datos.clanId ? `clan ${datos.clanId}` : 'sin clan',
+          datos.division || 'sin clasificar',
+          alta ? `alta ${alta.toLocaleDateString('es-ES')}` : null,
+        ].filter(Boolean).join(' · ') }),
+        datos.suspendido ? el('p', { clase: 'chip rechazado', texto: `Suspendido${datos.motivoSuspension ? `: ${datos.motivoSuspension}` : ''}` }) : null,
+      ]),
+      botonEscribir(uid),
+    ]),
+    el('div', { clase: 'ficha-cifras' }, [
+      cifra('BiciRating', datos.biciRating || 0),
+      cifra('Verificados', datos.viajesVerificados || 0),
+      cifra('Km', km),
+      cifra('Racha', datos.racha || 0),
+      cifra('Insignias', (datos.logros || []).length),
+    ]),
+    el('h4', { texto: 'Últimos trayectos' }),
+    viajes,
+  ]));
+
+  getDocs(query(collection(db, 'tiempos_viaje'), where('uid', '==', uid), orderBy('creado', 'desc'), limit(15)))
+    .then((snap) => {
+      if (snap.empty) { reemplazar(viajes, el('p', { clase: 'meta', texto: 'No ha subido ningún trayecto.' })); return; }
+      reemplazar(viajes, snap.docs.map((d) => {
+        const v = d.data();
+        const ver = el('button', { clase: 'btn plano', texto: 'Captura', attrs: { type: 'button' } });
+        ver.addEventListener('click', () => abrirCaptura(d.id, ver));
+        return el('div', { clase: 'ficha-viaje' }, [
+          el('span', { clase: 'meta', texto: v.fechaViaje || '' }),
+          el('span', { texto: nombreRuta(v.ruta) }),
+          el('strong', { texto: formatearTiempo(v.tiempoSegundos) }),
+          el('span', { clase: `chip ${v.estado || 'pendiente'}`, texto: v.fase === 'beta' ? 'Primera tanda' : ESTADO_VIAJE[v.estado] || v.estado || '—' }),
+          el('span', { clase: 'meta', texto: (v.motivos || []).slice(0, 2).map((m) => textoDeMotivo(m).texto).join(' · ') }),
+          ver,
+        ]);
+      }));
+    })
+    .catch((error) => reemplazar(viajes, el('p', { clase: 'meta', texto: `No se han podido leer: ${error.message}` })));
 }

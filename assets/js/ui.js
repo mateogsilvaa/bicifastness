@@ -8,6 +8,7 @@ import { fotoPropiaLocal, ponerFoto } from './foto-local.js';
 import { el, id, icono, reemplazar } from './dom.js';
 import { vigilarErrores } from './errores.js';
 import { medir } from './metricas.js';
+import { comprobarAcceso } from './puerta.js';
 import { registrarServiceWorker, leerResumenOffline } from './instalar.js';
 
 // --- Antiframing -------------------------------------------------------------
@@ -570,6 +571,8 @@ export function montarPieLegal() {
 export function iniciarPagina(seccionActiva) {
   // Lo primero: si algo revienta mas abajo, queremos enterarnos.
   vigilarErrores();
+  // Web en obras (assets/js/puerta.js): si lo esta, solo entra la lista blanca.
+  comprobarAcceso();
   vigilarCarga();
   medir();
   aplicarTema();

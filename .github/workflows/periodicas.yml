@@ -10,10 +10,9 @@ name: Operaciones periodicas
 # minutos, esto toca a TODOS los usuarios. Mezclarlas seria arriesgar que un
 # despliegue del worker dispare por accidente un cierre de temporada.
 #
-# LOS CRON ESTAN APAGADOS HASTA EL LANZAMIENTO, igual que el del worker. Cerrar
-# una temporada sobre datos sin migrar archivaria ceros y pondria a cero lo que
-# hay. Reactivarlos es quitar el comentario, y esta anotado en el checklist del
-# README y en el issue #7.
+# Los cron estan encendidos: antes del lanzamiento no cierran nada (ver los
+# guardas en periodicas.js) y el 1 de noviembre a las 00:05 el de
+# `lanzamiento` pone la web a cero (src/lanzamiento.js).
 #
 # ANTES DE LA PRIMERA VEZ DE VERDAD: lanzarlo a mano con `simular: true` y mirar
 # la salida. El cierre de temporada no tiene vuelta atras.
@@ -24,19 +23,23 @@ on:
       operacion:
         description: 'Que ejecutar'
         type: choice
-        options: [temporada, divisiones]
+        options: [temporada, divisiones, lanzamiento]
         required: true
       aplicar:
         description: 'Escribir de verdad (sin marcar, solo simula)'
         type: boolean
         default: false
 
-  # schedule:
-  #   # Dia 1 a las 01:30 UTC: de madrugada en Madrid con cualquier horario, y
-  #   # ya dentro del dia 1, asi que la temporada a cerrar es la del mes anterior.
-  #   - cron: '30 1 1 * *'
-  #   # Lunes a las 01:45 UTC, despues del cierre por si coinciden.
-  #   - cron: '45 1 * * 1'
+  schedule:
+    # Dia 1 a las 01:30 UTC: de madrugada en Madrid con cualquier horario, y
+    # ya dentro del dia 1, asi que la temporada a cerrar es la del mes anterior.
+    # Las anteriores al lanzamiento no se cierran (periodicas.js).
+    - cron: '30 1 1 * *'
+    # Lunes a las 01:45 UTC, despues del cierre por si coinciden. Antes del
+    # lanzamiento ningun lunes cierra liga (divisiones.esCambioDeLiga).
+    - cron: '45 1 * * 1'
+    # El lanzamiento: 00:05 del 1 de noviembre en Madrid. Una sola vez.
+    - cron: '5 23 31 10 *'
 
 concurrency:
   group: periodicas
@@ -93,6 +96,9 @@ jobs:
             case "${{ github.event.schedule }}" in
               '30 1 1 * *') OPERACION=temporada ;;
               '45 1 * * 1') OPERACION=divisiones ;;
+              # 23:05 UTC del 31 de octubre = 00:05 en Madrid del 1 de noviembre.
+              # Solo hace algo el dia del lanzamiento y una vez (config/lanzamiento).
+              '5 23 31 10 *') OPERACION=lanzamiento ;;
               *)
                 OPERACION=divisiones
                 echo "::warning::Cron no reconocido (${{ github.event.schedule }}): ejecuto divisiones."

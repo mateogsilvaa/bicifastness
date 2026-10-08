@@ -13,20 +13,39 @@
  *   lecturas por pantalla.
  */
 
-import { db, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from './firebase.js';
+import { db, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from './firebase.js';
 import { guardarPropia, fotoPropiaLocal } from './foto-local.js';
 
 const LADO = 128;
 // Las reglas dicen lo mismo (firestore.rules, `fotos`).
 export const MAX_FOTO = 14000;
+// La miniatura de los rankings (va en el perfil y en `agregados/fotos-mini`).
+const MINI_LADO = 40;
+const MAX_MINI = 3000;
 
 /** Recorta al centro, reduce y comprime hasta que quepa. */
 export async function prepararFoto(fichero) {
+  const mapa = await leerImagen(fichero);
+  try {
+    return {
+      img: comprimir(mapa, [[LADO, 0.8], [LADO, 0.65], [112, 0.6], [96, 0.55]], MAX_FOTO),
+      mini: comprimir(mapa, [[MINI_LADO, 0.7], [MINI_LADO, 0.5], [32, 0.5]], MAX_MINI),
+    };
+  } finally {
+    mapa.close?.();
+  }
+}
+
+async function leerImagen(fichero) {
   if (!fichero || !/^image\//.test(fichero.type)) throw new Error('Elige una imagen.');
   if (fichero.size > 15 * 1024 * 1024) throw new Error('La imagen es demasiado grande.');
-  const mapa = await createImageBitmap(fichero);
+  return createImageBitmap(fichero);
+}
+
+/** La primera version que cabe, de mas calidad a menos. */
+function comprimir(mapa, intentos, maximo) {
   const corte = Math.min(mapa.width, mapa.height);
-  for (const [lado, calidad] of [[LADO, 0.8], [LADO, 0.65], [112, 0.6], [96, 0.55]]) {
+  for (const [lado, calidad] of intentos) {
     const lienzo = document.createElement('canvas');
     lienzo.width = lado;
     lienzo.height = lado;
@@ -34,24 +53,24 @@ export async function prepararFoto(fichero) {
     let url = lienzo.toDataURL('image/webp', calidad);
     // Safari antiguo devuelve PNG cuando no sabe hacer WebP: entonces JPEG.
     if (!url.startsWith('data:image/webp')) url = lienzo.toDataURL('image/jpeg', calidad);
-    if (url.length <= MAX_FOTO) {
-      mapa.close?.();
-      return url;
-    }
+    if (url.length <= maximo) return url;
   }
-  mapa.close?.();
   throw new Error('No se ha podido reducir la imagen lo bastante.');
 }
 
 const claveDe = (perfil) => String(perfil?.usernameLower || perfil?.username || '').toLowerCase();
 
-export async function subirFoto(perfil, img) {
+export async function subirFoto(perfil, { img, mini }) {
   await setDoc(doc(db, 'fotos', claveDe(perfil)), { uid: perfil.uid, img, actualizado: serverTimestamp() });
+  // La miniatura va al perfil: el worker ya lo lee para los rankings, asi que
+  // publicarla alli no le cuesta ninguna lectura mas.
+  await updateDoc(doc(db, 'usuarios', perfil.uid), { fotoMini: mini });
   guardarPropia(img);
 }
 
 export async function quitarFoto(perfil) {
   await deleteDoc(doc(db, 'fotos', claveDe(perfil)));
+  await updateDoc(doc(db, 'usuarios', perfil.uid), { fotoMini: null });
   guardarPropia(null);
 }
 

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="format-detection" content="telephone=no">
@@ -35,6 +35,25 @@
 
   <!-- Lo que dice si el rediseño funciona: friccion al subir, vuelta y uso. -->
   <div class="adm-kpis" id="kpis"></div>
+
+  <section class="adm-tarjeta" aria-labelledby="t-visitas">
+    <div class="adm-cabeza-tarjeta">
+      <h2 id="t-visitas">Visitas y uso</h2>
+      <div class="adm-ventanas" id="ventana-uso" role="radiogroup" aria-label="Periodo"></div>
+    </div>
+    <p class="menor apagado">Anónimo: una visita es una entrada a la web desde fuera. No se guarda quién, ni nada en el navegador.</p>
+    <div class="adm-kpis" id="kpis-uso"></div>
+    <div class="adm-dos">
+      <div>
+        <h3 class="menor">A qué dedican el tiempo</h3>
+        <div id="secciones-uso"></div>
+      </div>
+      <div>
+        <h3 class="menor">De dónde llegan</h3>
+        <div id="fuentes-uso"></div>
+      </div>
+    </div>
+  </section>
 
   <div class="adm-dos">
     <section class="adm-tarjeta" aria-labelledby="t-embudo">

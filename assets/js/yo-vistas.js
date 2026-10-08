@@ -14,7 +14,7 @@ import { fotoPropiaLocal, ponerFoto } from './foto-local.js';
 import { leerFoto } from './foto-perfil.js';
 import { nombreRuta, formatearTiempo } from './ui.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
-import { NIVELES, NOMBRES as LIGAS, emblemaLiga, chipDivision, numeroDeGrupo } from './ligas.js';
+import { NIVELES, NOMBRES as LIGAS, emblemaLiga, chipDivision, numeroDeGrupo, LANZAMIENTO } from './ligas.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
 import { impugnable } from './motivos.js';
 
@@ -385,34 +385,54 @@ export function nodosHistorial(viajes, filtro, { alAbrir }) {
     ])];
   }
 
-  const nodos = [];
-  let diaAnterior = null;
+  // Primera tanda: lo de antes del lanzamiento sigue aqui, pero aparte y
+  // dicho claro: no cuenta para nada (backend/src/lanzamiento.js).
+  const hoy = diaMadrid();
+  const esBeta = (v) => v.fase === 'beta' || (hoy >= LANZAMIENTO && String(v.fechaViaje || '') < LANZAMIENTO);
+  const actuales = visibles.filter((x) => !esBeta(x.datos));
+  const beta = visibles.filter((x) => esBeta(x.datos));
 
-  for (const { id, datos: v } of visibles) {
-    const dia = diaRelativo(v.fechaViaje);
-    if (dia !== diaAnterior) {
-      nodos.push(el('p', { clase: 'dia-historial', texto: dia }));
-      diaAnterior = dia;
+  const filas = (lista, { primeraTanda = false } = {}) => {
+    const nodos = [];
+    let diaAnterior = null;
+    for (const { id, datos: v } of lista) {
+      const dia = diaRelativo(v.fechaViaje);
+      if (dia !== diaAnterior) {
+        nodos.push(el('p', { clase: 'dia-historial', texto: dia }));
+        diaAnterior = dia;
+      }
+
+      // Verificado pero pasado el cupo del dia (08 · 8n): cuenta en km, no en puntos.
+      const estado = primeraTanda
+        ? { clase: 'pendiente', texto: 'Primera tanda · no cuenta' }
+        : v.estado === 'aprobado' && v.fueraDeCupo
+          ? { clase: 'pendiente', texto: 'Sin puntos · pasado el cupo' }
+          : ESTADOS[v.estado] || ESTADOS.pendiente;
+      const fila = el('button', {
+        clase: `fila-viaje${primeraTanda ? ' de-tanda' : ''}`,
+        attrs: { type: 'button', 'data-viaje': id },
+      }, [
+        el('span', { clase: 'ruta-viaje', texto: nombreRuta(v.ruta) }),
+        el('span', { clase: 'tiempo', texto: formatearTiempo(v.tiempoSegundos) }),
+        el('span', { clase: `estado-viaje ${estado.clase}`, texto: estado.texto }),
+        el('span', { clase: 'extra', texto: textoExtra(v) }),
+      ]);
+
+      // 6c: cada fila abre el detalle de 3k / 3l (en escritorio, al lado).
+      fila.addEventListener('click', () => alAbrir({ id, ...v }, fila));
+
+      nodos.push(fila);
     }
+    return nodos;
+  };
 
-    // Verificado pero pasado el cupo del dia (08 · 8n): cuenta en km, no en puntos.
-    const estado = v.estado === 'aprobado' && v.fueraDeCupo
-      ? { clase: 'pendiente', texto: 'Sin puntos · pasado el cupo' }
-      : ESTADOS[v.estado] || ESTADOS.pendiente;
-    const fila = el('button', {
-      clase: 'fila-viaje',
-      attrs: { type: 'button', 'data-viaje': id },
-    }, [
-      el('span', { clase: 'ruta-viaje', texto: nombreRuta(v.ruta) }),
-      el('span', { clase: 'tiempo', texto: formatearTiempo(v.tiempoSegundos) }),
-      el('span', { clase: `estado-viaje ${estado.clase}`, texto: estado.texto }),
-      el('span', { clase: 'extra', texto: textoExtra(v) }),
-    ]);
-
-    // 6c: cada fila abre el detalle de 3k / 3l (en escritorio, al lado).
-    fila.addEventListener('click', () => alAbrir({ id, ...v }, fila));
-
-    nodos.push(fila);
+  const nodos = filas(actuales);
+  if (beta.length) {
+    nodos.push(el('div', { clase: 'tanda-beta' }, [
+      el('h3', { texto: 'Primera tanda' }),
+      el('p', { texto: `La fase de pruebas, antes del lanzamiento. Tus ${beta.length === 1 ? 'trayecto se queda' : `${beta.length} trayectos se quedan`} aquí, pero no cuentan para nada: ni puntos, ni rachas, ni rankings.` }),
+    ]));
+    nodos.push(...filas(beta, { primeraTanda: true }));
   }
 
   return nodos;

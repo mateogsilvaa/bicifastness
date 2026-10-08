@@ -1041,6 +1041,9 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .muestra-color.usado { opacity: .3; }
 .muestra-color[aria-checked='true'] { outline: 2px solid var(--tinta); outline-offset: 2px; opacity: 1; }
 .crear-clan .pista { font-size: 12px; color: var(--tinta-3); }
+.crear-clan .colores-clan { display: grid; grid-template-columns: repeat(8, 30px); gap: 10px; }
+.crear-clan > input { min-height: 48px; border-radius: 12px; }
+.crear-clan .btn:disabled { opacity: .45; }
 
 /* Escudo con emblema (assets/js/escudo-clan.js) y personalizacion del clan. */
 .con-emblema { color: var(--blanco); }
@@ -1050,7 +1053,7 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .personalizar-muestra { display: flex; align-items: center; gap: var(--e3); padding: var(--e3); border-radius: 16px; background: var(--papel-3); }
 .personalizar-muestra .datos { display: flex; flex-direction: column; min-width: 0; }
 .personalizar-clan .muestras-color { display: grid; grid-template-columns: repeat(8, 30px); gap: 10px; }
-.rejilla-emblemas { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px; }
+.rejilla-emblemas { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
 .emblema-opcion { height: 44px; border: 0; border-radius: 12px; background: var(--papel-3); color: var(--tinta); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; cursor: pointer; font-family: inherit; }
 .emblema-opcion svg { display: block; }
 .emblema-opcion.elegida { background: var(--tinta); color: var(--papel); }
@@ -1307,6 +1310,8 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 .perfil-cabecera .etiquetas { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* Con foto (assets/js/foto-perfil.js): la imagen tapa la inicial. */
+.mini-foto { display: none; }
+.mini-foto.con-foto { display: inline-block; width: 22px; height: 22px; border-radius: 50%; margin-right: 8px; vertical-align: -5px; background-size: cover; background-position: center; }
 .avatar-inicial.con-foto { background-size: cover; background-position: center; color: transparent; }
 .avatar-editable { position: relative; border: 0; cursor: pointer; padding: 0; font-family: inherit; }
 .avatar-editable::after { content: ''; position: absolute; right: -2px; bottom: -2px; width: 24px; height: 24px; border-radius: 50%; background: var(--azul-relleno) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h3l2-3h6l2 3h3v11H4z'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E") center / 14px no-repeat; border: 2px solid var(--papel); }
@@ -4053,3 +4058,40 @@ body.adm-bloqueada main { visibility: hidden; }
   .legal td[data-etiqueta]::before { content: attr(data-etiqueta); display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--tinta-3); }
   .legal tbody th { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--tinta-3); padding-bottom: 2px; border-bottom: 0; }
 }
+
+/* Historial: la primera tanda (antes del lanzamiento), aparte y apagada. */
+.tanda-beta { margin-top: var(--e5); padding: var(--e3) var(--e4); border-radius: 16px; background: var(--papel-3); }
+.tanda-beta h3 { margin: 0 0 4px; font-size: 15px; }
+.tanda-beta p { margin: 0; font-size: 13px; color: var(--tinta-2); line-height: 1.45; }
+.fila-viaje.de-tanda { opacity: .6; }
+
+/* En construccion (assets/js/puerta.js). */
+html.acceso-pendiente body > *:not(#pantalla-obras) { visibility: hidden; }
+#pantalla-obras { position: fixed; inset: 0; z-index: 1000; background: var(--papel); display: flex; align-items: center; justify-content: center; padding: var(--e5); }
+#pantalla-obras .obras-caja { max-width: 420px; display: flex; flex-direction: column; gap: var(--e3); text-align: center; align-items: center; }
+#pantalla-obras h1 { margin: 0; font-size: 32px; font-stretch: 80%; font-weight: 900; letter-spacing: -.02em; }
+#pantalla-obras p { margin: 0; color: var(--tinta-2); line-height: 1.5; }
+#pantalla-obras .obras-nota { font-size: 13px; color: var(--tinta-3); }
+#pantalla-obras .btn { width: auto; padding: 0 var(--e5); }
+body.en-obras { overflow: hidden; }
+
+/* Admin · Acceso */
+.acceso-modos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e2); }
+.acceso-modo { display: flex; gap: 10px; align-items: flex-start; padding: 14px; border-radius: 14px; background: var(--papel); cursor: pointer; }
+.acceso-modo span { display: flex; flex-direction: column; gap: 2px; }
+.acceso-modo small { color: var(--tinta-3); font-size: 12px; }
+.acceso-modo:has(input:checked) { outline: 2px solid var(--tinta); }
+.acceso-alta { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--e2); }
+.acceso-fila { display: flex; justify-content: space-between; align-items: center; gap: var(--e2); }
+.acceso-fila .btn { width: auto; min-height: 36px; }
+@media (max-width: 700px) { .acceso-alta, .acceso-modos { grid-template-columns: 1fr; } }
+
+/* Admin · Metricas: visitas y uso. */
+.adm-cabeza-tarjeta { display: flex; justify-content: space-between; align-items: center; gap: var(--e3); flex-wrap: wrap; }
+.adm-ventanas { display: flex; gap: 6px; }
+.adm-ventanas .btn { width: auto; min-height: 34px; padding: 0 12px; font-size: 13px; }
+.uso-barra { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.uso-barra-cabeza { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.uso-barra-cabeza strong { font-weight: 600; color: var(--tinta-2); text-align: right; }
+.uso-pista { height: 8px; border-radius: 4px; background: var(--papel-3); overflow: hidden; }
+.uso-pista i { display: block; height: 100%; background: var(--azul-relleno); border-radius: 4px; }

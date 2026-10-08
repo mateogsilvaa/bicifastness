@@ -37,6 +37,39 @@ service cloud.firestore {
       return autenticado() && request.auth.token.admin == true;
     }
 
+    // --- Web abierta o en construccion (assets/js/puerta.js) ----------------
+    // En obras solo escriben la administracion y la lista blanca. Estar en la
+    // lista NO es ser administrador: el claim `admin` va aparte.
+    //
+    // Sin `config/acceso` la web esta abierta: un documento que falta no puede
+    // cerrar la web a todo el mundo.
+    function webAbierta() {
+      return !exists(/databases/$(database)/documents/config/acceso)
+        || get(/databases/$(database)/documents/config/acceso).data.get('modo', 'abierta') != 'obras';
+    }
+
+    // Con el correo VERIFICADO: si no, cualquiera se registra con contraseña
+    // usando el correo de alguien de la lista y entra.
+    function enListaBlanca() {
+      return autenticado()
+        && request.auth.token.get('email', null) is string
+        && request.auth.token.get('email_verified', false) == true
+        && exists(/databases/$(database)/documents/acceso_lista/$(request.auth.token.email.lower()));
+    }
+
+    function puedeUsarLaWeb() {
+      return esAdmin() || webAbierta() || enListaBlanca();
+    }
+
+    // Una cuenta suspendida no escribe nada mas: ni trayectos, ni
+    // valoraciones, ni clanes, ni foto. Antes la suspension solo se notaba en
+    // el panel y la cuenta podia seguir subiendo.
+    function cuentaActiva() {
+      return autenticado()
+        && (!exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+          || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('suspendido', false) != true);
+    }
+
     function datos() { return request.resource.data; }
     function previo() { return resource.data; }
 
@@ -162,7 +195,8 @@ service cloud.firestore {
         && datos().logros.size() == 0
         && datos().clanId == null
         && datos().suspendido == false
-        && consentimientoValido();
+        && consentimientoValido()
+        && puedeUsarLaWeb();
 
       // Solo se puede tocar lo cosmetico y las rutas ancladas. La puntuacion,
       // las insignias y el estado de la cuenta los escribe unicamente el worker.
@@ -181,14 +215,19 @@ service cloud.firestore {
         // `avisosCorreo` es la preferencia de correo. Es un booleano suyo y
         // solo suyo: darse de baja no puede depender de que un administrador lo
         // haga por ti (RGPD).
-        && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo'])
+        && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo', 'fotoMini'])
         && (!('favoritas' in datos()) || datos().favoritas.size() <= 3)
         // Solo cuando SE ESCRIBE. Es lo que hay que vigilar —que nadie meta
         // ahi lo que quiera— y ademas no deja fuera a ningun perfil viejo:
         // exigirlo siempre habria dejado sin poder tocar sus preferencias a
         // cualquiera cuyo registro no tenga hoy exactamente esta forma, por
         // ejemplo si viene de la v1.
-        && (!('consentimiento' in cambia()) || consentimientoValido());
+        && (!('consentimiento' in cambia()) || consentimientoValido())
+        // La miniatura de su foto (40 px), para los rankings. Solo una imagen
+        // pequeña en base64: nunca una URL (ver el comentario de `avatarUrl`).
+        && (!('fotoMini' in cambia()) || datos().fotoMini == null
+            || (datos().fotoMini is string && datos().fotoMini.size() <= 3000
+                && datos().fotoMini.matches('^data:image/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$')));
 
       // Avisos push (#33).
       //
@@ -358,7 +397,9 @@ service cloud.firestore {
         && viajeId == request.auth.uid + '_' + string(diaUTC())
           + '_' + string(cupoTras(request.auth.uid).viajes)
         && cupoTras(request.auth.uid).dia == diaUTC()
-        && cupoTras(request.auth.uid).viajes <= topeDiario();
+        && cupoTras(request.auth.uid).viajes <= topeDiario()
+        && puedeUsarLaWeb()
+        && cuentaActiva();
 
       // El dueno solo puede pedir revision humana de un rechazo automatico
       // (art. 22.3 RGPD). No puede tocar el tiempo, la ruta ni el veredicto.
@@ -503,6 +544,8 @@ service cloud.firestore {
       }
 
       allow create: if autenticado()
+        && puedeUsarLaWeb()
+        && cuentaActiva()
         && datos().lider == request.auth.uid
         && datos().miembros == [request.auth.uid]
         && datos().oficiales.size() == 0
@@ -511,7 +554,14 @@ service cloud.firestore {
         && datos().logros.size() == 0
         && datos().nombre is string
         && datos().nombre.size() >= 3 && datos().nombre.size() <= 28
-        && datos().color.matches('^#[0-9a-fA-F]{6}$');
+        && datos().color.matches('^#[0-9a-fA-F]{6}$')
+        // La identidad con la que nace: las mismas formas que al cambiarla.
+        && (!('emblema' in datos()) || datos().emblema == null
+            || datos().emblema in ['rayo', 'llama', 'corona', 'estrella', 'montana', 'rueda', 'ola', 'diana', 'flecha', 'escudo', 'calavera', 'oso'])
+        && (!('siglas' in datos()) || datos().siglas == null)
+        && (!('descripcion' in datos())
+            || (datos().descripcion is string && datos().descripcion.size() <= 80
+                && !datos().descripcion.lower().matches('(?s).*(https?://|www[.]|[a-z0-9-][.](com|es|net|org|io|me|ly|link|xyz|info|app|gg|co|tk|ru|cat|eu)([^a-z0-9]|$)).*')));
 
       // --- Lo que puede el lider -------------------------------------------
       // Todo lo de un oficial, mas nombrarlos, ceder el liderazgo y cambiar la
@@ -652,6 +702,33 @@ service cloud.firestore {
     }
 
     // --- Configuracion ------------------------------------------------------
+    // El interruptor de la web (assets/js/puerta.js). Lo lee cualquiera —es lo
+    // que decide que pantalla ver— y solo lo cambia la administracion.
+    match /config/acceso {
+      allow read: if true;
+      allow write: if esAdmin()
+        && datos().keys().hasOnly(['modo', 'mensaje', 'actualizado', 'por'])
+        && datos().modo in ['abierta', 'obras']
+        && (!('mensaje' in datos()) || (datos().mensaje is string && datos().mensaje.size() <= 300))
+        && datos().por == request.auth.uid
+        && datos().actualizado == request.time;
+    }
+
+    // La lista blanca, por correo en minusculas. Cada uno solo puede mirar
+    // SU entrada (asi la puerta sabe si pasa), nunca la lista: son correos.
+    match /acceso_lista/{correo} {
+      allow get: if esAdmin()
+        || (autenticado() && request.auth.token.get('email', null) is string
+            && request.auth.token.email.lower() == correo);
+      allow list: if esAdmin();
+      allow create, update: if esAdmin()
+        && correo.matches('^[^@/ ]+@[^@/ ]+[.][^@/ ]+$')
+        && datos().keys().hasOnly(['nota', 'por', 'creado'])
+        && (!('nota' in datos()) || (datos().nota is string && datos().nota.size() <= 80))
+        && datos().por == request.auth.uid;
+      allow delete: if esAdmin();
+    }
+
     match /config/general {
       allow read: if true;     // ruta destacada
       allow write: if esAdmin();
@@ -789,6 +866,15 @@ service cloud.firestore {
       return !(k in datos()) || (datos()[k] is int && datos()[k] >= 0 && datos()[k] <= 200);
     }
 
+    // El uso (assets/js/metricas.js, `uso`): marcas de una visita (0 o 1) y
+    // segundos a la vista, con tope de dos horas por pagina.
+    function marcaDeSesion(k) {
+      return !(k in datos()) || (datos()[k] is int && datos()[k] >= 0 && datos()[k] <= 1);
+    }
+    function segundosDeSesion(k) {
+      return !(k in datos()) || (datos()[k] is int && datos()[k] >= 0 && datos()[k] <= 7200);
+    }
+
     match /sesiones_web/{sesion} {
       allow read: if esAdmin();
       allow delete: if esAdmin();
@@ -804,8 +890,62 @@ service cloud.firestore {
           'dia', 'version', 'creado',
           'pagina_vista', 'subida_abierta', 'subida_con_foto', 'subida_enviada',
           'subida_fallida', 'registro_abierto', 'registro_completado',
-          'login_completado'
+          'login_completado',
+          'visitas',
+          'd_movil',
+          'd_escritorio',
+          'f_directo',
+          'f_instagram',
+          'f_google',
+          'f_otros',
+          'con_cuenta',
+          'segundos',
+          's_portada',
+          's_hoy',
+          's_ranking',
+          's_mapa',
+          's_yo',
+          's_subir',
+          's_bici',
+          's_info',
+          's_otra',
+          'v_portada',
+          'v_hoy',
+          'v_ranking',
+          'v_mapa',
+          'v_yo',
+          'v_subir',
+          'v_bici',
+          'v_info',
+          'v_otra'
         ])
+        && marcaDeSesion('visitas')
+        && marcaDeSesion('d_movil')
+        && marcaDeSesion('d_escritorio')
+        && marcaDeSesion('f_directo')
+        && marcaDeSesion('f_instagram')
+        && marcaDeSesion('f_google')
+        && marcaDeSesion('f_otros')
+        && marcaDeSesion('con_cuenta')
+        && marcaDeSesion('v_portada')
+        && marcaDeSesion('v_hoy')
+        && marcaDeSesion('v_ranking')
+        && marcaDeSesion('v_mapa')
+        && marcaDeSesion('v_yo')
+        && marcaDeSesion('v_subir')
+        && marcaDeSesion('v_bici')
+        && marcaDeSesion('v_info')
+        && marcaDeSesion('v_otra')
+        && segundosDeSesion('segundos')
+        && segundosDeSesion('s_portada')
+        && segundosDeSesion('s_hoy')
+        && segundosDeSesion('s_ranking')
+        && segundosDeSesion('s_mapa')
+        && segundosDeSesion('s_yo')
+        && segundosDeSesion('s_subir')
+        && segundosDeSesion('s_bici')
+        && segundosDeSesion('s_info')
+        && segundosDeSesion('s_otra')
         && datos().dia is string && datos().dia.size() == 10
         && datos().version is string && datos().version.size() <= 20;
     }
@@ -864,7 +1004,9 @@ service cloud.firestore {
         && datos().uid == request.auth.uid
         && datos().img is string && datos().img.size() <= 14000
         && datos().img.matches('^data:image/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$')
-        && datos().actualizado == request.time;
+        && datos().actualizado == request.time
+        && puedeUsarLaWeb()
+        && cuentaActiva();
       allow delete: if autenticado() && resource.data.uid == request.auth.uid;
     }
 
@@ -914,7 +1056,9 @@ service cloud.firestore {
             && datos().estacion is string && datos().estacion.size() <= 4)
         )
         && datos().procesada == false
-        && datos().creado == request.time;
+        && datos().creado == request.time
+        && puedeUsarLaWeb()
+        && cuentaActiva();
       allow delete: if false;
     }
 

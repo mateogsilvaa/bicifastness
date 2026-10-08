@@ -8,6 +8,9 @@
 // una vez y se guarda en la pestaña (`cache.js`).
 
 import { db, doc, getDoc, auth, onAuthStateChanged } from '/assets/js/firebase.js';
+import { escudoClan } from '/assets/js/escudo-clan.js';
+import { leerFoto } from '/assets/js/foto-perfil.js';
+import { ponerFoto } from '/assets/js/foto-local.js';
 import { iniciarPagina, nombreEstacion, formatearTiempo, normalizarEstacion, miles } from '/assets/js/ui.js';
 import { id, el, icono, estado, reemplazar, pedirTexto, avisar, abrirHoja } from '/assets/js/dom.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
@@ -19,6 +22,12 @@ import {
   NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, chipDivision, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
   divisionDeClave, numeroDeGrupo,
 } from '/assets/js/ligas.js';
+
+/** La foto de un piloto en su ficha: una lectura al abrirla, nada en las filas. */
+function fotoDe(avatar, nombre) {
+  leerFoto(nombre).then((img) => ponerFoto(avatar, img));
+  return avatar;
+}
 
 iniciarPagina('clasificacion');
 
@@ -697,7 +706,6 @@ async function pintarClanes() {
   const total = Object.keys(ESTACIONES).length;
   const controladas = Object.values(cuenta).reduce((t, n) => t + n, 0);
   const miClan = perfil?.clanId ? clanes[perfil.clanId]?.nombre : null;
-  const iniciales = (n) => String(n).split(/\s+/).map((p) => p[0]).join('').slice(0, 3).toUpperCase();
 
   reemplazar(destino, [
     el('div', { clase: 'reparto-clanes' }, [
@@ -715,7 +723,7 @@ async function pintarClanes() {
         attrs: { href: cid ? `/territorio/?clan=${encodeURIComponent(cid)}` : '/territorio/' },
       }, [
         el('span', { clase: 'pos', texto: String(f.pos) }),
-        el('span', { clase: 'escudo-clan', estilo: { background: color }, texto: iniciales(f.nombre) }),
+        escudoClan({ ...clanes[cid], nombre: f.nombre, color }),
         el('span', { clase: 'quien' }, [
           el('span', { clase: 'nombre', texto: f.nombre }),
           el('span', { clase: 'clan', texto: `${f.viajes ?? 0} miembros · ${f.marca ?? 0} estaciones` }),
@@ -773,7 +781,7 @@ async function abrirPiloto(nombre, desde = null) {
       el('span', { clase: 'acciones-panel' }, [menu, cerrarX]),
     ]),
     el('div', { clase: 'piloto-cabeza' }, [
-      el('span', { clase: 'avatar-inicial', estilo: { background: clan?.color || 'var(--tinta)' }, texto: [...nombre][0]?.toUpperCase() || 'P' }),
+      fotoDe(el('span', { clase: 'avatar-inicial', estilo: { background: clan?.color || 'var(--tinta)' }, texto: [...nombre][0]?.toUpperCase() || 'P' }), nombre),
       el('div', {}, [
         el('h2', { texto: nombre }),
         el('span', { clase: 'apagado', texto: [clan?.nombre || 'Sin clan', enGrupo ? `${ordinal(enGrupo.pos)} de su grupo` : null].filter(Boolean).join(' · ') }),

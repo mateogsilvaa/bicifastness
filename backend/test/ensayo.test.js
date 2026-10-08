@@ -393,10 +393,11 @@ test('el mapa no publica nada de los clanes que no se pinte', async () => {
   await puntuacion.reconstruirAgregados();
 
   const mapa = bd.leer('agregados/mapa');
-  // De un clan solo viajan nombre y color. Ni miembros, ni lider, ni
+  // De un clan solo viaja su identidad (nombre, color, emblema, siglas y
+  // lema: lo que pinta escudo-clan.js). Ni miembros, ni lider, ni
   // puntuacion: este documento lo lee cualquiera sin sesion (#60).
   for (const [id, clan] of Object.entries(mapa.clanes)) {
-    assert.deepStrictEqual(Object.keys(clan).sort(), ['color', 'nombre'],
+    assert.deepStrictEqual(Object.keys(clan).sort(), ['color', 'emblema', 'lema', 'nombre', 'siglas'],
       `el mapa publica de ${id} mas de lo que pinta: ${Object.keys(clan)}`);
   }
   assert.ok(!/miembros|lider|biciRating|uid/.test(JSON.stringify(mapa.clanes)));

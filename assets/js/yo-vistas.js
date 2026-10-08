@@ -10,6 +10,8 @@
  */
 
 import { el, icono, reemplazar } from './dom.js';
+import { fotoPropiaLocal, ponerFoto } from './foto-local.js';
+import { leerFoto } from './foto-perfil.js';
 import { nombreRuta, formatearTiempo } from './ui.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
 import { NIVELES, NOMBRES as LIGAS, emblemaLiga, chipDivision, numeroDeGrupo } from './ligas.js';
@@ -145,6 +147,10 @@ export function pintarCabecera(perfil, clan, grupo = null) {
   avatar.textContent = [...nombre.trim()][0]?.toUpperCase() || 'P';
   const color = colorSeguro(clan?.color);
   if (color) avatar.style.background = color;
+  // La copia local primero (sin red) y luego la de verdad: una lectura por
+  // visita, que `leerFoto` no repite aunque la cabecera se pinte tres veces.
+  ponerFoto(avatar, fotoPropiaLocal());
+  leerFoto(nombre, { propia: true }).then((img) => ponerFoto(avatar, img));
 
   const creado = perfil.creado?.toDate?.();
   const desde = creado

@@ -273,6 +273,8 @@ async function ejecutar(uid, { simular = false } = {}) {
     }
     if (datos.usernameLower) {
       await db().doc(`nombres_usuario/${datos.usernameLower}`).delete();
+      // La foto de perfil es publica: se va con la cuenta.
+      await db().doc(`fotos/${datos.usernameLower}`).delete();
     }
 
     // Y se rehace el agregado del clan, que lleva la plantilla con nombres

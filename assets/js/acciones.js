@@ -431,6 +431,20 @@ export async function avisarCambioDeClave(dispositivo) {
 /** Con mas gente deja de sentirse como un equipo. Mismo tope que en las reglas. */
 export const MAX_MIEMBROS = 50;
 
+/**
+ * El lider cambia la identidad del clan: color, emblema o siglas y lema. Las
+ * reglas validan cada campo (firestore.rules, `clanes`).
+ */
+export async function personalizarClan(clanId, { color, emblema, siglas, descripcion }) {
+  if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error('El color no es valido.');
+  await updateDoc(doc(db, 'clanes', clanId), {
+    color,
+    emblema: emblema || null,
+    siglas: siglas || null,
+    descripcion: String(descripcion || '').slice(0, 80),
+  });
+}
+
 export async function crearClan({ nombre, descripcion, color }) {
   const uid = uidActual();
   const limpio = limpiarNombre(nombre, 28);

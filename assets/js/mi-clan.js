@@ -11,12 +11,15 @@
 // worker con lo que ya es publico en las clasificaciones.
 
 import { db, doc, getDoc, collection, getDocs, query, where, limit } from '/assets/js/firebase.js';
+import {
+  escudoClan, COLORES_CLAN, EMBLEMAS, svgEmblema, lemaSeguro, MAX_LEMA, inicialesDe, contienePalabrasProhibidas,
+} from '/assets/js/escudo-clan.js';
 import { id, el, icono, estado, reemplazar, avisar, esqueleto, abrirHoja } from '/assets/js/dom.js';
 import { miles, NOMBRE_DIVISION } from '/assets/js/ui.js';
 import {
   crearClan, solicitarEntrada, retirarSolicitud, responderSolicitud,
   expulsarMiembro, cambiarOficial, cederLiderazgo, abandonarClan, disolverClan,
-  crearInvitacion, usarInvitacion, confirmarEntrada,
+  crearInvitacion, usarInvitacion, confirmarEntrada, personalizarClan,
 } from '/assets/js/acciones.js';
 
 /** Estado de la pantalla. Se vuelve a leer entero tras cada accion. */
@@ -27,11 +30,11 @@ let clanId = null;
 /** Lo que aporta el mapa: clanes, estaciones, ranking y nombres (getters). */
 let contexto = { clanes: () => new Map(), estaciones: () => new Map(), ranking: () => [], nombreDe: (n) => n };
 
-/** Los ocho colores del sistema para un clan (5e). */
-export const COLORES_CLAN = ['#FF5A1F', '#E23D8C', '#13A89E', '#8B5CF6', '#E0A800', '#3D8B37', '#8A5A3C', '#5B6470'];
+// Los colores, emblemas y el escudo viven en escudo-clan.js: el mismo clan se
+// pinta igual en el mapa, el ranking, Hoy y aqui.
+export { COLORES_CLAN };
 
 const colorSeguro = (c) => (/^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : 'var(--tinta-3)');
-const iniciales = (n) => String(n || '').split(/\s+/).filter(Boolean).map((p) => p[0]).join('').slice(0, 3).toUpperCase();
 const numero = (n) => miles(n);
 
 export function datosMiClan() { return clan; }
@@ -300,6 +303,102 @@ function bloqueSalida() {
   };
 }
 
+/**
+ * Personalizar el clan (solo el lider): color, emblema o siglas y un lema. Se
+ * ve el escudo en vivo mientras se elige; se guarda con una escritura y el
+ * resto de la web lo recoge en la siguiente pasada de los agregados.
+ */
+function hojaPersonalizar() {
+  const elegido = {
+    color: clan.color || COLORES_CLAN[0],
+    emblema: clan.emblema || null,
+    siglas: clan.siglas || '',
+    descripcion: clan.descripcion || '',
+  };
+  const muestra = el('div', { clase: 'personalizar-muestra' });
+  const pintarMuestra = () => reemplazar(muestra, [
+    escudoClan({ ...elegido, nombre: clan.nombre, siglas: elegido.siglas || null }, { clase: 'escudo-clan grande', tam: 30 }),
+    el('span', { clase: 'datos' }, [
+      el('strong', { texto: clan.nombre }),
+      elegido.descripcion
+        ? el('span', { clase: 'lema-clan', texto: elegido.descripcion })
+        : el('span', { clase: 'apagado', texto: 'Sin lema' }),
+    ]),
+  ]);
+
+  const colores = el('div', { clase: 'muestras-color', attrs: { role: 'radiogroup', 'aria-label': 'Color del clan' } });
+  const pintarColores = () => reemplazar(colores, COLORES_CLAN.map((c) => el('button', {
+    clase: 'muestra-color',
+    estilo: { background: c },
+    attrs: { type: 'button', role: 'radio', 'aria-checked': String(c === elegido.color), 'aria-label': `Color ${c}` },
+    on: { click: () => { elegido.color = c; pintarColores(); pintarMuestra(); } },
+  })));
+
+  const emblemas = el('div', { clase: 'rejilla-emblemas', attrs: { role: 'radiogroup', 'aria-label': 'Emblema' } });
+  const pintarEmblemas = () => reemplazar(emblemas, [
+    el('button', {
+      clase: `emblema-opcion${!elegido.emblema ? ' elegida' : ''}`,
+      texto: (elegido.siglas || inicialesDe(clan.nombre)).slice(0, 3),
+      attrs: { type: 'button', role: 'radio', 'aria-checked': String(!elegido.emblema), 'aria-label': 'Siglas' },
+      on: { click: () => { elegido.emblema = null; pintarEmblemas(); pintarMuestra(); } },
+    }),
+    ...Object.entries(EMBLEMAS).map(([clave, { nombre }]) => el('button', {
+      clase: `emblema-opcion${elegido.emblema === clave ? ' elegida' : ''}`,
+      attrs: { type: 'button', role: 'radio', 'aria-checked': String(elegido.emblema === clave), 'aria-label': nombre, title: nombre },
+      on: { click: () => { elegido.emblema = clave; pintarEmblemas(); pintarMuestra(); } },
+    }, [svgEmblema(clave, 20)])),
+  ]);
+
+  const siglas = el('input', { attrs: { type: 'text', maxlength: '3', placeholder: inicialesDe(clan.nombre), 'aria-label': 'Siglas (hasta 3)', autocapitalize: 'characters' } });
+  siglas.value = elegido.siglas;
+  siglas.addEventListener('input', () => {
+    siglas.value = siglas.value.toUpperCase().replace(/[^A-Z0-9ÑÁÉÍÓÚ]/g, '').slice(0, 3);
+    elegido.siglas = siglas.value;
+    pintarEmblemas();
+    pintarMuestra();
+  });
+  const lema = el('input', { attrs: { type: 'text', maxlength: String(MAX_LEMA), placeholder: 'Un lema (opcional)', 'aria-label': 'Lema del clan' } });
+  lema.value = elegido.descripcion;
+  lema.addEventListener('input', () => { elegido.descripcion = lema.value; pintarMuestra(); });
+  const error = el('p', { clase: 'encuesta-pista error', attrs: { 'aria-live': 'polite' } });
+
+  pintarMuestra();
+  pintarColores();
+  pintarEmblemas();
+  const { cerrar } = abrirHoja([
+    el('div', { clase: 'personalizar-clan' }, [
+      el('h2', { texto: 'Personalizar el clan' }),
+      muestra,
+      el('span', { clase: 'rotulo', texto: 'Color' }), colores,
+      el('span', { clase: 'rotulo', texto: 'Emblema' }), emblemas,
+      el('div', { clase: 'personalizar-campos' }, [
+        el('label', { clase: 'campo' }, [el('span', { texto: 'Siglas' }), siglas]),
+        el('label', { clase: 'campo' }, [el('span', { texto: 'Lema' }), lema]),
+      ]),
+      error,
+      el('button', {
+        clase: 'btn', texto: 'Guardar', attrs: { type: 'button' },
+        on: {
+          click: async () => {
+            const limpio = lemaSeguro(elegido.descripcion);
+            if (elegido.descripcion.trim() && !limpio) { error.textContent = 'El lema no puede llevar enlaces.'; return; }
+            if (contienePalabrasProhibidas(limpio)) { error.textContent = 'Ese lema no se puede publicar.'; return; }
+            try {
+              await personalizarClan(clanId, {
+                color: elegido.color, emblema: elegido.emblema, siglas: elegido.siglas, descripcion: limpio,
+              });
+              cerrar();
+              await recargar();
+            } catch {
+              error.textContent = 'No se ha podido guardar. Vuelve a intentarlo.';
+            }
+          },
+        },
+      }),
+    ]),
+  ], { etiqueta: 'Personalizar el clan', clase: 'dialogo-escritorio' });
+}
+
 function pintarConClan(destino) {
   const ranking = contexto.ranking();
   const puesto = ranking.findIndex((c) => c.nombre === clan.nombre) + 1;
@@ -310,15 +409,17 @@ function pintarConClan(destino) {
   menu.addEventListener('click', () => {
     const { cerrar } = abrirHoja([
       el('h2', { texto: clan.nombre }),
+      papel() === 'lider' ? el('button', { clase: 'btn secundario', texto: 'Personalizar el clan', attrs: { type: 'button' }, on: { click: () => { cerrar(); hojaPersonalizar(); } } }) : null,
       el('button', { clase: 'btn peligro', texto: papel() === 'lider' && clan.miembros.length <= 1 ? 'Disolver el clan' : 'Dejar el clan', attrs: { type: 'button' }, on: { click: () => { cerrar(); salir().catch((e) => avisar(e.message)); } } }),
     ], { etiqueta: 'Opciones del clan', clase: 'dialogo-escritorio' });
   });
 
   reemplazar(destino, el('div', { clase: 'mi-clan' }, [
     el('div', { clase: 'mi-clan-cabeza' }, [
-      el('span', { clase: 'escudo-clan grande', estilo: { background: colorSeguro(clan.color) }, texto: iniciales(clan.nombre) }),
+      escudoClan(clan, { clase: 'escudo-clan grande', tam: 26 }),
       el('span', { clase: 'datos' }, [
         el('h2', { texto: clan.nombre }),
+        clan.descripcion ? el('span', { clase: 'lema-clan', texto: lemaSeguro(clan.descripcion) }) : null,
         // 5c: "19 miembros · 16.980 BiciRating · 2.º"; 8l: con sus estaciones.
         el('span', { clase: 'apagado' }, [
           `${clan.numMiembros} ${clan.numMiembros === 1 ? 'miembro' : 'miembros'} · `,
@@ -433,7 +534,7 @@ function pintarSinClan(destino) {
     el('p', { clase: 'apagado', texto: 'Los clanes se disputan las estaciones. Si tu clan controla una, tus trayectos que la tocan suman un 10 % más.' }),
     cerca.length ? el('span', { clase: 'rotulo', texto: perfil?.puntosPorRuta && cerca.some((c) => c.estacion) ? 'Cerca de tus estaciones' : 'Clanes activos' }) : null,
     cerca.length ? el('div', { clase: 'lista-ranking clanes' }, cerca.map((c) => el('div', { clase: 'fila-clan' }, [
-      el('span', { clase: 'escudo-clan', estilo: { background: colorSeguro(c.color) }, texto: iniciales(c.nombre) }),
+      escudoClan(c),
       el('span', { clase: 'quien' }, [
         el('span', { clase: 'nombre', texto: c.nombre }),
         el('span', { clase: 'clan', texto: [c.miembros ? `${c.miembros} miembros` : null, c.estacion ? `controla ${contexto.nombreDe(c.estacion)}` : null].filter(Boolean).join(' · ') }),
@@ -507,6 +608,8 @@ async function leerClan(cual) {
     nombre: datos.nombre || cual,
     descripcion: datos.descripcion || '',
     color: datos.color || null,
+    emblema: datos.emblema || null,
+    siglas: datos.siglas || null,
     lider: datos.lider || null,
     oficiales: datos.oficiales || [],
     biciRating: datos.biciRating || 0,

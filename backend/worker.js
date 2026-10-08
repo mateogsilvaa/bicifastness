@@ -43,7 +43,7 @@ const rutasDestacadas = require('./src/rutas-destacadas');
 const {
   leerCaptura, releerCaptura, elegirTrayecto, cerrar: cerrarOcr,
 } = require('./src/ocr');
-const { evaluar, distanciaCalleMetros } = require('./src/verificacion');
+const { evaluar, distanciaCalleMetros, firmaDeLectura } = require('./src/verificacion');
 const puntuacion = require('./src/puntuacion');
 const distancias = require('./src/distancias');
 const rachas = require('./src/rachas');
@@ -353,7 +353,7 @@ async function cargarHuellas() {
     ...nuevas.docs.map((d) => ({ sha: d.id, ...d.data() })),
     ...(datos?.entradas || []),
   ]
-    .map(({ sha, dhash, tripId, capturaId }) => ({ sha, dhash, tripId, capturaId }))
+    .map(({ sha, dhash, tripId, capturaId, firma }) => ({ sha, dhash, tripId, capturaId, firma: firma || null }))
     .filter((h) => h.sha && !vistas.has(h.sha) && vistas.add(h.sha))
     .slice(0, IMAGEN.VENTANA_COMPARACION);
 
@@ -366,8 +366,11 @@ async function cargarHuellas() {
 /** Mete en la cache una huella recien escrita, sin volver a leer. */
 function apuntarHuella(huella) {
   if (!huellasRecientes) return;
-  const { sha, dhash, tripId, capturaId } = huella;
-  huellasRecientes.unshift({ sha, dhash, tripId, capturaId });
+  const { sha, dhash, tripId, capturaId, firma } = huella;
+  // Si la huella ya estaba (se ha cambiado de viaje), sale de donde estaba.
+  const antes = huellasRecientes.findIndex((h) => h.sha === sha);
+  if (antes >= 0) huellasRecientes.splice(antes, 1);
+  huellasRecientes.unshift({ sha, dhash, tripId, capturaId, firma: firma || null });
   huellasRecientes.length = Math.min(huellasRecientes.length, IMAGEN.VENTANA_COMPARACION);
   ventanaCambiada = true;
 }
@@ -390,9 +393,44 @@ async function guardarVentana() {
   ventanaCambiada = false;
 }
 
+/**
+ * Lo leido en la captura de un viaje ya resuelto, con la forma de
+ * `firmaDeLectura`. Para las huellas de antes de guardar la firma: se saca del
+ * propio viaje. El dia es el declarado (el leido no se guardaba) y la duracion
+ * no se pone, porque la del viaje es la escrita y no la leida.
+ */
+function firmaDeViaje(v) {
+  if (!v?.franja?.salida || !v?.franja?.llegada) return null;
+  return {
+    fecha: v.fechaViaje || null,
+    salida: v.franja.salida,
+    llegada: v.franja.llegada,
+    duracion: null,
+    bici: v.numeroBici ? String(v.numeroBici).replace(/^0+/, '') : null,
+  };
+}
+
+/**
+ * Completa los posibles duplicados con lo que dice su viaje: su estado, de
+ * quien es y, si la huella es antigua, lo leido. Sin el estado no se puede
+ * distinguir "otra vez la misma captura" de "la vuelvo a subir corregida tras
+ * un rechazo". Solo los parecidos de verdad, y como mucho tres: en la practica,
+ * una o dos lecturas por viaje, y ninguna casi nunca.
+ */
+async function completarCandidatos(candidatos) {
+  const unicos = candidatos.filter((c, i) => c.tripId && candidatos.findIndex((o) => o.tripId === c.tripId) === i);
+  const snaps = await Promise.all(unicos.map((c) => db.doc(`tiempos_viaje/${c.tripId}`).get().catch(() => null)));
+  const porId = new Map(unicos.map((c, i) => [c.tripId, snaps[i]?.exists ? snaps[i].data() : null]));
+  return candidatos.map((c) => {
+    const v = porId.get(c.tripId);
+    if (!v) return c;
+    return { ...c, estado: v.estado || null, uid: c.uid || v.uid || null, firma: c.firma || firmaDeViaje(v) };
+  });
+}
+
 /** Contexto competitivo y estadistico que alimenta al motor. */
-async function reunirContexto(viaje, uid, hashSha) {
-  const [rutaSnap, propiosSnap, huellas, exacta] = await Promise.all([
+async function reunirContexto(viaje, uid, hashSha, hashPerceptual = null, capturaId = null) {
+  const [rutaSnap, propiosSnap, huellas, exacta, mismoDia] = await Promise.all([
     // El agregado de la ruta, no sus 200 mejores tiempos. Trae la distribucion
     // calculada sobre TODOS los tiempos del tramo — que es lo que la
     // comprobacion estadistica siempre quiso, y no lo que recibia — y el record
@@ -407,10 +445,59 @@ async function reunirContexto(viaje, uid, hashSha) {
     // en vez de cuatrocientas, pilla el duplicado por viejo que sea, y antes se
     // escapaba todo lo que hubiera salido de la ventana.
     hashSha ? db.collection('huellas_captura').doc(hashSha).get() : Promise.resolve(null),
+    // Los de la misma ruta y el mismo dia, para ver si este trayecto ya esta
+    // subido con otra captura. Dos igualdades: no pide indice compuesto.
+    viaje.fechaViaje
+      ? db.collection('tiempos_viaje')
+        .where('ruta', '==', viaje.ruta).where('fechaViaje', '==', viaje.fechaViaje)
+        .limit(20).get().catch((error) => {
+          console.warn('  no se han podido mirar los viajes del mismo dia:', error.message);
+          return null;
+        })
+      : Promise.resolve(null),
   ]);
 
   const ruta = rutaSnap.exists ? rutaSnap.data() : {};
   const propios = propiosSnap.docs.map((d) => d.data());
+
+  const exactos = exacta && exacta.exists
+    ? [{
+      sha: exacta.id,
+      tripId: exacta.data().tripId,
+      uid: exacta.data().uid,
+      capturaId: exacta.data().capturaId || null,
+      firma: exacta.data().firma || null,
+    }]
+    : [];
+  // Los que se parecen lo bastante como para ser la misma imagen, de otra
+  // captura, de mas a menos parecidos. El motor decide; aqui solo se eligen
+  // los que merece la pena completar.
+  const parecidos = hashPerceptual
+    ? huellas
+      .filter((h) => h.dhash && h.sha !== hashSha && (!capturaId || !h.capturaId || h.capturaId !== capturaId))
+      .map((h) => ({ ...h, distancia: imagen.distanciaHamming(hashPerceptual, h.dhash) }))
+      .filter((h) => h.distancia <= IMAGEN.MAX_DISTANCIA_PERCEPTUAL)
+      .sort((a, b) => a.distancia - b.distancia)
+      .slice(0, 3)
+    : [];
+  const [shaPrevios, hashesPrevios] = await Promise.all([
+    completarCandidatos(exactos),
+    completarCandidatos(parecidos.map(({ dhash, tripId, capturaId: c, firma }) => ({
+      dhash, tripId, capturaId: c || null, firma: firma || null,
+    }))),
+  ]);
+
+  const viajesMismoDia = (mismoDia?.docs || [])
+    .filter((d) => d.id !== viaje._ref?.id && d.data().franja)
+    .map((d) => ({
+      tripId: d.id,
+      uid: d.data().uid,
+      estado: d.data().estado,
+      capturaId: d.data().capturaId || d.id,
+      salida: d.data().franja.salida,
+      llegada: d.data().franja.llegada,
+      bici: d.data().numeroBici || null,
+    }));
 
   return {
     distribucionRuta: ruta.distribucion || null,
@@ -441,17 +528,9 @@ async function reunirContexto(viaje, uid, hashSha) {
     // exacta ya la ha resuelto Firestore por el id del documento. El motor la
     // sigue recibiendo con la misma forma porque lo que tiene que decidir — si
     // el duplicado es de OTRA captura — no cambia.
-    shaPrevios: exacta && exacta.exists
-      ? [{
-        sha: exacta.id,
-        tripId: exacta.data().tripId,
-        uid: exacta.data().uid,
-        capturaId: exacta.data().capturaId || null,
-      }]
-      : [],
-    hashesPrevios: huellas.map((h) => ({
-      dhash: h.dhash, tripId: h.tripId, capturaId: h.capturaId || null,
-    })),
+    shaPrevios,
+    hashesPrevios,
+    viajesMismoDia,
   };
 }
 
@@ -505,7 +584,7 @@ async function procesar(doc) {
   ]);
 
   // 4. Contexto competitivo y lectura de la captura.
-  const contexto = await reunirContexto(viaje, uid, hashSha);
+  const contexto = await reunirContexto(viaje, uid, hashSha, hashPerceptual, capturaId);
 
   // De todos los trayectos que haya en la captura, el que dice ser este viaje.
   // Sin esto, subir los tres viajes de una misma captura acabaria con dos
@@ -588,11 +667,24 @@ async function procesar(doc) {
 
   // 6. Guardar la huella para que la captura no se pueda reutilizar. `create`
   // y no `set`: si ya existe hay que conservar la del viaje original.
-  const huella = { sha: hashSha, dhash: hashPerceptual, tripId: doc.id, capturaId, uid };
+  //
+  // La firma es lo leido del trayecto (dia, horas, bici): es lo que deja al
+  // motor distinguir la misma captura de otra captura de la misma pantalla.
+  const huella = {
+    sha: hashSha, dhash: hashPerceptual, tripId: doc.id, capturaId, uid, firma: firmaDeLectura(lectura),
+  };
   await db.collection('huellas_captura').doc(hashSha).create({ ...huella, creado: AHORA() })
     .then(() => apuntarHuella(huella))
-    .catch((error) => {
+    .catch(async (error) => {
       if (error.code !== 6) throw error; // 6 = ALREADY_EXISTS
+      // Ya existia, de un viaje que se rechazo y que ahora se vuelve a subir
+      // corregido. Si este sale adelante, la huella pasa a ser suya: la
+      // siguiente vez que alguien suba esa imagen, el original es este.
+      const original = contexto.shaPrevios[0];
+      if (original?.estado === 'rechazado' && veredicto.decision !== 'rechazado') {
+        await db.collection('huellas_captura').doc(hashSha).set({ ...huella, creado: AHORA() });
+        apuntarHuella(huella);
+      }
     });
 
   await resolver(doc, veredicto, {
@@ -741,11 +833,53 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
     }
   }
 
-  // Las capturas rechazadas no aportan nada y ocupan cuota: el hash ya impide
-  // reutilizar la imagen, asi que el fichero en si sobra.
+  // La captura de un rechazo automatico NO se borra al momento: es lo unico
+  // que puede mirar una persona si se pide revision humana, y la pantalla de
+  // rechazo ofrece pedirla. Antes se borraba aqui, y al panel llegaban las
+  // impugnaciones sin imagen. Se guarda `DIAS_CAPTURA_RECHAZADA` y luego la
+  // borra `caducarCapturasRechazadas`, si nadie ha pedido revision.
   if (veredicto.decision === 'rechazado') {
-    await borrarCapturaSiSobra(doc, viaje);
+    await doc.ref.update({ capturaCaduca: caducidadCaptura() });
     await avisarRechazo(viaje, veredicto, doc.id);
+  }
+}
+
+/** Hasta cuando se guarda la captura de un viaje rechazado por la maquina. */
+function caducidadCaptura(desde = Date.now()) {
+  return admin.firestore.Timestamp.fromMillis(desde + LIMITES.DIAS_CAPTURA_RECHAZADA * 864e5);
+}
+
+/**
+ * Borra las capturas de los rechazos automaticos cuyo plazo de revision ha
+ * pasado. Una consulta por desigualdad sobre un solo campo (sin indice
+ * compuesto), que con nada caducado cuesta una lectura.
+ *
+ * Si mientras tanto se ha pedido revision, el viaje ya no esta rechazado: se le
+ * quita la marca y la captura se queda para quien revisa. La borra la decision
+ * final de una persona (`aplicarDecisionesManuales`), si rechaza.
+ */
+async function caducarCapturasRechazadas() {
+  try {
+    const caducadas = await db.collection('tiempos_viaje')
+      .where('capturaCaduca', '<=', admin.firestore.Timestamp.now()).limit(20).get();
+    if (caducadas.empty) return 0;
+    let borradas = 0;
+    for (const doc of caducadas.docs) {
+      const viaje = doc.data();
+      if (SIMULAR) { console.log(`  [${doc.id}] se borraria la captura caducada`); continue; }
+      if (viaje.estado === 'rechazado') {
+        await borrarCapturaSiSobra(doc, viaje);
+        await doc.ref.update({ capturaCaduca: admin.firestore.FieldValue.delete(), capturaBorrada: true });
+        borradas += 1;
+      } else {
+        await doc.ref.update({ capturaCaduca: admin.firestore.FieldValue.delete() });
+      }
+    }
+    console.log(`Capturas de rechazos caducadas: ${borradas} borradas de ${caducadas.size}.`);
+    return borradas;
+  } catch (error) {
+    console.warn('No se han podido caducar las capturas de rechazos:', error.message);
+    return 0;
   }
 }
 
@@ -1516,7 +1650,23 @@ async function aplicarDecisionesManuales() {
       });
     }
 
-    if (!SIMULAR) await doc.ref.update({ recalculoPendiente: false });
+    // Rechazado por una persona es la ultima palabra: ya no hay revision que
+    // pedir, asi que la captura sobra. Aprobado, se queda como cualquier otro.
+    const finalRechazado = viaje.estado === 'rechazado'
+      && viaje.revisadoPor && viaje.revisadoPor !== 'automatico';
+    if (finalRechazado && !SIMULAR) {
+      await borrarCapturaSiSobra(doc, viaje).catch((error) => {
+        console.warn(`  [${doc.id}] no se ha podido borrar la captura:`, error.message);
+      });
+    }
+
+    if (!SIMULAR) {
+      await doc.ref.update({
+        recalculoPendiente: false,
+        ...(finalRechazado ? { capturaBorrada: true } : {}),
+        ...('capturaCaduca' in viaje ? { capturaCaduca: admin.firestore.FieldValue.delete() } : {}),
+      });
+    }
   }
 
   if (!SIMULAR) {
@@ -2666,6 +2816,7 @@ async function main() {
 
   await prepararDia();
   await aplicarDecisionesManuales();
+  await caducarCapturasRechazadas();
   await procesarBajas();
   await procesarBorrados();
   await mantenerClanes();

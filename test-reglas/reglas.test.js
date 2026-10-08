@@ -26,7 +26,7 @@ const {
   initializeTestEnvironment, assertSucceeds, assertFails,
 } = require('@firebase/rules-unit-testing');
 const {
-  doc, getDoc, setDoc, updateDoc, writeBatch, serverTimestamp, increment,
+  doc, getDoc, setDoc, updateDoc, writeBatch, serverTimestamp, increment, Timestamp,
 } = require('firebase/firestore');
 
 let entorno;
@@ -245,6 +245,33 @@ test('el viaje ajeno no se lee, ni con sesion ni sin ella', async () => {
   });
   await assertFails(getDoc(doc(como(UID), 'tiempos_viaje', 'v1')));
   await assertFails(getDoc(doc(anonimo(), 'tiempos_viaje', 'v1')));
+});
+
+// --- Pedir revision humana -----------------------------------------------------
+
+const rechazoAutomatico = (extra = {}) => ({
+  uid: UID, ruta: '001-002', estado: 'rechazado', verificado: false, revisadoPor: 'automatico', ...extra,
+});
+const impugnacion = {
+  estado: 'revision', impugnado: true, alegacion: 'La captura es la original, de ayer', impugnadoEn: serverTimestamp(),
+};
+
+test('se pide revision de un rechazo automatico mientras se guarda la captura', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'tiempos_viaje', 'v1'),
+      rechazoAutomatico({ capturaCaduca: Timestamp.fromMillis(Date.now() + 864e5) }));
+  });
+  await assertSucceeds(updateDoc(doc(como(UID), 'tiempos_viaje', 'v1'), impugnacion));
+});
+
+test('sin captura guardada, o con el plazo pasado, no se pide revision', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'tiempos_viaje', 'sin'), rechazoAutomatico());
+    await setDoc(doc(ctx.firestore(), 'tiempos_viaje', 'pasado'),
+      rechazoAutomatico({ capturaCaduca: Timestamp.fromMillis(Date.now() - 1000) }));
+  });
+  await assertFails(updateDoc(doc(como(UID), 'tiempos_viaje', 'sin'), impugnacion));
+  await assertFails(updateDoc(doc(como(UID), 'tiempos_viaje', 'pasado'), impugnacion));
 });
 
 test('las capturas no las lee nadie desde el navegador, ni su autor', async () => {

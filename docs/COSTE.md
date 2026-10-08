@@ -271,10 +271,10 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 <!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 8011 | 16% |
-| u50 | 50 | 3000 | 23.092 | 46% |
-| u200 | 200 | 15.000 | 101.855 | 204% **se agota** |
-| u1000 | 1000 | 90.000 | 1.313.224 | 2626% **se agota** |
+| hoy | 6 | 1022 | 8339 | 17% |
+| u50 | 50 | 3000 | 23.620 | 47% |
+| u200 | 200 | 15.000 | 103.103 | 206% **se agota** |
+| u1000 | 1000 | 90.000 | 1.318.312 | 2637% **se agota** |
 <!-- fin:escenarios -->
 
 
@@ -320,11 +320,11 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | cerrarRachas (UNA vez al dia, en el trabajo diario) | 240 | TODOS los usuarios, para cerrar las rachas que se han roto |
 | temporadas.cerrar (UNA vez al mes) | 240 | TODOS los usuarios, para repartir las insignias de la temporada |
 | avisarRevisionesLentas (UNA vez al dia, en el trabajo diario) | 50 | los 50 viajes mas antiguos en revision sin avisar |
-| reunirContexto (por viaje procesado) | 42 | el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id |
+| reunirContexto (por viaje procesado) | 46 | el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id + los de la misma ruta y dia + el viaje de la huella mas parecida |
+| cola y bajas (por pasada) | 4 | las consultas de cola, recalculo pendiente, capturas de rechazos caducadas y bajas |
 | revisarNombresDeClan (UNA vez al dia, en el trabajo diario) | 3 | los clanes creados en los ultimos dos dias |
 | avisarRecordPerdido (por viaje APROBADO que bate el record de su ruta) | 3 | los dos mas rapidos de la ruta + el perfil de quien tenia el record |
 | validarBasico y captura (por viaje procesado) | 3 | el conteo de su cupo del dia + la captura + la distancia de la ruta |
-| cola y bajas (por pasada) | 3 | las consultas de cola, recalculo pendiente y bajas |
 | la ventana de huellas (una vez por ejecucion CON viajes) | 2 | la ventana guardada en un documento + las huellas posteriores a guardarla |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
 | metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |

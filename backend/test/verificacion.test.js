@@ -110,14 +110,146 @@ test('la captura reenviada byte a byte se rechaza', () => {
   assert.ok(r.señales.some((s) => s.codigo === 'captura_reutilizada'));
 });
 
+/** Lo que la huella guarda de la captura de `lecturaLimpia(segundos)`. */
+function firmaLimpia(segundos = 600, extra = {}) {
+  const l = lecturaLimpia(segundos);
+  return { fecha: null, salida: l.horaSalida, llegada: l.horaLlegada, duracion: segundos, bici: null, ...extra };
+}
+
 test('la misma captura recomprimida tambien se rechaza (hash perceptual)', () => {
   const r = evaluar(contextoBase({
     hashPerceptual: '0f0f0f0f0f0f0f0f',
-    // Un solo bit de diferencia: misma imagen, otro fichero.
-    hashesPrevios: [{ dhash: '0f0f0f0f0f0f0f0e', tripId: 'viaje-viejo' }],
+    // Un solo bit de diferencia: misma imagen, otro fichero. Y lo leido en las
+    // dos es el mismo trayecto, al segundo.
+    hashesPrevios: [{ dhash: '0f0f0f0f0f0f0f0e', tripId: 'viaje-viejo', firma: firmaLimpia(), estado: 'aprobado', uid: 'otro' }],
   }));
   assert.strictEqual(r.decision, 'rechazado');
   assert.ok(r.señales.some((s) => s.codigo === 'captura_casi_identica'));
+});
+
+// --- Pantallas que se parecen no son la misma captura ---------------------------
+//
+// El dHash es de 9x8 pixeles, y a esa resolucion todas las capturas de la app se
+// parecen. Quien hace el mismo trayecto cada dia se encontraba con "esta captura
+// es la de un viaje que ya esta registrado" al subir el de hoy.
+
+test('otro viaje de la misma ruta con una pantalla casi igual NO es un duplicado', () => {
+  const r = evaluar(contextoBase({
+    hashPerceptual: '0f0f0f0f0f0f0f0f',
+    // Se parece al pixel, pero el de ayer salio a otra hora.
+    hashesPrevios: [{
+      dhash: '0f0f0f0f0f0f0f0f', tripId: 'el-de-ayer', estado: 'aprobado', uid: 'yo',
+      firma: { fecha: null, salida: '09:47:10', llegada: '09:58:02', duracion: 652, bici: null },
+    }],
+  }));
+  assert.strictEqual(r.decision, 'aprobado');
+  assert.ok(!r.señales.some((s) => /captura_/.test(s.codigo)));
+});
+
+test('otro dia a la misma hora tampoco, si la fecha leida es otra', () => {
+  const r = evaluar(contextoBase({
+    lectura: { ...lecturaLimpia(600), fecha: '2026-10-07' },
+    hashPerceptual: '0f0f0f0f0f0f0f0f',
+    hashesPrevios: [{
+      dhash: '0f0f0f0f0f0f0f0f', tripId: 'otro-dia', estado: 'aprobado', uid: 'yo',
+      firma: firmaLimpia(600, { fecha: '2026-09-30' }),
+    }],
+  }));
+  assert.ok(!r.señales.some((s) => /captura_/.test(s.codigo)));
+});
+
+test('parecida y sin nada leido con que comparar: lo mira una persona, no se rechaza', () => {
+  const r = evaluar(contextoBase({
+    hashPerceptual: '0f0f0f0f0f0f0f0f',
+    hashesPrevios: [{ dhash: '0f0f0f0f0f0f0f0e', tripId: 'huella-antigua' }],
+  }));
+  assert.strictEqual(r.decision, 'revision');
+  assert.ok(r.señales.some((s) => s.codigo === 'captura_parecida'));
+});
+
+test('las mismas horas al minuto, sin segundos, dia ni bici, no bastan para rechazar', () => {
+  // Quien sale cada dia a las 10:00 y llega a las 10:10 repite minuto.
+  const lectura = { ...lecturaLimpia(600), horaSalida: '10:00', horaLlegada: '10:10' };
+  const r = evaluar(contextoBase({
+    lectura,
+    hashPerceptual: '0f0f0f0f0f0f0f0f',
+    hashesPrevios: [{
+      dhash: '0f0f0f0f0f0f0f0f', tripId: 'otro', estado: 'aprobado', uid: 'yo',
+      firma: { fecha: null, salida: '10:00', llegada: '10:10', duracion: null, bici: null },
+    }],
+  }));
+  assert.notStrictEqual(r.decision, 'rechazado');
+});
+
+test('volver a subir la captura de un viaje propio RECHAZADO no es un duplicado', () => {
+  // "Corregir y volver a subir": el original no cuenta, asi que no hay nada
+  // que se cuente dos veces.
+  const r = evaluar(contextoBase({
+    uid: 'yo',
+    capturaId: 'captura-nueva',
+    shaPrevios: [{ sha: 'a'.repeat(64), tripId: 'el-rechazado', uid: 'yo', capturaId: 'captura-vieja', estado: 'rechazado' }],
+    hashesPrevios: [{ dhash: '0f0f0f0f0f0f0f0f', tripId: 'el-rechazado', uid: 'yo', estado: 'rechazado', firma: firmaLimpia() }],
+  }));
+  assert.strictEqual(r.decision, 'aprobado');
+});
+
+test('la captura de un viaje propio que SI cuenta sigue siendo un duplicado', () => {
+  const r = evaluar(contextoBase({
+    uid: 'yo',
+    capturaId: 'captura-nueva',
+    shaPrevios: [{ sha: 'a'.repeat(64), tripId: 'el-bueno', uid: 'yo', capturaId: 'captura-vieja', estado: 'aprobado' }],
+  }));
+  assert.strictEqual(r.decision, 'rechazado');
+  assert.ok(r.señales.some((s) => s.codigo === 'captura_reutilizada'));
+});
+
+test('la captura rechazada de OTRA cuenta va a revision, no se aprueba sola', () => {
+  const r = evaluar(contextoBase({
+    uid: 'yo',
+    capturaId: 'captura-nueva',
+    shaPrevios: [{ sha: 'a'.repeat(64), tripId: 'el-de-otro', uid: 'otro', capturaId: 'captura-vieja', estado: 'rechazado' }],
+  }));
+  assert.strictEqual(r.decision, 'revision');
+});
+
+// --- El mismo trayecto con otra captura ------------------------------------------
+
+test('el mismo trayecto subido dos veces por la misma persona se rechaza', () => {
+  const l = lecturaLimpia(600);
+  const r = evaluar(contextoBase({
+    uid: 'yo',
+    capturaId: 'captura-2',
+    viajesMismoDia: [{ tripId: 'primero', uid: 'yo', estado: 'aprobado', capturaId: 'captura-1', salida: l.horaSalida, llegada: l.horaLlegada }],
+  }));
+  assert.strictEqual(r.decision, 'rechazado');
+  assert.ok(r.señales.some((s) => s.codigo === 'viaje_repetido'));
+});
+
+test('la misma ruta el mismo dia a otra hora es otro viaje', () => {
+  const r = evaluar(contextoBase({
+    uid: 'yo',
+    viajesMismoDia: [{ tripId: 'el-de-la-tarde', uid: 'yo', estado: 'aprobado', capturaId: 'c1', salida: '18:02:00', llegada: '18:13:00' }],
+  }));
+  assert.strictEqual(r.decision, 'aprobado');
+});
+
+test('dos amigos con bicis distintas a la misma hora no se pisan', () => {
+  const l = { ...lecturaLimpia(600), numeroBici: '1234' };
+  const r = evaluar(contextoBase({
+    uid: 'yo',
+    lectura: l,
+    viajesMismoDia: [{ tripId: 'el-de-mi-amigo', uid: 'amigo', estado: 'aprobado', capturaId: 'c1', salida: l.horaSalida, llegada: l.horaLlegada, bici: '5678' }],
+  }));
+  assert.strictEqual(r.decision, 'aprobado');
+});
+
+test('un viaje propio rechazado no cuenta como el mismo trayecto', () => {
+  const l = lecturaLimpia(600);
+  const r = evaluar(contextoBase({
+    uid: 'yo',
+    viajesMismoDia: [{ tripId: 'rechazado', uid: 'yo', estado: 'rechazado', capturaId: 'c1', salida: l.horaSalida, llegada: l.horaLlegada }],
+  }));
+  assert.strictEqual(r.decision, 'aprobado');
 });
 
 test('una captura distinta no se confunde con un duplicado', () => {

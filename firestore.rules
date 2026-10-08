@@ -366,6 +366,10 @@ service cloud.firestore {
         && previo().estado == 'rechazado'
         && previo().revisadoPor == 'automatico'
         && previo().impugnado != true
+        // Mientras el worker guarde la captura: sin ella no hay nada que
+        // revisar, y la impugnacion llegaba al panel sin imagen.
+        && previo().get('capturaCaduca', null) is timestamp
+        && previo().capturaCaduca > request.time
         && cambia().hasOnly(['estado', 'impugnado', 'alegacion', 'impugnadoEn'])
         && datos().estado == 'revision'
         && datos().impugnado == true

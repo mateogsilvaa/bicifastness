@@ -326,8 +326,13 @@ const WORKER = [
     // Nada de esto crece: el agregado de la ruta trae la distribucion ya
     // calculada, la ventana de huellas se lee una vez por ejecucion y el
     // duplicado exacto es una lectura por el id del documento.
-    coste: () => min1(1) + min1(40) + min1(1),
-    detalle: 'el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id',
+    //
+    // Los de la misma ruta y el mismo dia son pocos (un tope de 20, en la
+    // practica dos o tres), y los viajes de las huellas parecidas se leen solo
+    // si hay alguna parecida: como mucho tres, casi siempre una o ninguna.
+    coste: () => min1(1) + min1(40) + min1(1) + min1(3) + min1(1),
+    detalle: 'el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id '
+      + '+ los de la misma ruta y dia + el viaje de la huella mas parecida',
   },
   {
     nombre: 'la ventana de huellas (una vez por ejecucion CON viajes)',
@@ -363,8 +368,8 @@ const WORKER = [
   {
     nombre: 'cola y bajas (por pasada)',
     veces: () => 288,
-    coste: () => min1(1) + min1(1) + min1(1),
-    detalle: 'las consultas de cola, recalculo pendiente y bajas',
+    coste: () => min1(1) + min1(1) + min1(1) + min1(1),
+    detalle: 'las consultas de cola, recalculo pendiente, capturas de rechazos caducadas y bajas',
   },
 ];
 

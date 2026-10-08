@@ -308,9 +308,32 @@ export async function resolverReporte(reporteId, accion, viajeId) {
 }
 
 /** Devuelve la captura de un viaje. Las reglas solo dejan leerla a administracion. */
-export async function verCaptura(viajeId) {
-  const snap = await getDoc(doc(db, 'capturas', viajeId));
-  if (!snap.exists()) throw new Error('La captura de este viaje ya no esta disponible.');
+/**
+ * La captura de un viaje, para la administracion.
+ *
+ * El documento NO se llama como el viaje desde #11: una captura puede sostener
+ * varios trayectos y vive en `capturas/{capturaId}`. Buscarla por el id del
+ * viaje es lo que hacia que al panel llegasen todos los viajes sin imagen.
+ * Sin `viaje` (un reporte solo trae el id) se lee primero el viaje.
+ */
+export async function verCaptura(viajeId, viaje = null) {
+  let datosViaje = viaje;
+  if (!datosViaje) {
+    const snapViaje = await getDoc(doc(db, 'tiempos_viaje', viajeId));
+    datosViaje = snapViaje.exists() ? snapViaje.data() : {};
+  }
+  const capturaId = datosViaje.capturaId || viajeId;
+  const snap = await getDoc(doc(db, 'capturas', capturaId));
+  if (!snap.exists()) {
+    if (datosViaje.capturaBorrada) {
+      throw new Error('La captura se borró al pasar el plazo para pedir revisión.');
+    }
+    if (datosViaje.impugnado && datosViaje.revisadoPor === 'automatico') {
+      throw new Error('La captura se borró al rechazarse el viaje, antes de que se guardaran para revisión. '
+        + 'Pídele a la persona que lo vuelva a subir.');
+    }
+    throw new Error('La captura de este viaje ya no está disponible.');
+  }
   return snap.data().datos;
 }
 

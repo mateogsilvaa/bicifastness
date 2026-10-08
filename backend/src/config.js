@@ -22,6 +22,10 @@ const LIMITES = {
   // Tamano maximo de la captura ya comprimida por el cliente.
   MAX_BYTES_IMAGEN: 3 * 1024 * 1024,
   MIMES_IMAGEN: ['image/jpeg', 'image/png', 'image/webp'],
+  // Cuanto se guarda la captura de un viaje rechazado por la maquina. Es el
+  // plazo para pedir revision humana: sin la captura, quien revisa no tiene
+  // nada que mirar. Pasado esto se borra, que son 700 KB cada una.
+  DIAS_CAPTURA_RECHAZADA: 14,
 };
 
 // --- Plausibilidad fisica ----------------------------------------------------

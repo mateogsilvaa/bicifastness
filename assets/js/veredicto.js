@@ -15,7 +15,7 @@
 
 import { el, icono, abrirHoja, reemplazar } from '/assets/js/dom.js';
 import { nombreEstacion, formatearTiempo } from '/assets/js/ui.js';
-import { estadoDeViaje, motivoDeViaje } from '/assets/js/motivos.js';
+import { estadoDeViaje, motivoDeViaje, impugnable } from '/assets/js/motivos.js';
 import { sinMovimiento, aparecerPorPartes, sonar } from '/assets/js/celebrar.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { impugnarViaje } from '/assets/js/acciones.js';
@@ -181,7 +181,7 @@ export function abrirResuelto(viaje, { alPedirRevision = null, destino = null, p
   const textos = estadoDeViaje(viaje.estado);
   const motivo = motivoDeViaje(viaje);
   const cuando = diaRelativo(viaje.fechaViaje);
-  const puedePedir = rechazado && viaje.revisadoPor === 'automatico' && !viaje.impugnado;
+  const puedePedir = impugnable(viaje);
 
   let cerrar = null;
   // 3l: "Creo que es un error: que lo mire una persona"; 8n, mas corto, al

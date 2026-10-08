@@ -46,6 +46,18 @@ function multiplicador(racha) {
  * @typedef {{racha: number, mejorRacha: number, escudos: number,
  *            diasHastaEscudo: number, ultimoDiaActivo: number|null}} EstadoRacha
  */
+/**
+ * El estado guardado sobre el inicial. Los campos que el perfil no tiene
+ * llegan como `undefined` (el worker los pasa uno a uno), y un spread a pelo
+ * los dejaba encima de los valores por defecto: `escudos: undefined` acababa
+ * en el `update` y Firestore tumbaba el viaje entero, que se iba a revision
+ * manual con el correo de "el fallo es nuestro".
+ */
+function conDefectos(estado = {}) {
+  const limpio = Object.fromEntries(Object.entries(estado).filter(([, v]) => v !== undefined && v !== null));
+  return { ...estadoInicial(), ...limpio };
+}
+
 function estadoInicial() {
   return {
     racha: 0,
@@ -68,7 +80,7 @@ function estadoInicial() {
  * @returns {EstadoRacha & {gano: boolean, escudoGanado: boolean}}
  */
 function registrarDiaActivo(estado, fecha = new Date()) {
-  const previo = { ...estadoInicial(), ...estado };
+  const previo = conDefectos(estado);
   const hoy = diaDe(fecha);
 
   if (previo.ultimoDiaActivo === hoy) {
@@ -134,7 +146,7 @@ function registrarDiaActivo(estado, fecha = new Date()) {
  * @returns {EstadoRacha & {escudosGastados: number, rota: boolean}}
  */
 function cerrarDiasPerdidos(estado, ahora = new Date()) {
-  const previo = { ...estadoInicial(), ...estado };
+  const previo = conDefectos(estado);
   const sinCambios = { ...previo, escudosGastados: 0, rota: false };
 
   if (previo.ultimoDiaActivo === null || previo.racha === 0) return sinCambios;

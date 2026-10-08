@@ -542,7 +542,9 @@ async function reconstruir({
       pos: i + 1,
       nombre: c.nombre || c.id,
       puntos: c.biciRating || 0,
-      viajes: c.numMiembros || 0,
+      // `numMiembros` solo lo escribe el calculo del BiciRating; un clan
+      // recien creado aun no lo tiene y salia "0 miembros".
+      viajes: c.numMiembros || (c.miembros || []).length,
       marca: String(dominadas.get(c.id) || 0),
     }));
 

@@ -38,6 +38,9 @@ const normalizarBici = (n) => {
   return /^[1-9]\d{0,4}$/.test(limpio) ? limpio : null;
 };
 
+const MAX_COMENTARIO = 200;
+const ENLACE = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|es|net|org|io|me|ly|link|xyz|info|app|gg|co|tk|ru|cat|eu)\b)/i;
+
 const redondear = (x) => Math.round(x * 10) / 10;
 
 /** Invisibles y espacios raros fuera; el texto se pinta siempre como texto. */
@@ -46,10 +49,20 @@ function limpiarComentario(texto) {
     .replace(/[\u0000-\u001F\u007F​-‏‪-‮⁠-⁯﻿]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 280);
+    .slice(0, MAX_COMENTARIO);
   if (!t) return '';
+  // Sin enlaces: el comentario es publico y anonimo, y un enlace ahi es spam.
+  if (ENLACE.test(t)) return '';
   // Un insulto no se publica. La nota y los fallos si: siguen siendo utiles.
   return contienePalabrasProhibidas(t) ? '' : t;
+}
+
+/** Mediodia del dia de uso, sin pasar de la subida (si se uso hoy, la subida). */
+function momentoDeUso(v) {
+  const subida = milis(v.creado);
+  if (typeof v.usada !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v.usada)) return subida;
+  const dia = Date.parse(`${v.usada}T12:00:00Z`);
+  return subida ? Math.min(dia, subida) : dia;
 }
 
 const milis = (v) => (typeof v?.toMillis === 'function' ? v.toMillis() : v instanceof Date ? v.getTime() : Number(v) || 0);
@@ -70,7 +83,10 @@ function resumirBici(valoraciones, { ahora = Date.now(), vista = null } = {}) {
     // (worker.js, procesarValoraciones) no cuentan.
     .filter((v) => !v.rechazada)
     .filter((v) => Number.isInteger(v.nota) && v.nota >= 1 && v.nota <= 5)
-    .map((v) => ({ ...v, t: milis(v.creado) }))
+    // Cuenta el dia en que se USO la bici (el del viaje), no el de la subida:
+    // un viaje de hace una semana subido hoy no puede decir a los demas que la
+    // bici tenia algo roto "hace 3 h". `usada` lo pone el worker (YYYY-MM-DD).
+    .map((v) => ({ ...v, t: momentoDeUso(v), soloDia: Boolean(v.usada) }))
     .sort((a, b) => b.t - a.t);
 
   const recientes = validas.filter((v) => ahora - v.t <= VENTANA_DIAS * DIA_MS);
@@ -102,7 +118,7 @@ function resumirBici(valoraciones, { ahora = Date.now(), vista = null } = {}) {
 
   // La ultima estacion donde se vio: la de la valoracion o el viaje mas recientes.
   const ultimaValorada = validas.find((v) => v.estacion);
-  let vistaFinal = ultimaValorada ? { estacion: ultimaValorada.estacion, cuando: ultimaValorada.t } : null;
+  let vistaFinal = ultimaValorada ? { estacion: ultimaValorada.estacion, cuando: ultimaValorada.t, soloDia: ultimaValorada.soloDia } : null;
   if (vista && milis(vista.cuando) > (vistaFinal?.cuando || 0)) vistaFinal = { estacion: vista.estacion, cuando: milis(vista.cuando) };
 
   return {
@@ -123,6 +139,7 @@ function resumirBici(valoraciones, { ahora = Date.now(), vista = null } = {}) {
       comentario: v.comentarioPublico ?? limpiarComentario(v.comentario),
       estacion: v.estacion || null,
       cuando: v.t,
+      ...(v.soloDia ? { soloDia: true } : {}),
     })),
     vista: vistaFinal,
     actualizado: ahora,

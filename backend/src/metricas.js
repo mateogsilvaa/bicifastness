@@ -403,6 +403,8 @@ async function contar(consulta, respaldo = 0) {
  * - los totales y los viajes por ventana salen de consultas de conteo, que
  *   cobran una lectura por cada MIL documentos contados.
  */
+const SECCIONES_USO = ['portada', 'hoy', 'ranking', 'mapa', 'yo', 'subir', 'bici', 'info', 'otra'];
+
 async function resumir() {
   // Los ultimos 200 dias por RANGO de id (el id es el dia) y no con
   // `orderBy(documentId(), 'desc')`: ese orden descendente exige un indice que
@@ -437,6 +439,16 @@ async function resumir() {
       subidasFallidas: suma('subida_fallida'),
       registrosAbiertos: suma('registro_abierto'),
       registrosCompletados: suma('registro_completado'),
+      // Uso: cuanta gente, cuanto tiempo y en que (assets/js/metricas.js).
+      uso: {
+        visitas: suma('visitas'),
+        segundos: suma('segundos'),
+        movil: suma('d_movil'),
+        escritorio: suma('d_escritorio'),
+        conCuenta: suma('con_cuenta'),
+        fuentes: Object.fromEntries(['directo', 'instagram', 'google', 'otros'].map((f) => [f, suma(`f_${f}`)])),
+        secciones: Object.fromEntries(SECCIONES_USO.map((sec) => [sec, { vistas: suma(`v_${sec}`), segundos: suma(`s_${sec}`) }])),
+      },
       // Viajes verificados en la ventana, que sale de los datos, no del cliente.
       viajesVerificados: await contar(verificados.where('fechaViaje', '>=', desde),
         antes.ventanas?.[nombre]?.viajesVerificados || 0),

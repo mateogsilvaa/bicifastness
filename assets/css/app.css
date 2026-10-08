@@ -4085,3 +4085,13 @@ body.en-obras { overflow: hidden; }
 .acceso-fila { display: flex; justify-content: space-between; align-items: center; gap: var(--e2); }
 .acceso-fila .btn { width: auto; min-height: 36px; }
 @media (max-width: 700px) { .acceso-alta, .acceso-modos { grid-template-columns: 1fr; } }
+
+/* Admin · Metricas: visitas y uso. */
+.adm-cabeza-tarjeta { display: flex; justify-content: space-between; align-items: center; gap: var(--e3); flex-wrap: wrap; }
+.adm-ventanas { display: flex; gap: 6px; }
+.adm-ventanas .btn { width: auto; min-height: 34px; padding: 0 12px; font-size: 13px; }
+.uso-barra { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.uso-barra-cabeza { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.uso-barra-cabeza strong { font-weight: 600; color: var(--tinta-2); text-align: right; }
+.uso-pista { height: 8px; border-radius: 4px; background: var(--papel-3); overflow: hidden; }
+.uso-pista i { display: block; height: 100%; background: var(--azul-relleno); border-radius: 4px; }

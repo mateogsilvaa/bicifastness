@@ -855,6 +855,15 @@ service cloud.firestore {
       return !(k in datos()) || (datos()[k] is int && datos()[k] >= 0 && datos()[k] <= 200);
     }
 
+    // El uso (assets/js/metricas.js, `uso`): marcas de una visita (0 o 1) y
+    // segundos a la vista, con tope de dos horas por pagina.
+    function marcaDeSesion(k) {
+      return !(k in datos()) || (datos()[k] is int && datos()[k] >= 0 && datos()[k] <= 1);
+    }
+    function segundosDeSesion(k) {
+      return !(k in datos()) || (datos()[k] is int && datos()[k] >= 0 && datos()[k] <= 7200);
+    }
+
     match /sesiones_web/{sesion} {
       allow read: if esAdmin();
       allow delete: if esAdmin();
@@ -870,8 +879,62 @@ service cloud.firestore {
           'dia', 'version', 'creado',
           'pagina_vista', 'subida_abierta', 'subida_con_foto', 'subida_enviada',
           'subida_fallida', 'registro_abierto', 'registro_completado',
-          'login_completado'
+          'login_completado',
+          'visitas',
+          'd_movil',
+          'd_escritorio',
+          'f_directo',
+          'f_instagram',
+          'f_google',
+          'f_otros',
+          'con_cuenta',
+          'segundos',
+          's_portada',
+          's_hoy',
+          's_ranking',
+          's_mapa',
+          's_yo',
+          's_subir',
+          's_bici',
+          's_info',
+          's_otra',
+          'v_portada',
+          'v_hoy',
+          'v_ranking',
+          'v_mapa',
+          'v_yo',
+          'v_subir',
+          'v_bici',
+          'v_info',
+          'v_otra'
         ])
+        && marcaDeSesion('visitas')
+        && marcaDeSesion('d_movil')
+        && marcaDeSesion('d_escritorio')
+        && marcaDeSesion('f_directo')
+        && marcaDeSesion('f_instagram')
+        && marcaDeSesion('f_google')
+        && marcaDeSesion('f_otros')
+        && marcaDeSesion('con_cuenta')
+        && marcaDeSesion('v_portada')
+        && marcaDeSesion('v_hoy')
+        && marcaDeSesion('v_ranking')
+        && marcaDeSesion('v_mapa')
+        && marcaDeSesion('v_yo')
+        && marcaDeSesion('v_subir')
+        && marcaDeSesion('v_bici')
+        && marcaDeSesion('v_info')
+        && marcaDeSesion('v_otra')
+        && segundosDeSesion('segundos')
+        && segundosDeSesion('s_portada')
+        && segundosDeSesion('s_hoy')
+        && segundosDeSesion('s_ranking')
+        && segundosDeSesion('s_mapa')
+        && segundosDeSesion('s_yo')
+        && segundosDeSesion('s_subir')
+        && segundosDeSesion('s_bici')
+        && segundosDeSesion('s_info')
+        && segundosDeSesion('s_otra')
         && datos().dia is string && datos().dia.size() == 10
         && datos().version is string && datos().version.size() <= 20;
     }

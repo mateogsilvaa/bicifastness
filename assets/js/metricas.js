@@ -25,7 +25,7 @@
  * detalle.
  */
 
-import { db, doc, setDoc, increment, serverTimestamp } from './firebase.js';
+import { auth, db, doc, setDoc, increment, serverTimestamp } from './firebase.js';
 import { VERSION_APP } from '../data/version.js';
 import { diaMadrid } from './dia.js';
 
@@ -44,6 +44,64 @@ export const EVENTOS = [
   'registro_completado',
   'login_completado',
 ];
+
+/**
+ * USO: cuanta gente entra, cuanto tiempo y a que lo dedica. Igual de anonimo
+ * que el embudo, y sin guardar nada en el navegador: una "visita" es una
+ * pagina a la que se llega DESDE FUERA (otra web, un enlace, la barra de
+ * direcciones). Lo que se guarda son contadores, nunca quien: se sabe cuantas
+ * visitas hay al dia sin poder seguir a nadie, ni dentro de la web.
+ */
+const SECCIONES = ['portada', 'hoy', 'ranking', 'mapa', 'yo', 'subir', 'bici', 'info', 'otra'];
+const RUTAS = [
+  [/^\/$/, 'portada'], [/^\/hoy\//, 'hoy'], [/^\/clasificacion\//, 'ranking'], [/^\/territorio\//, 'mapa'],
+  [/^\/yo\//, 'yo'], [/^\/subir\//, 'subir'], [/^\/bici\//, 'bici'], [/^\/info\//, 'info'],
+];
+const seccion = () => (RUTAS.find(([r]) => r.test(window.location.pathname)) || [null, 'otra'])[1];
+
+/** Segundos con la pestaña a la vista (no abierta en segundo plano). */
+let vista = 0;
+let desde = null;
+const contarVista = () => {
+  if (desde !== null) vista += (performance.now() - desde) / 1000;
+  desde = document.visibilityState === 'visible' ? performance.now() : null;
+};
+
+function deDondeViene() {
+  try { return document.referrer ? new URL(document.referrer).hostname : ''; } catch { return ''; }
+}
+
+/** ¿Empieza aqui una visita? Si se llega desde otra pagina de la web, no. */
+const empiezaVisita = () => deDondeViene() !== window.location.hostname;
+
+/** De donde llega la visita, por categorias. Nunca la URL. */
+function fuente() {
+  const host = deDondeViene();
+  if (!host) return 'directo';
+  if (/instagram\.com$/.test(host)) return 'instagram';
+  if (/(^|\.)google\./.test(host)) return 'google';
+  return 'otros';
+}
+
+function uso() {
+  contarVista();
+  const contadores = {};
+  const sec = SECCIONES.includes(seccion()) ? seccion() : 'otra';
+  const segundos = Math.min(7200, Math.round(vista));
+  contadores[`v_${sec}`] = 1;
+  if (segundos) {
+    contadores[`s_${sec}`] = segundos;
+    contadores.segundos = segundos;
+  }
+  if (empiezaVisita()) {
+    contadores.visitas = 1;
+    contadores[window.matchMedia('(min-width: 900px)').matches ? 'd_escritorio' : 'd_movil'] = 1;
+    contadores[`f_${fuente()}`] = 1;
+    // Un si/no: entra con la sesion abierta. Ni quien, ni nada que lo diga.
+    if (auth.currentUser) contadores.con_cuenta = 1;
+  }
+  return contadores;
+}
 
 /** Contadores de esta sesion. Viven en memoria y mueren con la pestaña. */
 const cuenta = Object.create(null);
@@ -85,6 +143,7 @@ async function enviar() {
 
     const datos = { dia: hoy(), version: VERSION_APP, creado: serverTimestamp() };
     for (const evento of eventos) datos[evento] = increment(cuenta[evento]);
+    for (const [clave, valor] of Object.entries(uso())) datos[clave] = valor;
 
     await setDoc(doc(db, 'sesiones_web', id), datos, { merge: true });
   } catch {
@@ -119,6 +178,8 @@ export function volcar(msMaximo = 1500) {
  */
 export function medir() {
   anotar('pagina_vista');
+  contarVista();
+  document.addEventListener('visibilitychange', contarVista);
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') enviar();

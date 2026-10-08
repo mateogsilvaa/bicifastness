@@ -36,6 +36,63 @@ let resumen = null;
 
 // --- Pintado -----------------------------------------------------------------
 
+const NOMBRE_SECCION = {
+  portada: 'Portada', hoy: 'Hoy', ranking: 'Ranking', mapa: 'Mapa', yo: 'Tú', subir: 'Subir', bici: 'Bicis', info: 'Cómo funciona', otra: 'Otras',
+};
+const NOMBRE_FUENTE = { directo: 'Directo', instagram: 'Instagram', google: 'Google', otros: 'Otras webs' };
+
+const duracion = (seg) => {
+  if (!seg) return '0 s';
+  const m = Math.floor(seg / 60);
+  const s = Math.round(seg % 60);
+  return m ? `${m} min ${String(s).padStart(2, '0')} s` : `${s} s`;
+};
+const numero = (n) => Number(n || 0).toLocaleString('es-ES');
+const pct = (parte, total) => (total ? `${Math.round((parte / total) * 100)} %` : '—');
+
+function barra(texto, valor, maximo, detalle) {
+  return el('div', { clase: 'uso-barra' }, [
+    el('div', { clase: 'uso-barra-cabeza' }, [el('span', { texto }), el('strong', { texto: detalle })]),
+    el('div', { clase: 'uso-pista' }, [el('i', { estilo: { width: `${maximo ? Math.max(2, (valor / maximo) * 100) : 0}%` } })]),
+  ]);
+}
+
+/** Visitas, tiempo, secciones y fuentes de una ventana (hoy / 7 / 30 / 180 dias). */
+function pintarUso(ventanas, elegida) {
+  reemplazar(id('ventana-uso'), VENTANAS.map(([clave, texto]) => el('button', {
+    clase: `btn ${clave === elegida ? '' : 'secundario'}`, texto,
+    attrs: { type: 'button', role: 'radio', 'aria-checked': String(clave === elegida) },
+    on: { click: () => pintarUso(ventanas, clave) },
+  })));
+
+  const v = ventanas[elegida] || {};
+  const u = v.uso || {};
+  const visitas = u.visitas || 0;
+  reemplazar(id('kpis-uso'), [
+    ['Visitas', numero(visitas)],
+    ['Páginas por visita', visitas ? (v.paginasVistas / visitas).toFixed(1).replace('.', ',') : '—'],
+    ['Tiempo medio por visita', visitas ? duracion((u.segundos || 0) / visitas) : '—'],
+    ['Desde el móvil', pct(u.movil || 0, (u.movil || 0) + (u.escritorio || 0))],
+    ['Con la sesión abierta', pct(u.conCuenta || 0, visitas)],
+  ].map(([etiqueta, valor]) => el('div', { clase: 'adm-kpi' }, [el('span', { texto: etiqueta }), el('strong', { texto: String(valor) })])));
+
+  const secciones = Object.entries(u.secciones || {})
+    .map(([clave, d]) => ({ clave, vistas: d.vistas || 0, segundos: d.segundos || 0 }))
+    .filter((s) => s.vistas)
+    .sort((a, b) => b.segundos - a.segundos);
+  const maxSeg = Math.max(0, ...secciones.map((s) => s.segundos));
+  reemplazar(id('secciones-uso'), secciones.length
+    ? secciones.map((s) => barra(NOMBRE_SECCION[s.clave] || s.clave, s.segundos, maxSeg,
+      `${duracion(s.segundos)} · ${numero(s.vistas)} vistas · ${duracion(s.segundos / s.vistas)} por vista`))
+    : [el('p', { clase: 'menor apagado', texto: 'Sin datos todavía en este periodo.' })]);
+
+  const fuentes = Object.entries(u.fuentes || {}).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
+  const maxF = Math.max(0, ...fuentes.map(([, n]) => n));
+  reemplazar(id('fuentes-uso'), fuentes.length
+    ? fuentes.map(([f, n]) => barra(NOMBRE_FUENTE[f] || f, n, maxF, `${numero(n)} · ${pct(n, visitas)}`))
+    : [el('p', { clase: 'menor apagado', texto: 'Sin datos todavía en este periodo.' })]);
+}
+
 /**
  * Tabla de ventanas. Las cifras van en mono tabular: sin eso, comparar una
  * columna en vertical es imposible porque los digitos bailan.
@@ -266,6 +323,7 @@ onAuthStateChanged(auth, async (usuario) => {
     }
 
     pintarKpis(resumen.ventanas || {});
+    pintarUso(resumen.ventanas || {}, 'semana');
     pintarVentanas(resumen.ventanas || {});
     // El embudo se mira sobre 30 dias: en un dia suelto hay demasiado poco
     // volumen para que los porcentajes signifiquen algo.

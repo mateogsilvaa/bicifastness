@@ -142,6 +142,11 @@ const captura = (uid) => ({
  * primero y el contador en el mismo lote.
  */
 async function subir(db, uid, cupo, { conCaptura = true } = {}) {
+  // El viaje lleva el nombre del perfil (las reglas lo comparan): el perfil
+  // tiene que existir, como en la web.
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', uid), { uid, username: 'Piloto Uno', usernameLower: 'piloto uno' }, { merge: true });
+  });
   const dia = diaUTC();
   const viajes = cupo.viajes + 1;
   const capturas = cupo.capturas + (conCaptura ? 1 : 0);
@@ -556,4 +561,17 @@ test('el lider no mete en el clan a quien no lo ha pedido', async () => {
   await assertFails(updateDoc(ref, { miembros: [UID, 'el_mejor_del_ranking'] }));
   await assertFails(updateDoc(ref, { miembros: [UID, 'quiere'], solicitudes: [], numMiembros: 9 }));
   await assertSucceeds(updateDoc(ref, { miembros: [UID, 'quiere'], solicitudes: [], numMiembros: 2 }));
+});
+
+test('un trayecto no se sube con el nombre de otro piloto', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Piloto Uno', usernameLower: 'piloto uno' });
+  });
+  const db = como(UID);
+  const dia = diaUTC();
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'capturas', `${UID}_${dia}_c1`), captura(UID));
+  lote.set(doc(db, 'cupos', UID), { dia, viajes: 1, capturas: 1 });
+  lote.set(doc(db, 'tiempos_viaje', `${UID}_${dia}_1`), viaje(UID, { username: 'El Campeon' }));
+  await assertFails(lote.commit());
 });

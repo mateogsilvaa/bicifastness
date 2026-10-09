@@ -58,7 +58,10 @@ onAuthStateChanged(auth, async (usuario) => {
   id('panel').classList.remove('oculto');
   cargarRevision();
   cargarReportes();
-  cargarObjetivos();
+  // Pilotos y clanes se leen ENTEROS (una lectura por documento), asi que no
+  // al abrir el panel —que casi siempre es para revisar— sino la primera vez
+  // que se busca a alguien.
+  id('busca-objetivo').addEventListener('focus', () => { objetivosPedidos ||= cargarObjetivos(); }, { once: true });
 });
 
 // --- Cola de revision (09 · 9a) ------------------------------------------------
@@ -658,6 +661,7 @@ id('btn-destacar').addEventListener('click', async () => {
 
 // --- Insignias ---
 let objetivos = [];
+let objetivosPedidos = null;
 
 async function cargarObjetivos() {
   const [usuarios, clanes] = await Promise.all([
@@ -670,7 +674,8 @@ async function cargarObjetivos() {
   ];
 }
 
-id('busca-objetivo').addEventListener('input', (evento) => {
+id('busca-objetivo').addEventListener('input', async (evento) => {
+  await (objetivosPedidos ||= cargarObjetivos());
   const termino = evento.target.value.trim().toLowerCase();
   const caja = id('resultados-busqueda');
 

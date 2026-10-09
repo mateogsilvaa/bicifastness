@@ -207,6 +207,12 @@ id('btn-recuperar').addEventListener('click', async () => {
 const deCorreo = new URLSearchParams(window.location.search);
 if (window.location.hash === '#recuperar' || deCorreo.get('recuperar') === '1') {
   if (deCorreo.get('correo')) campoCorreo.value = deCorreo.get('correo');
+  // El correo no se queda en la barra de direcciones (ni en el historial ni en
+  // lo que se comparte): se usa para rellenar el campo y se quita.
+  if (deCorreo.has('correo')) {
+    deCorreo.delete('correo');
+    window.history.replaceState(null, '', `${window.location.pathname}${deCorreo.toString() ? `?${deCorreo}` : ''}${window.location.hash}`);
+  }
   mensaje.textContent = 'Escribe tu correo y pulsa «He olvidado mi contraseña».';
   campoCorreo.focus();
 }

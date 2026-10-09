@@ -4102,3 +4102,24 @@ body.en-obras { overflow: hidden; }
 /* Y el boton nunca se sale de su tarjeta: si no cabe en una linea, se parte. */
 .hoy-racha .btn.solo-escritorio { max-width: 100%; }
 @media (min-width: 900px) and (max-width: 1440px) { .hoy-racha .btn.solo-escritorio { white-space: normal; } }
+
+/* Info · Colabora con nosotros. */
+.lista-colabora { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.lista-colabora li { padding: 12px 14px; border-radius: 14px; background: var(--papel-2); font-size: 15px; line-height: 1.5; }
+.seccion-info > .btn { width: auto; align-self: flex-start; text-decoration: none; }
+
+/* Textos legales en pantalla ancha: indice a la izquierda y texto al lado, en
+   vez de una columna estrecha en medio (assets/js/legal-indice.js). */
+@media (min-width: 1000px) {
+  .legal.con-indice { max-width: 1180px; display: grid; grid-template-columns: 260px minmax(0, 1fr); column-gap: 72px; align-items: start; padding: 40px 40px var(--e8, 96px); }
+  .legal-cuerpo { min-width: 0; max-width: 78ch; display: flex; flex-direction: column; }
+  .legal.con-indice .legal-cuerpo p, .legal.con-indice .legal-cuerpo li { font-size: 17px; }
+  .legal-indice { position: sticky; top: 32px; align-self: start; max-height: calc(100vh - 64px); overflow-y: auto; padding-top: 56px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; }
+  .legal-indice .rotulo { color: var(--tinta-3); }
+  .legal-indice ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .legal-indice a { display: block; padding: 7px 12px; border-radius: 10px; color: var(--tinta-2); font-size: 14px; line-height: 1.35; text-decoration: none; }
+  .legal-indice a:hover { background: var(--papel); color: var(--tinta); }
+  .legal-indice a[aria-current] { background: var(--papel); color: var(--tinta); font-weight: 700; box-shadow: none; outline: 2px solid var(--azul); outline-offset: -2px; }
+}
+/* Con el indice lateral, el "Contenido" de dentro del texto sobra. */
+@media (min-width: 1000px) { .legal.con-indice .legal-cuerpo > .indice { display: none; } }

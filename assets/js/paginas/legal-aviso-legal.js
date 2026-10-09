@@ -5,4 +5,5 @@
 
 
 import { iniciarPagina } from '/assets/js/ui.js';
+import '/assets/js/legal-indice.js';
 iniciarPagina('');

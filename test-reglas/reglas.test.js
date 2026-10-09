@@ -231,6 +231,9 @@ test('un viaje no nace verificado ni a nombre de otro', async () => {
 });
 
 test('los metadatos admiten el dia del fichero y nada que no sea eso', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Piloto Uno', usernameLower: 'piloto uno' });
+  });
   const db = como(UID);
   const dia = diaUTC();
   const conMetadatos = async (metadatos) => {

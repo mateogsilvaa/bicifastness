@@ -4095,3 +4095,10 @@ body.en-obras { overflow: hidden; }
 .uso-barra-cabeza strong { font-weight: 600; color: var(--tinta-2); text-align: right; }
 .uso-pista { height: 8px; border-radius: 4px; background: var(--papel-3); overflow: hidden; }
 .uso-pista i { display: block; height: 100%; background: var(--azul-relleno); border-radius: 4px; }
+
+/* Hoy: la pista de arrastrar la captura, solo donde cabe (ver `botonSubir`). */
+.pista-arrastre { display: none; }
+@media (min-width: 1441px) { .pista-arrastre { display: inline; } }
+/* Y el boton nunca se sale de su tarjeta: si no cabe en una linea, se parte. */
+.hoy-racha .btn.solo-escritorio { max-width: 100%; }
+@media (min-width: 900px) and (max-width: 1440px) { .hoy-racha .btn.solo-escritorio { white-space: normal; } }

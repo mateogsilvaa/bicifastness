@@ -14,7 +14,7 @@
  */
 
 import {
-  db, auth, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  db, auth, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
   query, where, serverTimestamp, arrayUnion, arrayRemove, writeBatch, Timestamp,
   avatarPorDefecto,
 } from './firebase.js';
@@ -187,13 +187,20 @@ export async function reportarViaje(viajeId, motivo) {
     throw new Error('Explica un poco mas que le ves de raro: al menos diez caracteres.');
   }
 
-  await addDoc(collection(db, 'reportes'), {
-    viajeId: String(viajeId),
-    reportanteUid: uidActual(),
-    motivo: texto.slice(0, 300),
-    estado: 'sin_resolver',
-    creado: serverTimestamp(),
-  });
+  // Una por persona y viaje: el id lo dice, y las reglas lo exigen. Volver a
+  // denunciar el mismo viaje no crea otra, se queda la primera.
+  try {
+    await setDoc(doc(db, 'reportes', `${uidActual()}_${String(viajeId)}`), {
+      viajeId: String(viajeId),
+      reportanteUid: uidActual(),
+      motivo: texto.slice(0, 300),
+      estado: 'sin_resolver',
+      creado: serverTimestamp(),
+    });
+  } catch (error) {
+    if (error?.code === 'permission-denied') throw new Error('Ya habías denunciado este viaje. Lo estamos mirando.');
+    throw error;
+  }
 }
 
 // --- Derechos RGPD --------------------------------------------------------------

@@ -501,7 +501,6 @@ function pintarLeyendo(avance, fase) {
  */
 function pintarLeyendoEscritorio(pct, fase, preparando) {
   const hueco = (ancho) => el('span', { clase: 'esqueleto hueco-billete', estilo: { width: ancho } });
-  const leyendo = fase === 'leyendo';
   reemplazar(id('s-leyendo'), [
     barra('Revisa y sube'),
     el('div', { clase: 'subir-cuerpo confirmar leyendo-8f' }, [

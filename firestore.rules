@@ -189,6 +189,11 @@ service cloud.firestore {
         && datos().bienvenidaEnviada == false
         && datos().username is string
         && datos().username.size() >= 3 && datos().username.size() <= 24
+        // Letras, numeros, espacio, guion y guion bajo: lo mismo que pide la
+        // portada. Sin esto, desde la consola se creaban nombres con emojis,
+        // caracteres invisibles o que imitan a otro, y se publicaban tal cual.
+        && datos().username.matches('^[\\p{L}\\p{N}_ -]+$')
+        && datos().usernameLower == datos().username.lower()
         && datos().biciRating == 0
         && datos().viajesVerificados == 0
         && datos().puntosPorRuta.size() == 0
@@ -316,7 +321,13 @@ service cloud.firestore {
       // Se consulta para avisar de que un nombre esta cogido, pero la unicidad
       // real la garantiza el worker: las reglas no pueden hacer transacciones.
       allow read: if autenticado();
-      allow create: if esYo(datos().uid);
+      // Solo el nombre de TU perfil, en el mismo lote que lo crea (getAfter).
+      // Antes bastaba con poner tu uid: una sola cuenta podia reservar
+      // cualquier cantidad de nombres y dejar sin ellos a quien llegara despues.
+      allow create: if esYo(datos().uid)
+        && datos().keys().hasOnly(['uid', 'creado'])
+        && datos().creado == request.time
+        && getAfter(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.usernameLower == nombre;
       allow update, delete: if false;
     }
 
@@ -392,6 +403,17 @@ service cloud.firestore {
         && datos().fechaViaje is string
         && datos().fechaViaje.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && datos().creado == request.time
+        // El nombre que viaja con el trayecto es el del perfil. Sin esto se
+        // podia subir con el nombre de otro, y el aviso de "te han quitado el
+        // record" salia a su nombre.
+        && datos().username == get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.username
+        && datos().tiempoFormateado is string && datos().tiempoFormateado.size() <= 16
+        && (!datos().keys().hasAny(['correcciones'])
+          || ((!('confianza' in datos().correcciones) || datos().correcciones.confianza == null || datos().correcciones.confianza is number)
+            && (!('origen' in datos().correcciones) || datos().correcciones.origen is bool)
+            && (!('destino' in datos().correcciones) || datos().correcciones.destino is bool)
+            && (!('tiempoSegundos' in datos().correcciones) || datos().correcciones.tiempoSegundos is bool)
+            && (!('desfaseSegundos' in datos().correcciones) || datos().correcciones.desfaseSegundos == null || datos().correcciones.desfaseSegundos is number)))
         // El freno de escritura (#62). El id LLEVA DENTRO el numero que va a
         // marcar el contador, asi que solo cabe un viaje por lote.
         && viajeId == request.auth.uid + '_' + string(diaUTC())
@@ -530,6 +552,16 @@ service cloud.firestore {
         return datos().miembros.size() <= 50;
       }
 
+      // Quien entra en la plantilla tiene que estar en las solicitudes. Antes el
+      // lider podia meter el uid de cualquiera —por ejemplo, de los mejores del
+      // ranking— y como la puntuacion del clan suma la de sus miembros, la
+      // inflaba sin que nadie hubiera querido entrar. Por invitacion entra el
+      // worker, que no pasa por aqui. Y el contador es el de la lista.
+      function soloEntraQuienLoPide() {
+        return datos().miembros.hasOnly(previo().miembros.concat(previo().solicitudes))
+          && (!('numMiembros' in datos()) || datos().numMiembros == datos().miembros.size());
+      }
+
       function esLider() {
         return autenticado() && previo().lider == request.auth.uid;
       }
@@ -572,6 +604,7 @@ service cloud.firestore {
           'oficiales', 'lider', 'descripcion', 'color', 'emblema', 'siglas',
         ])
         && cabeAlguienMas()
+        && soloEntraQuienLoPide()
         // La identidad (assets/js/escudo-clan.js). Este documento es publico:
         // cada campo con su forma, y el lema sin enlaces.
         && (!('color' in cambia()) || datos().color.matches('^#[0-9a-fA-F]{6}$'))
@@ -592,6 +625,7 @@ service cloud.firestore {
       allow update: if esOficial()
         && cambia().hasOnly(['miembros', 'solicitudes', 'numMiembros'])
         && cabeAlguienMas()
+        && soloEntraQuienLoPide()
         // No puede echar al lider, ni echarse a si mismo del cargo por esta via.
         && datos().miembros.hasAny([previo().lider]);
 
@@ -757,6 +791,11 @@ service cloud.firestore {
 
       allow create: if autenticado()
         && esYo(datos().reportanteUid)
+        // Una por persona y viaje. Con id libre, una sola cuenta llenaba la
+        // cola de denuncias con el mismo viaje mil veces.
+        && reporteId == request.auth.uid + '_' + datos().viajeId
+        && puedeUsarLaWeb()
+        && cuentaActiva()
         && datos().keys().hasOnly(['viajeId', 'reportanteUid', 'motivo', 'estado', 'creado'])
         && datos().viajeId is string
         && datos().viajeId.size() > 0 && datos().viajeId.size() <= 64

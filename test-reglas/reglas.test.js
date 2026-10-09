@@ -142,6 +142,11 @@ const captura = (uid) => ({
  * primero y el contador en el mismo lote.
  */
 async function subir(db, uid, cupo, { conCaptura = true } = {}) {
+  // El viaje lleva el nombre del perfil (las reglas lo comparan): el perfil
+  // tiene que existir, como en la web.
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', uid), { uid, username: 'Piloto Uno', usernameLower: 'piloto uno' }, { merge: true });
+  });
   const dia = diaUTC();
   const viajes = cupo.viajes + 1;
   const capturas = cupo.capturas + (conCaptura ? 1 : 0);
@@ -226,6 +231,9 @@ test('un viaje no nace verificado ni a nombre de otro', async () => {
 });
 
 test('los metadatos admiten el dia del fichero y nada que no sea eso', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Piloto Uno', usernameLower: 'piloto uno' });
+  });
   const db = como(UID);
   const dia = diaUTC();
   const conMetadatos = async (metadatos) => {
@@ -523,4 +531,50 @@ test('una cuenta suspendida no puede valorar bicis ni crear clanes', async () =>
   await assertFails(setDoc(doc(db, 'clanes', 'nuevo'), {
     nombre: 'Nuevo', color: '#FF5A1F', lider: UID, miembros: [UID], oficiales: [], solicitudes: [], biciRating: 0, logros: [],
   }));
+});
+
+// --- Auditoria de seguridad ---------------------------------------------------------
+
+test('el nombre de piloto no admite emojis ni simbolos raros', async () => {
+  await assertFails(altaDePerfil(como(UID), UID, 'Piloto 🚲'));
+  await assertFails(altaDePerfil(como(UID), UID, 'adm<b>in'));
+  await assertSucceeds(altaDePerfil(como(UID), UID, 'Lucía_Pedalea'));
+});
+
+test('una cuenta no puede reservar nombres que no son el suyo', async () => {
+  await altaDePerfil(como(UID), UID, 'Piloto Uno');
+  await assertFails(setDoc(doc(como(UID), 'nombres_usuario', 'otro nombre'), { uid: UID, creado: serverTimestamp() }));
+});
+
+test('solo una denuncia por persona y viaje', async () => {
+  const db = como(UID);
+  const datos = { viajeId: 'v9', reportanteUid: UID, motivo: 'Tiempo imposible para esa ruta', estado: 'sin_resolver', creado: serverTimestamp() };
+  await assertFails(setDoc(doc(db, 'reportes', 'cualquiera'), datos));
+  await assertSucceeds(setDoc(doc(db, 'reportes', `${UID}_v9`), datos));
+  await assertFails(setDoc(doc(db, 'reportes', `${UID}_v9`), datos));
+});
+
+test('el lider no mete en el clan a quien no lo ha pedido', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'clanes', 'c1'), {
+      nombre: 'Clan Uno', color: '#FF5A1F', lider: UID, miembros: [UID], oficiales: [], solicitudes: ['quiere'],
+    });
+  });
+  const ref = doc(como(UID), 'clanes', 'c1');
+  await assertFails(updateDoc(ref, { miembros: [UID, 'el_mejor_del_ranking'] }));
+  await assertFails(updateDoc(ref, { miembros: [UID, 'quiere'], solicitudes: [], numMiembros: 9 }));
+  await assertSucceeds(updateDoc(ref, { miembros: [UID, 'quiere'], solicitudes: [], numMiembros: 2 }));
+});
+
+test('un trayecto no se sube con el nombre de otro piloto', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Piloto Uno', usernameLower: 'piloto uno' });
+  });
+  const db = como(UID);
+  const dia = diaUTC();
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'capturas', `${UID}_${dia}_c1`), captura(UID));
+  lote.set(doc(db, 'cupos', UID), { dia, viajes: 1, capturas: 1 });
+  lote.set(doc(db, 'tiempos_viaje', `${UID}_${dia}_1`), viaje(UID, { username: 'El Campeon' }));
+  await assertFails(lote.commit());
 });

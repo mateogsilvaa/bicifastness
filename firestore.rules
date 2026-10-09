@@ -189,6 +189,11 @@ service cloud.firestore {
         && datos().bienvenidaEnviada == false
         && datos().username is string
         && datos().username.size() >= 3 && datos().username.size() <= 24
+        // Letras, numeros, espacio, guion y guion bajo: lo mismo que pide la
+        // portada. Sin esto, desde la consola se creaban nombres con emojis,
+        // caracteres invisibles o que imitan a otro, y se publicaban tal cual.
+        && datos().username.matches('^[\\p{L}\\p{N}_ -]+$')
+        && datos().usernameLower == datos().username.lower()
         && datos().biciRating == 0
         && datos().viajesVerificados == 0
         && datos().puntosPorRuta.size() == 0

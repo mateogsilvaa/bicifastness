@@ -102,6 +102,28 @@ function quiere(usuario, tipo) {
  *
  * NUNCA lanza. Un fallo de push no puede tumbar la verificacion de viajes.
  */
+/**
+ * Solo los servicios de push de los navegadores. La suscripcion la escribe el
+ * propio navegador en su perfil, asi que sin esto bastaba con poner como
+ * `endpoint` cualquier URL para que el worker le hiciera peticiones desde
+ * GitHub Actions (y con las cabeceras VAPID del proyecto).
+ */
+const SERVICIOS_PUSH = [
+  /(^|\.)fcm\.googleapis\.com$/, /(^|\.)android\.googleapis\.com$/,
+  /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/,
+  /(^|\.)push\.apple\.com$/,
+];
+
+function endpointValido(suscripcion) {
+  try {
+    const url = new URL(suscripcion?.endpoint);
+    return url.protocol === 'https:' && SERVICIOS_PUSH.some((r) => r.test(url.hostname))
+      && typeof suscripcion?.keys?.p256dh === 'string' && typeof suscripcion?.keys?.auth === 'string';
+  } catch {
+    return false;
+  }
+}
+
 async function enviar(uid, tipo, mensaje, { simular = false } = {}) {
   if (!configurar()) return { enviados: 0, motivo: 'sin claves VAPID' };
 
@@ -112,11 +134,14 @@ async function enviar(uid, tipo, mensaje, { simular = false } = {}) {
   const usuario = snap.data();
   if (!quiere(usuario, tipo)) return { enviados: 0, motivo: 'no lo quiere' };
 
-  const suscripciones = usuario.push.suscripciones;
+  const todas = usuario.push.suscripciones;
+  // Las que no son de un servicio de push de verdad se tiran como caducadas.
+  const suscripciones = todas.filter(endpointValido);
+  const falsas = todas.filter((s) => !endpointValido(s));
   if (simular) return { enviados: suscripciones.length, simulado: true };
 
   const carga = JSON.stringify({ ...mensaje, tipo });
-  const caducadas = [];
+  const caducadas = [...falsas];
   let enviados = 0;
 
   for (const suscripcion of suscripciones) {
@@ -177,4 +202,4 @@ function rachaEnPeligro(usuarios, hoy) {
   });
 }
 
-module.exports = { TIPOS, configurar, quiere, enviar, olvidar, rachaEnPeligro };
+module.exports = { TIPOS, configurar, quiere, enviar, olvidar, rachaEnPeligro, endpointValido };

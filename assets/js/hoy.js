@@ -81,11 +81,14 @@ function llevaHoy(perfil) {
   return perfil.misiones?.fecha === diaMadrid() ? (perfil.misiones.trayectos || 0) : 0;
 }
 
-function botonSubir(texto, { secundario = false, clase = '' } = {}) {
+function botonSubir(texto, { secundario = false, clase = '', arrastre = '' } = {}) {
   return el('a', {
     clase: `btn grande ${secundario ? 'secundario' : ''} ${clase}`.trim(),
     attrs: { href: '/subir/', 'data-subir': '' },
-  }, [icono('mas', 'icono'), el('span', { texto })]);
+    // La pista de arrastrar solo cabe en la columna ancha (>= 1441 px): entre
+    // 1200 y 1440 la columna de la racha mide ~500 px y el boton se salia de la
+    // tarjeta y se metia bajo la ruta de la semana.
+  }, [icono('mas', 'icono'), el('span', {}, [texto, arrastre ? el('span', { clase: 'pista-arrastre', texto: arrastre }) : null])]);
 }
 
 function pintarSubir(perfil, modo) {
@@ -277,7 +280,7 @@ function pintarRacha(perfil, { enCola = false } = {}) {
           escudos ? el('span', { clase: 'solo-escritorio-i', texto: ` Tienes ${escudos === 1 ? '1 escudo guardado' : `${escudos} escudos guardados`}.` }) : null,
         ]),
         chipEscudos(escudos),
-        botonSubir('Subir trayecto · o arrastra la captura aquí', { clase: 'solo-escritorio' }),
+        botonSubir('Subir trayecto', { clase: 'solo-escritorio', arrastre: ' · o arrastra la captura aquí' }),
       ]),
     ]),
     diasSemana(),

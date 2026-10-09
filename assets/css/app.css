@@ -4104,8 +4104,6 @@ body.en-obras { overflow: hidden; }
 @media (min-width: 900px) and (max-width: 1440px) { .hoy-racha .btn.solo-escritorio { white-space: normal; } }
 
 /* Info · Colabora con nosotros. */
-.lista-colabora { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.lista-colabora li { padding: 12px 14px; border-radius: 14px; background: var(--papel-2); font-size: 15px; line-height: 1.5; }
 .seccion-info > .btn { width: auto; align-self: flex-start; text-decoration: none; }
 
 /* Textos legales en pantalla ancha: indice a la izquierda y texto al lado, en

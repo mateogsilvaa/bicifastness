@@ -48,7 +48,8 @@
     ],
     "frame-src": [
       "https://www.google.com",
-      "https://bicifastness.firebaseapp.com"
+      "https://bicifastness.firebaseapp.com",
+      "https://recaptcha.google.com"
     ],
     "base-uri": [
       "'self'"

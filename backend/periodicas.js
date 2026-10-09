@@ -35,6 +35,7 @@ const push = require('./src/push');
 const logros = require('./src/logros');
 const { diaMadrid } = require('./src/util');
 const lanzamiento = require('./src/lanzamiento');
+const pilotosCache = require('./src/pilotos-cache');
 
 const [operacion] = process.argv.slice(2);
 const APLICAR = process.argv.includes('--aplicar');
@@ -235,6 +236,11 @@ async function main() {
     console.error('Operacion desconocida. Usa: temporada | divisiones | lanzamiento');
     process.exit(1);
   }
+
+  // Estas operaciones cambian a muchos pilotos a la vez (division, grupo,
+  // puntos): la cache de la reconstruccion parcial no lo sabe, asi que se
+  // invalida y la proxima reconstruccion lee `usuarios` entera una vez.
+  if (APLICAR) await pilotosCache.invalidar().catch((error) => console.warn('No se ha podido invalidar la cache de pilotos:', error.message));
 
   process.exit(0);
 }

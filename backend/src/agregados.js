@@ -290,10 +290,11 @@ const listaDe = (valores) => [...new Set([...(valores || [])].filter(Boolean).ma
  * Van juntas porque se pierden por el mismo motivo: la pasada las ha movido y el
  * limitador ha dicho que todavia no toca reconstruir.
  */
-async function apuntarPendientes(rutas, estaciones = []) {
+async function apuntarPendientes(rutas, estaciones = [], pilotos = []) {
   const conRutas = listaDe(rutas);
   const conEstaciones = listaDe(estaciones);
-  if (!conRutas.length && !conEstaciones.length) return 0;
+  const conPilotos = listaDe(pilotos);
+  if (!conRutas.length && !conEstaciones.length && !conPilotos.length) return 0;
 
   await db().doc(PENDIENTES).set({
     ...(conRutas.length
@@ -302,10 +303,14 @@ async function apuntarPendientes(rutas, estaciones = []) {
     ...(conEstaciones.length
       ? { estaciones: admin.firestore.FieldValue.arrayUnion(...conEstaciones) }
       : {}),
+    // Los pilotos cuyo documento ha cambiado: la cache los relee (src/pilotos-cache.js).
+    ...(conPilotos.length
+      ? { pilotos: admin.firestore.FieldValue.arrayUnion(...conPilotos) }
+      : {}),
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
 
-  return conRutas.length + conEstaciones.length;
+  return conRutas.length + conEstaciones.length + conPilotos.length;
 }
 
 /** Lo apuntado. Una lectura. */
@@ -316,9 +321,10 @@ async function leerPendientes() {
     return {
       rutas: Array.isArray(datos.rutas) ? datos.rutas : [],
       estaciones: Array.isArray(datos.estaciones) ? datos.estaciones : [],
+      pilotos: Array.isArray(datos.pilotos) ? datos.pilotos : [],
     };
   } catch {
-    return { rutas: [], estaciones: [] };
+    return { rutas: [], estaciones: [], pilotos: [] };
   }
 }
 
@@ -330,6 +336,7 @@ async function olvidarPendientes() {
   await db().doc(PENDIENTES).set({
     rutas: [],
     estaciones: [],
+    pilotos: [],
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
 }

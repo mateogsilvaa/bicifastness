@@ -305,14 +305,23 @@ const WORKER = [
     // Los viajes solo hacen falta para los agregados POR RUTA y para el contador
     // de la portada. Los rankings de pilotos, el de clanes y el mapa salen de
     // usuarios, clanes y estaciones_stats.
-    coste: ({ U, V, C, S }) => U + C
+    // Los pilotos salen de la cache (backend/src/pilotos-cache.js): ~80 por
+    // documento, mas el meta y los pilotos que ha tocado el worker (uno por viaje
+    // aprobado en la ventana). La lectura completa, cada 2 h, va aparte.
+    coste: ({ U, V, C, S }) => Math.ceil(U / 80) + 1 + Math.max(1, Math.round(S / 96)) + C
       + (rutasEnLaVentana(S) + RUTAS_POR_TURNO) * min1(viajesPorRutaActiva(V))
       + min1(1) + estacionesEnLaPasada(S)
       + min1(V / 1000)
       + min1(3),
-    detalle: 'usuarios + clanes + los viajes de las rutas movidas y de las tres del turno '
+    detalle: 'las paginas de pilotos de la cache + los tocados + clanes + los viajes de las rutas movidas y de las tres del turno '
       + '+ el agregado del mapa y las estaciones movidas + el conteo agregado '
       + '+ el indice, la portada y lo que quedara pendiente',
+  },
+  {
+    nombre: 'pilotos-cache: lectura completa de usuarios (cada 2 h)',
+    veces: () => 12,
+    coste: ({ U }) => U,
+    detalle: 'la unica vez que se lee usuarios entera para reconstruir; el resto, la cache',
   },
   {
     nombre: 'agregados.tocaReconstruir (por pasada con movimiento)',

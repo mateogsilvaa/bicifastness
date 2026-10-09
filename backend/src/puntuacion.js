@@ -13,6 +13,7 @@ const admin = require('firebase-admin');
 const { PUNTOS, VIAJE } = require('./config');
 const rachas = require('./rachas');
 const agregados = require('./agregados');
+const pilotosCache = require('./pilotos-cache');
 const territorio = require('./territorio');
 
 // Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
@@ -581,7 +582,7 @@ async function estacionesParaElMapa(tocadas) {
  * en la mano, hacer la reconstruccion parcial no ahorra nada y pierde la
  * limpieza de las rutas vacias.
  */
-async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas = null) {
+async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas = null, pilotosTocados = null) {
   // Basta con que quien llama diga QUE rutas se han movido, aunque sean cero:
   // una pasada que solo ha rechazado viajes, o en la que solo ha cambiado un
   // clan, no mueve ninguna ruta y aun asi hay que rehacer las clasificaciones de
@@ -596,6 +597,11 @@ async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas
       base ? Promise.resolve(base) : cargarBase(),
       db().collection('estaciones_stats').get(),
     ]);
+
+    // Ya se han leido todos los pilotos: de paso se refresca la cache de la
+    // reconstruccion parcial (src/pilotos-cache.js). Si falla no pasa nada, la
+    // siguiente parcial la releera ella.
+    if (base) await pilotosCache.cargar({ completos: usuarios }).catch((error) => console.warn('No se ha podido refrescar la cache de pilotos:', error.message));
 
     return agregados.reconstruir({
       clanes,
@@ -620,8 +626,10 @@ async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas
   const turno = agregados.turnoDeRutas(catalogo, indice.exists ? indice.data().refrescadaHasta : null);
   const pedidas = [...new Set([...movidas, ...turno])];
 
-  const [usuariosSnap, viajes, contados, estaciones] = await Promise.all([
-    db().collection('usuarios').get(),
+  // Los pilotos salen de la cache (src/pilotos-cache.js): unas pocas lecturas
+  // en vez de una por piloto, y solo se relee a los que ha tocado el worker.
+  const [pilotos, viajes, contados, estaciones] = await Promise.all([
+    pilotosCache.cargar({ tocados: pilotosTocados || [] }),
     viajesDeRutas(pedidas),
     contarViajesVerificados(),
     estacionesParaElMapa(estacionesTocadas),
@@ -638,7 +646,7 @@ async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas
     clanes,
     estaciones,
     viajes,
-    usuarios: usuariosSnap.docs.map((d) => ({ uid: d.id, ...d.data() })),
+    usuarios: pilotos,
     parcial: true,
     rutasPrevias: catalogo,
     conteosPrevios: indice.exists ? (indice.data().viajesPorRuta || {}) : {},

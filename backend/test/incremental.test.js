@@ -250,7 +250,7 @@ test('lo movido mientras el limitador espera no se pierde', async () => {
   assert.deepStrictEqual(pendientes.estaciones.sort(), ['001', '002', '003']);
 
   await agregados.olvidarPendientes();
-  assert.deepStrictEqual(await agregados.leerPendientes(), { rutas: [], estaciones: [] });
+  assert.deepStrictEqual(await agregados.leerPendientes(), { rutas: [], estaciones: [], pilotos: [] });
 });
 
 test('apuntar cero cosas no escribe nada', async () => {
@@ -570,4 +570,65 @@ test('la distribucion no se pinta: no lleva nada de nadie', async () => {
 
   const guardada = bd.leer(`agregados/ruta-${RUTAS[0]}`).distribucion;
   assert.deepStrictEqual(Object.keys(guardada).sort(), ['desviacion', 'media', 'muestras']);
+});
+
+// --- La cache de pilotos ----------------------------------------------------------
+
+test('la reconstruccion parcial con la cache da lo mismo que leyendo usuarios entera', async () => {
+  sembrar();
+  // Completa: lee todo y deja la cache hecha.
+  await puntuacion.reconstruirAgregados();
+  const { cargar } = require('../src/pilotos-cache');
+  await cargar({ completos: (await bd.collection('usuarios').get()).docs.map((d) => ({ uid: d.id, ...d.data() })) });
+
+  // Un piloto suma puntos: el worker lo apunta.
+  await bd.doc('usuarios/u3').update({ biciRating: 9999, viajesVerificados: 40 });
+  await puntuacion.reconstruirAgregados(null, [RUTAS[0]], [], ['u3']);
+  const conCache = bd.leer('agregados/ranking-general');
+
+  // El camino de siempre, leyendolo todo.
+  await puntuacion.reconstruirAgregados();
+  const completo = bd.leer('agregados/ranking-general');
+
+  const sinHora = (a) => JSON.parse(JSON.stringify(a.filas));
+  assert.deepStrictEqual(sinHora(conCache), sinHora(completo));
+  assert.strictEqual(completo.filas[0].puntos, 9999);
+});
+
+test('con la cache, reconstruir no lee un documento por piloto', async () => {
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+  const { cargar } = require('../src/pilotos-cache');
+  const todos = (await bd.collection('usuarios').get()).docs.map((d) => ({ uid: d.id, ...d.data() }));
+  await cargar({ completos: todos });
+
+  bd.reiniciarContador();
+  await cargar({ tocados: ['u1'] });
+  // Las paginas de la cache (unas pocas), el meta y UN piloto.
+  assert.ok(bd.coste.lecturas <= Math.ceil(todos.length / 80) + 3, `lecturas: ${bd.coste.lecturas}`);
+  assert.ok(bd.coste.lecturas < todos.length / 4);
+});
+
+test('la cache no guarda correos ni avisos', async () => {
+  sembrar();
+  await bd.doc('usuarios/u0').update({ push: { suscripciones: [{ endpoint: 'https://x' }] }, consentimiento: { terminos: {} }, favoritas: ['001-002'] });
+  const { cargar } = require('../src/pilotos-cache');
+  await cargar({ tocados: [] });
+  const guardado = JSON.stringify(bd.leer('config/pilotos_1'));
+  for (const prohibido of ['suscripciones', 'consentimiento', 'favoritas', 'email', 'push']) {
+    assert.ok(!guardado.includes(prohibido), `la cache lleva "${prohibido}"`);
+  }
+});
+
+test('invalidar la cache obliga a leer usuarios entera la proxima vez', async () => {
+  sembrar();
+  const { cargar, invalidar } = require('../src/pilotos-cache');
+  const todos = (await bd.collection('usuarios').get()).docs.map((d) => ({ uid: d.id, ...d.data() }));
+  await cargar({ completos: todos });
+  await bd.doc('usuarios/u2').delete();
+
+  // Sin invalidar, el borrado no se ve (se vera al caducar o al invalidar)...
+  assert.ok((await cargar({ tocados: [] })).some((p) => p.uid === 'u2'));
+  await invalidar();
+  assert.ok(!(await cargar({ tocados: [] })).some((p) => p.uid === 'u2'));
 });

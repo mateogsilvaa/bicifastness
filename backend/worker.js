@@ -206,8 +206,27 @@ const estacionesTocadas = new Set();
  */
 const rutasTocadas = new Set();
 
-function apuntarEstaciones(ruta) {
+/**
+ * Pilotos cuyo documento ha cambiado en esta ejecucion (puntos sumados o
+ * revertidos). La cache de pilotos solo relee a estos (src/pilotos-cache.js).
+ */
+const pilotosTocados = new Set();
+
+/**
+ * Pilotos de esta ejecucion que tienen clan, para saber si su viaje puede mover
+ * el territorio. `tocaTerritorioPropio` ya lee su perfil y lo rellena.
+ */
+const pilotosConClan = new Set();
+
+/**
+ * Apunta lo que ha movido un viaje. La ruta siempre (su clasificacion cambia);
+ * las estaciones solo si el piloto tiene clan: el dominio del mapa sale de los
+ * viajes de los clanes (src/territorio.js) y un piloto sin clan no lo mueve.
+ * Recalcularlas leia los viajes de todas las rutas que tocan esas estaciones.
+ */
+function apuntarEstaciones(ruta, { territorio = true } = {}) {
   if (ruta) rutasTocadas.add(String(ruta));
+  if (!territorio) return;
   for (const estacion of puntuacion.estacionesDe(ruta)) estacionesTocadas.add(estacion);
 }
 
@@ -831,7 +850,7 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
       && viaje.tiempoSegundos > marcaUltimoPuntuable
       && await puntuacion.multiplicadorRuta(viaje.ruta) === 1;
     if (!fueraDelPodio) await puntuacion.recalcularRuta(viaje.ruta);
-    apuntarEstaciones(viaje.ruta);
+    apuntarEstaciones(viaje.ruta, { territorio: pilotosConClan.has(String(viaje.uid)) });
 
     // Solo si bate la marca que habia: es lo unico que cuesta lecturas, y pasa
     // pocas veces. Sin record previo (ruta nueva) no hay a quien avisar.
@@ -1165,6 +1184,8 @@ async function tocaTerritorioPropio(uid, estaciones) {
   try {
     const usuario = await db.doc(`usuarios/${uid}`).get();
     const clan = usuario.exists ? usuario.data().clanId : null;
+    if (clan) pilotosConClan.add(String(uid));
+    else pilotosConClan.delete(String(uid));
     if (!clan) return false;
 
     const stats = await db.getAll(
@@ -1193,6 +1214,7 @@ async function tocaTerritorioPropio(uid, estaciones) {
  * la captura. Anadirlas al juego no abre superficie nueva de fraude.
  */
 async function premiar(doc, viaje) {
+  if (viaje.uid) pilotosTocados.add(String(viaje.uid));
   // Primera tanda: un viaje de antes del lanzamiento que se verifica despues
   // no suma nada. Queda en el historial, aparte (src/lanzamiento.js).
   if (lanzamiento.esPrimeraTanda(viaje)) {
@@ -1405,6 +1427,7 @@ async function premiar(doc, viaje) {
  * castiga mas de lo que corrige.
  */
 async function revertirPremio(doc, viaje) {
+  if (viaje.uid) pilotosTocados.add(String(viaje.uid));
   const refUsuario = db.doc(`usuarios/${viaje.uid}`);
   const menos = admin.firestore.FieldValue.increment;
 
@@ -2909,6 +2932,7 @@ async function main() {
     const pendientes = await agregados.leerPendientes();
     const rutas = new Set([...rutasTocadas, ...pendientes.rutas]);
     const estaciones = new Set([...estacionesTocadas, ...pendientes.estaciones]);
+    const pilotos = new Set([...pilotosTocados, ...pendientes.pilotos]);
 
     // El dominio de las estaciones, con la MISMA cadencia que los agregados y
     // no en cada pasada con viajes. Nadie lo ve si no es a traves del mapa, que
@@ -2924,7 +2948,7 @@ async function main() {
       console.log(`Dominio recalculado en ${cuantas} estaciones.`);
     }
 
-    const escritos = await puntuacion.reconstruirAgregados(null, rutas, estaciones);
+    const escritos = await puntuacion.reconstruirAgregados(null, rutas, estaciones, pilotos);
     console.log(`Agregados reconstruidos (${rutas.size} rutas movidas`
       + ` + ${agregados.RUTAS_POR_TURNO} de turno, ${estaciones.size} estaciones): `
       + JSON.stringify(escritos));
@@ -2933,6 +2957,7 @@ async function main() {
     await agregados.olvidarPendientes();
     rutasTocadas.clear();
     estacionesTocadas.clear();
+    pilotosTocados.clear();
   } else if (huboMovimiento && !SIMULAR) {
     // Se apunta para la proxima: el proceso muere al acabar la ejecucion, asi
     // que sin esto la ruta se quedaria con el agregado viejo. Vale para las dos
@@ -2941,12 +2966,13 @@ async function main() {
     // Con `catch` porque apuntar no puede tumbar la pasada, pero hablando: si
     // esto falla, las rutas y estaciones movidas se pierden al morir el proceso
     // y sus agregados se quedan viejos hasta que alguien vuelva a moverlas.
-    await agregados.apuntarPendientes(rutasTocadas, estacionesTocadas)
+    await agregados.apuntarPendientes(rutasTocadas, estacionesTocadas, pilotosTocados)
       .catch((error) => console.warn('No se ha podido apuntar lo pendiente:', error.message));
     console.log(`Agregados: movimiento en ${rutasTocadas.size} rutas y `
       + `${estacionesTocadas.size} estaciones, sin reconstruir todavia. `
       + 'Queda apuntado para la proxima.');
     estacionesTocadas.clear();
+    pilotosTocados.clear();
   }
 
   // Metricas, en dos mitades con coste MUY distinto.

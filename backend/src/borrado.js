@@ -276,6 +276,11 @@ async function ejecutar(uid, { simular = false } = {}) {
       // La foto de perfil es publica: se va con la cuenta.
       await db().doc(`fotos/${datos.usernameLower}`).delete();
     }
+    // Y se saca de los rankings: la cache de pilotos de la reconstruccion
+    // parcial todavia lo tiene, asi que se invalida y la proxima lee `usuarios`.
+    await require('./pilotos-cache').invalidar().catch((error) => {
+      console.warn('  no se ha podido invalidar la cache de pilotos:', error.message);
+    });
 
     // Y se rehace el agregado del clan, que lleva la plantilla con nombres
     // dentro y es PUBLICO. Sacar a alguien de `clanes.miembros` no lo actualiza:

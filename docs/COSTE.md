@@ -167,6 +167,30 @@ De paso, el aviso de racha en peligro tiraba de la misma carga compartida, que
 traia `tiempos_viaje` entera: 15.000 lecturas al dia para un aviso que no mira ni
 un viaje. Ahora lee solo `usuarios`, y corta por la hora antes de leer nada.
 
+### La reconstruccion parcial leia `usuarios` entera cada vez
+
+Era lo mas caro que quedaba: cada reconstruccion (hasta 96 al dia) leia un
+documento por piloto, **1.000 lecturas con 1.000 pilotos**, solo para repartir
+unos rankings que casi no cambiaban de una a otra.
+
+Ahora los pilotos viven en una cache (`config/pilotos_N`, unos 80 por documento y
+solo los campos que usan los agregados: `backend/src/pilotos-cache.js`). Una
+reconstruccion lee las paginas de la cache y **solo los pilotos cuyo documento ha
+cambiado** — los de los viajes que el worker ha sumado o revertido, que apunta
+igual que las rutas. De mil lecturas a unas quince.
+
+Lo que el worker no ve (alguien cambia de clan desde el navegador, una
+suspension) se recoge de dos maneras: las operaciones que cambian a mucha gente
+—cierre de liga, de temporada, el lanzamiento, el borrado de una cuenta—
+**invalidan la cache**, y `usuarios` se relee entera como mucho cada dos horas
+(12 veces al dia). El peor caso es que un cambio de clan tarde hasta dos horas en
+verse en el ranking, que ya era un cambio que solo se veia en la siguiente
+reconstruccion.
+
+Y un viaje de alguien **sin clan** ya no apunta sus estaciones: el dominio del
+mapa sale de los viajes de los clanes, y recalcularlo leia los viajes de todas
+las rutas que tocan esas estaciones.
+
 ### Un turno de refresco, para lo que la reconstruccion parcial no ve
 
 El agregado de una ruta lleva dentro el nombre, el avatar y el clan de cada
@@ -271,10 +295,10 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 <!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 8339 | 17% |
-| u50 | 50 | 3000 | 23.620 | 47% |
-| u200 | 200 | 15.000 | 103.103 | 206% **se agota** |
-| u1000 | 1000 | 90.000 | 1.318.312 | 2637% **se agota** |
+| hoy | 6 | 1022 | 8909 | 18% |
+| u50 | 50 | 3000 | 21.775 | 44% |
+| u200 | 200 | 15.000 | 85.479 | 171% **se agota** |
+| u1000 | 1000 | 90.000 | 1.220.296 | 2441% **se agota** |
 <!-- fin:escenarios -->
 
 
@@ -313,12 +337,13 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 |---|---:|---|
 | metricas.resumir (una vez cada 6 h) | 677 | los 200 dias + el resumen anterior + las altas recientes y su ultimo viaje + los conteos de totales y ventanas |
 | clanes.limpiarDoblesMembresias y clanes.rescatarSinLider (UNA vez al dia) | 530 | los clanes enteros + los usuarios con clan (tope 500), dos veces |
-| reconstruirAgregados (parcial, como mucho cada 15 min) | 437 | usuarios + clanes + los viajes de las rutas movidas y de las tres del turno + el agregado del mapa y las estaciones movidas + el conteo agregado + el indice, la portada y lo que quedara pendiente |
 | recalcularEstaciones (con los agregados, como mucho cada 15 min) | 281 | el indice de rutas + los clanes (de ahi sale de quien es cada piloto) + los viajes de las rutas que tocan cada estacion |
 | recalcularRuta (por viaje APROBADO que entra en el podio) | 248 | los 200 mas rapidos de esa ruta + quien ya puntuaba en ella |
 | avisarRachasEnPeligro (UNA vez al dia, a las 20:00) | 240 | TODOS los usuarios, para ver a quien se le cae la racha |
 | cerrarRachas (UNA vez al dia, en el trabajo diario) | 240 | TODOS los usuarios, para cerrar las rachas que se han roto |
 | temporadas.cerrar (UNA vez al mes) | 240 | TODOS los usuarios, para repartir las insignias de la temporada |
+| pilotos-cache: lectura completa de usuarios (cada 2 h) | 240 | la unica vez que se lee usuarios entera para reconstruir; el resto, la cache |
+| reconstruirAgregados (parcial, como mucho cada 15 min) | 204 | las paginas de pilotos de la cache + los tocados + clanes + los viajes de las rutas movidas y de las tres del turno + el agregado del mapa y las estaciones movidas + el conteo agregado + el indice, la portada y lo que quedara pendiente |
 | avisarRevisionesLentas (UNA vez al dia, en el trabajo diario) | 50 | los 50 viajes mas antiguos en revision sin avisar |
 | reunirContexto (por viaje procesado) | 46 | el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id + los de la misma ruta y dia + el viaje de la huella mas parecida |
 | cola y bajas (por pasada) | 4 | las consultas de cola, recalculo pendiente, capturas de rechazos caducadas y bajas |

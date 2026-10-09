@@ -26,7 +26,7 @@ import {
   getCountFromServer,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import {
-  initializeAppCheck, ReCaptchaV3Provider,
+  initializeAppCheck, ReCaptchaEnterpriseProvider,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js';
 
 const configuracion = {
@@ -38,14 +38,15 @@ const configuracion = {
 };
 
 /**
- * Clave de sitio de reCAPTCHA v3 para App Check.
+ * Clave de sitio de reCAPTCHA Enterprise para App Check (es publica: va en el
+ * navegador por diseño; lo secreto es la clave de la consola).
  *
  * Aqui importa mas que en un montaje con servidor: como el cliente escribe
  * directamente en Firestore, App Check es lo que impide que alguien use la
  * apiKey desde un script suelto en vez de desde la web.
  * Se rellena desde la consola de Firebase (Compilacion > App Check).
  */
-const RECAPTCHA_SITE_KEY = '__PON_AQUI_TU_CLAVE_DE_RECAPTCHA_V3__';
+const RECAPTCHA_SITE_KEY = '6LdM3-YtAAAAAOFAmNCOYYq0wRphZPb50WztksMD';
 
 export const app = initializeApp(configuracion);
 
@@ -121,7 +122,7 @@ export const db = crearFirestore();
 
 if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('__')) {
   initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+    provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
     isTokenAutoRefreshEnabled: true,
   });
 } else {

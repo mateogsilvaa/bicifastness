@@ -228,6 +228,19 @@ nombres.slice(0, 8).forEach((n, i) => {
   };
 });
 
+// La tienda abierta, con enlaces de prueba (no llevan a ningun pago real).
+datos['config/tienda'] = {
+  visible: true,
+  productos: {
+    camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.stripe.com/test_maqueta', variantes: { S: 1, M: 2, L: 3, XL: 4 } },
+    taza: { activo: true, precio: 14.9, enlacePago: 'https://buy.stripe.com/test_maqueta', variantes: { unica: 5 } },
+  },
+};
+// localStorage.maqueta_obras = '1' -> la web en construccion (assets/js/puerta.js).
+if ((() => { try { return localStorage.getItem('maqueta_obras'); } catch { return null; } })()) {
+  datos['config/acceso'] = { modo: 'obras', mensaje: '' };
+}
+
 /** Una captura de mentira, pintada al vuelo: la maqueta no lleva imagenes de nadie. */
 function capturaDeMentira(texto) {
   if (typeof document === 'undefined') return 'data:image/png;base64,';

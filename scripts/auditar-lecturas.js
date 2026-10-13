@@ -133,8 +133,10 @@ const PANTALLAS = [
     // agregados de clasificacion (guardados en la sesion). El historial (20) y
     // las temporadas (~3) son subpantallas y solo se leen al abrirlas: una de
     // cada tres visitas es generoso.
-    coste: () => 1 + 1 + min1(1) + min1(1) + 4 + (20 + 3) / 3,
-    detalle: 'perfil + clan + dos conteos + 4 agregados; historial y temporadas solo al abrirlos',
+    // + la configuracion de la tienda, para saber si va su entrada en el menu
+    // (guardada 10 min en la sesion: se cuenta entera, que es lo peor).
+    coste: () => 1 + 1 + min1(1) + min1(1) + 4 + (20 + 3) / 3 + 1,
+    detalle: 'perfil + clan + dos conteos + 4 agregados + la tienda; historial y temporadas solo al abrirlos',
   },
   {
     ruta: '/subir/', veces: 1,
@@ -149,6 +151,12 @@ const PANTALLAS = [
     coste: () => min1(1) + 0.2 * min1(60) + min1(1) + min1(2),
     detalle: 'perfil + (1 de cada 5 capturas) sus 60 viajes recientes '
       + '+ el contador de escrituras y los dos getAfter de las reglas',
+  },
+  {
+    // Casi nadie entra: una visita cada veinte dias es generoso.
+    ruta: '/tienda/', veces: 0.05,
+    coste: () => 1 + 1 + 1 + min1(40) + 1 + min1(10),
+    detalle: 'la tienda + perfil + clan + sus 40 viajes verificados + el ranking general + sus pedidos',
   },
   {
     ruta: '/statssss/', veces: 0.1,
@@ -379,6 +387,14 @@ const WORKER = [
     veces: () => 288,
     coste: () => min1(1) + min1(1) + min1(1) + min1(1),
     detalle: 'las consultas de cola, recalculo pendiente, capturas de rechazos caducadas y bajas',
+  },
+  {
+    nombre: 'venderEnLaTienda (por ejecucion, solo con la clave de Stripe puesta)',
+    // Unas 160 ejecuciones al dia (una cada 9 minutos). Lo de cada pedido
+    // pagado (perfil, clan, viaje, ranking) es tan raro que no se cuenta.
+    veces: () => 160,
+    coste: () => min1(1) + min1(1),
+    detalle: 'la configuracion de la tienda + por donde va leyendo los pagos de Stripe',
   },
 ];
 

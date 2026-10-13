@@ -768,6 +768,59 @@ service cloud.firestore {
       allow write: if esAdmin();
     }
 
+    // --- Tienda ---------------------------------------------------------------
+    // Si se ve y que se vende. La lee cualquiera (la web decide si enseña el
+    // acceso) y solo la cambia la administracion. Los precios de aqui son los
+    // que se ENSEÑAN: lo que se cobra lo fija el enlace de pago de Stripe, y el
+    // worker comprueba que lo cobrado cuadra antes de mandar nada a imprimir.
+    match /config/tienda {
+      allow read: if true;
+      allow write: if esAdmin()
+        && datos().keys().hasOnly(['visible', 'productos', 'actualizado', 'por'])
+        && datos().visible is bool
+        && datos().productos is map
+        && datos().productos.keys().hasOnly(['camiseta', 'taza'])
+        && (!('camiseta' in datos().productos) || productoTiendaValido(datos().productos.camiseta))
+        && (!('taza' in datos().productos) || productoTiendaValido(datos().productos.taza))
+        && datos().por == request.auth.uid
+        && datos().actualizado == request.time;
+    }
+
+    function productoTiendaValido(p) {
+      return p is map
+        && p.keys().hasOnly(['activo', 'precio', 'enlacePago', 'variantes'])
+        && p.activo is bool
+        && (p.precio is int || p.precio is float) && p.precio >= 0 && p.precio <= 200
+        && p.enlacePago is string && p.enlacePago.size() <= 200
+        && (p.enlacePago == '' || p.enlacePago.matches('^https://buy[.]stripe[.]com/[A-Za-z0-9_]+$'))
+        && p.variantes is map && p.variantes.size() <= 12;
+    }
+
+    // Un pedido nace como borrador desde el navegador: que producto, que talla
+    // y que viaje imprimir. Nada de lo que sale impreso viene de aqui: el
+    // worker lo saca de la base de datos al cobrar, asi que no se puede pedir
+    // una camiseta con un tiempo inventado. Cinco al dia por persona, por id.
+    match /pedidos_tienda/{pedidoId} {
+      allow read: if esAdmin() || (autenticado() && esYo(previo().uid));
+      allow create: if autenticado()
+        && esYo(datos().uid)
+        && cuentaActiva()
+        && puedeUsarLaWeb()
+        && pedidoId.matches(request.auth.uid + '_' + string(diaUTC()) + '_[0-4]')
+        && datos().keys().hasOnly(['uid', 'producto', 'variante', 'viajeId', 'estado', 'creado'])
+        && datos().producto in ['camiseta', 'taza']
+        && datos().variante is string && datos().variante.size() <= 12
+        && (!('viajeId' in datos()) || (datos().viajeId is string && datos().viajeId.size() <= 80))
+        && datos().estado == 'borrador'
+        && datos().creado == request.time;
+      allow update, delete: if false;
+    }
+
+    // Lo que el worker apunta de Stripe (por donde va leyendo). Nadie mas.
+    match /tienda_interno/{doc} {
+      allow read, write: if false;
+    }
+
     match /config/{otro} {
       allow read: if esAdmin();
       allow write: if false;

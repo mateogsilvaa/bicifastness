@@ -20,6 +20,7 @@ const SECCIONES = [
   { clave: 'metricas', texto: 'Métricas', href: '/admin/metricas/' },
   { clave: 'errores', texto: 'Errores', href: '/admin/errores/' },
   { clave: 'redes', texto: 'Redes', href: '/admin/redes/' },
+  { clave: 'tienda', texto: 'Tienda', href: '/admin/tienda/' },
 ];
 
 /**

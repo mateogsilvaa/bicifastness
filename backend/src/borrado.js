@@ -154,6 +154,15 @@ async function ejecutar(uid, { simular = false } = {}) {
     }
   }
 
+  // --- Pedidos de la tienda: se les quita el uid, el pedido se queda --------
+  // Son el rastro de una venta (contabilidad, devoluciones), igual que en
+  // Stripe y en la imprenta. Lo que les ataba a la persona es el uid.
+  const pedidos = await db().collection('pedidos_tienda').where('uid', '==', uid).get();
+  resumen.pedidosTienda = pedidos.size;
+  if (!simular) {
+    for (const doc of pedidos.docs) await doc.ref.update({ uid: null, viajeId: null, anonimizado: true });
+  }
+
   // --- Subcolecciones del perfil ------------------------------------------
   // Firestore no las borra con el documento padre. Sin esto, las temporadas
   // archivadas quedan huerfanas: invisibles y sin borrar.

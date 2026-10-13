@@ -295,10 +295,10 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 <!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 8909 | 18% |
-| u50 | 50 | 3000 | 21.775 | 44% |
-| u200 | 200 | 15.000 | 85.479 | 171% **se agota** |
-| u1000 | 1000 | 90.000 | 1.220.296 | 2441% **se agota** |
+| hoy | 6 | 1022 | 9251 | 19% |
+| u50 | 50 | 3000 | 22.280 | 45% |
+| u200 | 200 | 15.000 | 86.539 | 173% **se agota** |
+| u1000 | 1000 | 90.000 | 1.224.316 | 2449% **se agota** |
 <!-- fin:escenarios -->
 
 
@@ -320,7 +320,8 @@ acumulados**, que sube todos los dias aunque no entre nadie nuevo.
 <!-- tabla:pantallas -->
 | Pantalla | Lecturas por carga | De donde salen |
 |---|---:|---|
-| `/yo/` | 16 | perfil + clan + dos conteos + 4 agregados; historial y temporadas solo al abrirlos |
+| `/tienda/` | 54 | la tienda + perfil + clan + sus 40 viajes verificados + el ranking general + sus pedidos |
+| `/yo/` | 17 | perfil + clan + dos conteos + 4 agregados + la tienda; historial y temporadas solo al abrirlos |
 | `/subir/` | 16 | perfil + (1 de cada 5 capturas) sus 60 viajes recientes + el contador de escrituras y los dos getAfter de las reglas |
 | `/` | 7 | perfil + mision + config + clan + su ultimo viaje + el conteo + el agregado de la ruta |
 | `/statssss/` | 2 | los agregados de portada y mapa |
@@ -352,6 +353,7 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | validarBasico y captura (por viaje procesado) | 3 | el conteo de su cupo del dia + la captura + la distancia de la ruta |
 | la ventana de huellas (una vez por ejecucion CON viajes) | 2 | la ventana guardada en un documento + las huellas posteriores a guardarla |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
+| venderEnLaTienda (por ejecucion, solo con la clave de Stripe puesta) | 2 | la configuracion de la tienda + por donde va leyendo los pagos de Stripe |
 | metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |
 | reenviarCorreos (por pasada) | 1 | la cola de correos pendientes, acotada a 50 y ordenada por cuando toca |
 | metricas.tocaResumir (por pasada) | 1 | la marca del agregado, para saber si toca el resumen caro |

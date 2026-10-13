@@ -214,7 +214,17 @@ export function marcarAdministrador(valor) { esAdministrador = Boolean(valor); }
  * Las entradas a las subpantallas.
  * @param {object} detalles  { enRevision }: lo que cuesta una lectura llega aparte
  */
+let tiendaVisible = false;
+let ultimoMenu = null;
+
+/** La tienda abierta añade su entrada al menu; se repinta con lo ultimo que hubo. */
+export function marcarTienda(valor) {
+  tiendaVisible = Boolean(valor);
+  if (ultimoMenu) pintarMenu(...ultimoMenu);
+}
+
 export function pintarMenu(perfil, { enRevision = 0 } = {}) {
+  ultimoMenu = [perfil, { enRevision }];
   const entradas = [
     { href: '#insignias', icono: 'medalla', texto: 'Insignias',
       detalle: `${insigniasConseguidas(perfil)} de ${Object.keys(INSIGNIAS).length}` },
@@ -224,6 +234,8 @@ export function pintarMenu(perfil, { enRevision = 0 } = {}) {
       detalle: `${numero(perfil.puntosTemporada || 0)} pts este mes` },
     { href: '#rutas', icono: 'pin', texto: 'Rutas ancladas',
       detalle: `${(perfil.favoritas || []).length} de 3` },
+    // Discreta, al final y solo si la tienda esta abierta (assets/js/tienda.js).
+    ...(tiendaVisible ? [{ href: '/tienda/', icono: 'medalla', texto: 'Tienda', detalle: 'Apoya el proyecto' }] : []),
     // Solo para administradores, y solo es un enlace: la puerta de verdad
     // esta en cada pagina de /admin/ y en las reglas de Firestore.
     ...(esAdministrador ? [{ href: '/admin/panel/', icono: 'ajustes', texto: 'Administración', detalle: 'Panel' }] : []),

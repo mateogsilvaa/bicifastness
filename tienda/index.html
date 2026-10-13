@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com https://recaptcha.google.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BiciFastness">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="Camisetas y tazas con tus marcas de BiciFastness. Lo que se saca ayuda a mantener el proyecto.">
+<meta name="robots" content="noindex">
+<title>Tienda | BiciFastness</title>
+<link rel="icon" href="/images/icono/icono.svg?v=2" type="image/svg+xml">
+<link rel="icon" href="/images/icono/icono-48.png?v=2" sizes="48x48" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png?v=2">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<main class="container tienda" id="principal">
+  <div class="subcabecera">
+    <a class="boton-icono" href="/yo/" aria-label="Volver">
+      <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#atras"></use></svg>
+    </a>
+    <h1>Tienda</h1>
+  </div>
+
+  <div class="tarjeta-grande tienda-intro">
+    <span class="rotulo">Apoya el proyecto</span>
+    <p>BiciFastness es gratis y sin anuncios, pero mantenerlo cuesta dinero: servidores, dominio y el tiempo de verificar cada trayecto. Si te apetece echar una mano, llévate algo con <strong>tus propias marcas</strong>: tu nombre, tu clan, tu mejor tiempo y tu puesto.</p>
+  </div>
+
+  <p class="mensaje" id="mensaje" aria-live="polite"></p>
+  <div id="tienda-contenido"><div class="esqueleto" style="height: 420px;"></div></div>
+
+  <section id="mis-pedidos" class="oculto" aria-labelledby="t-pedidos">
+    <h2 id="t-pedidos">Tus pedidos</h2>
+    <div id="lista-pedidos"></div>
+  </section>
+
+  <p class="apagado menor tienda-letra">Cada pieza se imprime bajo demanda con tus datos, así que, al estar hecha a medida, no admite desistimiento (art. 103.c de la Ley General para la Defensa de los Consumidores). Si llega defectuosa o dañada, te la cambiamos: escríbenos. El pago lo gestiona Stripe y la fabricación y el envío, nuestro proveedor de impresión bajo demanda, al que solo pasamos tu nombre, tu dirección de envío y el diseño.</p>
+  <p class="apagado menor">Proyecto independiente, sin relación con BiciMAD, la EMT ni el Ayuntamiento de Madrid.</p>
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/tienda.js"></script>
+</body>
+</html>

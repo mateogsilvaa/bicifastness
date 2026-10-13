@@ -40,6 +40,7 @@ const {
   construirRuta, inicioDelDiaMadrid, diaMadrid, buscarEstacion, lunesDe,
 } = require('./src/util');
 const imagen = require('./src/imagen');
+const tienda = require('./src/tienda');
 const rutasDestacadas = require('./src/rutas-destacadas');
 const {
   leerCaptura, releerCaptura, elegirTrayecto, cerrar: cerrarOcr,
@@ -2657,6 +2658,27 @@ function avisarAdmin(asunto, cuerpo, enlace = null) {
 }
 
 /**
+ * La tienda: los pagos nuevos de Stripe pasan a pedidos de la imprenta
+ * (src/tienda.js). Sin `STRIPE_SECRET_KEY` no hace nada ni lee nada. Nunca
+ * lanza: un fallo de Stripe o de la imprenta no puede tumbar la verificacion.
+ */
+async function venderEnLaTienda() {
+  try {
+    await tienda.procesarTienda({
+      db,
+      admin,
+      simular: SIMULAR,
+      // El SVG ya trae sus medidas de impresion (3600x4800 la camiseta).
+      aPng: (svg) => require('sharp')(Buffer.from(svg)).png().toBuffer(),
+      nombreEstacion: (codigo) => buscarEstacion(codigo)?.nombre || null,
+      avisarAdmin,
+    });
+  } catch (error) {
+    console.warn('No se ha podido procesar la tienda:', error.message);
+  }
+}
+
+/**
  * Si una sola persona ha llenado la tanda, se le tira lo que sobra de golpe.
  *
  * NO es el arreglo de #62 — eso hay que pararlo ANTES de la escritura y esta
@@ -2871,6 +2893,7 @@ async function main() {
   await darBienvenidas();
   await enviarCorreosPedidos();
   await procesarValoraciones();
+  await venderEnLaTienda();
   // Despues de las bienvenidas a proposito: si una acaba de fallar y se ha
   // encolado, el primer reintento es dentro de un minuto, o sea en la pasada
   // siguiente. Ponerlo antes no adelantaria nada y haria una lectura de mas.

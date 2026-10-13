@@ -19,6 +19,7 @@ import { ofrecerInstalacion, guardarResumenOffline } from '/assets/js/instalar.j
 import { traerAgregado } from '/assets/js/agregados.js';
 import { pintarHoy, miGrupo, nombreGrupo } from '/assets/js/hoy.js';
 import { ofrecerAvisos } from '/assets/js/push.js';
+import { ofrecerApoyo } from '/assets/js/tienda.js';
 import { anotar, volcar } from '/assets/js/metricas.js';
 import { montarBotonGoogle } from '/assets/js/acceso.js';
 
@@ -170,9 +171,13 @@ onAuthStateChanged(auth, async (usuario) => {
     // ahi no se puede dar (#33).
     const ofrecida = ofrecerInstalacion(id('invitacion-instalar'), { haSubido: (datos.viajesVerificados || 0) > 0 });
     if (!ofrecida) {
+      // La tienda va la ultima y solo si no ha salido nada mas: una
+      // invitacion por visita como mucho (assets/js/tienda.js).
       ofrecerAvisos(id('invitacion-instalar'), {
         alAceptar: guardarSuscripcionPush,
-      }).catch(() => { /* sin avisos se sigue igual */ });
+      }).catch(() => false)
+        .then((salio) => (salio ? null : ofrecerApoyo(id('invitacion-instalar'), datos)))
+        .catch(() => { /* sin invitacion se sigue igual */ });
     }
 
     await pintarHoy(usuario, datos);

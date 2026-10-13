@@ -37,8 +37,9 @@ import { VERSION_APP } from '/assets/data/version.js';
 import {
   pintarCabecera, pintarRating, pintarCifras, pintarMenu, pintarInsignias,
   nodosHistorial, FILTROS, pintarTemporadas, nombreMes,
-  marcarAdministrador,
+  marcarAdministrador, marcarTienda,
 } from '/assets/js/yo-vistas.js';
+import { tiendaAbierta } from '/assets/js/tienda.js';
 
 iniciarPagina('yo');
 
@@ -223,6 +224,7 @@ async function cargarPerfil() {
   pintarRating(perfil);
   pintarCifras(perfil, null);
   pintarMenu(perfil);
+  tiendaAbierta().then(marcarTienda).catch(() => { /* sin tienda, el menu de siempre */ });
   pintarAjustes(perfil);
 
   // Activados salvo que se hayan apagado a proposito: `undefined` significa que

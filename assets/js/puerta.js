@@ -70,49 +70,153 @@ async function tienePase(usuario) {
   }
 }
 
+/**
+ * Lo que va diciendo la pantalla de obras, uno cada pocos segundos. Es lo que
+ * la hace "viva": no hay nada que pulsar, pero se ve que alguien esta en ello.
+ */
+const TAREAS = [
+  'Ajustando los radios',
+  'Engrasando la cadena',
+  'Inflando las ruedas',
+  'Calibrando los cronos',
+  'Repasando los rankings',
+  'Pintando los carriles bici',
+  'Apretando los frenos',
+  'Poniendo a punto las estaciones',
+];
+
+const NS = 'http://www.w3.org/2000/svg';
+
+function svg(etiqueta, attrs = {}) {
+  const nodo = document.createElementNS(NS, etiqueta);
+  for (const [k, v] of Object.entries(attrs)) nodo.setAttribute(k, String(v));
+  return nodo;
+}
+
+/** Una bici de lineas: dos ruedas con radios que giran y el cuadro quieto. */
+function biciAnimada() {
+  const dibujo = svg('svg', { viewBox: '0 0 220 120', class: 'obras-bici', 'aria-hidden': 'true', focusable: 'false' });
+  const rueda = (cx) => {
+    const g = svg('g', { class: 'obras-rueda', style: `transform-origin: ${cx}px 84px` });
+    g.append(svg('circle', { cx, cy: 84, r: 30 }));
+    for (let i = 0; i < 6; i++) {
+      const a = (i * Math.PI) / 6;
+      g.append(svg('line', {
+        x1: cx - 30 * Math.cos(a), y1: 84 - 30 * Math.sin(a), x2: cx + 30 * Math.cos(a), y2: 84 + 30 * Math.sin(a),
+      }));
+    }
+    return g;
+  };
+  const cuadro = svg('path', { class: 'obras-cuadro', d: 'M50 84 L88 40 L150 40 L170 84 M88 40 L112 84 L150 40 M112 84 L50 84 M82 30 L98 30 M150 40 L146 26 L160 26' });
+  dibujo.append(rueda(50), rueda(170), cuadro, svg('line', { class: 'obras-suelo', x1: 0, y1: 116, x2: 220, y2: 116 }));
+  return dibujo;
+}
+
+/**
+ * Se repinta solo si alguien la quita o la esconde desde la consola, y la
+ * pagina de debajo queda `inert` y oculta: no hay nada que pulsar ni que leer.
+ * Quitarla a mano tampoco da nada: lo que importa (subir, registrarse,
+ * valorar, clanes) lo cierran las reglas de Firestore, no esta pantalla.
+ */
+function vigilar(capa) {
+  const tapar = () => {
+    for (const hijo of document.body.children) {
+      if (hijo === capa) continue;
+      // Solo si hace falta: tocar un atributo aunque no cambie avisa al
+      // vigilante, y se llamaria a si mismo sin parar.
+      if (!hijo.hasAttribute('inert')) hijo.setAttribute('inert', '');
+      if (hijo.getAttribute('aria-hidden') !== 'true') hijo.setAttribute('aria-hidden', 'true');
+      if (hijo.style.getPropertyValue('display') !== 'none' || hijo.style.getPropertyPriority('display') !== 'important') {
+        hijo.style.setProperty('display', 'none', 'important');
+      }
+    }
+  };
+  tapar();
+  new MutationObserver(() => {
+    if (!capa.isConnected) document.body.append(capa);
+    if (capa.hidden || capa.style.display || capa.style.visibility || capa.style.opacity) {
+      capa.hidden = false;
+      capa.removeAttribute('style');
+    }
+    if (!document.body.classList.contains('en-obras')) document.body.classList.add('en-obras');
+    tapar();
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'hidden', 'class', 'inert'] });
+}
+
 function pintarObras({ mensaje, usuario }) {
   document.documentElement.classList.remove('acceso-pendiente');
   if (document.getElementById('pantalla-obras')) return;
   const capa = document.createElement('div');
   capa.id = 'pantalla-obras';
-  capa.setAttribute('role', 'dialog');
-  capa.setAttribute('aria-modal', 'true');
+  capa.setAttribute('role', 'status');
   capa.setAttribute('aria-labelledby', 'obras-titulo');
+
   const caja = document.createElement('div');
   caja.className = 'obras-caja';
+
+  const chip = document.createElement('span');
+  chip.className = 'obras-chip';
+  chip.textContent = 'En construcción';
+
   const titulo = document.createElement('h1');
   titulo.id = 'obras-titulo';
-  titulo.textContent = 'Estamos ajustando los radios';
+  const tarea = document.createElement('span');
+  tarea.className = 'obras-tarea';
+  tarea.textContent = TAREAS[0];
+  const puntos = document.createElement('span');
+  puntos.className = 'obras-puntos';
+  puntos.setAttribute('aria-hidden', 'true');
+  puntos.textContent = '...';
+  titulo.append(tarea, puntos);
+
   const texto = document.createElement('p');
-  texto.textContent = mensaje || 'BiciFastness está en construcción. Volvemos muy pronto.';
-  caja.append(titulo, texto);
+  texto.textContent = mensaje || 'BiciFastness todavía está en construcción. Volvemos muy pronto.';
+
+  const barra = document.createElement('div');
+  barra.className = 'obras-barra';
+  barra.setAttribute('aria-hidden', 'true');
+  barra.append(document.createElement('span'));
+
+  caja.append(biciAnimada(), chip, titulo, barra, texto);
+
+  // Quien ya tiene sesion y no esta en la lista: se le dice, y puede salir.
+  // No es una puerta: no da acceso a nada.
   if (usuario) {
     const nota = document.createElement('p');
     nota.className = 'obras-nota';
-    nota.textContent = usuario.emailVerified
-      ? `Tu cuenta (${usuario.email || 'sin correo'}) todavía no tiene acceso.`
-      : `Si tu correo (${usuario.email || 'sin correo'}) está en la lista, verifícalo primero desde el enlace que te enviamos.`;
+    nota.textContent = `Has entrado como ${usuario.email || 'una cuenta sin correo'}, que todavía no tiene acceso.`;
     const salir = document.createElement('button');
     salir.type = 'button';
-    salir.className = 'btn secundario';
-    salir.textContent = 'Salir';
+    salir.className = 'obras-salir';
+    salir.textContent = 'Cerrar sesión';
     salir.addEventListener('click', () => signOut(auth).then(() => window.location.reload()));
     caja.append(nota, salir);
-  } else {
-    const entrar = document.createElement('a');
-    entrar.className = 'btn';
-    entrar.href = '/entrar/';
-    entrar.textContent = 'Tengo acceso: entrar';
-    caja.append(entrar);
   }
+
   capa.append(caja);
   document.body.append(capa);
   document.body.classList.add('en-obras');
+
+  // La tarea cambia cada pocos segundos (sin movimiento si se ha pedido asi).
+  let n = 0;
+  setInterval(() => {
+    n = (n + 1) % TAREAS.length;
+    tarea.classList.remove('entra');
+    void tarea.offsetWidth;
+    tarea.textContent = TAREAS[n];
+    tarea.classList.add('entra');
+  }, 2800);
+
+  vigilar(capa);
 }
 
 /** La llama `iniciarPagina`. No bloquea nada mientras la web este abierta. */
 export async function comprobarAcceso() {
   if (LIBRES.some((r) => r.test(window.location.pathname))) return;
+  // Sin saber aun si la web esta en obras (o sabiendo que si), la pagina se
+  // tapa YA: si no, se ve un instante antes de que llegue la respuesta. Solo
+  // se enseña sin esperar cuando hace poco se ha visto abierta.
+  if (guardado()?.modo !== 'abierta') document.documentElement.classList.add('acceso-pendiente');
   const { modo, mensaje } = await leerModo();
   if (modo !== 'obras') {
     document.documentElement.classList.remove('acceso-pendiente');

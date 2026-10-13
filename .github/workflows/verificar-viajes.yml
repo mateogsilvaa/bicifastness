@@ -131,6 +131,17 @@ jobs:
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          # La tienda (docs/TIENDA.md). Sin STRIPE_SECRET_KEY no se toca nada.
+          # La de Stripe basta con que sea restringida y de solo lectura de
+          # Checkout Sessions. TIENDA_CONFIRMAR=si manda los pedidos a
+          # produccion sin pasar por el panel de Printful.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          PRINTFUL_TOKEN: ${{ secrets.PRINTFUL_TOKEN }}
+          PRINTFUL_STORE_ID: ${{ secrets.PRINTFUL_STORE_ID }}
+          CLOUDINARY_CLOUD: ${{ secrets.CLOUDINARY_CLOUD }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          TIENDA_CONFIRMAR: ${{ vars.TIENDA_CONFIRMAR }}
           # Cuanto se queda vivo dando pasadas, y cada cuanto. Con 0 vuelve al
           # comportamiento de antes: una mirada a la cola y a casa.
           #

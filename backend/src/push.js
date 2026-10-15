@@ -48,6 +48,13 @@ const TIPOS = {
     etiqueta: 'Cuando alguien me quita un récord',
     porDefecto: true,
   },
+  // Lo mismo un escalon mas abajo: no te quitan el record, pero alguien te
+  // pasa por delante en un tramo tuyo. Uno por aprobacion como mucho: solo a
+  // quien se queda justo detras del tiempo nuevo.
+  adelantado: {
+    etiqueta: 'Cuando alguien me adelanta en un tramo',
+    porDefecto: true,
+  },
   cambioDivision: {
     etiqueta: 'Cuando cambio de división',
     porDefecto: false,

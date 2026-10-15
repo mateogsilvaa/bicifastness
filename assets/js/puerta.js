@@ -93,23 +93,82 @@ function svg(etiqueta, attrs = {}) {
   return nodo;
 }
 
-/** Una bici de lineas: dos ruedas con radios que giran y el cuadro quieto. */
-function biciAnimada() {
-  const dibujo = svg('svg', { viewBox: '0 0 220 120', class: 'obras-bici', 'aria-hidden': 'true', focusable: 'false' });
-  const rueda = (cx) => {
-    const g = svg('g', { class: 'obras-rueda', style: `transform-origin: ${cx}px 84px` });
-    g.append(svg('circle', { cx, cy: 84, r: 30 }));
-    for (let i = 0; i < 6; i++) {
-      const a = (i * Math.PI) / 6;
-      g.append(svg('line', {
-        x1: cx - 30 * Math.cos(a), y1: 84 - 30 * Math.sin(a), x2: cx + 30 * Math.cos(a), y2: 84 + 30 * Math.sin(a),
-      }));
+/**
+ * Madrid en puntos: las estaciones de verdad, sin calles ni nombres. Cada poco
+ * un barrio cambia de color, como si un clan lo conquistara, y vuelve a
+ * apagarse. Abstracto y lento a proposito: es un fondo, no algo que mirar.
+ *
+ * Las estaciones se piden aqui (`import()`), no al cargar la puerta: solo las
+ * descarga quien ve las obras.
+ *
+ * El color va en `data-c` y no en `class` ni `style`: `vigilar` escucha esos
+ * atributos en todo el documento y se despertaria en cada cambio.
+ */
+const COLORES = 4;
+
+function mapaAnimado() {
+  const dibujo = svg('svg', {
+    class: 'obras-mapa', 'aria-hidden': 'true', focusable: 'false', preserveAspectRatio: 'xMidYMid slice',
+  });
+  import('../data/estaciones.js').then(({ ESTACIONES }) => {
+    const lista = Object.values(ESTACIONES).filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon));
+    if (!lista.length) return;
+    // Proyeccion plana: a esta escala, longitud por el coseno de la latitud.
+    const lat0 = lista.reduce((t, e) => t + e.lat, 0) / lista.length;
+    const k = Math.cos((lat0 * Math.PI) / 180);
+    const xs = lista.map((e) => e.lon * k * 1000);
+    const ys = lista.map((e) => -e.lat * 1000);
+    const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const margen = 6;
+    dibujo.setAttribute('viewBox', `${minX - margen} ${minY - margen} ${maxX - minX + 2 * margen} ${maxY - minY + 2 * margen}`);
+    // El mapa se recorta para llenar la pantalla (`slice`), asi que en un movil
+    // estrecho se amplia mucho: el radio se calcula para que cada punto mida
+    // lo mismo en pantalla, unos 3 px, sea cual sea el tamaño.
+    const ancho = maxX - minX + 2 * margen;
+    const alto = maxY - minY + 2 * margen;
+    const ajustar = () => {
+      const escala = Math.max(innerWidth / ancho, innerHeight / alto) || 1;
+      dibujo.style.setProperty('--radio-punto', `${(3.4 / escala).toFixed(3)}px`);
+    };
+    ajustar();
+    addEventListener('resize', ajustar);
+
+    const puntos = lista.map((_, i) => {
+      const punto = svg('circle', { cx: xs[i].toFixed(2), cy: ys[i].toFixed(2), r: 1.6 });
+      dibujo.append(punto);
+      return { punto, x: xs[i], y: ys[i] };
+    });
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // Sin movimiento: unos barrios ya pintados, quietos.
+      for (let c = 1; c <= COLORES; c++) conquistar(puntos, c);
+      return;
     }
-    return g;
-  };
-  const cuadro = svg('path', { class: 'obras-cuadro', d: 'M50 84 L88 40 L150 40 L170 84 M88 40 L112 84 L150 40 M112 84 L50 84 M82 30 L98 30 M150 40 L146 26 L160 26' });
-  dibujo.append(rueda(50), rueda(170), cuadro, svg('line', { class: 'obras-suelo', x1: 0, y1: 116, x2: 220, y2: 116 }));
+    let turno = 0;
+    const paso = () => {
+      turno += 1;
+      conquistar(puntos, (turno % COLORES) + 1);
+    };
+    for (let i = 0; i < 3; i++) paso();
+    setInterval(paso, 1800);
+  }).catch(() => { /* sin estaciones, la pantalla sigue igual de bien sin fondo */ });
   return dibujo;
+}
+
+/** Un barrio (la estacion elegida y sus vecinas) pasa a un color, y luego se apaga. */
+function conquistar(puntos, color) {
+  const centro = puntos[Math.floor(Math.random() * puntos.length)];
+  const vecinas = puntos
+    .map((p) => ({ p, d: (p.x - centro.x) ** 2 + (p.y - centro.y) ** 2 }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 14 + Math.floor(Math.random() * 18));
+  vecinas.forEach(({ p }, i) => {
+    // Desde el centro hacia fuera, como una mancha que se extiende.
+    setTimeout(() => p.punto.setAttribute('data-c', String(color)), i * 45);
+  });
+  setTimeout(() => {
+    for (const { p } of vecinas) if (p.punto.getAttribute('data-c') === String(color)) p.punto.removeAttribute('data-c');
+  }, 9000 + Math.random() * 4000);
 }
 
 /**
@@ -163,11 +222,7 @@ function pintarObras({ mensaje, usuario }) {
   const tarea = document.createElement('span');
   tarea.className = 'obras-tarea';
   tarea.textContent = TAREAS[0];
-  const puntos = document.createElement('span');
-  puntos.className = 'obras-puntos';
-  puntos.setAttribute('aria-hidden', 'true');
-  puntos.textContent = '...';
-  titulo.append(tarea, puntos);
+  titulo.append(tarea);
 
   const texto = document.createElement('p');
   texto.textContent = mensaje || 'BiciFastness todavía está en construcción. Volvemos muy pronto.';
@@ -177,7 +232,17 @@ function pintarObras({ mensaje, usuario }) {
   barra.setAttribute('aria-hidden', 'true');
   barra.append(document.createElement('span'));
 
-  caja.append(biciAnimada(), chip, titulo, barra, texto);
+  // Donde contamos cuando abre.
+  const redes = document.createElement('a');
+  redes.className = 'obras-redes';
+  redes.href = 'https://www.instagram.com/bicifastness/';
+  redes.target = '_blank';
+  redes.rel = 'noopener';
+  const arroba = document.createElement('strong');
+  arroba.textContent = '@bicifastness';
+  redes.append('Atentos a ', arroba, ' en Instagram');
+
+  caja.append(chip, titulo, barra, texto, redes);
 
   // Quien ya tiene sesion y no esta en la lista: se le dice, y puede salir.
   // No es una puerta: no da acceso a nada.
@@ -193,19 +258,22 @@ function pintarObras({ mensaje, usuario }) {
     caja.append(nota, salir);
   }
 
-  capa.append(caja);
+  capa.append(mapaAnimado(), caja);
   document.body.append(capa);
   document.body.classList.add('en-obras');
 
-  // La tarea cambia cada pocos segundos (sin movimiento si se ha pedido asi).
+  // La tarea cambia despacio, con un fundido: cada 2,8 s y saltando mareaba.
+  // Sin movimiento pedido, se queda la primera.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { vigilar(capa); return; }
   let n = 0;
   setInterval(() => {
-    n = (n + 1) % TAREAS.length;
-    tarea.classList.remove('entra');
-    void tarea.offsetWidth;
-    tarea.textContent = TAREAS[n];
-    tarea.classList.add('entra');
-  }, 2800);
+    tarea.classList.add('sale');
+    setTimeout(() => {
+      n = (n + 1) % TAREAS.length;
+      tarea.textContent = TAREAS[n];
+      tarea.classList.remove('sale');
+    }, 700);
+  }, 6000);
 
   vigilar(capa);
 }

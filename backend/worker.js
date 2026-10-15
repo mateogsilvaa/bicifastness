@@ -858,6 +858,7 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
     if (mejorTiempoRuta && viaje.tiempoSegundos < mejorTiempoRuta) {
       await avisarRecordPerdido(doc.id, viaje);
     }
+    await avisarAdelantado(doc.id, viaje);
   }
 
   // La captura de un rechazo automatico NO se borra al momento: es lo unico
@@ -1724,7 +1725,10 @@ async function aplicarDecisionesManuales() {
     // Despues de rehacer las rutas. Los records grandes pasan TODOS por aqui
     // (`record_pulverizado` los manda a revision), asi que sin esto el aviso
     // solo saltaria con los records pequeños.
-    for (const doc of aprobadosAMano) await avisarRecordPerdido(doc.id, doc.data());
+    for (const doc of aprobadosAMano) {
+      await avisarRecordPerdido(doc.id, doc.data());
+      await avisarAdelantado(doc.id, doc.data());
+    }
   }
 
   console.log(`Recalculadas ${rutas.size} rutas tras decisiones manuales.`);
@@ -1781,6 +1785,63 @@ async function avisarRecordPerdido(viajeId, viaje) {
       + `${resultado.motivo ? ` (${resultado.motivo})` : ''}`);
   } catch (error) {
     console.warn(`  aviso de record perdido no enviado (${viajeId}):`, error.message);
+  }
+}
+
+/**
+ * "Te han adelantado en un tramo": el record perdido, un escalon mas abajo.
+ *
+ * Solo se avisa a UNA persona por aprobacion: la que se queda justo detras del
+ * tiempo nuevo. Avisar a todos los que pasa un tiempo bueno serian decenas de
+ * avisos de golpe, y el push es el canal que antes se apaga para siempre.
+ *
+ * Y solo si de verdad le ha adelantado AHORA:
+ * - si este viaje es el mas rapido de la ruta, ya avisa `avisarRecordPerdido`;
+ * - si quien sube ya tenia otro tiempo por delante del de esa persona, ya iba
+ *   delante y no ha cambiado nada;
+ * - si esa persona tiene otro tiempo mejor que este, sigue por delante.
+ *
+ * Coste: de una a cuatro consultas pequeñas por aprobacion, con indices que ya
+ * existen (ruta + verificado + tiempo, y uid + ruta + verificado + tiempo).
+ * Nunca lanza: un aviso que no sale no puede tumbar la verificacion.
+ */
+async function avisarAdelantado(viajeId, viaje) {
+  try {
+    const t = Number(viaje.tiempoSegundos);
+    if (!viaje.ruta || !Number.isFinite(t)) return;
+    const base = () => db.collection('tiempos_viaje')
+      .where('ruta', '==', viaje.ruta)
+      .where('verificado', '==', true);
+
+    const primero = await base().orderBy('tiempoSegundos', 'asc').limit(1).get();
+    if (primero.docs[0]?.id === viajeId) return;
+
+    const detras = await base().where('tiempoSegundos', '>', t).orderBy('tiempoSegundos', 'asc').limit(10).get();
+    const siguiente = detras.docs.map((d) => d.data()).find((d) => d.uid && d.uid !== viaje.uid);
+    if (!siguiente) return;
+
+    const propios = await base().where('uid', '==', viaje.uid)
+      .where('tiempoSegundos', '<=', siguiente.tiempoSegundos).orderBy('tiempoSegundos', 'asc').limit(2).get();
+    if (propios.docs.some((d) => d.id !== viajeId)) return;
+
+    const mejorDelOtro = await base().where('uid', '==', siguiente.uid)
+      .where('tiempoSegundos', '<', t).limit(1).get();
+    if (!mejorDelOtro.empty) return;
+
+    const [origen, destino] = String(viaje.ruta).split('-');
+    const nombre = (id) => buscarEstacion(id)?.nombre || id;
+    const mmss = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    const resultado = await push.enviar(siguiente.uid, 'adelantado', {
+      titulo: 'Te han adelantado',
+      cuerpo: `${viaje.username || 'Alguien'} hizo ${nombre(origen)} → ${nombre(destino)} `
+        + `en ${mmss(t)}, por delante de tu ${mmss(siguiente.tiempoSegundos)}.`,
+      url: `/clasificacion/?ruta=${encodeURIComponent(viaje.ruta)}`,
+    }, { simular: SIMULAR });
+
+    console.log(`  adelantamiento en ${viaje.ruta}; aviso: ${resultado.enviados || 0} enviados`
+      + `${resultado.motivo ? ` (${resultado.motivo})` : ''}`);
+  } catch (error) {
+    console.warn(`  aviso de adelantamiento no enviado (${viajeId}):`, error.message);
   }
 }
 

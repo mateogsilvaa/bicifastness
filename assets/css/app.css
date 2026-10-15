@@ -4074,32 +4074,34 @@ body.adm-bloqueada main { visibility: hidden; }
 html.acceso-pendiente body > *:not(#pantalla-obras):not(main):not(#nav-principal):not(#nav-inferior),
 html.acceso-pendiente main > * { visibility: hidden; }
 #pantalla-obras { position: fixed; inset: 0; z-index: 2147483000; background: var(--papel); display: flex; align-items: center; justify-content: center; padding: var(--e5); overflow: hidden; }
-#pantalla-obras::before { content: ''; position: absolute; inset: auto -20% -40% -20%; height: 70%; background: radial-gradient(closest-side, var(--azul-tinte), transparent); opacity: .9; animation: obras-respira 6s ease-in-out infinite; pointer-events: none; }
+/* El fondo: Madrid en puntos (puerta.js, `mapaAnimado`). Los barrios cambian
+   de color despacio y se apagan; encima, un velo que deja leer el centro. */
+#pantalla-obras .obras-mapa { --radio-punto: 1.6px; position: absolute; inset: 0; width: 100%; height: 100%; }
+#pantalla-obras .obras-mapa circle { r: var(--radio-punto); fill: var(--linea-fuerte); transition: fill 1.6s ease, r 1.6s ease; }
+#pantalla-obras .obras-mapa circle[data-c] { r: calc(var(--radio-punto) * 1.45); }
+#pantalla-obras .obras-mapa circle[data-c="1"] { fill: #1B80E5; }
+#pantalla-obras .obras-mapa circle[data-c="2"] { fill: #13A89E; }
+#pantalla-obras .obras-mapa circle[data-c="3"] { fill: #E0A800; }
+#pantalla-obras .obras-mapa circle[data-c="4"] { fill: #E5534B; }
+#pantalla-obras::before { content: ''; position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse 60% 48% at 50% 50%, var(--papel) 35%, color-mix(in srgb, var(--papel) 70%, transparent) 70%, transparent 100%); pointer-events: none; }
+#pantalla-obras .obras-caja { z-index: 2; }
+#pantalla-obras .obras-tarea { transition: opacity .7s ease, filter .7s ease; }
+#pantalla-obras .obras-tarea.sale { opacity: 0; filter: blur(4px); }
+#pantalla-obras .obras-redes { margin-top: var(--e2); padding: 10px 18px; border-radius: 999px; background: var(--papel-2); color: var(--tinta-2); font-size: 14px; text-decoration: none; border: 1px solid var(--linea); }
+#pantalla-obras .obras-redes strong { color: var(--tinta); }
+#pantalla-obras .obras-redes:hover { border-color: var(--tinta-3); }
 #pantalla-obras .obras-caja { position: relative; max-width: 440px; display: flex; flex-direction: column; gap: var(--e3); text-align: center; align-items: center; }
-#pantalla-obras .obras-bici { width: 180px; height: auto; margin-bottom: var(--e2); overflow: visible; }
-#pantalla-obras .obras-bici circle, #pantalla-obras .obras-bici line, #pantalla-obras .obras-cuadro { fill: none; stroke: var(--tinta); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-#pantalla-obras .obras-rueda line { stroke-width: 1.5; stroke: var(--tinta-3); }
-#pantalla-obras .obras-rueda { animation: obras-gira 1.1s linear infinite; }
-#pantalla-obras .obras-cuadro { stroke: var(--azul-relleno); animation: obras-bota .55s ease-in-out infinite alternate; }
-#pantalla-obras .obras-suelo { stroke: var(--linea-fuerte); stroke-dasharray: 14 10; animation: obras-avanza .6s linear infinite; }
 #pantalla-obras .obras-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; background: var(--ambar-tinte); color: var(--ambar-texto); font-size: 13px; font-weight: 700; }
 #pantalla-obras .obras-chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: obras-late 1.4s ease-in-out infinite; }
 #pantalla-obras h1 { margin: 0; min-height: 1.1em; font-size: clamp(26px, 6vw, 36px); font-stretch: 80%; font-weight: 900; letter-spacing: -.02em; line-height: 1.1; }
 #pantalla-obras .obras-tarea { display: inline-block; }
-#pantalla-obras .obras-tarea.entra { animation: obras-entra .45s cubic-bezier(.2, .8, .2, 1); }
-#pantalla-obras .obras-puntos { display: inline-block; width: 1.2em; text-align: left; overflow: hidden; vertical-align: bottom; animation: obras-puntos 1.2s steps(4, jump-none) infinite; }
 #pantalla-obras .obras-barra { width: min(260px, 70vw); height: 6px; border-radius: 999px; background: var(--papel-3); overflow: hidden; }
-#pantalla-obras .obras-barra span { display: block; width: 40%; height: 100%; border-radius: inherit; background: var(--azul-relleno); animation: obras-barra 1.8s ease-in-out infinite; }
+#pantalla-obras .obras-barra span { display: block; width: 40%; height: 100%; border-radius: inherit; background: var(--azul-relleno); animation: obras-barra 3.2s ease-in-out infinite; }
 #pantalla-obras p { margin: 0; color: var(--tinta-2); line-height: 1.5; }
 #pantalla-obras .obras-nota { font-size: 13px; color: var(--tinta-3); }
 #pantalla-obras .obras-salir { border: 0; background: none; color: var(--tinta-3); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
 body.en-obras { overflow: hidden; }
-@keyframes obras-gira { to { transform: rotate(360deg); } }
-@keyframes obras-bota { to { transform: translateY(-2px); } }
-@keyframes obras-avanza { to { stroke-dashoffset: 24; } }
 @keyframes obras-late { 50% { opacity: .35; } }
-@keyframes obras-entra { from { opacity: 0; transform: translateY(8px); } }
-@keyframes obras-puntos { from { width: 0; } to { width: 1.2em; } }
 @keyframes obras-barra { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
 @keyframes obras-respira { 50% { opacity: .5; transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) {
@@ -4338,3 +4340,27 @@ html.acceso-pendiente main::before {
 .opcion-lema { display: flex; flex-direction: column; gap: 2px; min-height: 52px; justify-content: center; padding: 8px 14px; border: 2px solid transparent; border-radius: 14px; background: var(--papel-2); color: var(--tinta); font: inherit; font-size: 15px; font-style: italic; text-align: left; cursor: pointer; }
 .opcion-lema[aria-checked="true"] { border-color: var(--azul); }
 .opcion-lema .bloqueo { font-style: normal; }
+
+/* --- Avisos: la guia para activarlos (assets/js/guia-avisos.js) -------------- */
+.lista-ajustes > .guia-avisos { align-items: flex-start; cursor: default; }
+.guia-avisos { display: flex; align-items: flex-start; gap: var(--e3); }
+.guia-avisos > .icono { flex: none; width: 22px; height: 22px; margin-top: 2px; color: var(--azul); }
+.guia-avisos.atencion > .icono { color: var(--ambar-texto); }
+.guia-avisos strong { display: block; font-size: 15px; margin-bottom: 4px; }
+.guia-avisos p { margin: 0 0 var(--e2); font-size: 14px; line-height: 1.45; color: var(--tinta-2); }
+.pasos-avisos { margin: 0 0 var(--e2); padding: 0; list-style: none; counter-reset: paso; display: flex; flex-direction: column; gap: var(--e2); }
+.pasos-avisos li { counter-increment: paso; display: flex; gap: 10px; font-size: 14px; line-height: 1.45; }
+.pasos-avisos li::before { content: counter(paso); flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--azul-relleno); color: var(--sobre-azul); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.lista-ajustes > .fila-prueba-aviso { cursor: default; }
+.boton-probar { width: auto; min-height: 36px; padding: 0 var(--e4); font-size: 14px; }
+
+/* Tu > resumen: tu perfil publico, con tu banner de fondo y la puerta a
+   cambiarlo (vista #perfil). */
+.tarjeta-vitrina { position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: var(--e3); min-height: 96px; margin: var(--e4) 0; padding: var(--e3) var(--e4); border-radius: var(--radio-grande); overflow: hidden; color: #fff; text-decoration: none; isolation: isolate; }
+.tarjeta-vitrina > .banner-piloto { position: absolute; inset: 0; z-index: -2; height: auto; border-radius: 0; }
+.tarjeta-vitrina::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, transparent 20%, rgba(0, 0, 0, .55)); }
+.tarjeta-vitrina-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
+.tarjeta-vitrina-texto strong { font-size: 16px; }
+.tarjeta-vitrina-texto span { font-size: 13px; font-style: italic; opacity: .92; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tarjeta-vitrina-editar { flex: none; padding: 7px 14px; border-radius: 999px; background: rgba(255, 255, 255, .92); color: #111110; font-size: 13px; font-weight: 700; }
+.tarjeta-vitrina:hover .tarjeta-vitrina-editar { background: #fff; }

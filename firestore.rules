@@ -287,8 +287,12 @@ service cloud.firestore {
       // La administracion concede insignias y suspende cuentas. No puede tocar
       // la puntuacion: esa la calcula el worker a partir de los tiempos, y
       // dejarla editable a mano reabriria la puerta a inflarla.
+      // `recompensas` son los banners y lemas ganados (assets/data/recompensas.js):
+      // los concede la administracion, nunca el propio piloto.
       allow update: if esAdmin()
-        && cambia().hasOnly(['logros', 'suspendido', 'motivoSuspension']);
+        && cambia().hasOnly(['logros', 'suspendido', 'motivoSuspension', 'recompensas'])
+        && (!('recompensas' in cambia())
+            || (datos().recompensas is list && datos().recompensas.size() <= 100));
 
       allow delete: if false;
     }
@@ -1096,6 +1100,37 @@ service cloud.firestore {
         && datos().uid == request.auth.uid
         && datos().img is string && datos().img.size() <= 14000
         && datos().img.matches('^data:image/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$')
+        && datos().actualizado == request.time
+        && puedeUsarLaWeb()
+        && cuentaActiva();
+      allow delete: if autenticado() && resource.data.uid == request.auth.uid;
+    }
+
+    // El banner y el lema que lleva puestos cada piloto en su ficha publica
+    // (assets/js/vitrina.js). Como la foto: aparte del perfil, que es privado,
+    // con el nombre en minusculas como id, y solo la escribe la cuenta de ese
+    // nombre.
+    //
+    // No vale cualquier id: o uno `libre-*`, que son los de serie, o uno que
+    // este en `recompensas` de su perfil, que el piloto no puede tocar. Asi un
+    // banner de pegatina no se lo pone nadie que no lo haya ganado, aunque
+    // escriba aqui desde la consola. Un id que no exista en el catalogo no
+    // rompe nada: el navegador lo ignora y pinta el de serie.
+    function recompensaValida(id) {
+      return id == null
+        || (id is string && id.size() <= 40 && id.matches('^[a-z0-9-]+$')
+            && (id.matches('^libre-.*')
+                || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('recompensas', []).hasAny([id])));
+    }
+
+    match /vitrinas/{nombre} {
+      allow read: if true;
+      allow create, update: if autenticado()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.usernameLower == nombre
+        && datos().keys().hasOnly(['uid', 'banner', 'lema', 'actualizado'])
+        && datos().uid == request.auth.uid
+        && recompensaValida(datos().banner)
+        && recompensaValida(datos().lema)
         && datos().actualizado == request.time
         && puedeUsarLaWeb()
         && cuentaActiva();

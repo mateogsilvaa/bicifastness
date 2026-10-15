@@ -130,3 +130,24 @@ test('si el dia va apretado, los agregados se rehacen cada hora y no cada cuarto
   assert.strictEqual(agregados.hayQueReconstruir(hace(20), ahora, MINUTOS_SI_APRIETA), false);
   assert.strictEqual(agregados.hayQueReconstruir(hace(61), ahora, MINUTOS_SI_APRIETA), true);
 });
+
+test('las insignias publicas: solo claves validas, sin suspendidos y por nombre', () => {
+  const logros = agregados.logrosPublicos([
+    { username: 'Ana', logros: ['primer-viaje', 'fondo-10', 'primer-viaje', '<script>', 42] },
+    { username: 'Bea', logros: [], suspendido: false },
+    { username: 'Cris', logros: ['veterano'], suspendido: true },
+    { logros: ['veterano'] },
+    { username: 'Dani', email: 'dani@ejemplo.es', logros: ['veterano'] },
+  ]);
+  assert.deepStrictEqual(logros, { ana: ['primer-viaje', 'fondo-10'], dani: ['veterano'] });
+  assert.ok(!JSON.stringify(logros).includes('@'), 'un correo ha llegado a un documento publico');
+});
+
+test('las insignias publicas caben en un documento aunque haya muchisimos pilotos', () => {
+  const muchos = Array.from({ length: 20000 }, (_, i) => ({
+    username: `piloto-${i}`, logros: Array.from({ length: 12 }, (__, j) => `insignia-numero-${j}`),
+  }));
+  const logros = agregados.logrosPublicos(muchos);
+  assert.ok(Buffer.byteLength(JSON.stringify(logros)) < 1024 * 1024);
+  assert.ok(Object.keys(logros).length > 1000);
+});

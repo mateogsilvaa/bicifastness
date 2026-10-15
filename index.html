@@ -138,11 +138,11 @@
        estoy (division) -> lo que ya paso. En escritorio (8a), dos columnas:
        640 px con lo primero y 340 px con lo secundario. -->
   <div class="container">
-  <section id="panel" class="hoy oculto" aria-labelledby="hoy-saludo">
+  <section id="panel" class="hoy" aria-labelledby="hoy-saludo">
     <header class="hoy-cabecera">
       <div class="hoy-titulo">
-        <span class="hoy-fecha" id="hoy-fecha"></span>
-        <h1 id="hoy-saludo">Hola</h1>
+        <span class="hoy-fecha hueco" id="hoy-fecha"></span>
+        <h1 id="hoy-saludo" class="hueco"></h1>
       </div>
       <a class="avatar-inicial hoy-avatar" id="hoy-avatar" href="/yo/" aria-label="Tu perfil"></a>
     </header>
@@ -150,15 +150,15 @@
     <div class="hoy-rejilla">
       <div class="hoy-principal">
         <div id="viaje-en-curso"></div>
-        <div id="racha"></div>
-        <div id="bloque-subir"></div>
+        <div id="racha"><div class="esqueleto" aria-hidden="true" style="height: 170px"></div></div>
+        <div id="bloque-subir"><div class="esqueleto boton" aria-hidden="true" style="height: 56px"></div></div>
         <!-- Instalar y avisos (07 · 7b): debajo de subir, solo tras el primer viaje. -->
         <div id="invitacion-instalar" class="oculto"></div>
-        <div id="misiones"></div>
+        <div id="misiones"><div class="esqueleto" aria-hidden="true" style="height: 210px"></div></div>
       </div>
       <aside class="hoy-lateral" aria-label="Tu semana">
-        <div id="ruta-del-dia"></div>
-        <div id="division"></div>
+        <div id="ruta-del-dia"><div class="esqueleto" aria-hidden="true" style="height: 180px"></div></div>
+        <div id="division"><div class="esqueleto" aria-hidden="true" style="height: 110px"></div></div>
         <div class="hoy-dos">
           <div id="ultima-marca"></div>
           <div id="estado-clan"></div>

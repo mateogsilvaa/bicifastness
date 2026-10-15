@@ -44,8 +44,8 @@
       <button class="avatar-inicial avatar-editable" id="avatar" type="button" aria-label="Foto de perfil"></button>
       <input type="file" accept="image/*" id="foto-fichero" aria-label="Elegir foto de perfil" hidden>
       <div class="datos">
-        <h1 id="nombre">…</h1>
-        <span class="sub" id="clan"></span>
+        <h1 id="nombre" class="hueco"></h1>
+        <span class="sub hueco" id="clan"></span>
         <span class="etiquetas" id="etiquetas"></span>
       </div>
       <!-- 8m: en escritorio, Historial y Ajustes a mano en la cabecera. -->
@@ -57,16 +57,16 @@
 
     <div class="tarjeta-grande" id="tarjeta-rating">
       <div class="cabeza"><span>BiciRating</span><span id="puesto-global"></span></div>
-      <span class="rating" id="rating">0</span>
-      <div class="barra-modos" id="barra-modos" aria-hidden="true"></div>
+      <span class="rating hueco" id="rating" style="--ancho-hueco: 2.4em"></span>
+      <div class="barra-modos" id="barra-modos" aria-hidden="true"><span class="esqueleto" style="flex: 1"></span></div>
       <div class="leyenda-modos" id="leyenda-modos"></div>
     </div>
 
     <div class="cifras-tres">
-      <div><strong id="total-viajes">—</strong><span id="verificados">trayectos</span></div>
-      <div><strong id="km-total">0 km</strong><span>en total</span></div>
-      <div><strong id="mejor-racha">0 días</strong><span>mejor racha</span></div>
-      <div class="cifra-escritorio"><strong id="estaciones-distintas">0</strong><span>estaciones distintas</span></div>
+      <div><strong id="total-viajes" class="hueco" style="--ancho-hueco: 2em"></strong><span id="verificados">trayectos</span></div>
+      <div><strong id="km-total" class="hueco" style="--ancho-hueco: 3em"></strong><span>en total</span></div>
+      <div><strong id="mejor-racha" class="hueco" style="--ancho-hueco: 3em"></strong><span>mejor racha</span></div>
+      <div class="cifra-escritorio"><strong id="estaciones-distintas" class="hueco" style="--ancho-hueco: 2em"></strong><span>estaciones distintas</span></div>
     </div>
 
     <!-- 8m: en escritorio, las temporadas como barras por mes. -->
@@ -75,7 +75,7 @@
       <div class="barras" id="barras-temporadas"></div>
     </section>
 
-    <nav class="menu-lista" id="menu" aria-label="Tu perfil"></nav>
+    <nav class="menu-lista" id="menu" aria-label="Tu perfil"><div class="esqueleto" aria-hidden="true" style="height: 280px"></div></nav>
     <p class="mensaje" id="msg-perfil" aria-live="polite"></p>
   </section>
 
@@ -124,6 +124,27 @@
       Hasta tres tramos que quieres tener a mano. Salen de los que ya has hecho.
     </p>
     <div id="favoritas"></div>
+  </section>
+
+  <!-- Perfil publico: lo que ven los demas, con el banner y el lema elegidos.
+       Las opciones se pintan en paginas/yo.js; el catalogo, en
+       assets/data/recompensas.js. -->
+  <section class="vista oculto" id="vista-perfil" aria-labelledby="titulo-perfil">
+    <div class="subcabecera">
+      <a class="boton-icono" href="#" aria-label="Volver"></a>
+      <h1 id="titulo-perfil">Perfil público</h1>
+    </div>
+    <p class="menor apagado">
+      Es lo que ve quien toca tu nombre en el ranking. Los banners y lemas con
+      candado se ganan, y alguno está escondido en una pegatina de una bici.
+    </p>
+    <div class="vitrina-previa" id="vitrina-previa"><div class="esqueleto" aria-hidden="true" style="height: 230px"></div></div>
+    <h2 class="seccion-ajustes">Banner</h2>
+    <div class="vitrina-opciones" id="vitrina-banners" role="radiogroup" aria-label="Banner"><div class="esqueleto" aria-hidden="true" style="height: 96px"></div><div class="esqueleto" aria-hidden="true" style="height: 96px"></div></div>
+    <h2 class="seccion-ajustes">Lema</h2>
+    <div class="vitrina-lemas" id="vitrina-lemas" role="radiogroup" aria-label="Lema"><div class="esqueleto" aria-hidden="true" style="height: 52px"></div><div class="esqueleto" aria-hidden="true" style="height: 52px"></div></div>
+    <p class="mensaje" id="msg-vitrina" aria-live="polite"></p>
+    <a class="btn secundario ver-mi-ficha" id="ver-mi-ficha" href="/clasificacion/">Ver mi ficha en el ranking</a>
   </section>
 
   <!-- 6e · Ajustes -->

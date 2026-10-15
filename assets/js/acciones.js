@@ -350,6 +350,13 @@ export async function gestionarInsignia(tipo, id, insignia, otorgar) {
   });
 }
 
+/** Un banner o lema de la ficha publica, dado o quitado (solo administracion). */
+export async function gestionarRecompensa(uid, recompensa, otorgar) {
+  await updateDoc(doc(db, 'usuarios', uid), {
+    recompensas: otorgar ? arrayUnion(recompensa) : arrayRemove(recompensa),
+  });
+}
+
 export async function destacarRuta(ruta) {
   const conf = await getDoc(doc(db, 'config', 'general'));
   const anterior = conf.exists() ? conf.data().rutaDestacada : null;

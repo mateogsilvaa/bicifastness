@@ -40,6 +40,9 @@ import {
   marcarAdministrador, marcarTienda,
 } from '/assets/js/yo-vistas.js';
 import { tiendaAbierta } from '/assets/js/tienda.js';
+import { leerVitrina, guardarVitrina } from '/assets/js/vitrina.js';
+import { banner, cabeceraPiloto, colorAvatar } from '/assets/js/perfil-publico.js';
+import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene } from '/assets/data/recompensas.js';
 
 iniciarPagina('yo');
 
@@ -84,7 +87,7 @@ escritorioAjustes.addEventListener('change', colocarCorreo);
 // Una sola pagina y el hash decide que se ve. Moverse entre subpantallas no
 // recarga ni vuelve a leer nada, y el boton atras del movil funciona solo.
 
-const VISTAS = ['resumen', 'insignias', 'historial', 'temporadas', 'rutas', 'ajustes', 'datos', 'adios'];
+const VISTAS = ['resumen', 'insignias', 'historial', 'temporadas', 'rutas', 'perfil', 'ajustes', 'datos', 'adios'];
 const cargadas = new Set();
 
 // Desde el correo de trayecto rechazado (10a): `?viaje=ID` abre ese trayecto en
@@ -127,6 +130,7 @@ function cargarVista(vista) {
   if (vista === 'historial') cargarHistorial();
   if (vista === 'temporadas') cargarTemporadas();
   if (vista === 'ajustes') montarAvisosPush(perfil);
+  if (vista === 'perfil') cargarVitrina();
 }
 
 window.addEventListener('hashchange', mostrarVista);
@@ -288,6 +292,67 @@ async function cargarPuestos() {
   pintarRating(perfil, { general, sprint, fondo, constancia });
   puestoGeneral = general;
   if (clave) { claveGrupo = clave; pintarCabecera(perfil, clanDatos, claveGrupo); }
+}
+
+// --- Perfil publico: banner y lema -----------------------------------------------
+//
+// Una lectura (tu vitrina) la primera vez que se abre, y una escritura por
+// cada cambio. Lo que se puede elegir sale del catalogo; lo que tienes, de
+// `perfil.recompensas`, que solo escriben el worker y la administracion.
+
+let vitrina = null;
+
+async function cargarVitrina() {
+  vitrina = await leerVitrina(perfil.username);
+  id('ver-mi-ficha').href = `/clasificacion/?piloto=${encodeURIComponent(perfil.username)}`;
+  pintarVitrina();
+}
+
+function pintarVitrina() {
+  const recompensas = perfil.recompensas || [];
+  const nombre = perfil.username || 'Piloto';
+  const avatar = colorAvatar(el('span', { clase: 'avatar-inicial', texto: [...nombre][0]?.toUpperCase() || 'P' }), clanDatos?.color);
+  ponerFoto(avatar, fotoPropiaLocal());
+  reemplazar(id('vitrina-previa'), cabeceraPiloto({
+    nombre, avatar, banner: vitrina.banner, lema: vitrina.lema,
+    clan: clanDatos?.nombre || null, division: perfil.division || 'sin-clasificar',
+  }));
+
+  const candado = (como) => el('span', { clase: 'bloqueo' }, [icono('candado'), el('span', { texto: como })]);
+  const puesto = vitrina.banner || BANNER_POR_DEFECTO;
+  reemplazar(id('vitrina-banners'), Object.entries(BANNERS).map(([clave, b]) => {
+    const tiene = laTiene(clave, recompensas);
+    return el('button', {
+      clase: 'opcion-banner',
+      attrs: { type: 'button', role: 'radio', 'aria-checked': String(clave === puesto), disabled: tiene ? null : '' },
+      on: { click: () => elegirVitrina({ banner: clave }) },
+    }, [banner(clave), el('span', { texto: b.titulo }), tiene ? null : candado(b.como)]);
+  }));
+
+  const opcionLema = (clave, texto, como = null) => el('button', {
+    clase: 'opcion-lema',
+    attrs: { type: 'button', role: 'radio', 'aria-checked': String(vitrina.lema === clave), disabled: como ? '' : null },
+    on: { click: () => elegirVitrina({ lema: clave }) },
+  }, [el('span', { texto }), como ? candado(como) : null]);
+  reemplazar(id('vitrina-lemas'), [
+    opcionLema(null, 'Sin lema'),
+    ...Object.entries(LEMAS).map(([clave, l]) => opcionLema(clave, `«${l.texto}»`, laTiene(clave, recompensas) ? null : l.como)),
+  ]);
+}
+
+async function elegirVitrina(cambio) {
+  const antes = vitrina;
+  vitrina = { ...vitrina, ...cambio };
+  pintarVitrina();
+  try {
+    await guardarVitrina(perfil, vitrina);
+    estado(id('msg-vitrina'), '');
+  } catch (error) {
+    console.debug('No se ha podido guardar la vitrina', error);
+    vitrina = antes;
+    pintarVitrina();
+    estado(id('msg-vitrina'), 'No se ha podido guardar. Vuelve a intentarlo.', 'error');
+  }
 }
 
 // --- Rutas ancladas --------------------------------------------------------------

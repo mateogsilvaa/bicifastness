@@ -492,8 +492,9 @@ async function cargar() {
       },
     }).addTo(mapa);
 
-    resumenClan();
-    pintarClanes();
+    // El resumen y los clanes NO se pintan aqui: dependen de si hay sesion, y
+    // eso lo sabe `onAuthStateChanged`, que espera a esta carga y los pinta.
+    // Pintarlos ya enseñaba "Entra para unirte" a quien si habia entrado.
     // Las bicis de todas las estaciones, para los tooltips: una peticion a
     // CityBikes, no a Firestore.
     bicisEnVivo().then((d) => { ultimasBicis = d; });

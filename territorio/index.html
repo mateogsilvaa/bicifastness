@@ -57,7 +57,7 @@
        Escritorio (8k): panel flotante de 400 px a la izquierda. -->
   <aside class="hoja-mapa" id="hoja-mapa" data-altura="asomada" aria-label="Estaciones y clanes">
     <button type="button" class="asa-mapa" id="asa-mapa" aria-label="Ampliar el panel"><span></span></button>
-    <div id="resumen-mapa" class="resumen-mapa"></div>
+    <div id="resumen-mapa" class="resumen-mapa"><div class="esqueleto" aria-hidden="true" style="height: 52px"></div></div>
     <div class="cuerpo-hoja">
       <div class="segmento pestanas-mapa" role="tablist" aria-label="Vista del territorio">
         <button type="button" role="tab" id="tab-estaciones" aria-controls="panel-estaciones" aria-selected="true">Estación</button>
@@ -68,7 +68,7 @@
         <div id="ficha-estacion"></div>
       </div>
       <div id="panel-clanes" role="tabpanel" aria-labelledby="tab-clanes" class="oculto">
-        <div id="lista-clanes"></div>
+        <div id="lista-clanes"><div class="esqueleto-lista" aria-hidden="true"><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div></div></div>
       </div>
       <div id="panel-miclan" role="tabpanel" aria-labelledby="tab-miclan" class="oculto"></div>
       <p class="mensaje" id="mensaje" aria-live="polite"></p>

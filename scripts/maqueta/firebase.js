@@ -24,6 +24,8 @@
  *   localStorage.maqueta_perfil = 'encola'  -> un trayecto subido hace 3 min, en cola (2d;
  *                                              sessionStorage['viaje-en-curso'] = 'maqueta-cola')
  *   delete localStorage.maqueta_perfil      -> lo normal (2a)
+ *   localStorage.maqueta_lenta = '2000'     -> cada lectura tarda esos milisegundos
+ *                                              (para ver los esqueletos de carga)
  *   localStorage.maqueta_hora = '12:00'     -> la app cree que es esa hora de
  *                                              Madrid (p. ej. '21:30' para 2c)
  * Un viaje subido pasa a verificado a los 6 segundos.
@@ -85,6 +87,8 @@ const perfilBase = {
   puntosTemporada: 322, biciRating: 870, division: 'plata', clanId: 'c1', rolClan: 'miembro',
   puntosPorRuta: { '124-115': 60, '1-102': 30, '102-124': 20 },
   logros: ['primer-viaje', 'veterano', 'fondo-50', 'racha-7', 'sprint-cinco-tramos', 'explorador-10', 'temporada-2026-08-constancia', 'temporada-2026-07-bronce'],
+  // Banners y lemas ganados (assets/data/recompensas.js): uno de cada.
+  recompensas: ['pegatina-azul', 'cazapegatinas'],
   consentimiento: { terminos: { version: '1.4.0' } },
   creado: hace(60 * 24 * 40),
 };
@@ -278,6 +282,15 @@ datos['bicis/2471'] = {
 };
 datos['bicis/1180'] = { numero: '1180', media: 4.6, valoraciones60: 8, total: 8, reparto: { 5: 5, 4: 3, 3: 0, 2: 0, 1: 0 }, fallos: [], tendencia: null, ultimas: [opinion(5, 60 * 20, '1', 'Perfecta, batería al 90 %.')], vista: { estacion: '1', cuando: ms(60 * 20) } };
 datos['bicis/318'] = { numero: '318', media: null, valoraciones60: 2, total: 2, reparto: { 5: 0, 4: 1, 3: 1, 2: 0, 1: 0 }, fallos: [], tendencia: null, ultimas: [opinion(4, 60 * 24 * 3, '1', 'Todo bien, la batería al 80 %.'), opinion(3, 60 * 24 * 9, '40', 'Un poco de ruido en los cambios.', ['cambios', 'ruido'])], vista: null };
+
+// Perfil publico: lo que lleva puesto cada uno y las insignias de todos.
+datos['vitrinas/marta.vk'] = { uid: 'otro-1', banner: 'madrid-noche', lema: 'llegue-primero', actualizado: hace(60) };
+datos['vitrinas/jorge_on_wheels'] = { uid: 'otro-2', banner: 'libre-amanecer', lema: 'libre-cuestas', actualizado: hace(60) };
+datos['vitrinas/laura_pedalea'] = { uid: UID, banner: 'pegatina-azul', lema: 'cazapegatinas', actualizado: hace(60) };
+datos['agregados/logros-publicos'] = {
+  logros: Object.fromEntries(nombres.map((n, i) => [n, ['primer-viaje', 'diez-viajes', 'veinticinco-viajes', 'veterano', 'fondo-10', 'fondo-50', 'racha-7', 'explorador-10', 'temporada-2026-08-constancia', 'temporada-2026-07-bronce', 'sprint-cinco-tramos'].slice(0, Math.max(1, 11 - Math.floor(i / 3)))])),
+  actualizado: hace(4),
+};
 datos[`valoraciones_bici/1180_${UID}_${Math.floor(Date.now() / 86400000) - 1}`] = { bici: '1180', uid: UID, nota: 5, fallos: [], comentario: '', creado: hace(60 * 24) };
 
 // --- Motor en memoria --------------------------------------------------------------
@@ -378,8 +391,13 @@ function resolver(q) {
   return docs;
 }
 
-export async function getDoc(ref) { return snapDoc(ref.path); }
+// Red lenta de mentira: cada lectura espera `maqueta_lenta` ms.
+const lenta = (() => { try { return Number(localStorage.getItem('maqueta_lenta')) || 0; } catch { return 0; } })();
+const esperar = () => (lenta ? new Promise((r) => setTimeout(r, lenta)) : null);
+
+export async function getDoc(ref) { await esperar(); return snapDoc(ref.path); }
 export async function getDocs(q) {
+  await esperar();
   const docs = resolver(q);
   return { docs, empty: !docs.length, size: docs.length, forEach: (f) => docs.forEach(f) };
 }
@@ -424,7 +442,7 @@ export { Timestamp };
 export function onSnapshot(ref, cb) {
   if (!oyentes.has(ref.path)) oyentes.set(ref.path, new Set());
   oyentes.get(ref.path).add(cb);
-  setTimeout(() => cb(snapDoc(ref.path)), 30);
+  setTimeout(() => cb(snapDoc(ref.path)), 30 + lenta);
   return () => oyentes.get(ref.path)?.delete(cb);
 }
 

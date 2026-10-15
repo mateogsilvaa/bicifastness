@@ -234,6 +234,7 @@ export function pintarMenu(perfil, { enRevision = 0 } = {}) {
       detalle: `${numero(perfil.puntosTemporada || 0)} pts este mes` },
     { href: '#rutas', icono: 'pin', texto: 'Rutas ancladas',
       detalle: `${(perfil.favoritas || []).length} de 3` },
+    { href: '#perfil', icono: 'perfil', texto: 'Perfil público', detalle: 'Banner y lema' },
     // Discreta, al final y solo si la tienda esta abierta (assets/js/tienda.js).
     ...(tiendaVisible ? [{ href: '/tienda/', icono: 'medalla', texto: 'Tienda', detalle: 'Apoya el proyecto' }] : []),
     // Solo para administradores, y solo es un enlace: la puerta de verdad

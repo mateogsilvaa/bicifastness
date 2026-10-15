@@ -13,9 +13,10 @@ import { id, el, icono, estado, reemplazar, imagen, confirmar, avisar, esqueleto
 import { MOTIVOS_MANUALES, textoDeMotivo } from '/assets/js/motivos.js';
 import { montarCabeceraAdmin, contadorAdmin, marcarSeccionAdmin } from '/assets/js/admin-cabecera.js';
 import { INSIGNIAS } from '/assets/data/insignias.js';
+import { BANNERS, LEMAS, esLibre } from '/assets/data/recompensas.js';
 import {
   resolverViaje, resolverReporte, verCaptura,
-  gestionarInsignia, destacarRuta, suspenderUsuario, escribirAPiloto,
+  gestionarInsignia, gestionarRecompensa, destacarRuta, suspenderUsuario, escribirAPiloto,
 } from '/assets/js/acciones.js';
 
 iniciarPagina('admin');
@@ -746,6 +747,47 @@ function seleccionar(objetivo) {
       casilla,
     ]);
   }));
+  rejilla.style.display = 'grid';
+  pintarRecompensas(objetivo);
+}
+
+/**
+ * Banners y lemas que se ganan (los `libre-*` ya los tiene todo el mundo).
+ * Mientras no exista el canje de pegatinas NFC, se dan desde aqui.
+ */
+function pintarRecompensas(objetivo) {
+  const rejilla = id('rejilla-recompensas');
+  const esPiloto = objetivo.tipo === 'usuarios';
+  id('titulo-recompensas').classList.toggle('oculto', !esPiloto);
+  if (!esPiloto) { reemplazar(rejilla); rejilla.style.display = 'none'; return; }
+  const tiene = new Set(objetivo.datos?.recompensas || []);
+  const ganables = [
+    ...Object.entries(BANNERS).map(([clave, b]) => [clave, `Banner · ${b.titulo}`]),
+    ...Object.entries(LEMAS).map(([clave, l]) => [clave, `Lema · «${l.texto}»`]),
+  ].filter(([clave]) => !esLibre(clave));
+  reemplazar(rejilla, ganables.map(([clave, texto]) => el('div', { clase: 'fila-insignia' }, [
+    el('span', { texto }),
+    el('input', {
+      attrs: { type: 'checkbox', checked: tiene.has(clave) ? '' : null, 'aria-label': texto },
+      estilo: { width: '18px', height: '18px', accentColor: 'var(--azul)' },
+      on: {
+        change: async (e) => {
+          const otorgar = e.target.checked;
+          e.target.disabled = true;
+          try {
+            await gestionarRecompensa(objetivo.id, clave, otorgar);
+            if (otorgar) tiene.add(clave); else tiene.delete(clave);
+            objetivo.datos = { ...objetivo.datos, recompensas: [...tiene] };
+          } catch (error) {
+            e.target.checked = !otorgar;
+            avisar(error.message);
+          } finally {
+            e.target.disabled = false;
+          }
+        },
+      },
+    }),
+  ])));
   rejilla.style.display = 'grid';
 }
 

@@ -71,105 +71,150 @@ async function tienePase(usuario) {
 }
 
 /**
- * Lo que va diciendo la pantalla de obras, uno cada pocos segundos. Es lo que
- * la hace "viva": no hay nada que pulsar, pero se ve que alguien esta en ello.
+ * Diseño 14 · En obras. Es la misma pantalla que /mantenimiento/ (la que se
+ * publica con la web cerrada): textos, medidas y movimiento salen de
+ * mantenimiento/obras.css y obras.js. Si cambia una, hay que cambiar la otra.
+ *
+ * El titular rota cada 4,6 s y, con el, tres clanes iluminan otra zona del
+ * mapa. Sin movimiento pedido: titular fijo, zonas fijas y punto al 62 %.
  */
-const TAREAS = [
-  'Ajustando los radios',
-  'Engrasando la cadena',
-  'Inflando las ruedas',
-  'Calibrando los cronos',
-  'Repasando los rankings',
-  'Pintando los carriles bici',
-  'Apretando los frenos',
-  'Poniendo a punto las estaciones',
-];
+const TITULARES = ['Ajustando los radios', 'Calibrando los cronos', 'Inflando las ruedas', 'Engrasando la cadena'];
+const CADA = 4600;
+const SIN_MOVIMIENTO = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ES_MOVIL = () => window.matchMedia('(max-width: 700px)').matches;
 
 const NS = 'http://www.w3.org/2000/svg';
 
-function svg(etiqueta, attrs = {}) {
-  const nodo = document.createElementNS(NS, etiqueta);
-  for (const [k, v] of Object.entries(attrs)) nodo.setAttribute(k, String(v));
-  return nodo;
+function svg(etiqueta, attrs = {}, hijos = []) {
+  const n = document.createElementNS(NS, etiqueta);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+  n.append(...hijos);
+  return n;
+}
+
+function nodo(etiqueta, clase, texto) {
+  const n = document.createElement(etiqueta);
+  if (clase) n.className = clase;
+  if (texto) n.textContent = texto;
+  return n;
 }
 
 /**
- * Madrid en puntos: las estaciones de verdad, sin calles ni nombres. Cada poco
- * un barrio cambia de color, como si un clan lo conquistara, y vuelve a
- * apagarse. Abstracto y lento a proposito: es un fondo, no algo que mirar.
+ * Madrid en puntos: las estaciones de verdad, en un canvas. Tres clanes
+ * iluminan cada uno la zona de una de las semillas y saltan a otra con cada
+ * titular.
  *
  * Las estaciones se piden aqui (`import()`), no al cargar la puerta: solo las
- * descarga quien ve las obras.
- *
- * El color va en `data-c` y no en `class` ni `style`: `vigilar` escucha esos
- * atributos en todo el documento y se despertaria en cada cambio.
+ * descarga quien ve las obras. Es un canvas y no un SVG con un circulo por
+ * estacion: asi `vigilar` no se despierta con cada cambio de color.
  */
-const COLORES = 4;
+const SEMILLAS = [[40.428, -3.703], [40.425, -3.682], [40.408, -3.700], [40.436, -3.716], [40.445, -3.690], [40.412, -3.676], [40.418, -3.724], [40.438, -3.668]];
+const CLANES = ['#FF5A1F', '#13A89E', '#E23D8C'];
 
 function mapaAnimado() {
-  const dibujo = svg('svg', {
-    class: 'obras-mapa', 'aria-hidden': 'true', focusable: 'false', preserveAspectRatio: 'xMidYMid slice',
-  });
-  import('../data/estaciones.js').then(({ ESTACIONES }) => {
-    const lista = Object.values(ESTACIONES).filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon));
-    if (!lista.length) return;
-    // Proyeccion plana: a esta escala, longitud por el coseno de la latitud.
-    const lat0 = lista.reduce((t, e) => t + e.lat, 0) / lista.length;
-    const k = Math.cos((lat0 * Math.PI) / 180);
-    const xs = lista.map((e) => e.lon * k * 1000);
-    const ys = lista.map((e) => -e.lat * 1000);
-    const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-    const margen = 6;
-    dibujo.setAttribute('viewBox', `${minX - margen} ${minY - margen} ${maxX - minX + 2 * margen} ${maxY - minY + 2 * margen}`);
-    // El mapa se recorta para llenar la pantalla (`slice`), asi que en un movil
-    // estrecho se amplia mucho: el radio se calcula para que cada punto mida
-    // lo mismo en pantalla, unos 3 px, sea cual sea el tamaño.
-    const ancho = maxX - minX + 2 * margen;
-    const alto = maxY - minY + 2 * margen;
-    const ajustar = () => {
-      const escala = Math.max(innerWidth / ancho, innerHeight / alto) || 1;
-      dibujo.style.setProperty('--radio-punto', `${(3.4 / escala).toFixed(3)}px`);
-    };
-    ajustar();
-    addEventListener('resize', ajustar);
+  const lienzo = nodo('canvas', 'obras-mapa');
+  lienzo.setAttribute('aria-hidden', 'true');
+  const ctx = lienzo.getContext('2d');
+  const reducido = SIN_MOVIMIENTO();
+  let estaciones = [];
+  let puntos = [];
+  let ancho = 0;
+  let alto = 0;
+  let fase = 0;
+  let pendiente = false;
 
-    const puntos = lista.map((_, i) => {
-      const punto = svg('circle', { cx: xs[i].toFixed(2), cy: ys[i].toFixed(2), r: 1.6 });
-      dibujo.append(punto);
-      return { punto, x: xs[i], y: ys[i] };
-    });
+  const pedir = () => {
+    if (pendiente) return;
+    pendiente = true;
+    requestAnimationFrame(dibujar);
+  };
 
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      // Sin movimiento: unos barrios ya pintados, quietos.
-      for (let c = 1; c <= COLORES; c++) conquistar(puntos, c);
-      return;
+  const reasignar = () => {
+    const activos = [0, 1, 2].map((i) => ({ s: SEMILLAS[(fase * (i + 1) + i * 3) % 8], c: CLANES[i] }));
+    for (const p of puntos) {
+      p.meta = 0;
+      for (const a of activos) {
+        if (Math.hypot(a.s[0] - p.lat, (a.s[1] - p.lon) * 0.76) < 0.0145) { p.meta = 1; p.color = a.c; break; }
+      }
+      if (reducido) p.ahora = p.meta;
     }
-    let turno = 0;
-    const paso = () => {
-      turno += 1;
-      conquistar(puntos, (turno % COLORES) + 1);
-    };
-    for (let i = 0; i < 3; i++) paso();
-    setInterval(paso, 1800);
+    pedir();
+  };
+
+  function dibujar() {
+    pendiente = false;
+    ctx.clearRect(0, 0, ancho, alto);
+    // El gris de los puntos sigue al tema de la app (claro u oscuro).
+    const neutro = getComputedStyle(lienzo).getPropertyValue('--obras-neutro').trim() || '#CAC6BB';
+    const r0 = ES_MOVIL() ? 2.6 : 3.3;
+    let animando = false;
+    for (const p of puntos) {
+      if (p.ahora !== p.meta) {
+        p.ahora += Math.sign(p.meta - p.ahora) * 0.04;
+        if (Math.abs(p.meta - p.ahora) < 0.04) p.ahora = p.meta; else animando = true;
+      }
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = neutro;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r0, 0, 6.2832); ctx.fill();
+      if (p.ahora > 0 && p.color) {
+        ctx.globalAlpha = p.ahora;
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r0 + 0.9, 0, 6.2832); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    if (animando) pedir();
+  }
+
+  const medir = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    ancho = window.innerWidth; alto = window.innerHeight;
+    lienzo.width = ancho * dpr; lienzo.height = alto * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const movil = ES_MOVIL();
+    const escala = Math.max(ancho / 0.152, alto / 0.18) * (movil ? 1 : 0.92);
+    const cx = movil ? 0.52 : 0.5;
+    const cy = movil ? 0.36 : 0.5;
+    puntos = estaciones
+      .map((e) => ({ lat: e.lat, lon: e.lon, x: (e.lon + 3.69) * 0.76 * escala + ancho * cx, y: (40.425 - e.lat) * escala + alto * cy, ahora: 0, meta: 0, color: null }))
+      .filter((p) => p.x > -6 && p.y > -6 && p.x < ancho + 6 && p.y < alto + 6);
+    reasignar();
+  };
+
+  import('../data/estaciones.js').then(({ ESTACIONES }) => {
+    estaciones = Object.values(ESTACIONES).filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon));
+    medir();
+    addEventListener('resize', medir);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', pedir);
   }).catch(() => { /* sin estaciones, la pantalla sigue igual de bien sin fondo */ });
-  return dibujo;
+
+  return { lienzo, cambiar: () => { fase += 1; reasignar(); } };
 }
 
-/** Un barrio (la estacion elegida y sus vecinas) pasa a un color, y luego se apaga. */
-function conquistar(puntos, color) {
-  const centro = puntos[Math.floor(Math.random() * puntos.length)];
-  const vecinas = puntos
-    .map((p) => ({ p, d: (p.x - centro.x) ** 2 + (p.y - centro.y) ** 2 }))
-    .sort((a, b) => a.d - b.d)
-    .slice(0, 14 + Math.floor(Math.random() * 18));
-  vecinas.forEach(({ p }, i) => {
-    // Desde el centro hacia fuera, como una mancha que se extiende.
-    setTimeout(() => p.punto.setAttribute('data-c', String(color)), i * 45);
-  });
-  setTimeout(() => {
-    for (const { p } of vecinas) if (p.punto.getAttribute('data-c') === String(color)) p.punto.removeAttribute('data-c');
-  }, 9000 + Math.random() * 4000);
+/** El trayecto: salida, meta y un punto que recorre la linea (todo en CSS). */
+function trayecto() {
+  const caja = nodo('div', 'obras-trayecto');
+  caja.setAttribute('aria-hidden', 'true');
+  const linea = nodo('div', 'obras-trayecto-linea');
+  const carril = nodo('div', 'obras-carril');
+  carril.append(nodo('span', 'obras-guion'), nodo('span', 'obras-estela'), nodo('span', 'obras-punto'));
+  linea.append(nodo('span', 'obras-salida'), nodo('span', 'obras-meta'), carril);
+  const rotulos = nodo('div', 'obras-trayecto-rotulos');
+  rotulos.append(nodo('span', '', 'Salida'), nodo('span', '', 'Meta'));
+  caja.append(linea, rotulos);
+  return caja;
 }
+
+const logo = () => svg('svg', { viewBox: '0 0 24 24', width: 34, height: 34, 'aria-hidden': 'true', focusable: 'false' }, [
+  svg('rect', { width: 24, height: 24, rx: 6.5 }),
+  svg('path', { d: 'M12 5 A7 7 0 1 1 5.94 8.5' }),
+  svg('circle', { cx: 5.94, cy: 8.5, r: 2.1 }),
+]);
+
+const flecha = () => svg('svg', {
+  width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+  'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true',
+}, [svg('path', { d: 'M5 12h14M13 6l6 6-6 6' })]);
 
 /**
  * Se repinta solo si alguien la quita o la esconde desde la consola, y la
@@ -202,78 +247,78 @@ function vigilar(capa) {
   }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'hidden', 'class', 'inert'] });
 }
 
+
 function pintarObras({ mensaje, usuario }) {
   document.documentElement.classList.remove('acceso-pendiente');
   if (document.getElementById('pantalla-obras')) return;
-  const capa = document.createElement('div');
+  const capa = nodo('div');
   capa.id = 'pantalla-obras';
   capa.setAttribute('role', 'status');
-  capa.setAttribute('aria-labelledby', 'obras-titulo');
+  capa.setAttribute('aria-labelledby', 'obras-titular');
 
-  const caja = document.createElement('div');
-  caja.className = 'obras-caja';
+  const velo = nodo('div', 'obras-velo');
+  velo.setAttribute('aria-hidden', 'true');
 
-  const chip = document.createElement('span');
-  chip.className = 'obras-chip';
-  chip.textContent = 'En construcción';
+  const cabecera = nodo('header', 'obras-cabecera');
+  const marca = nodo('a', 'obras-logo');
+  marca.href = '/';
+  marca.setAttribute('aria-label', 'bicifastness');
+  marca.append(logo(), nodo('span', '', 'bicifastness'));
+  cabecera.append(marca, nodo('span', 'obras-dominio', 'bicifastness.es'));
 
-  const titulo = document.createElement('h1');
-  titulo.id = 'obras-titulo';
-  const tarea = document.createElement('span');
-  tarea.className = 'obras-tarea';
-  tarea.textContent = TAREAS[0];
-  titulo.append(tarea);
-
-  const texto = document.createElement('p');
-  texto.textContent = mensaje || 'BiciFastness todavía está en construcción. Volvemos muy pronto.';
-
-  const barra = document.createElement('div');
-  barra.className = 'obras-barra';
-  barra.setAttribute('aria-hidden', 'true');
-  barra.append(document.createElement('span'));
+  const centro = nodo('div', 'obras-centro');
+  const titular = nodo('h1', 'obras-titular', TITULARES[0]);
+  titular.id = 'obras-titular';
 
   // Donde contamos cuando abre.
-  const redes = document.createElement('a');
-  redes.className = 'obras-redes';
-  redes.href = 'https://www.instagram.com/bicifastness/';
-  redes.target = '_blank';
-  redes.rel = 'noopener';
-  const arroba = document.createElement('strong');
-  arroba.textContent = '@bicifastness';
-  redes.append('Atentos a ', arroba, ' en Instagram');
+  const boton = nodo('a', 'obras-boton');
+  boton.href = 'https://instagram.com/bicifastness';
+  boton.target = '_blank';
+  boton.rel = 'noopener';
+  boton.append(
+    nodo('span', 'obras-boton-largo', 'Atentos a @bicifastness en Instagram'),
+    nodo('span', 'obras-boton-corto', '@bicifastness en Instagram'),
+    flecha(),
+  );
 
-  caja.append(chip, titulo, barra, texto, redes);
+  centro.append(
+    nodo('span', 'obras-estado', 'En obras'),
+    titular,
+    trayecto(),
+    nodo('p', 'obras-texto', mensaje || 'BiciFastness está en obras. Volvemos muy pronto con la clasificación, las rutas y el mapa de clanes.'),
+    boton,
+  );
 
   // Quien ya tiene sesion y no esta en la lista: se le dice, y puede salir.
   // No es una puerta: no da acceso a nada.
   if (usuario) {
-    const nota = document.createElement('p');
-    nota.className = 'obras-nota';
-    nota.textContent = `Has entrado como ${usuario.email || 'una cuenta sin correo'}, que todavía no tiene acceso.`;
-    const salir = document.createElement('button');
+    const nota = nodo('p', 'obras-nota', `Has entrado como ${usuario.email || 'una cuenta sin correo'}, que todavía no tiene acceso. `);
+    const salir = nodo('button', 'obras-salir', 'Cerrar sesión');
     salir.type = 'button';
-    salir.className = 'obras-salir';
-    salir.textContent = 'Cerrar sesión';
     salir.addEventListener('click', () => signOut(auth).then(() => window.location.reload()));
-    caja.append(nota, salir);
+    nota.append(salir);
+    centro.append(nota);
   }
 
-  capa.append(mapaAnimado(), caja);
+  const pie = nodo('footer', 'obras-pie', 'Proyecto independiente. Sin relación con BiciMAD, la EMT ni el Ayuntamiento de Madrid.');
+
+  const mapa = mapaAnimado();
+  capa.append(mapa.lienzo, velo, cabecera, centro, pie);
   document.body.append(capa);
   document.body.classList.add('en-obras');
 
-  // La tarea cambia despacio, con un fundido: cada 2,8 s y saltando mareaba.
-  // Sin movimiento pedido, se queda la primera.
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { vigilar(capa); return; }
+  // El titular cambia con fundido y desenfoque, y los clanes se mudan con el.
+  if (SIN_MOVIMIENTO()) { vigilar(capa); return; }
   let n = 0;
   setInterval(() => {
-    tarea.classList.add('sale');
+    titular.classList.add('sale');
     setTimeout(() => {
-      n = (n + 1) % TAREAS.length;
-      tarea.textContent = TAREAS[n];
-      tarea.classList.remove('sale');
-    }, 700);
-  }, 6000);
+      n = (n + 1) % TITULARES.length;
+      titular.textContent = TITULARES[n];
+      titular.classList.remove('sale');
+      mapa.cambiar();
+    }, 260);
+  }, CADA);
 
   vigilar(capa);
 }

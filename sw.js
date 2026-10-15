@@ -29,6 +29,10 @@ const ESTATICOS = [
   '/assets/js/dia.js',
   '/assets/js/paginas/offline.js',
   '/assets/data/estaciones.js',
+  // La pagina de obras, para que tambien salga sin red.
+  '/mantenimiento/',
+  '/mantenimiento/obras.css',
+  '/mantenimiento/obras.js',
   '/images/icono/icono.svg',
   '/images/icono/icono-192.png',
   '/manifest.webmanifest',

@@ -1,0 +1,133 @@
+/* Pantalla "En obras". Autocontenida: no usa app.css ni Firebase.
+   Archivo variable: la misma del sitio, /assets/fonts/archivo-latin.woff2 (eje wght 100-900, wdth 62-125).
+   Si el fichero no carga, cae a la fuente del sistema y la página sigue legible. */
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('/assets/fonts/archivo-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+
+:root {
+  --papel: #F3F1EC; --tinta: #111110; --tinta-2: #55534D; --azul: #1B80E5;
+  --velo: rgba(243, 241, 236, .94);
+  --pildora-fondo: #F6ECDC; --pildora-tinta: #9A5B00;
+  --guion: #B7B3A8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --papel: #0E0F10; --tinta: #F2F1EE; --tinta-2: #B3B2AE;
+    --velo: rgba(14, 15, 16, .94);
+    --pildora-fondo: #2E2412; --pildora-tinta: #E7A94A;
+    --guion: #55575C;
+  }
+}
+
+* { box-sizing: border-box; }
+html { background: var(--papel); }
+body {
+  margin: 0; min-height: 100vh; min-height: 100dvh; overflow: hidden; position: relative;
+  background: var(--papel); color: var(--tinta);
+  font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased; line-height: 1.45;
+}
+
+/* Fondo: canvas con las estaciones y un velo que apaga el centro para leer */
+#mapa { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.velo {
+  position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 900px 470px at 50% 50%, var(--velo) 0%, var(--velo) 38%, transparent 100%);
+}
+
+/* Cabecera */
+.cabecera {
+  position: fixed; left: 56px; right: 56px; top: 56px; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo { display: inline-flex; align-items: center; gap: 10px; color: var(--tinta); text-decoration: none; }
+.logo svg rect { fill: var(--azul); }
+.logo svg path { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; }
+.logo svg circle { fill: #fff; }
+.logo span { font-size: 22px; font-weight: 800; font-stretch: 112%; letter-spacing: -.035em; }
+.dominio { font-size: 13px; font-weight: 600; color: var(--tinta-2); }
+
+/* Contenido (escritorio: centrado) */
+.centro {
+  position: fixed; left: 56px; right: 56px; top: 50%; transform: translateY(-50%); z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 26px; text-align: center;
+}
+.estado {
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 999px;
+  background: var(--pildora-fondo); color: var(--pildora-tinta); font-size: 14px; font-weight: 800;
+}
+.estado::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+h1 {
+  margin: 0; max-width: 1100px; min-height: 1.8em; display: flex; align-items: center;
+  font-size: clamp(88px, 12.2vw, 176px); font-weight: 800; font-stretch: 68%;
+  letter-spacing: -.04em; line-height: .9; text-wrap: balance;
+  transition: opacity .25s ease, filter .25s ease, transform .25s ease;
+}
+h1.sale { opacity: 0; filter: blur(10px); transform: translateY(8px); }
+
+.texto { margin: 0; max-width: 44ch; font-size: 19px; color: var(--tinta-2); text-wrap: pretty; }
+
+/* Trayecto: salida, meta y un punto que recorre la línea */
+.trayecto { width: 460px; max-width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.trayecto-linea { position: relative; height: 24px; }
+.salida, .meta { position: absolute; top: 6px; width: 12px; height: 12px; }
+.salida { left: 0; border-radius: 50%; background: var(--azul); }
+.meta { right: 0; border-radius: 3px; background: var(--tinta); }
+.carril { position: absolute; left: 6px; right: 6px; top: 0; bottom: 0; }
+.guion {
+  position: absolute; left: 0; right: 0; top: 11px; height: 2px;
+  background-image: linear-gradient(90deg, var(--guion) 55%, transparent 55%); background-size: 10px 2px;
+}
+.estela { position: absolute; left: 0; top: 10px; height: 4px; border-radius: 2px; background: var(--azul); width: 62%; animation: estela 5.2s infinite; }
+.punto {
+  position: absolute; top: 2px; left: 62%; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%;
+  background: var(--azul); box-shadow: 0 0 0 4px var(--papel); animation: punto 5.2s infinite;
+}
+@keyframes punto  { 0% { left: 0; opacity: 1; animation-timing-function: ease-in-out; } 84% { left: 100%; opacity: 1; } 92% { left: 100%; opacity: 1; } 100% { left: 100%; opacity: 0; } }
+@keyframes estela { 0% { width: 0; opacity: 1; animation-timing-function: ease-in-out; } 84% { width: 100%; opacity: 1; } 92% { width: 100%; opacity: 1; } 100% { width: 100%; opacity: 0; } }
+.trayecto-rotulos { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--tinta-2); }
+
+/* Botón */
+.boton {
+  height: 52px; padding: 0 22px; border-radius: 14px; background: var(--azul); color: #fff;
+  display: inline-flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700;
+  text-decoration: none; white-space: nowrap; max-width: 100%;
+}
+.boton:hover { background: #1466C2; }
+.boton:focus-visible { outline: 2px solid var(--azul); outline-offset: 3px; }
+.boton-corto { display: none; }
+
+/* Pie */
+.pie {
+  position: fixed; left: 56px; right: 56px; bottom: 40px; z-index: 2;
+  text-align: center; font-size: 12px; color: var(--tinta-2);
+}
+
+/* Móvil: contenido abajo a la izquierda, mapa visible arriba */
+@media (max-width: 700px) {
+  .velo { background: radial-gradient(ellipse 520px 520px at 50% 78%, var(--velo) 0%, var(--velo) 38%, transparent 100%); }
+  .cabecera { left: 24px; right: 24px; top: 24px; }
+  .logo span { font-size: 19px; }
+  .logo svg { width: 30px; height: 30px; }
+  .centro { left: 24px; right: 24px; top: auto; bottom: 92px; transform: none; align-items: flex-start; text-align: left; gap: 18px; }
+  h1 { font-size: 64px; align-items: flex-start; max-width: 100%; }
+  .trayecto { width: 100%; }
+  .texto { font-size: 16px; }
+  .boton { padding: 0 20px; }
+  .boton-largo { display: none; }
+  .boton-corto { display: inline; }
+  .pie { left: 24px; right: 24px; bottom: 24px; text-align: left; }
+}
+
+/* Sin movimiento: titular fijo, punto al 62 % */
+@media (prefers-reduced-motion: reduce) {
+  .estela, .punto { animation: none; }
+  h1 { transition: none; }
+}

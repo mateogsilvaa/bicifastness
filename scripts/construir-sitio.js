@@ -93,13 +93,18 @@ function construir({ destino = path.join(RAIZ, '_site'), abierta = abiertaSegunE
   if (fs.existsSync(cname)) fs.copyFileSync(cname, path.join(destino, 'CNAME'));
 
   if (!abierta) {
-    // Solo la pagina de obras, que no depende de nada del sitio salvo el icono.
+    // Solo la pagina de obras, con lo poco que usa: su CSS y su JS, el icono, la
+    // fuente y las estaciones del mapa de fondo.
     const obras = fs.readFileSync(path.join(RAIZ, 'mantenimiento', 'index.html'));
-    fs.mkdirSync(path.join(destino, 'mantenimiento'), { recursive: true });
-    for (const f of ['index.html', '404.html', 'mantenimiento/index.html']) {
+    fs.cpSync(path.join(RAIZ, 'mantenimiento'), path.join(destino, 'mantenimiento'), { recursive: true });
+    for (const f of ['index.html', '404.html']) {
       fs.writeFileSync(path.join(destino, f), obras);
     }
     fs.cpSync(path.join(RAIZ, 'images'), path.join(destino, 'images'), { recursive: true });
+    for (const f of ['assets/fonts/archivo-latin.woff2', 'assets/data/estaciones.js']) {
+      fs.mkdirSync(path.dirname(path.join(destino, f)), { recursive: true });
+      fs.copyFileSync(path.join(RAIZ, f), path.join(destino, f));
+    }
     return { abierta, ficheros: contar(destino) };
   }
 

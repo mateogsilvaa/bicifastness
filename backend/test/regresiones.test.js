@@ -504,7 +504,9 @@ test('el sistema de diseno no admite sombras', () => {
     // 8q: los mismos avisos en escritorio, flotando abajo a la derecha.
     'box-shadow: 0 8px 32px rgba(0, 0, 0, .1);',
     // 3b: el brillo de la franja azul que recorre la captura al leerla.
-    'box-shadow: 0 0 24px 6px rgba(27, 128, 229, .6);'];
+    'box-shadow: 0 0 24px 6px rgba(27, 128, 229, .6);',
+    // 14: el aro de papel del punto que recorre el trayecto de obras.
+    'box-shadow: 0 0 0 4px var(--papel);'];
   const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none') && !DEL_DISEÑO.includes(s));
   assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
 });
@@ -634,17 +636,23 @@ test('el modo mantenimiento tapa tambien las paginas que existen', () => {
 
   assert.strictEqual(fs.readFileSync(path.join(sitio, 'index.html'), 'utf8'), obras);
   assert.strictEqual(fs.readFileSync(path.join(sitio, '404.html'), 'utf8'), obras);
-  for (const pagina of ['subir', 'admin', 'yo', 'assets', 'sw.js']) {
+  for (const pagina of ['subir', 'admin', 'yo', 'assets/js', 'assets/css', 'sw.js']) {
     assert.ok(!fs.existsSync(path.join(sitio, pagina)), `con la web cerrada se publica ${pagina}`);
   }
+  // De assets/, solo lo que usa la pagina de obras: la fuente y el mapa de fondo.
+  assert.deepStrictEqual(fs.readdirSync(path.join(sitio, 'assets')).sort(), ['data', 'fonts']);
+  assert.deepStrictEqual(fs.readdirSync(path.join(sitio, 'assets/data')), ['estaciones.js']);
   fs.rmSync(sitio, { recursive: true, force: true });
 });
 
 test('la pagina de obras no depende de nada del sitio', () => {
   const html = leerCodigo('mantenimiento/index.html');
-  // Si algo del sitio se rompe, esta tiene que seguir en pie.
-  assert.ok(!/<script/.test(html), 'la pagina de obras no debe llevar scripts');
+  // Si algo del sitio se rompe, esta tiene que seguir en pie: solo su CSS y su
+  // JS (diseño 14), y el JS solo pinta el mapa de fondo.
+  const scripts = [...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepStrictEqual(scripts, ['/mantenimiento/obras.js'], 'solo su propio script');
   assert.ok(!/href="\/assets\//.test(html), 'no debe depender de los assets del sitio');
+  assert.ok(!/firebase/i.test(leer('mantenimiento/obras.js')), 'el mapa no puede depender de Firebase');
   assert.match(html, /name="robots" content="noindex"/,
     'no debe indexarse en lugar del sitio real');
 });

@@ -71,178 +71,150 @@ async function tienePase(usuario) {
 }
 
 /**
- * Lo que va diciendo la pantalla de obras, uno cada pocos segundos. Es lo que
- * la hace "viva": no hay nada que pulsar, pero se ve que alguien esta en ello.
+ * Diseño 14 · En obras. Es la misma pantalla que /mantenimiento/ (la que se
+ * publica con la web cerrada): textos, medidas y movimiento salen de
+ * mantenimiento/obras.css y obras.js. Si cambia una, hay que cambiar la otra.
+ *
+ * El titular rota cada 4,6 s y, con el, tres clanes iluminan otra zona del
+ * mapa. Sin movimiento pedido: titular fijo, zonas fijas y punto al 62 %.
  */
-const TAREAS = [
-  'Ajustando los radios',
-  'Engrasando la cadena',
-  'Inflando las ruedas',
-  'Calibrando los cronos',
-  'Repasando los rankings',
-  'Pintando los carriles bici',
-  'Apretando los frenos',
-  'Poniendo a punto las estaciones',
-];
-
-// Diseño 14 · En obras: el titular cambia cada 3,4 s y, con el, los clanes
-// cambian de zona. Sin movimiento, titular fijo y punto del trayecto al 62 %.
-const CADA = 3400;
+const TITULARES = ['Ajustando los radios', 'Calibrando los cronos', 'Inflando las ruedas', 'Engrasando la cadena'];
+const CADA = 4600;
 const SIN_MOVIMIENTO = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ES_MOVIL = () => window.matchMedia('(max-width: 700px)').matches;
+
+const NS = 'http://www.w3.org/2000/svg';
+
+function svg(etiqueta, attrs = {}, hijos = []) {
+  const n = document.createElementNS(NS, etiqueta);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+  n.append(...hijos);
+  return n;
+}
+
+function nodo(etiqueta, clase, texto) {
+  const n = document.createElement(etiqueta);
+  if (clase) n.className = clase;
+  if (texto) n.textContent = texto;
+  return n;
+}
 
 /**
- * Madrid en puntos: las estaciones de verdad, sin calles ni nombres, en un
- * canvas. Tres clanes iluminan cada uno una zona y saltan a otra con cada
- * titular. Abstracto y lento a proposito: es un fondo, no algo que mirar.
+ * Madrid en puntos: las estaciones de verdad, en un canvas. Tres clanes
+ * iluminan cada uno la zona de una de las semillas y saltan a otra con cada
+ * titular.
  *
  * Las estaciones se piden aqui (`import()`), no al cargar la puerta: solo las
  * descarga quien ve las obras. Es un canvas y no un SVG con un circulo por
  * estacion: asi `vigilar` no se despierta con cada cambio de color.
  */
-const CLANES = ['#FF5A1F', '#13A89E', '#8B5CF6'];
+const SEMILLAS = [[40.428, -3.703], [40.425, -3.682], [40.408, -3.700], [40.436, -3.716], [40.445, -3.690], [40.412, -3.676], [40.418, -3.724], [40.438, -3.668]];
+const CLANES = ['#FF5A1F', '#13A89E', '#E23D8C'];
 
 function mapaAnimado() {
-  const lienzo = document.createElement('canvas');
-  lienzo.className = 'obras-mapa';
+  const lienzo = nodo('canvas', 'obras-mapa');
   lienzo.setAttribute('aria-hidden', 'true');
-  const mapa = { lienzo, cambiar: () => {} };
+  const ctx = lienzo.getContext('2d');
+  const reducido = SIN_MOVIMIENTO();
+  let estaciones = [];
+  let puntos = [];
+  let ancho = 0;
+  let alto = 0;
+  let fase = 0;
+  let pendiente = false;
+
+  const pedir = () => {
+    if (pendiente) return;
+    pendiente = true;
+    requestAnimationFrame(dibujar);
+  };
+
+  const reasignar = () => {
+    const activos = [0, 1, 2].map((i) => ({ s: SEMILLAS[(fase * (i + 1) + i * 3) % 8], c: CLANES[i] }));
+    for (const p of puntos) {
+      p.meta = 0;
+      for (const a of activos) {
+        if (Math.hypot(a.s[0] - p.lat, (a.s[1] - p.lon) * 0.76) < 0.0145) { p.meta = 1; p.color = a.c; break; }
+      }
+      if (reducido) p.ahora = p.meta;
+    }
+    pedir();
+  };
+
+  function dibujar() {
+    pendiente = false;
+    ctx.clearRect(0, 0, ancho, alto);
+    // El gris de los puntos sigue al tema de la app (claro u oscuro).
+    const neutro = getComputedStyle(lienzo).getPropertyValue('--obras-neutro').trim() || '#CAC6BB';
+    const r0 = ES_MOVIL() ? 2.6 : 3.3;
+    let animando = false;
+    for (const p of puntos) {
+      if (p.ahora !== p.meta) {
+        p.ahora += Math.sign(p.meta - p.ahora) * 0.04;
+        if (Math.abs(p.meta - p.ahora) < 0.04) p.ahora = p.meta; else animando = true;
+      }
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = neutro;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r0, 0, 6.2832); ctx.fill();
+      if (p.ahora > 0 && p.color) {
+        ctx.globalAlpha = p.ahora;
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r0 + 0.9, 0, 6.2832); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    if (animando) pedir();
+  }
+
+  const medir = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    ancho = window.innerWidth; alto = window.innerHeight;
+    lienzo.width = ancho * dpr; lienzo.height = alto * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const movil = ES_MOVIL();
+    const escala = Math.max(ancho / 0.152, alto / 0.18) * (movil ? 1 : 0.92);
+    const cx = movil ? 0.52 : 0.5;
+    const cy = movil ? 0.36 : 0.5;
+    puntos = estaciones
+      .map((e) => ({ lat: e.lat, lon: e.lon, x: (e.lon + 3.69) * 0.76 * escala + ancho * cx, y: (40.425 - e.lat) * escala + alto * cy, ahora: 0, meta: 0, color: null }))
+      .filter((p) => p.x > -6 && p.y > -6 && p.x < ancho + 6 && p.y < alto + 6);
+    reasignar();
+  };
 
   import('../data/estaciones.js').then(({ ESTACIONES }) => {
-    const lista = Object.values(ESTACIONES).filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon));
-    if (!lista.length) return;
-    // Proyeccion plana: a esta escala, longitud por el coseno de la latitud.
-    const lat0 = lista.reduce((t, e) => t + e.lat, 0) / lista.length;
-    const k = Math.cos((lat0 * Math.PI) / 180);
-    const puntos = lista.map((e) => ({ x: e.lon * k, y: -e.lat, clan: -1, luz: 0 }));
-    const xs = puntos.map((p) => p.x);
-    const ys = puntos.map((p) => p.y);
-    const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-    const ctx = lienzo.getContext('2d');
-    let base = '#D6D2C8';
-    let colocar = () => {};
-
-    // Ocupa toda la pantalla recortando lo que sobre, como `cover`.
-    const medir = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const w = lienzo.clientWidth || innerWidth;
-      const h = lienzo.clientHeight || innerHeight;
-      lienzo.width = Math.round(w * dpr);
-      lienzo.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const margen = 0.04;
-      const escala = Math.max(w / ((maxX - minX) * (1 + margen)), h / ((maxY - minY) * (1 + margen)));
-      const ox = (w - (maxX - minX) * escala) / 2;
-      const oy = (h - (maxY - minY) * escala) / 2;
-      colocar = (p) => [ox + (p.x - minX) * escala, oy + (p.y - minY) * escala];
-      base = getComputedStyle(lienzo).getPropertyValue('--punto').trim() || base;
-    };
-
-    const pintar = () => {
-      const w = lienzo.clientWidth || innerWidth;
-      const h = lienzo.clientHeight || innerHeight;
-      ctx.clearRect(0, 0, w, h);
-      for (const p of puntos) {
-        const [x, y] = colocar(p);
-        ctx.beginPath();
-        ctx.arc(x, y, 1.8 + p.luz * 2, 0, Math.PI * 2);
-        ctx.fillStyle = base;
-        ctx.globalAlpha = 1;
-        ctx.fill();
-        if (p.luz > 0.01 && p.clan >= 0) {
-          ctx.fillStyle = CLANES[p.clan];
-          ctx.globalAlpha = p.luz;
-          ctx.fill();
-        }
-      }
-      ctx.globalAlpha = 1;
-    };
-
-    // Cada clan, en una estacion al azar y sus vecinas. Lejos de los otros dos.
-    const repartir = () => {
-      const centros = [];
-      for (let c = 0; c < CLANES.length; c++) {
-        let centro;
-        for (let intento = 0; intento < 12; intento++) {
-          centro = puntos[Math.floor(Math.random() * puntos.length)];
-          const lejos = centros.every((o) => (o.x - centro.x) ** 2 + (o.y - centro.y) ** 2 > ((maxX - minX) / 4) ** 2);
-          if (lejos) break;
-        }
-        centros.push(centro);
-      }
-      for (const p of puntos) p.objetivo = -1;
-      centros.forEach((centro, c) => {
-        puntos
-          .map((p) => ({ p, d: (p.x - centro.x) ** 2 + (p.y - centro.y) ** 2 }))
-          .sort((a, b) => a.d - b.d)
-          .slice(0, 18 + Math.floor(Math.random() * 16))
-          .forEach(({ p }) => { if (p.objetivo === -1) p.objetivo = c; });
-      });
-    };
-
-    // La luz sube (0,9 s) y baja (0,5 s) por tiempo, no por fotograma; un punto
-    // que cambia de clan se apaga antes de encenderse en el nuevo.
-    let animando = false;
-    let antes = 0;
-    const avanzar = (ahora) => {
-      const dt = Math.min(0.5, (ahora - (antes || ahora)) / 1000);
-      antes = ahora;
-      let quieto = true;
-      for (const p of puntos) {
-        if (p.clan !== p.objetivo) {
-          p.luz = Math.max(0, p.luz - dt / 0.5);
-          if (p.luz === 0) p.clan = p.objetivo;
-          quieto = false;
-        } else if (p.clan >= 0 && p.luz < 1) {
-          p.luz = Math.min(1, p.luz + dt / 0.9);
-          quieto = false;
-        }
-      }
-      pintar();
-      animando = !quieto;
-      if (animando) requestAnimationFrame(avanzar);
-    };
-    const mover = () => { if (!animando) { animando = true; antes = 0; requestAnimationFrame(avanzar); } };
-
+    estaciones = Object.values(ESTACIONES).filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon));
     medir();
-    repartir();
-    if (SIN_MOVIMIENTO()) {
-      for (const p of puntos) { p.clan = p.objetivo; p.luz = p.clan >= 0 ? 1 : 0; }
-      pintar();
-    } else {
-      mover();
-      mapa.cambiar = () => { repartir(); mover(); };
-    }
-    addEventListener('resize', () => { medir(); pintar(); });
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { medir(); pintar(); });
+    addEventListener('resize', medir);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', pedir);
   }).catch(() => { /* sin estaciones, la pantalla sigue igual de bien sin fondo */ });
-  return mapa;
+
+  return { lienzo, cambiar: () => { fase += 1; reasignar(); } };
 }
 
-/** La barra de progreso es un trayecto: salida, meta y un punto que la recorre. */
+/** El trayecto: salida, meta y un punto que recorre la linea (todo en CSS). */
 function trayecto() {
-  const caja = document.createElement('div');
-  caja.className = 'obras-trayecto';
+  const caja = nodo('div', 'obras-trayecto');
   caja.setAttribute('aria-hidden', 'true');
-  const linea = document.createElement('div');
-  linea.className = 'obras-linea';
-  for (const clase of ['obras-hecho', 'obras-salida', 'obras-meta', 'obras-punto']) {
-    const parte = document.createElement('span');
-    parte.className = clase;
-    linea.append(parte);
-  }
-  const rotulos = document.createElement('div');
-  rotulos.className = 'obras-rotulos';
-  const salida = document.createElement('span');
-  salida.textContent = 'Salida';
-  const meta = document.createElement('span');
-  meta.textContent = 'Meta';
-  rotulos.append(salida, meta);
+  const linea = nodo('div', 'obras-trayecto-linea');
+  const carril = nodo('div', 'obras-carril');
+  carril.append(nodo('span', 'obras-guion'), nodo('span', 'obras-estela'), nodo('span', 'obras-punto'));
+  linea.append(nodo('span', 'obras-salida'), nodo('span', 'obras-meta'), carril);
+  const rotulos = nodo('div', 'obras-trayecto-rotulos');
+  rotulos.append(nodo('span', '', 'Salida'), nodo('span', '', 'Meta'));
   caja.append(linea, rotulos);
   return caja;
 }
 
-const LOGO = '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6.5" fill="#1B80E5"></rect><path d="M12 5 A7 7 0 1 1 5.94 8.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"></path><circle cx="5.94" cy="8.5" r="2.1" fill="#fff"></circle></svg>';
-const INSTAGRAM = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"></circle></svg>';
+const logo = () => svg('svg', { viewBox: '0 0 24 24', width: 34, height: 34, 'aria-hidden': 'true', focusable: 'false' }, [
+  svg('rect', { width: 24, height: 24, rx: 6.5 }),
+  svg('path', { d: 'M12 5 A7 7 0 1 1 5.94 8.5' }),
+  svg('circle', { cx: 5.94, cy: 8.5, r: 2.1 }),
+]);
+
+const flecha = () => svg('svg', {
+  width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+  'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true',
+}, [svg('path', { d: 'M5 12h14M13 6l6 6-6 6' })]);
 
 /**
  * Se repinta solo si alguien la quita o la esconde desde la consola, y la
@@ -275,85 +247,77 @@ function vigilar(capa) {
   }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'hidden', 'class', 'inert'] });
 }
 
+
 function pintarObras({ mensaje, usuario }) {
   document.documentElement.classList.remove('acceso-pendiente');
   if (document.getElementById('pantalla-obras')) return;
-  const capa = document.createElement('div');
+  const capa = nodo('div');
   capa.id = 'pantalla-obras';
   capa.setAttribute('role', 'status');
-  capa.setAttribute('aria-labelledby', 'obras-titulo');
+  capa.setAttribute('aria-labelledby', 'obras-titular');
 
-  const cabecera = document.createElement('header');
-  cabecera.className = 'obras-cabecera';
-  const logo = document.createElement('span');
-  logo.className = 'obras-logo';
-  logo.innerHTML = `${LOGO}<span>bicifastness</span>`;
-  cabecera.append(logo);
+  const velo = nodo('div', 'obras-velo');
+  velo.setAttribute('aria-hidden', 'true');
 
-  const caja = document.createElement('div');
-  caja.className = 'obras-caja';
+  const cabecera = nodo('header', 'obras-cabecera');
+  const marca = nodo('a', 'obras-logo');
+  marca.href = '/';
+  marca.setAttribute('aria-label', 'bicifastness');
+  marca.append(logo(), nodo('span', '', 'bicifastness'));
+  cabecera.append(marca, nodo('span', 'obras-dominio', 'bicifastness.es'));
 
-  const chip = document.createElement('span');
-  chip.className = 'obras-chip';
-  chip.textContent = 'En construcción';
-
-  const titulo = document.createElement('h1');
-  titulo.id = 'obras-titulo';
-  const tarea = document.createElement('span');
-  tarea.className = 'obras-tarea';
-  tarea.textContent = TAREAS[0];
-  titulo.append(tarea);
-
-  const texto = document.createElement('p');
-  texto.className = 'obras-texto';
-  texto.textContent = mensaje || 'BiciFastness todavía está en construcción. Volvemos muy pronto.';
+  const centro = nodo('div', 'obras-centro');
+  const titular = nodo('h1', 'obras-titular', TITULARES[0]);
+  titular.id = 'obras-titular';
 
   // Donde contamos cuando abre.
-  const redes = document.createElement('a');
-  redes.className = 'obras-redes';
-  redes.href = 'https://www.instagram.com/bicifastness/';
-  redes.target = '_blank';
-  redes.rel = 'noopener';
-  redes.innerHTML = INSTAGRAM;
-  const arroba = document.createElement('span');
-  arroba.textContent = 'Síguenos en @bicifastness';
-  redes.append(arroba);
+  const boton = nodo('a', 'obras-boton');
+  boton.href = 'https://instagram.com/bicifastness';
+  boton.target = '_blank';
+  boton.rel = 'noopener';
+  boton.append(
+    nodo('span', 'obras-boton-largo', 'Atentos a @bicifastness en Instagram'),
+    nodo('span', 'obras-boton-corto', '@bicifastness en Instagram'),
+    flecha(),
+  );
 
-  caja.append(chip, titulo, trayecto(), texto, redes);
+  centro.append(
+    nodo('span', 'obras-estado', 'En obras'),
+    titular,
+    trayecto(),
+    nodo('p', 'obras-texto', mensaje || 'BiciFastness está en obras. Volvemos muy pronto con la clasificación, las rutas y el mapa de clanes.'),
+    boton,
+  );
 
   // Quien ya tiene sesion y no esta en la lista: se le dice, y puede salir.
   // No es una puerta: no da acceso a nada.
   if (usuario) {
-    const nota = document.createElement('p');
-    nota.className = 'obras-nota';
-    nota.textContent = `Has entrado como ${usuario.email || 'una cuenta sin correo'}, que todavía no tiene acceso.`;
-    const salir = document.createElement('button');
+    const nota = nodo('p', 'obras-nota', `Has entrado como ${usuario.email || 'una cuenta sin correo'}, que todavía no tiene acceso. `);
+    const salir = nodo('button', 'obras-salir', 'Cerrar sesión');
     salir.type = 'button';
-    salir.className = 'obras-salir';
-    salir.textContent = 'Cerrar sesión';
     salir.addEventListener('click', () => signOut(auth).then(() => window.location.reload()));
-    caja.append(nota, salir);
+    nota.append(salir);
+    centro.append(nota);
   }
 
+  const pie = nodo('footer', 'obras-pie', 'Proyecto independiente. Sin relación con BiciMAD, la EMT ni el Ayuntamiento de Madrid.');
+
   const mapa = mapaAnimado();
-  const velo = document.createElement('div');
-  velo.className = 'obras-velo';
-  capa.append(mapa.lienzo, velo, cabecera, caja);
+  capa.append(mapa.lienzo, velo, cabecera, centro, pie);
   document.body.append(capa);
   document.body.classList.add('en-obras');
 
-  // La tarea cambia con fundido y desenfoque, y los clanes se mudan con ella.
-  // Sin movimiento pedido, se queda la primera.
+  // El titular cambia con fundido y desenfoque, y los clanes se mudan con el.
   if (SIN_MOVIMIENTO()) { vigilar(capa); return; }
   let n = 0;
   setInterval(() => {
-    tarea.classList.add('sale');
+    titular.classList.add('sale');
     setTimeout(() => {
-      n = (n + 1) % TAREAS.length;
-      tarea.textContent = TAREAS[n];
-      tarea.classList.remove('sale');
+      n = (n + 1) % TITULARES.length;
+      titular.textContent = TITULARES[n];
+      titular.classList.remove('sale');
       mapa.cambiar();
-    }, 450);
+    }, 260);
   }, CADA);
 
   vigilar(capa);

@@ -215,7 +215,14 @@ export function marcarAdministrador(valor) { esAdministrador = Boolean(valor); }
  * @param {object} detalles  { enRevision }: lo que cuesta una lectura llega aparte
  */
 let tiendaVisible = false;
+let textoAvisos = '';
 let ultimoMenu = null;
+
+/** Como estan los avisos en este movil ("Activados", "Actívalos"...). */
+export function marcarAvisos(texto) {
+  textoAvisos = texto || '';
+  if (ultimoMenu) pintarMenu(...ultimoMenu);
+}
 
 /** La tienda abierta añade su entrada al menu; se repinta con lo ultimo que hubo. */
 export function marcarTienda(valor) {
@@ -235,6 +242,8 @@ export function pintarMenu(perfil, { enRevision = 0 } = {}) {
     { href: '#rutas', icono: 'pin', texto: 'Rutas ancladas',
       detalle: `${(perfil.favoritas || []).length} de 3` },
     { href: '#perfil', icono: 'perfil', texto: 'Perfil público', detalle: 'Banner y lema' },
+    // Lleva a Ajustes, donde estan los interruptores y los pasos para activarlos.
+    { href: '#ajustes', icono: 'campana', texto: 'Avisos', detalle: textoAvisos, atencion: textoAvisos !== '' && textoAvisos !== 'Activados' && textoAvisos !== 'Muy pronto' },
     // Discreta, al final y solo si la tienda esta abierta (assets/js/tienda.js).
     ...(tiendaVisible ? [{ href: '/tienda/', icono: 'medalla', texto: 'Tienda', detalle: 'Apoya el proyecto' }] : []),
     // Solo para administradores, y solo es un enlace: la puerta de verdad

@@ -28,7 +28,6 @@ import { guardarResumenOffline, olvidarResumenOffline } from '/assets/js/instala
 import { traerAgregado } from '/assets/js/agregados.js';
 import { sonidoActivo, activarSonido, sonar } from '/assets/js/celebrar.js';
 import {
-  soportado as soportadoPush, configurado as configuradoPush,
   suscribir, desuscribir, suscripcionActual,
 } from '/assets/js/push.js';
 import { guardarSuscripcionPush, olvidarSuscripcionPush, ajustarAvisoPush } from '/assets/js/acciones.js';
@@ -37,9 +36,10 @@ import { VERSION_APP } from '/assets/data/version.js';
 import {
   pintarCabecera, pintarRating, pintarCifras, pintarMenu, pintarInsignias,
   nodosHistorial, FILTROS, pintarTemporadas, nombreMes,
-  marcarAdministrador, marcarTienda,
+  marcarAdministrador, marcarTienda, marcarAvisos,
 } from '/assets/js/yo-vistas.js';
 import { tiendaAbierta } from '/assets/js/tienda.js';
+import { estadoAvisos, guiaAvisos, avisoDePrueba } from '/assets/js/guia-avisos.js';
 import { leerVitrina, guardarVitrina } from '/assets/js/vitrina.js';
 import { banner, cabeceraPiloto, colorAvatar } from '/assets/js/perfil-publico.js';
 import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene } from '/assets/data/recompensas.js';
@@ -228,6 +228,10 @@ async function cargarPerfil() {
   pintarRating(perfil);
   pintarCifras(perfil, null);
   pintarMenu(perfil);
+  // Tu banner y tu lema en la tarjeta del resumen: una lectura, que la vista
+  // de Perfil publico ya no repite (`leerVitrina` la guarda).
+  leerVitrina(perfil.username).then((v) => { vitrina = v; pintarTarjetaVitrina(); }).catch(() => { /* se queda el de serie */ });
+  estadoAvisos().then((s) => marcarAvisos(TEXTO_AVISOS[s])).catch(() => { /* sin estado, la entrada sin detalle */ });
   tiendaAbierta().then(marcarTienda).catch(() => { /* sin tienda, el menu de siempre */ });
   pintarAjustes(perfil);
 
@@ -308,7 +312,15 @@ async function cargarVitrina() {
   pintarVitrina();
 }
 
+/** La tarjeta del resumen: tu banner de fondo y tu lema. */
+function pintarTarjetaVitrina() {
+  if (!vitrina) return;
+  id('banner-yo').className = `banner-piloto banner-${BANNERS[vitrina.banner] ? vitrina.banner : BANNER_POR_DEFECTO}`;
+  id('lema-yo').textContent = LEMAS[vitrina.lema] ? `«${LEMAS[vitrina.lema].texto}»` : 'Elige tu banner y tu lema';
+}
+
 function pintarVitrina() {
+  pintarTarjetaVitrina();
   const recompensas = perfil.recompensas || [];
   const nombre = perfil.username || 'Piloto';
   const avatar = colorAvatar(el('span', { clase: 'avatar-inicial', texto: [...nombre][0]?.toUpperCase() || 'P' }), clanDatos?.color);
@@ -638,10 +650,22 @@ id('avisos-correo').addEventListener('change', async (evento) => {
  * de tipo no significan nada hasta que exista. La seccion entera se oculta si el
  * navegador no puede recibir push.
  */
-async function montarAvisosPush(datos) {
-  if (!soportadoPush() || !configuradoPush()) return;
+/** Lo que dice la entrada Avisos del menu, segun el estado de este movil. */
+const TEXTO_AVISOS = { activos: 'Activados', 'sin-claves': 'Muy pronto', activables: 'Actívalos', bloqueado: 'Bloqueados', 'ios-instalar': 'Cómo activarlos', 'no-soportado': 'No disponibles' };
 
+async function montarAvisosPush(datos) {
+  // La seccion se ve siempre: cuando aqui no se puede, lo util es explicar
+  // como se consigue (instalarla en iPhone, desbloquearlos...), no esconderla.
   id('ajustes-push').classList.remove('oculto');
+  const situacion = await estadoAvisos();
+  marcarAvisos(TEXTO_AVISOS[situacion]);
+
+  const guia = guiaAvisos(situacion);
+  if (guia) {
+    reemplazar(id('lista-avisos'), guia);
+    colocarCorreo();
+    return;
+  }
 
   const suscripcion = await suscripcionActual();
   const preferencias = datos.push?.avisos || {};
@@ -676,12 +700,17 @@ async function montarAvisosPush(datos) {
   const nodos = [
     interruptor(
       'Recibir avisos en este móvil',
-      suscripcion ? 'En otro dispositivo hay que activarlo aparte.' : null,
+      suscripcion ? 'En otro dispositivo hay que activarlo aparte.' : 'Te preguntará si los permites: elige «Permitir».',
       Boolean(suscripcion),
       async (activar) => {
         if (activar) {
           const nueva = await suscribir();
-          if (!nueva) throw new Error('el navegador no ha dado permiso');
+          if (!nueva) {
+            // Ha dicho que no (o el movil no ha preguntado): se repinta, y si
+            // quedo bloqueado sale como desbloquearlo.
+            await montarAvisosPush(datos);
+            return;
+          }
           await guardarSuscripcionPush(nueva);
         } else {
           const vieja = await desuscribir();
@@ -693,7 +722,7 @@ async function montarAvisosPush(datos) {
   ];
 
   // 8o: a la derecha, cuando o donde llega cada uno.
-  const NOTAS = { viajeResuelto: 'móvil y ordenador', rachaEnPeligro: '20:00', cambioDivision: 'lunes, cada dos semanas' };
+  const NOTAS = { viajeResuelto: 'aceptado o no', rachaEnPeligro: '20:00', recordPerdido: '1.º puesto', adelantado: 'tus tramos', cambioDivision: 'lunes, cada dos semanas' };
   for (const [tipo, info] of Object.entries(TIPOS_PUSH)) {
     const fila = interruptor(
       info.etiqueta,
@@ -703,6 +732,18 @@ async function montarAvisosPush(datos) {
       !suscripcion);
     if (NOTAS[tipo]) fila.lastElementChild.before(el('span', { clase: 'nota-aviso', texto: NOTAS[tipo] }));
     nodos.push(fila);
+  }
+
+  if (suscripcion) {
+    nodos.push(el('div', { clase: 'fila-prueba-aviso' }, [
+      el('span', { clase: 'texto' }, [el('span', { texto: '¿No te llegan?' }), el('small', { texto: 'Manda uno de prueba a este móvil. Si no sale, mira el modo No molestar.' })]),
+      el('button', {
+        clase: 'btn secundario boton-probar', texto: 'Probar', attrs: { type: 'button' },
+        on: {
+          click: () => avisoDePrueba().catch(() => estado(id('msg-push'), 'El móvil no ha dejado enseñar el aviso.', 'error')),
+        },
+      }),
+    ]));
   }
 
   reemplazar(id('lista-avisos'), nodos);

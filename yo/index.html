@@ -55,6 +55,17 @@
       </div>
     </div>
 
+    <!-- Tu perfil publico, a mano: tu banner y tu lema, y la puerta para
+         cambiarlos (vista #perfil). -->
+    <a class="tarjeta-vitrina" href="#perfil" id="tarjeta-vitrina">
+      <span class="banner-piloto esqueleto" id="banner-yo" aria-hidden="true"></span>
+      <span class="tarjeta-vitrina-texto">
+        <strong>Tu perfil público</strong>
+        <span id="lema-yo">Lo que ven los demás en el ranking</span>
+      </span>
+      <span class="tarjeta-vitrina-editar">Editar</span>
+    </a>
+
     <div class="tarjeta-grande" id="tarjeta-rating">
       <div class="cabeza"><span>BiciRating</span><span id="puesto-global"></span></div>
       <span class="rating hueco" id="rating" style="--ancho-hueco: 2.4em"></span>
@@ -75,7 +86,7 @@
       <div class="barras" id="barras-temporadas"></div>
     </section>
 
-    <nav class="menu-lista" id="menu" aria-label="Tu perfil"><div class="esqueleto" aria-hidden="true" style="height: 280px"></div></nav>
+    <nav class="menu-lista" id="menu" aria-label="Tu perfil"><div class="esqueleto" aria-hidden="true" style="height: 385px"></div></nav>
     <p class="mensaje" id="msg-perfil" aria-live="polite"></p>
   </section>
 

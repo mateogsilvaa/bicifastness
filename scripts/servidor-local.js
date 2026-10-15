@@ -47,6 +47,13 @@ http.createServer((peticion, respuesta) => {
 
   if (url.endsWith('/')) destino = path.join(destino, 'index.html');
   if (MAQUETA && url === '/assets/js/firebase.js') destino = path.join(__dirname, 'maqueta', 'firebase.js');
+  // Una clave VAPID de mentira: sin ella la web esconde los avisos y no se
+  // pueden ver ni la guia ni los interruptores. Suscribirse de verdad no va.
+  if (MAQUETA && url === '/assets/data/push-config.js') {
+    respuesta.writeHead(200, { 'Content-Type': TIPOS['.js'] });
+    respuesta.end("export const VAPID_PUBLIC_KEY = 'BMaquetaClaveDeMentiraParaVerLaGuiaDeAvisos';\n");
+    return;
+  }
   // El lector, con lecturas fijas a peticion (scripts/maqueta/extraccion.js);
   // `?real` es el de verdad, que el de la maqueta usa por debajo.
   if (MAQUETA && url === '/assets/js/extraccion.js' && !peticion.url.includes('?real')) {

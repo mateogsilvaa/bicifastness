@@ -41,6 +41,8 @@ const CAMPOS = [
   'username', 'avatarUrl', 'fotoMini', 'division', 'grupoLiga', 'clanId', 'suspendido',
   'biciRating', 'viajesVerificados', 'puntosPorRuta', 'metrosTotales',
   'racha', 'mejorRacha', 'puntosLiga',
+  // Las insignias, para publicarlas en la ficha de cada piloto (agregados/logros-publicos).
+  'logros',
 ];
 
 /** Un documento de `usuarios`, reducido a lo que se guarda. */

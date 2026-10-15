@@ -284,6 +284,8 @@ async function ejecutar(uid, { simular = false } = {}) {
       await db().doc(`nombres_usuario/${datos.usernameLower}`).delete();
       // La foto de perfil es publica: se va con la cuenta.
       await db().doc(`fotos/${datos.usernameLower}`).delete();
+      // Y su vitrina (banner y lema), que tambien se lee sin sesion.
+      await db().doc(`vitrinas/${datos.usernameLower}`).delete();
     }
     // Y se saca de los rankings: la cache de pilotos de la reconstruccion
     // parcial todavia lo tiene, asi que se invalida y la proxima lee `usuarios`.

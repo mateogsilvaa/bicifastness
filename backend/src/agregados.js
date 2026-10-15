@@ -779,7 +779,53 @@ async function reconstruir({
   // lecturas mas. Y solo se escribe si ha cambiado algo, que es casi nunca.
   escritos.fotos = await escribirFotosMini(usuarios);
 
+  // --- Insignias de cada piloto ---------------------------------------------
+  // Para la ficha publica (assets/js/perfil-publico.js). Igual que las fotos:
+  // sale de `usuarios`, ya leido, y solo se escribe si algo ha cambiado.
+  escritos.logros = await escribirLogrosPublicos(usuarios);
+
   return escritos;
+}
+
+const LOGRO = /^[a-z0-9-]{1,60}$/;
+/** Por debajo del tope de 1 MiB de un documento, con holgura. */
+const MAX_BYTES_LOGROS = 900 * 1024;
+
+/**
+ * Las insignias de cada piloto, por nombre en minusculas.
+ *
+ * Solo las claves de las insignias: son lo que ya se enseña en la ficha. Sin
+ * suspendidos, sin quien no tiene ninguna, y con un tope de tamaño: si algun
+ * dia no caben todos, entran primero los que mas tienen (son los que mas se
+ * miran) y el resto sale en su ficha sin insignias, no rompe la escritura.
+ */
+function logrosPublicos(usuarios) {
+  const candidatos = [];
+  for (const u of usuarios) {
+    if (u.suspendido || !u.username || !Array.isArray(u.logros)) continue;
+    const lista = [...new Set(u.logros.filter((l) => typeof l === 'string' && LOGRO.test(l)))].slice(0, 100);
+    if (lista.length) candidatos.push([String(u.username).toLowerCase(), lista]);
+  }
+  candidatos.sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  const logros = {};
+  let bytes = 0;
+  for (const [nombre, lista] of candidatos) {
+    const coste = Buffer.byteLength(JSON.stringify(nombre) + JSON.stringify(lista)) + 2;
+    if (bytes + coste > MAX_BYTES_LOGROS) break;
+    logros[nombre] = lista;
+    bytes += coste;
+  }
+  return logros;
+}
+
+async function escribirLogrosPublicos(usuarios) {
+  const logros = logrosPublicos(usuarios);
+  const firma = require('crypto').createHash('sha1').update(JSON.stringify(logros)).digest('hex');
+  const ref = db().doc('agregados/logros-publicos');
+  const previo = await ref.get();
+  if (previo.exists && previo.data().firma === firma) return 0;
+  await ref.set({ logros, firma, actualizado: admin.firestore.FieldValue.serverTimestamp() });
+  return 1;
 }
 
 const MINI = /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$/;
@@ -818,5 +864,6 @@ module.exports = {
   resumenLigas,
   limpiar,
   CAMPOS_PUBLICABLES,
+  logrosPublicos,
   POR_PAGINA,
 };

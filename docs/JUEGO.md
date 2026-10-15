@@ -287,6 +287,29 @@ que crea frentes y rivalidades en el mapa en vez de 600 estaciones sueltas.
 
 ---
 
+## Perfil publico: banner y lema
+
+Tocar un nombre en el ranking abre su ficha: banner, foto, nombre, lema,
+liga, puesto, puntos, kilometros, racha e insignias. El banner y el lema los
+elige cada uno en Tu > Perfil publico, de entre los que tiene.
+
+- **De serie** (`libre-*`): cuatro banners y cuatro lemas que tiene todo el
+  mundo desde el primer dia.
+- **Ganados**: el resto. Viven en `usuarios/{uid}.recompensas`, que el piloto
+  no puede escribir. Hoy los concede la administracion (Pilotos y clanes >
+  Banners y lemas ganados).
+
+La idea para ganarlos son pegatinas NFC en bicis concretas: quien la escanea
+el primero se lleva un banner o un lema. Ese canje todavia no existe; cuando
+llegue, solo tiene que apuntar el id en `recompensas` (desde el worker, nunca
+desde el navegador), y todo lo demas ya funciona.
+
+Catalogo: `assets/data/recompensas.js`. Aspecto de cada banner:
+`assets/css/app.css` (`.banner-{id}`). Lo que lleva puesto cada uno:
+`vitrinas/{nombre}`, publico, y las reglas solo dejan ids libres o ganados.
+Las insignias de todos salen en `agregados/logros-publicos`, que escribe el
+worker.
+
 ## Antitrampas: que cambia
 
 Anadir distancia y velocidad **no abre** superficie nueva de fraude, porque

@@ -11,6 +11,10 @@ import { db, doc, getDoc, auth, onAuthStateChanged } from '/assets/js/firebase.j
 import { escudoClan } from '/assets/js/escudo-clan.js';
 import { leerFoto } from '/assets/js/foto-perfil.js';
 import { ponerFoto } from '/assets/js/foto-local.js';
+import { leerVitrina } from '/assets/js/vitrina.js';
+import {
+  cabeceraPiloto, cifrasPiloto, logrosPiloto, logrosOrdenados, colorAvatar, fichaCargando,
+} from '/assets/js/perfil-publico.js';
 import { iniciarPagina, nombreEstacion, formatearTiempo, normalizarEstacion, miles } from '/assets/js/ui.js';
 import { id, el, icono, estado, reemplazar, pedirTexto, avisar, abrirHoja } from '/assets/js/dom.js';
 import { leerCache, guardarCache } from '/assets/js/cache.js';
@@ -20,7 +24,7 @@ import { diaMadrid, lunesDeLaSemana } from '/assets/js/dia.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
 import {
-  NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, chipDivision, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
+  NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
   divisionDeClave, numeroDeGrupo,
 } from '/assets/js/ligas.js';
 
@@ -757,10 +761,36 @@ async function pintarClanes() {
 }
 
 // --- Otro piloto (4f, 8j) ------------------------------------------------------------
+//
+// La ficha publica: banner y lema (su vitrina), foto, liga, cifras e
+// insignias. Se abre YA, con su esqueleto, y se rellena cuando llegan los
+// datos: antes se esperaba a seis lecturas con la pantalla quieta.
+//
+// Lo que cuesta: los agregados de clasificacion y el de logros (cacheados en la
+// pestaña, normalmente ya leidos), y dos documentos sueltos del piloto: su
+// foto y su vitrina.
 
 async function abrirPiloto(nombre, desde = null) {
-  const [general, sprint, fondo, constancia, clanes, indice] = await Promise.all([
+  const esYo = nombre === perfil?.username;
+  const cuerpo = el('div', { clase: 'panel-ficha' }, [fichaCargando()]);
+  const acciones = el('span', { clase: 'acciones-panel' });
+  const volver = el('button', { clase: 'boton-icono solo-movil-inline', attrs: { type: 'button', 'aria-label': 'Volver' } }, [icono('atras')]);
+  const cerrarX = el('button', { clase: 'boton-icono solo-escritorio-inline', attrs: { type: 'button', 'aria-label': 'Cerrar' } }, [icono('cerrar')]);
+  acciones.append(cerrarX);
+  const { cerrar } = abrirHoja([
+    el('div', { clase: 'panel-cabeza' }, [
+      volver,
+      el('span', { clase: 'rotulo solo-escritorio-inline', texto: 'Piloto' }),
+      acciones,
+    ]),
+    cuerpo,
+  ], { etiqueta: `Piloto ${nombre}`, clase: 'panel-lateral' });
+  volver.addEventListener('click', cerrar);
+  cerrarX.addEventListener('click', cerrar);
+
+  const [general, sprint, fondo, constancia, clanes, indice, publicos, vitrina] = await Promise.all([
     traer('ranking-general'), traer('ranking-sprint'), traer('ranking-fondo'), traer('ranking-constancia'), clanesDelMapa(), traer('grupos'),
+    traer('logros-publicos'), leerVitrina(nombre),
   ]);
   const de = (ag) => ag?.filas?.find((f) => f.nombre === nombre) || null;
   const g = de(general);
@@ -768,9 +798,35 @@ async function abrirPiloto(nombre, desde = null) {
   const clave = indice?.porPiloto?.[nombre];
   const grupo = clave ? await traer(`grupo-${clave}`) : null;
   const enGrupo = grupo?.filas?.find((f) => f.nombre === nombre);
-  const esYo = nombre === perfil?.username;
+  const division = clave ? divisionDeClave(clave) : g?.division || null;
+  const logros = publicos?.logros?.[nombre.toLowerCase()] || [];
 
-  // Cara a cara: las rutas en las que salis los dos (de las tuyas).
+  const avatar = colorAvatar(fotoDe(el('span', { clase: 'avatar-inicial', texto: [...nombre][0]?.toUpperCase() || 'P' }), nombre), clan?.color);
+  const caraHueco = el('div');
+
+  reemplazar(cuerpo, [
+    cabeceraPiloto({
+      nombre, avatar, banner: vitrina.banner, lema: vitrina.lema,
+      clan: clan?.nombre || null,
+      // 12 · Chip junto al nombre en el perfil publico.
+      division: division || 'sin-clasificar', liga: clave ? nombreGrupo(clave) : null,
+      detalle: enGrupo ? `${ordinal(enGrupo.pos)} de su grupo` : null,
+    }),
+    cifrasPiloto([
+      ['Puesto', g ? ordinal(g.pos) : '—'],
+      ['Puntos', g ? numero(g.puntos) : '—'],
+      ['Trayectos', g?.viajes !== undefined ? numero(g.viajes) : '—'],
+      ['Sprint', de(sprint) ? MODOS.sprint.formato(de(sprint).puntos) : '—'],
+      ['Fondo', de(fondo) ? MODOS.fondo.formato(de(fondo).puntos) : '—'],
+      ['Racha', de(constancia) ? MODOS.constancia.formato(de(constancia).puntos) : '—'],
+    ]),
+    el('div', { clase: 'hoy-seccion' }, [el('h3', { texto: 'Insignias' }), el('span', { texto: String(logrosOrdenados(logros).length) })]),
+    logrosPiloto(logros),
+    caraHueco,
+  ]);
+
+  // Cara a cara: las rutas en las que salis los dos (de las tuyas). Va despues
+  // porque son lecturas de una en una y la ficha ya se puede mirar.
   const mias = [...new Set([...(perfil?.favoritas || []), ...Object.keys(perfil?.puntosPorRuta || {})])].slice(0, 10);
   const cara = [];
   let unViaje = desde?.viajeId || null;
@@ -786,33 +842,14 @@ async function abrirPiloto(nombre, desde = null) {
   const ganoYo = cara.filter((c) => c.yo < c.otro).length;
   const ganaOtro = cara.filter((c) => c.otro < c.yo).length;
 
-  const menu = unViaje && haySesion && !esYo ? el('button', {
-    clase: 'boton-icono', attrs: { type: 'button', 'aria-label': 'Más opciones' },
-    on: { click: () => menuDenuncia(nombre, desde, unViaje) },
-  }, [icono('mas-h')]) : null;
+  if (unViaje && haySesion && !esYo) {
+    acciones.prepend(el('button', {
+      clase: 'boton-icono', attrs: { type: 'button', 'aria-label': 'Más opciones' },
+      on: { click: () => menuDenuncia(nombre, desde, unViaje) },
+    }, [icono('mas-h')]));
+  }
 
-  const volver = el('button', { clase: 'boton-icono solo-movil-inline', attrs: { type: 'button', 'aria-label': 'Volver' } }, [icono('atras')]);
-  const cerrarX = el('button', { clase: 'boton-icono solo-escritorio-inline', attrs: { type: 'button', 'aria-label': 'Cerrar' } }, [icono('cerrar')]);
-  const { cerrar } = abrirHoja([
-    el('div', { clase: 'panel-cabeza' }, [
-      volver,
-      el('span', { clase: 'rotulo solo-escritorio-inline', texto: 'Piloto' }),
-      el('span', { clase: 'acciones-panel' }, [menu, cerrarX]),
-    ]),
-    el('div', { clase: 'piloto-cabeza' }, [
-      fotoDe(el('span', { clase: 'avatar-inicial', estilo: { background: clan?.color || 'var(--tinta)' }, texto: [...nombre][0]?.toUpperCase() || 'P' }), nombre),
-      el('div', {}, [
-        el('h2', { texto: nombre }),
-        el('span', { clase: 'apagado', texto: [clan?.nombre || 'Sin clan', enGrupo ? `${ordinal(enGrupo.pos)} de su grupo` : null].filter(Boolean).join(' · ') }),
-        // 12 · Chip junto al nombre en el perfil publico.
-        clave ? chipDivision(divisionDeClave(clave), nombreGrupo(clave)) : null,
-      ]),
-    ]),
-    el('div', { clase: 'cifras-piloto' }, [
-      ['Sprint', de(sprint) ? MODOS.sprint.formato(de(sprint).puntos) : '—'],
-      ['Fondo', de(fondo) ? MODOS.fondo.formato(de(fondo).puntos) : '—'],
-      ['Racha', de(constancia) ? MODOS.constancia.formato(de(constancia).puntos) : '—'],
-    ].map(([t, v]) => el('div', {}, [el('span', { texto: t }), el('strong', { texto: v })]))),
+  reemplazar(caraHueco, [
     cara.length ? el('div', { clase: 'hoy-seccion' }, [el('h3', { texto: 'Cara a cara' }), el('span', { texto: `tú ${ganoYo} · ${nombre.split(/[._]/)[0]} ${ganaOtro}` })]) : null,
     cara.length ? el('div', { clase: 'cara-a-cara' }, [
       ...cara.map((c) => el('div', { clase: 'fila-cara' }, [
@@ -824,9 +861,7 @@ async function abrirPiloto(nombre, desde = null) {
     ]) : null,
     !esYo && !cara.length && perfil?.username ? el('p', { clase: 'menor apagado', texto: 'Todavía no coincidís en ninguna de tus rutas.' }) : null,
     unViaje && haySesion && !esYo ? el('button', { clase: 'btn plano denunciar', texto: 'Denunciar nombre de piloto', attrs: { type: 'button' }, on: { click: () => denunciarNombre(nombre, unViaje) } }) : null,
-  ], { etiqueta: `Piloto ${nombre}`, clase: 'panel-lateral' });
-  volver.addEventListener('click', cerrar);
-  cerrarX.addEventListener('click', cerrar);
+  ]);
 }
 
 function menuDenuncia(nombre, desde, unViaje) {
@@ -910,6 +945,9 @@ onAuthStateChanged(auth, async (u) => {
   const params = parametros();
   const tab = params.get('tab') || (params.get('ruta') ? 'rutas' : 'pilotos');
   mostrar(tab, { recordar: false });
+  // `?piloto=nombre` abre su ficha: para enlazarla desde otras pantallas.
+  const piloto = params.get('piloto');
+  if (piloto && piloto.length <= 24) abrirPiloto(piloto);
 });
 
 // Sin sesion no hay a quien enseñar su fila: si el aviso de error estaba, se va.

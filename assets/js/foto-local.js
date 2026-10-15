@@ -24,4 +24,10 @@ export function ponerFoto(avatar, img) {
   const valida = typeof img === 'string' && /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(img);
   avatar.classList.toggle('con-foto', valida);
   avatar.style.backgroundImage = valida ? `url("${img}")` : '';
+  // En linea y no solo en el CSS: el color del clan llega como `background`
+  // en linea, y ese atajo devuelve el tamaño a `auto`, que gana a la hoja de
+  // estilos. La foto (128 px) se pintaba a su tamaño en un circulo de 64:
+  // solo se veia una esquina, como ampliada.
+  avatar.style.backgroundSize = valida ? 'cover' : '';
+  avatar.style.backgroundPosition = valida ? 'center' : '';
 }

@@ -46,7 +46,7 @@
   <div class="ranking-cabeza">
     <div class="ranking-titulo">
       <h1>Ranking</h1>
-      <span id="fin-temporada"></span>
+      <span id="fin-temporada" class="hueco"></span>
     </div>
     <div class="segmento pestanas-ranking" role="tablist" aria-label="Qué clasificación ver">
       <button type="button" role="tab" id="tab-pilotos" aria-controls="panel-pilotos" aria-selected="true">Pilotos</button>
@@ -69,13 +69,13 @@
     </div>
     <p class="explica-modo" id="explica-modo"></p>
     <p class="mensaje" id="msg-pilotos" aria-live="polite"></p>
-    <div id="tabla-pilotos"></div>
+    <div id="tabla-pilotos"><div class="esqueleto-lista" aria-hidden="true"><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div></div></div>
   </section>
 
   <!-- RUTAS: lista y detalle (en escritorio, las dos a la vez: 8i). -->
   <section id="panel-rutas" role="tabpanel" aria-labelledby="tab-rutas" class="oculto">
     <div class="rutas-rejilla">
-      <div class="rutas-lista" id="rutas-lista"></div>
+      <div class="rutas-lista" id="rutas-lista"><div class="esqueleto-lista" aria-hidden="true"><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div></div></div>
       <div class="ruta-detalle" id="ruta-detalle"></div>
     </div>
     <p class="mensaje" id="msg-rutas" aria-live="polite"></p>
@@ -84,7 +84,7 @@
   <!-- CLANES -->
   <section id="panel-clanes" role="tabpanel" aria-labelledby="tab-clanes" class="oculto">
     <p class="mensaje" id="msg-clanes" aria-live="polite"></p>
-    <div id="tabla-clanes"></div>
+    <div id="tabla-clanes"><div class="esqueleto-lista" aria-hidden="true"><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div><div class="esqueleto-fila"><span></span><span></span><span></span></div></div></div>
   </section>
 
   <div id="fila-fija" class="fila-fija oculto" aria-live="polite"></div>

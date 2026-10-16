@@ -55,6 +55,12 @@ const TIPOS = {
     etiqueta: 'Cuando alguien me adelanta en un tramo',
     porDefecto: true,
   },
+  // Un canje de enlace de evento tarda unos minutos (lo resuelve el worker):
+  // este aviso es como se entera quien ya cerro la pagina.
+  recompensa: {
+    etiqueta: 'Cuando consigo un banner o un lema',
+    porDefecto: true,
+  },
   cambioDivision: {
     etiqueta: 'Cuando cambio de división',
     porDefecto: false,

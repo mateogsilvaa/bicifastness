@@ -772,6 +772,56 @@ service cloud.firestore {
       allow write: if esAdmin();
     }
 
+    // --- Banners y lemas -------------------------------------------------------
+    // Como se consigue cada uno: { items: { id: { tipo, logro? } } }, con tipo
+    // 'manual' | 'evento' | 'logro'. Lo lee cualquiera (la pantalla de elegir
+    // dice como se consigue lo que falta) y solo la cambia la administracion.
+    // Lo que no esta aqui es 'manual'. El detalle de cada item se comprueba en
+    // el navegador al leer: aqui solo se acota la forma y el tamaño.
+    match /config/recompensas {
+      allow read: if true;
+      allow write: if esAdmin()
+        && datos().keys().hasOnly(['items', 'actualizado', 'por'])
+        && datos().items is map && datos().items.size() <= 80
+        && datos().por == request.auth.uid
+        && datos().actualizado == request.time;
+    }
+
+    // Los enlaces de evento: un documento por enlace, con el codigo (largo y
+    // al azar) como id. Solo la administracion los ve, los crea y los borra; el
+    // worker los marca como usados. Nadie mas puede LISTARLOS ni leerlos: quien
+    // tiene el enlace lo canjea (abajo), no lo lee.
+    match /recompensas_codigos/{codigo} {
+      allow read, delete: if esAdmin();
+      allow create: if esAdmin()
+        && codigo.matches('^[A-Za-z0-9]{16,40}$')
+        && datos().keys().hasOnly(['recompensa', 'creado', 'por'])
+        && datos().recompensa is string && datos().recompensa.matches('^[a-z0-9-]{1,40}$')
+        && datos().por == request.auth.uid
+        && datos().creado == request.time;
+      allow update: if false;
+    }
+
+    // "Quiero canjear este enlace": uno por piloto y de uno en uno, con el id
+    // del piloto. El navegador solo PIDE; lo que decide si el codigo vale y se
+    // lo da es el worker, que deja aqui el resultado. Mientras haya uno
+    // pendiente no se puede mandar otro, asi que probar codigos al azar sale a
+    // uno por pasada del worker.
+    function canjeValido() {
+      return datos().keys().hasOnly(['codigo', 'estado', 'creado'])
+        && datos().codigo is string && datos().codigo.matches('^[A-Za-z0-9]{16,40}$')
+        && datos().estado == 'pendiente'
+        && datos().creado == request.time;
+    }
+
+    match /canjes_recompensa/{uid} {
+      allow read: if esYo(uid) || esAdmin();
+      allow create: if esYo(uid) && canjeValido() && puedeUsarLaWeb() && cuentaActiva();
+      allow update: if esYo(uid) && previo().estado != 'pendiente'
+        && canjeValido() && puedeUsarLaWeb() && cuentaActiva();
+      allow delete: if false;
+    }
+
     // --- Tienda ---------------------------------------------------------------
     // Si se ve y que se vende. La lee cualquiera (la web decide si enseña el
     // acceso) y solo la cambia la administracion. Los precios de aqui son los
@@ -1112,15 +1162,22 @@ service cloud.firestore {
     // nombre.
     //
     // No vale cualquier id: o uno `libre-*`, que son los de serie, o uno que
-    // este en `recompensas` de su perfil, que el piloto no puede tocar. Asi un
-    // banner de pegatina no se lo pone nadie que no lo haya ganado, aunque
-    // escriba aqui desde la consola. Un id que no exista en el catalogo no
-    // rompe nada: el navegador lo ignora y pinta el de serie.
+    // este en `recompensas` de su perfil (que el piloto no puede tocar), o uno
+    // que la administracion ha atado a un logro (`config/recompensas`) cuando
+    // ese logro ya esta en `logros`, que tampoco puede tocar. Asi un banner de
+    // evento no se lo pone nadie que no lo haya ganado, aunque escriba aqui
+    // desde la consola. Un id que no exista en el catalogo no rompe nada: el
+    // navegador lo ignora y pinta el de serie.
     function recompensaValida(id) {
       return id == null
         || (id is string && id.size() <= 40 && id.matches('^[a-z0-9-]+$')
-            && (id.matches('^libre-.*')
-                || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('recompensas', []).hasAny([id])));
+            && (id.matches('^libre-.*') || tieneRecompensa(id)));
+    }
+
+    function tieneRecompensa(id) {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('recompensas', []).hasAny([id])
+        || get(/databases/$(database)/documents/config/recompensas).data.get('items', {}).get(id, {}).get('logro', '')
+          in get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('logros', []);
     }
 
     match /vitrinas/{nombre} {

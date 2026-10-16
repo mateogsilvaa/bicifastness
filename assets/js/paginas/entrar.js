@@ -14,6 +14,7 @@ import { vigilarErrores } from '/assets/js/errores.js';
 import { medir, anotar, volcar } from '/assets/js/metricas.js';
 import { montarBotonGoogle } from '/assets/js/acceso.js';
 import { montarOjo, marcarError } from '/assets/js/campos-acceso.js';
+import { destinoTrasEntrar } from '/assets/js/canje-pendiente.js';
 
 // Esta pantalla no usa `iniciarPagina` (no lleva navegacion), y por eso se
 // quedaba fuera de la recogida de errores y de la analitica: justo la pantalla
@@ -38,7 +39,7 @@ montarOjo(campoClave, id('ver-clave'));
 let entrando = false;
 
 onAuthStateChanged(auth, (usuario) => {
-  if (usuario && !entrando) window.location.replace('/');
+  if (usuario && !entrando) window.location.replace(destinoTrasEntrar());
 });
 
 montarBotonGoogle(id('btn-google'), id('mensaje-google'), {
@@ -93,7 +94,7 @@ form.addEventListener('submit', async (evento) => {
     await signInWithEmailAndPassword(auth, email, clave);
     anotar('login_completado');
     await volcar();
-    window.location.replace('/');
+    window.location.replace(destinoTrasEntrar());
   } catch (error) {
     entrando = false;
     boton.disabled = false;

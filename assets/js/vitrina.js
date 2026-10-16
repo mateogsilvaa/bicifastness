@@ -48,3 +48,22 @@ export async function guardarVitrina(perfil, { banner = null, lema = null }) {
   });
   enMemoria.set(clave, { banner, lema });
 }
+
+let configEnMemoria = null;
+
+/**
+ * Como se consigue cada recompensa (`config/recompensas`, que pone la
+ * administracion): una lectura por pagina. Sin ella, todo es "a mano".
+ */
+export async function leerConfigRecompensas() {
+  if (configEnMemoria) return configEnMemoria;
+  let config = { items: {} };
+  try {
+    const snap = await getDoc(doc(db, 'config', 'recompensas'));
+    if (snap.exists() && snap.data().items && typeof snap.data().items === 'object') config = { items: snap.data().items };
+  } catch {
+    // Sin red o reglas sin desplegar: se enseña todo como "a mano".
+  }
+  configEnMemoria = config;
+  return config;
+}

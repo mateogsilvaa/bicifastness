@@ -25,47 +25,13 @@ export function banner(id, { clase = '' } = {}) {
 }
 
 /**
- * Un lema, pintado con su estilo (`.lema-{estilo}` en app.css). Nunca entre
- * comillas: cada uno lleva su forma, y algunos se mueven.
- *
- * Todo el texto entra por `textContent`; los estilos solo reparten ese texto en
- * trozos para poder animarlos por separado.
- *
- * @param {string} id
- * @param {object} [o]
- * @param {string|null} [o.colorClan]  para el estilo `clan`
- * @param {boolean} [o.quieto]  sin movimiento (listas de bloqueados)
+ * Un lema: el texto con un reflejo metalico que lo cruza (`.lema` en app.css),
+ * igual para todos. Sin comillas. Todo entra por `textContent`.
  */
-export function lema(id, { colorClan = null, quieto = false } = {}) {
+export function lema(id) {
   const datos = LEMAS[id];
   if (!datos) return null;
-  const nodo = el('span', { clase: `lema lema-${datos.estilo}${quieto ? ' quieto' : ''}` });
-  const color = colorSeguro(colorClan);
-  if (color) nodo.style.setProperty('--color-clan', color);
-
-  const parte = (clase, texto) => el('span', { clase, texto });
-  const texto = datos.texto;
-  // "Principal (aparte)": el aparte va en pequeño y, segun el estilo, aparece despues.
-  const aparte = /^(.*?)\s*\((.+)\)$/.exec(texto);
-
-  if (datos.estilo === 'cuestas') {
-    // Cada palabra un escalon mas arriba.
-    texto.split(' ').forEach((palabra, i) => {
-      const w = parte('escalon', palabra);
-      w.style.setProperty('--i', String(i));
-      nodo.append(w, ' ');
-    });
-  } else if (datos.estilo === 'amor') {
-    // Las erres del final se estiran.
-    const cola = /r{2,}$/.exec(texto)?.[0] || '';
-    nodo.append(parte('base', texto.slice(0, texto.length - cola.length)), cola ? parte('erres', cola) : '', parte('corazon', ''));
-  } else if (aparte && (datos.estilo === 'mentira' || datos.estilo === 'sello')) {
-    nodo.append(parte('principal', aparte[1]), ' ', parte('aparte', `(${aparte[2]})`));
-  } else {
-    nodo.append(parte('principal', texto));
-  }
-  nodo.title = texto;
-  return nodo;
+  return el('span', { clase: 'lema', texto: datos.texto });
 }
 
 /**
@@ -77,18 +43,17 @@ export function lema(id, { colorClan = null, quieto = false } = {}) {
  * @param {string|null} p.banner
  * @param {string|null} p.lema
  * @param {string|null} p.clan  nombre del clan
- * @param {string|null} [p.colorClan]  su color (el lema `clan` lo usa)
  * @param {string|null} p.division
  * @param {string|null} p.liga  "Plata · grupo 4" o null
  */
-export function cabeceraPiloto({ nombre, avatar, banner: idBanner, lema: idLema, clan, colorClan, division, liga, detalle }) {
+export function cabeceraPiloto({ nombre, avatar, banner: idBanner, lema: idLema, clan, division, liga, detalle }) {
   avatar.classList.add('avatar-ficha');
   return el('div', { clase: 'ficha-publica' }, [
     banner(idBanner),
     el('div', { clase: 'ficha-publica-cuerpo' }, [
       avatar,
       el('h2', { clase: 'ficha-publica-nombre', texto: nombre }),
-      idLema ? el('p', { clase: 'ficha-publica-lema' }, [lema(idLema, { colorClan })]) : null,
+      idLema ? el('p', { clase: 'ficha-publica-lema' }, [lema(idLema)]) : null,
       el('div', { clase: 'ficha-publica-chips' }, [
         division ? chipDivision(division, liga) : null,
         el('span', { clase: 'chip-clan', texto: clan || 'Sin clan' }),

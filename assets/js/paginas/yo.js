@@ -40,9 +40,9 @@ import {
 } from '/assets/js/yo-vistas.js';
 import { tiendaAbierta } from '/assets/js/tienda.js';
 import { estadoAvisos, guiaAvisos, avisoDePrueba } from '/assets/js/guia-avisos.js';
-import { leerVitrina, guardarVitrina } from '/assets/js/vitrina.js';
+import { leerVitrina, guardarVitrina, leerConfigRecompensas } from '/assets/js/vitrina.js';
 import { banner, lema, cabeceraPiloto, colorAvatar } from '/assets/js/perfil-publico.js';
-import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene, imagenBanner } from '/assets/data/recompensas.js';
+import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene, comoSeGana, imagenBanner } from '/assets/data/recompensas.js';
 
 iniciarPagina('yo');
 
@@ -305,9 +305,10 @@ async function cargarPuestos() {
 // `perfil.recompensas`, que solo escriben el worker y la administracion.
 
 let vitrina = null;
+let configRec = null;
 
 async function cargarVitrina() {
-  vitrina = await leerVitrina(perfil.username);
+  [vitrina, configRec] = await Promise.all([leerVitrina(perfil.username), leerConfigRecompensas()]);
   id('ver-mi-ficha').href = `/clasificacion/?piloto=${encodeURIComponent(perfil.username)}`;
   pintarVitrina();
 }
@@ -336,13 +337,14 @@ for (const p of PANELES_VITRINA) id(`tab-vitrina-${p}`).addEventListener('click'
 
 function pintarVitrina() {
   pintarTarjetaVitrina();
-  const recompensas = perfil.recompensas || [];
+  // Lo que tienes: lo ganado (`recompensas`) y lo que da una insignia que ya tienes.
+  const tienes = (clave) => laTiene(clave, perfil, configRec);
   const nombre = perfil.username || 'Piloto';
   const avatar = colorAvatar(el('span', { clase: 'avatar-inicial', texto: [...nombre][0]?.toUpperCase() || 'P' }), clanDatos?.color);
   ponerFoto(avatar, fotoPropiaLocal());
   reemplazar(id('vitrina-previa'), cabeceraPiloto({
     nombre, avatar, banner: vitrina.banner, lema: vitrina.lema,
-    clan: clanDatos?.nombre || null, colorClan: clanDatos?.color, division: perfil.division || 'sin-clasificar',
+    clan: clanDatos?.nombre || null, division: perfil.division || 'sin-clasificar',
   }));
 
   // Lo que tienes, a la vista; lo que falta, plegado: con 20 banners y 10 lemas
@@ -361,19 +363,19 @@ function pintarVitrina() {
   // Banners: miniaturas en rejilla.
   const puesto = vitrina.banner || BANNER_POR_DEFECTO;
   const opcionBanner = ([clave, b]) => {
-    const tiene = laTiene(clave, recompensas);
+    const tiene = tienes(clave);
     return el('button', {
       clase: `opcion-banner${tiene ? '' : ' bloqueada'}`,
       attrs: {
         type: 'button', role: 'radio', 'aria-checked': String(tiene && clave === puesto),
         'aria-disabled': tiene ? null : 'true', 'aria-label': tiene ? b.titulo : `${b.titulo}, bloqueado`,
       },
-      on: { click: () => (tiene ? elegirVitrina({ banner: clave }) : pista(`${b.titulo}: ${b.como}`)) },
+      on: { click: () => (tiene ? elegirVitrina({ banner: clave }) : pista(`${b.titulo}: ${comoSeGana(clave, b.como, configRec)}`)) },
     }, [banner(clave), el('span', { texto: b.titulo }), tiene ? null : icono('candado', 'icono candado-sobre')]);
   };
   const banners = Object.entries(BANNERS);
-  const suyosB = banners.filter(([clave]) => laTiene(clave, recompensas));
-  const faltanB = banners.filter(([clave]) => !laTiene(clave, recompensas));
+  const suyosB = banners.filter(([clave]) => tienes(clave));
+  const faltanB = banners.filter(([clave]) => !tienes(clave));
   reemplazar(id('vitrina-banners'), [
     el('div', { clase: 'vitrina-opciones' }, suyosB.map(opcionBanner)),
     plegable('banner', faltanB.length, [el('div', { clase: 'vitrina-opciones' }, faltanB.map(opcionBanner))]),
@@ -382,22 +384,22 @@ function pintarVitrina() {
   // Lemas: chips que se ajustan al texto, cada uno con su estilo.
   const opcionLema = (clave) => {
     const datos = LEMAS[clave];
-    const tiene = !clave || laTiene(clave, recompensas);
+    const tiene = !clave || tienes(clave);
     return el('button', {
       clase: `opcion-lema${tiene ? '' : ' bloqueada'}`,
       attrs: {
         type: 'button', role: 'radio', 'aria-checked': String(tiene && (vitrina.lema || null) === (clave || null)),
         'aria-disabled': tiene ? null : 'true', 'aria-label': tiene ? (datos?.texto || 'Sin lema') : `${datos.texto}, bloqueado`,
       },
-      on: { click: () => (tiene ? elegirVitrina({ lema: clave || null }) : pista(`${datos.texto}: ${datos.como}`)) },
+      on: { click: () => (tiene ? elegirVitrina({ lema: clave || null }) : pista(`${datos.texto}: ${comoSeGana(clave, datos.como, configRec)}`)) },
     }, !clave ? [el('span', { texto: 'Sin lema' })]
-      : tiene ? [lema(clave, { colorClan: clanDatos?.color })]
+      : tiene ? [lema(clave)]
         : [icono('candado'), el('span', { texto: datos.texto })]);
   };
   const lemas = Object.keys(LEMAS);
   reemplazar(id('vitrina-lemas'), [
-    el('div', { clase: 'vitrina-chips' }, [null, ...lemas.filter((c) => laTiene(c, recompensas))].map(opcionLema)),
-    plegable('lema', lemas.filter((c) => !laTiene(c, recompensas)).length, [el('div', { clase: 'vitrina-chips' }, lemas.filter((c) => !laTiene(c, recompensas)).map(opcionLema))]),
+    el('div', { clase: 'vitrina-chips' }, [null, ...lemas.filter((c) => tienes(c))].map(opcionLema)),
+    plegable('lema', lemas.filter((c) => !tienes(c)).length, [el('div', { clase: 'vitrina-chips' }, lemas.filter((c) => !tienes(c)).map(opcionLema))]),
   ]);
 }
 
@@ -771,7 +773,7 @@ async function montarAvisosPush(datos) {
   ];
 
   // 8o: a la derecha, cuando o donde llega cada uno.
-  const NOTAS = { viajeResuelto: 'aceptado o no', rachaEnPeligro: '20:00', recordPerdido: '1.º puesto', adelantado: 'tus tramos', cambioDivision: 'lunes, cada dos semanas' };
+  const NOTAS = { viajeResuelto: 'aceptado o no', rachaEnPeligro: '20:00', recordPerdido: '1.º puesto', adelantado: 'tus tramos', recompensa: 'eventos y logros', cambioDivision: 'lunes, cada dos semanas' };
   for (const [tipo, info] of Object.entries(TIPOS_PUSH)) {
     const fila = interruptor(
       info.etiqueta,

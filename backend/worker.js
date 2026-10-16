@@ -41,6 +41,7 @@ const {
 } = require('./src/util');
 const imagen = require('./src/imagen');
 const tienda = require('./src/tienda');
+const canjes = require('./src/canjes');
 const rutasDestacadas = require('./src/rutas-destacadas');
 const {
   leerCaptura, releerCaptura, elegirTrayecto, cerrar: cerrarOcr,
@@ -2719,6 +2720,28 @@ function avisarAdmin(asunto, cuerpo, enlace = null) {
 }
 
 /**
+ * Canjes de enlaces de evento (src/canjes.js): quien abre un enlace deja una
+ * peticion y aqui se decide. Si sale bien, aviso por push (si lo tiene
+ * activado), que es como se entera quien ya cerro la pagina. Nunca lanza.
+ */
+async function resolverCanjes() {
+  try {
+    await canjes.procesarCanjes({
+      db,
+      admin,
+      simular: SIMULAR,
+      avisar: (uid) => push.enviar(uid, 'recompensa', {
+        titulo: 'Has conseguido una recompensa',
+        cuerpo: 'Ya puedes ponértela en tu perfil público.',
+        url: '/yo/#perfil',
+      }, { simular: SIMULAR }),
+    });
+  } catch (error) {
+    console.warn('No se han podido resolver los canjes:', error.message);
+  }
+}
+
+/**
  * La tienda: los pagos nuevos de Stripe pasan a pedidos de la imprenta
  * (src/tienda.js). Sin `STRIPE_SECRET_KEY` no hace nada ni lee nada. Nunca
  * lanza: un fallo de Stripe o de la imprenta no puede tumbar la verificacion.
@@ -2955,6 +2978,7 @@ async function main() {
   await enviarCorreosPedidos();
   await procesarValoraciones();
   await venderEnLaTienda();
+  await resolverCanjes();
   // Despues de las bienvenidas a proposito: si una acaba de fallar y se ha
   // encolado, el primer reintento es dentro de un minuto, o sea en la pasada
   // siguiente. Ponerlo antes no adelantaria nada y haria una lectura de mas.

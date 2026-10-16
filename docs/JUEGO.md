@@ -296,25 +296,44 @@ elige cada uno en Tu > Perfil publico, de entre los que tiene.
 - **De serie** (`libre-*`): tres banners (Calzada, Tinta y La vuelta) y un lema
   («Las cuestas también cuentan») que tiene todo el mundo desde el primer dia.
   Todo lo demas tiene que ser dificil de conseguir.
-- **Estilo de cada lema**: no van entre comillas. Cada uno tiene su `estilo`
-  en el catalogo (`acelera`, `bateria`, `oro`...), que decide como se pinta
-  (`lema()` en `perfil-publico.js`, reglas `.lema-{estilo}` en `app.css`). Unos
-  se mueven y otros no. Un lema nuevo con un estilo nuevo necesita su regla CSS.
-- **Ganados**: el resto. Viven en `usuarios/{uid}.recompensas`, que el piloto
-  no puede escribir. Hoy los concede la administracion (Pilotos y clanes >
-  Banners y lemas ganados).
+- **Todos los lemas se pintan igual**: el texto con un reflejo metalico que lo
+  cruza (`.lema` en `app.css`), sin comillas. Lo que distingue unos de otros es
+  el texto, no el efecto. Con "reducir movimiento" solo se ve el metal quieto.
 
-La idea para ganarlos son pegatinas NFC en bicis concretas: quien la escanea
-el primero se lleva un banner o un lema. Ese canje todavia no existe; cuando
-llegue, solo tiene que apuntar el id en `recompensas` (desde el worker, nunca
-desde el navegador), y todo lo demas ya funciona.
+### Como se consigue cada banner y lema
+
+Todo lo que no es de serie lo decide la administracion en
+**/admin/recompensas/**. Cada banner y cada lema tiene uno de tres modos
+(`config/recompensas`, que lee cualquiera y escribe solo la administracion):
+
+- **A mano** (el de antes, y el de lo que no se ha tocado): solo lo tiene quien
+  se lo da la administracion, en Pilotos y clanes > buscar al piloto. Va en
+  `usuarios/{uid}.recompensas`, que el piloto no puede escribir.
+- **Evento**: la administracion elige cuantos reparte y la web crea un enlace de
+  un solo uso por cada uno (`recompensas_codigos/{codigo}`, solo visibles para
+  la administracion), listo para copiar. Quien abre
+  `/canjear/?c=CODIGO` y pulsa *Canjear* deja una peticion en
+  `canjes_recompensa/{su uid}`; el **worker** la decide (`backend/src/canjes.js`):
+  si el codigo existe y no se ha usado, lo gasta y apunta la recompensa en
+  `recompensas`. Tarda unos minutos y, si tiene los avisos activados, le llega
+  un push («Has conseguido una recompensa»). Si ya la tenia, el enlace **no** se
+  gasta. Sin sesion, el codigo se guarda y se vuelve a `/canjear/` al entrar.
+- **Logro**: se tiene en cuanto se tiene cierta insignia, ahora y en adelante.
+  No hay nada que repartir: la pantalla de elegir y las reglas de Firestore
+  comparan `logros` con la config. Si la administracion cambia la insignia, el
+  cambio vale para todos al instante.
+
+Los enlaces no son listables ni adivinables (20 caracteres al azar, unos 99
+bits), y cada piloto solo puede tener una peticion pendiente: probar codigos
+al azar sale a uno por pasada del worker.
 
 Catalogo: `assets/data/recompensas.js`. Cada banner es un SVG de 1200 x 400
 en `assets/img/banners/{id}.svg`; se recorta segun la pantalla (de 2,3:1 a
 6:1), asi que lo importante va en la franja central y la esquina de abajo a la
 izquierda queda bajo la foto. Las imagenes se sirven con cache de un año: si
 un dibujo cambia, cambia de nombre. Lo que lleva puesto cada uno:
-`vitrinas/{nombre}`, publico, y las reglas solo dejan ids libres o ganados.
+`vitrinas/{nombre}`, publico, y las reglas solo dejan ids libres, ganados o
+desbloqueados por un logro.
 Las insignias de todos salen en `agregados/logros-publicos`, que escribe el
 worker.
 

@@ -42,7 +42,7 @@ import { tiendaAbierta } from '/assets/js/tienda.js';
 import { estadoAvisos, guiaAvisos, avisoDePrueba } from '/assets/js/guia-avisos.js';
 import { leerVitrina, guardarVitrina } from '/assets/js/vitrina.js';
 import { banner, cabeceraPiloto, colorAvatar } from '/assets/js/perfil-publico.js';
-import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene } from '/assets/data/recompensas.js';
+import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene, imagenBanner } from '/assets/data/recompensas.js';
 
 iniciarPagina('yo');
 
@@ -315,7 +315,8 @@ async function cargarVitrina() {
 /** La tarjeta del resumen: tu banner de fondo y tu lema. */
 function pintarTarjetaVitrina() {
   if (!vitrina) return;
-  id('banner-yo').className = `banner-piloto banner-${BANNERS[vitrina.banner] ? vitrina.banner : BANNER_POR_DEFECTO}`;
+  id('banner-yo').className = 'banner-piloto';
+  id('banner-yo').style.backgroundImage = `url("${imagenBanner(vitrina.banner)}")`;
   id('lema-yo').textContent = LEMAS[vitrina.lema] ? `«${LEMAS[vitrina.lema].texto}»` : 'Elige tu banner y tu lema';
 }
 

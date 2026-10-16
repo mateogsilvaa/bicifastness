@@ -15,22 +15,39 @@
  * id `libre-*`, o uno que este en tu lista de recompensas. Por eso el prefijo
  * no se puede cambiar sin cambiar tambien las reglas.
  *
- * El aspecto de cada banner vive en el CSS (`.banner-{id}`), no aqui: un
- * fondo es diseño, y asi el catalogo no lleva estilos.
+ * El dibujo de cada banner es un SVG de 1200 x 400 en
+ * `assets/img/banners/{id}.svg`. Se ve recortado segun la pantalla (de 2,3:1
+ * a 6:1), asi que lo importante va en la franja central.
  *
  * `como` es lo que se enseña de una recompensa que aun no tienes: como se
  * consigue, sin destripar donde esta la pegatina.
  */
 
+const COMO_SE_GANA = 'Se gana: pegatinas en bicis, eventos e hitos.';
+
 export const BANNERS = {
-  'libre-asfalto': { titulo: 'Asfalto', como: 'De serie.' },
-  'libre-amanecer': { titulo: 'Amanecer', como: 'De serie.' },
-  'libre-retiro': { titulo: 'Retiro', como: 'De serie.' },
-  'libre-carril': { titulo: 'Carril bici', como: 'De serie.' },
-  'pegatina-azul': { titulo: 'Pegatina azul', como: 'Escanea el primero una pegatina BiciFastness escondida en una bici.' },
-  'madrid-noche': { titulo: 'Madrid de noche', como: 'Escondido en una pegatina de alguna bici. Hay que encontrarla.' },
-  'kilometro-cero': { titulo: 'Kilómetro cero', como: 'En la pegatina de una bici que pasa por Sol.' },
-  'fundador': { titulo: 'Fundador', como: 'Para quien estuvo en la primera tanda.' },
+  // De serie: los tres que tiene todo el mundo.
+  'libre-calzada': { titulo: 'Calzada', como: 'De serie.' },
+  'libre-tinta': { titulo: 'Tinta', como: 'De serie.' },
+  'libre-la-vuelta': { titulo: 'La vuelta', como: 'De serie.' },
+  // Los que se ganan.
+  'ecos': { titulo: 'Ecos', como: COMO_SE_GANA },
+  'carril-bici': { titulo: 'Carril bici', como: COMO_SE_GANA },
+  'metro': { titulo: 'Metro', como: COMO_SE_GANA },
+  'atardecer': { titulo: 'Atardecer', como: COMO_SE_GANA },
+  'estaciones': { titulo: 'Estaciones', como: COMO_SE_GANA },
+  'regla': { titulo: 'Regla', como: COMO_SE_GANA },
+  'velocidad': { titulo: 'Velocidad', como: COMO_SE_GANA },
+  'neon': { titulo: 'Neón', como: COMO_SE_GANA },
+  'radios': { titulo: 'Radios', como: COMO_SE_GANA },
+  'pixeles': { titulo: 'Píxeles', como: COMO_SE_GANA },
+  'ojos': { titulo: 'Ojos', como: COMO_SE_GANA },
+  'paso-de-cebra': { titulo: 'Paso de cebra', como: COMO_SE_GANA },
+  'cuestas': { titulo: 'Cuestas', como: COMO_SE_GANA },
+  'ligas': { titulo: 'Ligas', como: COMO_SE_GANA },
+  'confeti': { titulo: 'Confeti', como: COMO_SE_GANA },
+  'meta': { titulo: 'Meta', como: COMO_SE_GANA },
+  'noche': { titulo: 'Noche', como: COMO_SE_GANA },
 };
 
 export const LEMAS = {
@@ -44,7 +61,10 @@ export const LEMAS = {
 };
 
 /** El banner que lleva quien no ha elegido ninguno. */
-export const BANNER_POR_DEFECTO = 'libre-asfalto';
+export const BANNER_POR_DEFECTO = 'libre-calzada';
+
+/** El dibujo de cada banner: un SVG de 1200 x 400 con el mismo nombre que su id. */
+export const imagenBanner = (id) => `/assets/img/banners/${BANNERS[id] ? id : BANNER_POR_DEFECTO}.svg`;
 
 export const esLibre = (id) => String(id || '').startsWith('libre-');
 

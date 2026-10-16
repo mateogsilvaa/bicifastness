@@ -41,7 +41,7 @@ import {
 import { tiendaAbierta } from '/assets/js/tienda.js';
 import { estadoAvisos, guiaAvisos, avisoDePrueba } from '/assets/js/guia-avisos.js';
 import { leerVitrina, guardarVitrina } from '/assets/js/vitrina.js';
-import { banner, cabeceraPiloto, colorAvatar } from '/assets/js/perfil-publico.js';
+import { banner, lema, cabeceraPiloto, colorAvatar } from '/assets/js/perfil-publico.js';
 import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene, imagenBanner } from '/assets/data/recompensas.js';
 
 iniciarPagina('yo');
@@ -317,8 +317,22 @@ function pintarTarjetaVitrina() {
   if (!vitrina) return;
   id('banner-yo').className = 'banner-piloto';
   id('banner-yo').style.backgroundImage = `url("${imagenBanner(vitrina.banner)}")`;
-  id('lema-yo').textContent = LEMAS[vitrina.lema] ? `«${LEMAS[vitrina.lema].texto}»` : 'Elige tu banner y tu lema';
+  id('lema-yo').textContent = LEMAS[vitrina.lema] ? LEMAS[vitrina.lema].texto : 'Elige tu banner y tu lema';
 }
+
+// La pestaña abierta del editor y si estan desplegados los que faltan por ganar:
+// se recuerdan para que elegir algo no lo pliegue todo otra vez.
+const PANELES_VITRINA = ['banner', 'lema'];
+const verPorGanar = { banner: false, lema: false };
+
+function mostrarPanelVitrina(cual) {
+  for (const p of PANELES_VITRINA) {
+    id(`tab-vitrina-${p}`).setAttribute('aria-selected', String(p === cual));
+    id(`panel-vitrina-${p}`).classList.toggle('oculto', p !== cual);
+  }
+  estado(id('msg-vitrina'), '');
+}
+for (const p of PANELES_VITRINA) id(`tab-vitrina-${p}`).addEventListener('click', () => mostrarPanelVitrina(p));
 
 function pintarVitrina() {
   pintarTarjetaVitrina();
@@ -328,28 +342,62 @@ function pintarVitrina() {
   ponerFoto(avatar, fotoPropiaLocal());
   reemplazar(id('vitrina-previa'), cabeceraPiloto({
     nombre, avatar, banner: vitrina.banner, lema: vitrina.lema,
-    clan: clanDatos?.nombre || null, division: perfil.division || 'sin-clasificar',
+    clan: clanDatos?.nombre || null, colorClan: clanDatos?.color, division: perfil.division || 'sin-clasificar',
   }));
 
-  const candado = (como) => el('span', { clase: 'bloqueo' }, [icono('candado'), el('span', { texto: como })]);
+  // Lo que tienes, a la vista; lo que falta, plegado: con 20 banners y 10 lemas
+  // casi todo sera "por ganar", y no tiene que ocupar la pantalla.
+  const pista = (texto) => estado(id('msg-vitrina'), texto);
+  const plegable = (cual, cuantos, contenido) => {
+    if (!cuantos) return null;
+    const d = el('details', { clase: 'por-ganar', attrs: { open: verPorGanar[cual] ? '' : null } }, [
+      el('summary', {}, [icono('candado'), el('span', { texto: `Por ganar · ${cuantos}` }), icono('abajo', 'icono chevron')]),
+      ...contenido,
+    ]);
+    d.addEventListener('toggle', () => { verPorGanar[cual] = d.open; });
+    return d;
+  };
+
+  // Banners: miniaturas en rejilla.
   const puesto = vitrina.banner || BANNER_POR_DEFECTO;
-  reemplazar(id('vitrina-banners'), Object.entries(BANNERS).map(([clave, b]) => {
+  const opcionBanner = ([clave, b]) => {
     const tiene = laTiene(clave, recompensas);
     return el('button', {
-      clase: 'opcion-banner',
-      attrs: { type: 'button', role: 'radio', 'aria-checked': String(clave === puesto), disabled: tiene ? null : '' },
-      on: { click: () => elegirVitrina({ banner: clave }) },
-    }, [banner(clave), el('span', { texto: b.titulo }), tiene ? null : candado(b.como)]);
-  }));
+      clase: `opcion-banner${tiene ? '' : ' bloqueada'}`,
+      attrs: {
+        type: 'button', role: 'radio', 'aria-checked': String(tiene && clave === puesto),
+        'aria-disabled': tiene ? null : 'true', 'aria-label': tiene ? b.titulo : `${b.titulo}, bloqueado`,
+      },
+      on: { click: () => (tiene ? elegirVitrina({ banner: clave }) : pista(`${b.titulo}: ${b.como}`)) },
+    }, [banner(clave), el('span', { texto: b.titulo }), tiene ? null : icono('candado', 'icono candado-sobre')]);
+  };
+  const banners = Object.entries(BANNERS);
+  const suyosB = banners.filter(([clave]) => laTiene(clave, recompensas));
+  const faltanB = banners.filter(([clave]) => !laTiene(clave, recompensas));
+  reemplazar(id('vitrina-banners'), [
+    el('div', { clase: 'vitrina-opciones' }, suyosB.map(opcionBanner)),
+    plegable('banner', faltanB.length, [el('div', { clase: 'vitrina-opciones' }, faltanB.map(opcionBanner))]),
+  ]);
 
-  const opcionLema = (clave, texto, como = null) => el('button', {
-    clase: 'opcion-lema',
-    attrs: { type: 'button', role: 'radio', 'aria-checked': String(vitrina.lema === clave), disabled: como ? '' : null },
-    on: { click: () => elegirVitrina({ lema: clave }) },
-  }, [el('span', { texto }), como ? candado(como) : null]);
+  // Lemas: chips que se ajustan al texto, cada uno con su estilo.
+  const opcionLema = (clave) => {
+    const datos = LEMAS[clave];
+    const tiene = !clave || laTiene(clave, recompensas);
+    return el('button', {
+      clase: `opcion-lema${tiene ? '' : ' bloqueada'}`,
+      attrs: {
+        type: 'button', role: 'radio', 'aria-checked': String(tiene && (vitrina.lema || null) === (clave || null)),
+        'aria-disabled': tiene ? null : 'true', 'aria-label': tiene ? (datos?.texto || 'Sin lema') : `${datos.texto}, bloqueado`,
+      },
+      on: { click: () => (tiene ? elegirVitrina({ lema: clave || null }) : pista(`${datos.texto}: ${datos.como}`)) },
+    }, !clave ? [el('span', { texto: 'Sin lema' })]
+      : tiene ? [lema(clave, { colorClan: clanDatos?.color })]
+        : [icono('candado'), el('span', { texto: datos.texto })]);
+  };
+  const lemas = Object.keys(LEMAS);
   reemplazar(id('vitrina-lemas'), [
-    opcionLema(null, 'Sin lema'),
-    ...Object.entries(LEMAS).map(([clave, l]) => opcionLema(clave, `«${l.texto}»`, laTiene(clave, recompensas) ? null : l.como)),
+    el('div', { clase: 'vitrina-chips' }, [null, ...lemas.filter((c) => laTiene(c, recompensas))].map(opcionLema)),
+    plegable('lema', lemas.filter((c) => !laTiene(c, recompensas)).length, [el('div', { clase: 'vitrina-chips' }, lemas.filter((c) => !laTiene(c, recompensas)).map(opcionLema))]),
   ]);
 }
 

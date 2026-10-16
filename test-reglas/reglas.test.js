@@ -478,20 +478,20 @@ test('la foto la sube la cuenta de ese nombre, pequena y sin URLs', async () => 
 test('la vitrina solo lleva banners y lemas libres o ganados', async () => {
   await entorno.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'usuarios', UID), {
-      uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: ['neon'],
+      uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: ['neon', 'acab'],
     });
     await setDoc(doc(ctx.firestore(), 'usuarios', OTRO), { uid: OTRO, username: 'Otro', usernameLower: 'otro' });
   });
   const ref = doc(como(UID), 'vitrinas', 'laura');
   const vitrina = (banner, lema) => ({ uid: UID, banner, lema, actualizado: serverTimestamp() });
   // De serie y ganado, si; nada, tambien.
-  await assertSucceeds(setDoc(ref, vitrina('libre-calzada', 'libre-rodando')));
-  await assertSucceeds(setDoc(ref, vitrina('neon', null)));
+  await assertSucceeds(setDoc(ref, vitrina('libre-calzada', 'libre-cuestas')));
+  await assertSucceeds(setDoc(ref, vitrina('neon', 'acab')));
   await assertSucceeds(setDoc(ref, vitrina(null, null)));
   await assertSucceeds(getDoc(doc(anonimo(), 'vitrinas', 'laura')));
   // Lo que no ha ganado, no.
   await assertFails(setDoc(ref, vitrina('noche', null)));
-  await assertFails(setDoc(ref, vitrina('libre-calzada', 'llegue-primero')));
+  await assertFails(setDoc(ref, vitrina('libre-calzada', 'fundador')));
   // Ni ids raros, ni campos de mas, ni la vitrina de otro nombre.
   await assertFails(setDoc(ref, vitrina('Libre-<b>', null)));
   await assertFails(setDoc(ref, { ...vitrina('libre-calzada', null), texto: 'hola' }));

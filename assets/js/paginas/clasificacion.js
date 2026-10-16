@@ -808,6 +808,7 @@ async function abrirPiloto(nombre, desde = null) {
     cabeceraPiloto({
       nombre, avatar, banner: vitrina.banner, lema: vitrina.lema,
       clan: clan?.nombre || null,
+      colorClan: clan?.color,
       // 12 · Chip junto al nombre en el perfil publico.
       division: division || 'sin-clasificar', liga: clave ? nombreGrupo(clave) : null,
       detalle: enGrupo ? `${ordinal(enGrupo.pos)} de su grupo` : null,

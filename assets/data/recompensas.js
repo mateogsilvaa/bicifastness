@@ -23,7 +23,7 @@
  * consigue, sin destripar donde esta la pegatina.
  */
 
-const COMO_SE_GANA = 'Se gana: pegatinas en bicis, eventos e hitos.';
+const COMO_SE_GANA = 'Es difícil: sale de pegatinas escondidas en bicis, de eventos y de retos.';
 
 export const BANNERS = {
   // De serie: los tres que tiene todo el mundo.
@@ -50,14 +50,28 @@ export const BANNERS = {
   'noche': { titulo: 'Noche', como: COMO_SE_GANA },
 };
 
+/**
+ * Los lemas. Salvo el de serie, hay que ganarlos, y se quiere que cuesten:
+ * lo que lleva alguien en su ficha tiene que decir algo de esa persona.
+ *
+ * `estilo` es como se PINTA (perfil-publico.js, `lema()`; el CSS es
+ * `.lema-{estilo}`): unos se mueven y otros no, y el texto nunca va entre
+ * comillas. Si se añade un estilo hay que añadir su regla en app.css.
+ */
 export const LEMAS = {
-  'libre-rodando': { texto: 'Rodando por Madrid', como: 'De serie.' },
-  'libre-cada-dia': { texto: 'Un día más, una estación más', como: 'De serie.' },
-  'libre-sin-prisa': { texto: 'Sin prisa, pero sin pausa', como: 'De serie.' },
-  'libre-cuestas': { texto: 'Las cuestas también cuentan', como: 'De serie.' },
-  'cazapegatinas': { texto: 'Cazador de pegatinas', como: 'Escanea el primero una pegatina BiciFastness.' },
-  'llegue-primero': { texto: 'Llegué el primero', como: 'Escondido en una pegatina de alguna bici.' },
-  'desde-el-principio': { texto: 'Estuve desde el principio', como: 'Para quien estuvo en la primera tanda.' },
+  // El de serie: lo tiene todo el mundo.
+  'libre-cuestas': { texto: 'Las cuestas también cuentan', estilo: 'cuestas', como: 'De serie.' },
+  // Los que se ganan.
+  'mas-rapido-que-el-bus': { texto: 'Más rápido que el autobús', estilo: 'acelera', como: COMO_SE_GANA },
+  'madrid-es-mi-circuito': { texto: 'Madrid es mi circuito', estilo: 'circuito', como: COMO_SE_GANA },
+  'mi-clan-mi-territorio': { texto: 'Mi clan, mi territorio', estilo: 'clan', como: COMO_SE_GANA },
+  'culpa-de-la-bateria': { texto: 'Culpa de la batería', estilo: 'bateria', como: COMO_SE_GANA },
+  'hoy-no-llego-tarde': { texto: 'Hoy no llego tarde (mentira)', estilo: 'mentira', como: COMO_SE_GANA },
+  'desde-el-origen': { texto: 'Desde el origen', estilo: 'origen', como: 'Para quien estuvo desde el primer día.' },
+  'acab': { texto: 'ACAB (All Cars Are Bastards)', estilo: 'sello', como: COMO_SE_GANA },
+  'biciloverrr': { texto: 'Biciloverrr', estilo: 'amor', como: COMO_SE_GANA },
+  'fundador': { texto: 'Fundador', estilo: 'oro', como: 'Para quien estuvo en la primera tanda.' },
+  'im-a-winner': { texto: "I'm a winner bitch", estilo: 'ganador', como: COMO_SE_GANA },
 };
 
 /** El banner que lleva quien no ha elegido ninguno. */

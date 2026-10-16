@@ -11,6 +11,7 @@ import { entrarConGoogle, getAdditionalUserInfo, traducirErrorAuth } from './fir
 import { estado } from './dom.js';
 import { anotar, volcar } from './metricas.js';
 import { registrar } from './errores.js';
+import { destinoTrasEntrar } from './canje-pendiente.js';
 
 /** Lo que hace la persona, no un fallo: no se apunta como error. */
 const DE_LA_PERSONA = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/popup-blocked']);
@@ -34,9 +35,10 @@ export function montarBotonGoogle(boton, mensaje, { alEmpezar, alFallar } = {}) 
       // Una cuenta NUEVA no ha completado nada todavia: le falta el nombre de
       // piloto, y el registro se cuenta cuando lo elija (portada). Contarlo
       // aqui inflaria el embudo con quien abre el popup y se va.
-      if (!getAdditionalUserInfo(resultado)?.isNewUser) anotar('login_completado');
+      const cuentaNueva = Boolean(getAdditionalUserInfo(resultado)?.isNewUser);
+      if (!cuentaNueva) anotar('login_completado');
       await volcar();
-      window.location.replace('/');
+      window.location.replace(destinoTrasEntrar({ cuentaNueva }));
     } catch (error) {
       boton.disabled = false;
       alFallar?.();

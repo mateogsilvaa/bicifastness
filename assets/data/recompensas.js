@@ -23,6 +23,8 @@
  * consigue, sin destripar donde esta la pegatina.
  */
 
+import { INSIGNIAS } from './insignias.js';
+
 const COMO_SE_GANA = 'Es difícil: sale de pegatinas escondidas en bicis, de eventos y de retos.';
 
 export const BANNERS = {
@@ -51,27 +53,26 @@ export const BANNERS = {
 };
 
 /**
- * Los lemas. Salvo el de serie, hay que ganarlos, y se quiere que cuesten:
- * lo que lleva alguien en su ficha tiene que decir algo de esa persona.
+ * Los lemas. Salvo el de serie, hay que ganarlos, y se quiere que cuesten: lo
+ * que lleva alguien en su ficha tiene que decir algo de esa persona.
  *
- * `estilo` es como se PINTA (perfil-publico.js, `lema()`; el CSS es
- * `.lema-{estilo}`): unos se mueven y otros no, y el texto nunca va entre
- * comillas. Si se añade un estilo hay que añadir su regla en app.css.
+ * Todos se pintan igual (`.lema` en app.css): un reflejo metalico que cruza
+ * el texto. Lo que los distingue es el texto, no el efecto.
  */
 export const LEMAS = {
   // El de serie: lo tiene todo el mundo.
-  'libre-cuestas': { texto: 'Las cuestas también cuentan', estilo: 'cuestas', como: 'De serie.' },
+  'libre-cuestas': { texto: 'Las cuestas también cuentan', como: 'De serie.' },
   // Los que se ganan.
-  'mas-rapido-que-el-bus': { texto: 'Más rápido que el autobús', estilo: 'acelera', como: COMO_SE_GANA },
-  'madrid-es-mi-circuito': { texto: 'Madrid es mi circuito', estilo: 'circuito', como: COMO_SE_GANA },
-  'mi-clan-mi-territorio': { texto: 'Mi clan, mi territorio', estilo: 'clan', como: COMO_SE_GANA },
-  'culpa-de-la-bateria': { texto: 'Culpa de la batería', estilo: 'bateria', como: COMO_SE_GANA },
-  'hoy-no-llego-tarde': { texto: 'Hoy no llego tarde (mentira)', estilo: 'mentira', como: COMO_SE_GANA },
-  'desde-el-origen': { texto: 'Desde el origen', estilo: 'origen', como: 'Para quien estuvo desde el primer día.' },
-  'acab': { texto: 'ACAB (All Cars Are Bastards)', estilo: 'sello', como: COMO_SE_GANA },
-  'biciloverrr': { texto: 'Biciloverrr', estilo: 'amor', como: COMO_SE_GANA },
-  'fundador': { texto: 'Fundador', estilo: 'oro', como: 'Para quien estuvo en la primera tanda.' },
-  'im-a-winner': { texto: "I'm a winner bitch", estilo: 'ganador', como: COMO_SE_GANA },
+  'mas-rapido-que-el-bus': { texto: 'Más rápido que el autobús', como: COMO_SE_GANA },
+  'madrid-es-mi-circuito': { texto: 'Madrid es mi circuito', como: COMO_SE_GANA },
+  'mi-clan-mi-territorio': { texto: 'Mi clan, mi territorio', como: COMO_SE_GANA },
+  'culpa-de-la-bateria': { texto: 'Culpa de la batería', como: COMO_SE_GANA },
+  'hoy-no-llego-tarde': { texto: 'Hoy no llego tarde (mentira)', como: COMO_SE_GANA },
+  'desde-el-origen': { texto: 'Desde el origen', como: 'Para quien estuvo desde el primer día.' },
+  'acab': { texto: 'ACAB (All Cars Are Bastards)', como: COMO_SE_GANA },
+  'biciloverrr': { texto: 'Biciloverrr', como: COMO_SE_GANA },
+  'fundador': { texto: 'Fundador', como: 'Para quien estuvo en la primera tanda.' },
+  'im-a-winner': { texto: "I'm a winner bitch", como: COMO_SE_GANA },
 };
 
 /** El banner que lleva quien no ha elegido ninguno. */
@@ -82,7 +83,45 @@ export const imagenBanner = (id) => `/assets/img/banners/${BANNERS[id] ? id : BA
 
 export const esLibre = (id) => String(id || '').startsWith('libre-');
 
-/** Si un piloto puede llevar esa recompensa: libre, o ganada. */
-export function laTiene(id, recompensas = []) {
-  return esLibre(id) || (Array.isArray(recompensas) && recompensas.includes(id));
+/**
+ * Los tres modos de conseguir una recompensa (los decide la administracion en
+ * /admin/recompensas/ y viven en `config/recompensas`):
+ * - manual: solo si te la da la administracion.
+ * - evento: con un enlace de un solo uso que se reparte en un evento.
+ * - logro: se tiene en cuanto se tiene cierta insignia.
+ */
+export const TIPOS_RECOMPENSA = { manual: 'A mano', evento: 'Evento', logro: 'Logro' };
+
+/** El modo de una recompensa segun la config (que puede no existir o venir rara). */
+export function tipoDe(id, config) {
+  const t = config?.items?.[id]?.tipo;
+  return TIPOS_RECOMPENSA[t] ? t : 'manual';
+}
+
+/**
+ * Si un piloto puede llevar esa recompensa: de serie, ganada (`recompensas`,
+ * que solo escriben la administracion y el worker) o de logro, o sea que tiene
+ * la insignia a la que la administracion la ha atado.
+ *
+ * Es lo mismo que comprueban las reglas de Firestore al guardar la vitrina.
+ */
+export function laTiene(id, { recompensas = [], logros = [] } = {}, config = null) {
+  if (esLibre(id)) return true;
+  if (Array.isArray(recompensas) && recompensas.includes(id)) return true;
+  const logro = tipoDe(id, config) === 'logro' ? config.items[id].logro : null;
+  return Boolean(logro) && Array.isArray(logros) && logros.includes(logro);
+}
+
+/**
+ * Lo que se le dice a quien ve esa recompensa bloqueada: segun como se
+ * consiga, y sin destripar nada que deba seguir escondido.
+ */
+export function comoSeGana(id, como, config) {
+  const tipo = tipoDe(id, config);
+  if (tipo === 'evento') return 'Se reparte en eventos: hace falta un enlace especial.';
+  if (tipo === 'logro') {
+    const insignia = INSIGNIAS[config.items[id].logro];
+    if (insignia) return `Se consigue con la insignia «${insignia.titulo}».`;
+  }
+  return como;
 }

@@ -16,6 +16,7 @@ import { pintarMapaFondo } from '/assets/js/mapa-fondo.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
 import { PALABRAS_PROHIBIDAS } from '/assets/data/palabras-prohibidas.js';
 import { ofrecerInstalacion, guardarResumenOffline } from '/assets/js/instalar.js';
+import { canjePendiente } from '/assets/js/canje-pendiente.js';
 import { traerAgregado } from '/assets/js/agregados.js';
 import { pintarHoy, miGrupo, nombreGrupo } from '/assets/js/hoy.js';
 import { ofrecerAvisos } from '/assets/js/push.js';
@@ -178,6 +179,19 @@ onAuthStateChanged(auth, async (usuario) => {
       }).catch(() => false)
         .then((salio) => (salio ? null : ofrecerApoyo(id('invitacion-instalar'), datos)))
         .catch(() => { /* sin invitacion se sigue igual */ });
+    }
+
+    // Un enlace de evento que se abrio sin cuenta y sigue sin canjear.
+    if (canjePendiente()) {
+      reemplazar(id('canje-pendiente'), el('a', { clase: 'tarjeta-avisos', attrs: { href: '/canjear/' } }, [
+        el('div', { clase: 'fila-avisos' }, [
+          icono('enlace', 'icono'),
+          el('span', {}, [
+            el('strong', { texto: 'Tienes un enlace de evento sin canjear' }),
+            el('span', { texto: 'Tócalo para conseguir tu banner o tu lema.' }),
+          ]),
+        ]),
+      ]));
     }
 
     await pintarHoy(usuario, datos);

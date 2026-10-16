@@ -502,6 +502,68 @@ test('la vitrina solo lleva banners y lemas libres o ganados', async () => {
   await assertSucceeds(setDoc(ref, vitrina('noche', null)));
 });
 
+test('un banner atado a un logro se puede llevar en cuanto se tiene el logro', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), {
+      uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: [], logros: ['racha-7'],
+    });
+    await setDoc(doc(ctx.firestore(), 'config', 'recompensas'), {
+      items: { neon: { tipo: 'logro', logro: 'racha-7' }, ecos: { tipo: 'logro', logro: 'racha-30' }, metro: { tipo: 'evento' } },
+    });
+  });
+  const ref = doc(como(UID), 'vitrinas', 'laura');
+  const vitrina = (banner, lema) => ({ uid: UID, banner, lema, actualizado: serverTimestamp() });
+  // Tiene la insignia a la que esta atado: si. La de otra insignia, o la de
+  // evento, o una que no esta en la config: no.
+  await assertSucceeds(setDoc(ref, vitrina('neon', null)));
+  await assertFails(setDoc(ref, vitrina('ecos', null)));
+  await assertFails(setDoc(ref, vitrina('metro', null)));
+  await assertFails(setDoc(ref, vitrina('noche', null)));
+  // Y la config solo la cambia la administracion; la lee cualquiera.
+  await assertSucceeds(getDoc(doc(anonimo(), 'config', 'recompensas')));
+  await assertFails(setDoc(doc(como(UID), 'config', 'recompensas'), { items: { ecos: { tipo: 'logro', logro: 'primer-viaje' } }, por: UID, actualizado: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(como(OTRO, { admin: true }), 'config', 'recompensas'), { items: {}, por: OTRO, actualizado: serverTimestamp() }));
+});
+
+test('los enlaces de evento: solo la administracion los ve y los crea', async () => {
+  const codigo = 'abcdefghjkmnpqrstuvw';
+  const admin = como('jefa', { admin: true });
+  await assertSucceeds(setDoc(doc(admin, 'recompensas_codigos', codigo), { recompensa: 'ecos', por: 'jefa', creado: serverTimestamp() }));
+  // Un id corto o raro, o campos de mas, no.
+  await assertFails(setDoc(doc(admin, 'recompensas_codigos', 'corto'), { recompensa: 'ecos', por: 'jefa', creado: serverTimestamp() }));
+  await assertFails(setDoc(doc(admin, 'recompensas_codigos', 'bcdefghjkmnpqrstuvwx'), { recompensa: 'ecos', usadoPor: UID, por: 'jefa', creado: serverTimestamp() }));
+  // Un piloto ni lo lee, ni lo lista, ni lo marca como usado, ni lo borra.
+  await assertFails(getDoc(doc(como(UID), 'recompensas_codigos', codigo)));
+  await assertFails(getDocs(collection(como(UID), 'recompensas_codigos')));
+  await assertFails(updateDoc(doc(como(UID), 'recompensas_codigos', codigo), { usadoPor: UID }));
+  await assertFails(deleteDoc(doc(como(UID), 'recompensas_codigos', codigo)));
+  await assertFails(setDoc(doc(como(UID), 'recompensas_codigos', 'cdefghjkmnpqrstuvwxy'), { recompensa: 'ecos', por: UID, creado: serverTimestamp() }));
+});
+
+test('un piloto pide un canje, uno cada vez, y no se da el premio', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: [] });
+  });
+  const ref = doc(como(UID), 'canjes_recompensa', UID);
+  const codigo = 'abcdefghjkmnpqrstuvw';
+  const pide = (c) => ({ codigo: c, estado: 'pendiente', creado: serverTimestamp() });
+  await assertSucceeds(setDoc(ref, pide(codigo)));
+  // Con uno pendiente no se puede mandar otro, ni cambiarlo.
+  await assertFails(setDoc(ref, pide('bcdefghjkmnpqrstuvwx')));
+  // Ni darse el resultado, ni forma rara, ni el canje de otro.
+  await assertFails(setDoc(ref, { codigo, estado: 'ok', recompensa: 'ecos', creado: serverTimestamp() }));
+  await assertFails(setDoc(doc(como(UID), 'canjes_recompensa', 'otro'), pide(codigo)));
+  await assertFails(setDoc(doc(como(OTRO), 'canjes_recompensa', OTRO), pide('../usuarios/laura')));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { recompensas: ['ecos'] }));
+  // Cuando el worker lo ha resuelto, se puede pedir otro. Y lo lee su dueño, no otro.
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'canjes_recompensa', UID), { codigo, estado: 'usado', recompensa: null });
+  });
+  await assertSucceeds(getDoc(ref));
+  await assertFails(getDoc(doc(como(OTRO), 'canjes_recompensa', UID)));
+  await assertSucceeds(setDoc(ref, pide('bcdefghjkmnpqrstuvwx')));
+});
+
 test('el lider personaliza el clan con emblema, siglas y lema validos', async () => {
   await entorno.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'clanes', 'c1'), {

@@ -88,7 +88,7 @@ const perfilBase = {
   puntosPorRuta: { '124-115': 60, '1-102': 30, '102-124': 20 },
   logros: ['primer-viaje', 'veterano', 'fondo-50', 'racha-7', 'sprint-cinco-tramos', 'explorador-10', 'temporada-2026-08-constancia', 'temporada-2026-07-bronce'],
   // Banners y lemas ganados (assets/data/recompensas.js): uno de cada.
-  recompensas: ['neon', 'metro', 'mas-rapido-que-el-bus', 'biciloverrr', 'im-a-winner'],
+  recompensas: ['metro', 'mas-rapido-que-el-bus', 'biciloverrr', 'im-a-winner'],
   consentimiento: { terminos: { version: '1.4.0' } },
   creado: hace(60 * 24 * 40),
 };
@@ -283,6 +283,17 @@ datos['bicis/2471'] = {
 datos['bicis/1180'] = { numero: '1180', media: 4.6, valoraciones60: 8, total: 8, reparto: { 5: 5, 4: 3, 3: 0, 2: 0, 1: 0 }, fallos: [], tendencia: null, ultimas: [opinion(5, 60 * 20, '1', 'Perfecta, batería al 90 %.')], vista: { estacion: '1', cuando: ms(60 * 20) } };
 datos['bicis/318'] = { numero: '318', media: null, valoraciones60: 2, total: 2, reparto: { 5: 0, 4: 1, 3: 1, 2: 0, 1: 0 }, fallos: [], tendencia: null, ultimas: [opinion(4, 60 * 24 * 3, '1', 'Todo bien, la batería al 80 %.'), opinion(3, 60 * 24 * 9, '40', 'Un poco de ruido en los cambios.', ['cambios', 'ruido'])], vista: null };
 
+// Como se consigue cada banner y lema (admin > Recompensas). 'neon' lo tiene
+// quien tenga la insignia racha-7 (esta maqueta, si); 'ecos', quien tenga
+// racha-30 (no); 'carril-bici' se reparte en un evento.
+datos['config/recompensas'] = {
+  items: { neon: { tipo: 'logro', logro: 'racha-7' }, ecos: { tipo: 'logro', logro: 'racha-30' }, 'carril-bici': { tipo: 'evento' } },
+};
+const codigoDe = (n) => `${n}${'abcdefghjkmnpqrstuvwxyz23456789'.repeat(2)}`.slice(0, 20);
+datos[`recompensas_codigos/${codigoDe('libre1')}`] = { recompensa: 'carril-bici', por: UID, creado: hace(120) };
+datos[`recompensas_codigos/${codigoDe('libre2')}`] = { recompensa: 'carril-bici', por: UID, creado: hace(120) };
+datos[`recompensas_codigos/${codigoDe('gastad')}`] = { recompensa: 'carril-bici', por: UID, creado: hace(120), usadoPor: 'otro-1', usadoPorNombre: 'marta.vk', usadoEn: hace(30) };
+
 // Perfil publico: lo que lleva puesto cada uno y las insignias de todos.
 datos['vitrinas/marta.vk'] = { uid: 'otro-1', banner: 'noche', lema: 'fundador', actualizado: hace(60) };
 datos['vitrinas/jorge_on_wheels'] = { uid: 'otro-2', banner: 'libre-la-vuelta', lema: 'libre-cuestas', actualizado: hace(60) };
@@ -407,6 +418,18 @@ export async function getCountFromServer(q) { const n = resolver(q).length; retu
 function escribir(ruta, cambios, { unir = true } = {}) {
   datos[ruta] = unir ? aplicar(datos[ruta], cambios) : aplicar({}, cambios);
   avisar(ruta);
+  // Un canje de enlace se resuelve solo a los 3 segundos, como haria el worker:
+  // "ok..." lo da (ecos), "usado..." ya lo tiene otra persona, "tenias..." ya
+  // lo tenias, y lo demas no vale.
+  if (ruta.startsWith('canjes_recompensa/') && cambios.estado === 'pendiente') {
+    setTimeout(() => {
+      const c = String(datos[ruta].codigo);
+      const r = c.startsWith('ok') ? { estado: 'ok', recompensa: c.startsWith('ok2') ? 'im-a-winner' : 'ecos' }
+        : c.startsWith('usado') ? { estado: 'usado' } : c.startsWith('tenias') ? { estado: 'ya-lo-tenias', recompensa: 'metro' } : { estado: 'invalido' };
+      datos[ruta] = aplicar(datos[ruta], { ...r, recompensa: r.recompensa || null, resuelto: { __op: 'now' } });
+      avisar(ruta);
+    }, 3000);
+  }
   // Un viaje nuevo se verifica solo a los 6 segundos, como haria el worker.
   if (ruta.startsWith('tiempos_viaje/') && cambios.estado === 'pendiente') {
     setTimeout(() => {

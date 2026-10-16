@@ -93,6 +93,29 @@ test('no queda ni rastro del perfil, ni de sus subcolecciones', async () => {
   assert.deepStrictEqual(borradosDeAuth, ['uid-1'], 'la cuenta de Auth sigue existiendo');
 });
 
+test('sus canjes de enlaces de evento se van, pero el enlace sigue gastado', async () => {
+  sembrar();
+  bd.sembrar('canjes_recompensa', [
+    { id: 'uid-1', codigo: 'abcdefghjkmnpqrstuvw', estado: 'ok', recompensa: 'ecos' },
+    { id: 'uid-2', codigo: 'bcdefghjkmnpqrstuvwx', estado: 'ok', recompensa: 'neon' },
+  ]);
+  bd.sembrar('recompensas_codigos', [
+    { id: 'abcdefghjkmnpqrstuvw', recompensa: 'ecos', usadoPor: 'uid-1', usadoPorNombre: 'Ana' },
+    { id: 'bcdefghjkmnpqrstuvwx', recompensa: 'neon', usadoPor: 'uid-2', usadoPorNombre: 'Bea' },
+    { id: 'cdefghjkmnpqrstuvwxy', recompensa: 'metro' },
+  ]);
+  await borrado.ejecutar('uid-1');
+
+  assert.strictEqual(bd.leer('canjes_recompensa/uid-1'), undefined, 'su peticion sigue ahi');
+  assert.ok(bd.leer('canjes_recompensa/uid-2'), 'se ha borrado el canje de otra persona');
+
+  const suyo = bd.leer('recompensas_codigos/abcdefghjkmnpqrstuvw');
+  assert.ok(suyo.usadoPor, 'el enlace vuelve a estar libre y lo podria gastar otra persona');
+  assert.notStrictEqual(suyo.usadoPor, 'uid-1', 'queda su uid');
+  assert.strictEqual(suyo.usadoPorNombre, undefined, 'queda su nombre');
+  assert.strictEqual(bd.leer('recompensas_codigos/bcdefghjkmnpqrstuvwx').usadoPor, 'uid-2', 'se ha tocado el de otra persona');
+});
+
 test('sale del clan, y el contador cuadra', async () => {
   sembrar();
   await borrado.ejecutar('uid-1');

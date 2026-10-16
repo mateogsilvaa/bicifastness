@@ -229,6 +229,19 @@ async function ejecutar(uid, { simular = false } = {}) {
     }
     resumen.valoracionesBici = valoraciones.size;
 
+    // Sus canjes de enlaces de evento: la peticion (lleva su uid) y, en el
+    // enlace que canjeo, quien fue. El enlace sigue GASTADO —si no, volveria a
+    // valer para otra persona— pero sin nombre ni uid.
+    await db().doc(`canjes_recompensa/${uid}`).delete();
+    const canjeados = await db().collection('recompensas_codigos').where('usadoPor', '==', uid).get();
+    for (const doc of canjeados.docs) {
+      await doc.ref.update({
+        usadoPor: 'cuenta-borrada',
+        usadoPorNombre: admin.firestore.FieldValue.delete(),
+      });
+    }
+    resumen.enlacesCanjeados = canjeados.size;
+
     // Las invitaciones que hubiera creado. Ademas de llevar su uid, un enlace
     // que sigue funcionando despues de que su autor se haya ido mete gente en
     // un clan en nombre de alguien que ya no esta.

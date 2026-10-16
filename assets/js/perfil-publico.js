@@ -10,15 +10,18 @@
 import { el, icono } from './dom.js';
 import { chipDivision, emblemaLiga, NIVELES } from './ligas.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
-import { BANNERS, LEMAS, BANNER_POR_DEFECTO } from '../data/recompensas.js';
+import { LEMAS, imagenBanner } from '../data/recompensas.js';
 
 /** Un color de clan solo entra si es un hex de verdad: llega de la base de datos. */
 const colorSeguro = (c) => (/^#[0-9a-f]{6}$/i.test(String(c || '')) ? c : null);
 
 /** El banner, como fondo. Lo que no este en el catalogo cae al de serie. */
 export function banner(id, { clase = '' } = {}) {
-  const valido = BANNERS[id] ? id : BANNER_POR_DEFECTO;
-  return el('div', { clase: `banner-piloto banner-${valido} ${clase}`.trim(), attrs: { 'aria-hidden': 'true' } });
+  return el('div', {
+    clase: `banner-piloto ${clase}`.trim(),
+    attrs: { 'aria-hidden': 'true' },
+    estilo: { backgroundImage: `url("${imagenBanner(id)}")` },
+  });
 }
 
 /**

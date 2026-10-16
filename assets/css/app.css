@@ -4362,55 +4362,10 @@ html.acceso-pendiente main::before {
 .logros-publicos .insignia .titulo { font-size: 11px; }
 .logros-mas { margin: var(--e2) 0 0; text-align: center; }
 
-/* Los banners. Cada id del catalogo (assets/data/recompensas.js) tiene aqui su
-   fondo; uno que falte se ve con el de serie, porque el JS cae a ese. */
-.banner-piloto { height: 120px; border-radius: 20px; background-color: #222326; background-repeat: no-repeat; }
-.banner-libre-asfalto {
-  background:
-    repeating-linear-gradient(90deg, #F2C230 0 28px, transparent 28px 56px) 0 62% / 100% 5px no-repeat,
-    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, .06) 0 1px, transparent 2px) 0 0 / 9px 9px,
-    linear-gradient(165deg, #34363A, #18191B);
-}
-.banner-libre-amanecer {
-  background:
-    radial-gradient(circle at 78% 92%, #FFE7A3 0 15%, rgba(255, 231, 163, .45) 16% 24%, transparent 25%),
-    linear-gradient(180deg, #5B4BC4 0%, #E8677A 55%, #FFB067 100%);
-}
-.banner-libre-retiro {
-  background:
-    radial-gradient(circle at 12% 110%, #2F7A4A 0 22%, transparent 23%),
-    radial-gradient(circle at 36% 118%, #3E9459 0 24%, transparent 25%),
-    radial-gradient(circle at 64% 112%, #2F7A4A 0 20%, transparent 21%),
-    radial-gradient(circle at 90% 120%, #3E9459 0 26%, transparent 27%),
-    linear-gradient(180deg, #BFE3C6, #E8F4DD);
-}
-.banner-libre-carril {
-  background:
-    repeating-linear-gradient(-55deg, transparent 0 38px, rgba(255, 255, 255, .9) 38px 46px) 0 50% / 100% 26px no-repeat,
-    linear-gradient(180deg, #1F8A5B, #17704A);
-}
-.banner-pegatina-azul {
-  background:
-    repeating-radial-gradient(circle at 85% 50%, transparent 0 14px, rgba(255, 255, 255, .16) 14px 17px),
-    linear-gradient(135deg, #1466C2, #0B3E7A);
-}
-.banner-madrid-noche {
-  background:
-    radial-gradient(circle, rgba(255, 214, 120, .9) 0 1.2px, transparent 2px) 0 0 / 23px 19px,
-    radial-gradient(circle, rgba(255, 255, 255, .7) 0 1px, transparent 1.6px) 11px 7px / 31px 27px,
-    linear-gradient(180deg, #0B1530 0%, #1C2B5A 70%, #3B3170 100%);
-}
-.banner-kilometro-cero {
-  background:
-    repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 255, 255, .1) 0 10deg, transparent 10deg 20deg),
-    radial-gradient(circle at 50% 50%, #F6C76B 0 18%, transparent 19%),
-    linear-gradient(135deg, #C8322A, #7E1C17);
-}
-.banner-fundador {
-  background:
-    linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .45) 45%, transparent 60%),
-    linear-gradient(135deg, #8C6A1F, #E8C766 50%, #9C7522);
-}
+/* Los banners: un SVG de 1200 x 400 por id (assets/img/banners/), que el JS
+   pone de fondo. Se recorta para llenar el hueco, centrado: lo importante de
+   cada dibujo va en su franja central. */
+.banner-piloto { height: 120px; border-radius: 20px; background: #222326 center / cover no-repeat; }
 
 /* Tu > Perfil publico: la vista previa y lo que se puede elegir. */
 .vitrina-previa { padding: var(--e4); border-radius: var(--radio-grande); background: var(--papel-2); }

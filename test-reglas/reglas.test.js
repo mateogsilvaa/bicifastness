@@ -478,28 +478,28 @@ test('la foto la sube la cuenta de ese nombre, pequena y sin URLs', async () => 
 test('la vitrina solo lleva banners y lemas libres o ganados', async () => {
   await entorno.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'usuarios', UID), {
-      uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: ['pegatina-azul'],
+      uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: ['neon'],
     });
     await setDoc(doc(ctx.firestore(), 'usuarios', OTRO), { uid: OTRO, username: 'Otro', usernameLower: 'otro' });
   });
   const ref = doc(como(UID), 'vitrinas', 'laura');
   const vitrina = (banner, lema) => ({ uid: UID, banner, lema, actualizado: serverTimestamp() });
   // De serie y ganado, si; nada, tambien.
-  await assertSucceeds(setDoc(ref, vitrina('libre-asfalto', 'libre-rodando')));
-  await assertSucceeds(setDoc(ref, vitrina('pegatina-azul', null)));
+  await assertSucceeds(setDoc(ref, vitrina('libre-calzada', 'libre-rodando')));
+  await assertSucceeds(setDoc(ref, vitrina('neon', null)));
   await assertSucceeds(setDoc(ref, vitrina(null, null)));
   await assertSucceeds(getDoc(doc(anonimo(), 'vitrinas', 'laura')));
   // Lo que no ha ganado, no.
-  await assertFails(setDoc(ref, vitrina('madrid-noche', null)));
-  await assertFails(setDoc(ref, vitrina('libre-asfalto', 'llegue-primero')));
+  await assertFails(setDoc(ref, vitrina('noche', null)));
+  await assertFails(setDoc(ref, vitrina('libre-calzada', 'llegue-primero')));
   // Ni ids raros, ni campos de mas, ni la vitrina de otro nombre.
   await assertFails(setDoc(ref, vitrina('Libre-<b>', null)));
-  await assertFails(setDoc(ref, { ...vitrina('libre-asfalto', null), texto: 'hola' }));
-  await assertFails(setDoc(doc(como(UID), 'vitrinas', 'otro'), vitrina('libre-asfalto', null)));
+  await assertFails(setDoc(ref, { ...vitrina('libre-calzada', null), texto: 'hola' }));
+  await assertFails(setDoc(doc(como(UID), 'vitrinas', 'otro'), vitrina('libre-calzada', null)));
   // Las recompensas no se las da uno mismo; la administracion, si.
-  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { recompensas: ['madrid-noche'] }));
-  await assertSucceeds(updateDoc(doc(como(OTRO, { admin: true }), 'usuarios', UID), { recompensas: ['pegatina-azul', 'madrid-noche'] }));
-  await assertSucceeds(setDoc(ref, vitrina('madrid-noche', null)));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { recompensas: ['noche'] }));
+  await assertSucceeds(updateDoc(doc(como(OTRO, { admin: true }), 'usuarios', UID), { recompensas: ['neon', 'noche'] }));
+  await assertSucceeds(setDoc(ref, vitrina('noche', null)));
 });
 
 test('el lider personaliza el clan con emblema, siglas y lema validos', async () => {

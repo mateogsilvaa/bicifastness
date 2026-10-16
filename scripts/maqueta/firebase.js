@@ -88,7 +88,7 @@ const perfilBase = {
   puntosPorRuta: { '124-115': 60, '1-102': 30, '102-124': 20 },
   logros: ['primer-viaje', 'veterano', 'fondo-50', 'racha-7', 'sprint-cinco-tramos', 'explorador-10', 'temporada-2026-08-constancia', 'temporada-2026-07-bronce'],
   // Banners y lemas ganados (assets/data/recompensas.js): uno de cada.
-  recompensas: ['pegatina-azul', 'cazapegatinas'],
+  recompensas: ['neon', 'cazapegatinas'],
   consentimiento: { terminos: { version: '1.4.0' } },
   creado: hace(60 * 24 * 40),
 };
@@ -284,9 +284,9 @@ datos['bicis/1180'] = { numero: '1180', media: 4.6, valoraciones60: 8, total: 8,
 datos['bicis/318'] = { numero: '318', media: null, valoraciones60: 2, total: 2, reparto: { 5: 0, 4: 1, 3: 1, 2: 0, 1: 0 }, fallos: [], tendencia: null, ultimas: [opinion(4, 60 * 24 * 3, '1', 'Todo bien, la batería al 80 %.'), opinion(3, 60 * 24 * 9, '40', 'Un poco de ruido en los cambios.', ['cambios', 'ruido'])], vista: null };
 
 // Perfil publico: lo que lleva puesto cada uno y las insignias de todos.
-datos['vitrinas/marta.vk'] = { uid: 'otro-1', banner: 'madrid-noche', lema: 'llegue-primero', actualizado: hace(60) };
-datos['vitrinas/jorge_on_wheels'] = { uid: 'otro-2', banner: 'libre-amanecer', lema: 'libre-cuestas', actualizado: hace(60) };
-datos['vitrinas/laura_pedalea'] = { uid: UID, banner: 'pegatina-azul', lema: 'cazapegatinas', actualizado: hace(60) };
+datos['vitrinas/marta.vk'] = { uid: 'otro-1', banner: 'noche', lema: 'llegue-primero', actualizado: hace(60) };
+datos['vitrinas/jorge_on_wheels'] = { uid: 'otro-2', banner: 'libre-la-vuelta', lema: 'libre-cuestas', actualizado: hace(60) };
+datos['vitrinas/laura_pedalea'] = { uid: UID, banner: 'neon', lema: 'cazapegatinas', actualizado: hace(60) };
 datos['agregados/logros-publicos'] = {
   logros: Object.fromEntries(nombres.map((n, i) => [n, ['primer-viaje', 'diez-viajes', 'veinticinco-viajes', 'veterano', 'fondo-10', 'fondo-50', 'racha-7', 'explorador-10', 'temporada-2026-08-constancia', 'temporada-2026-07-bronce', 'sprint-cinco-tramos'].slice(0, Math.max(1, 11 - Math.floor(i / 3)))])),
   actualizado: hace(4),

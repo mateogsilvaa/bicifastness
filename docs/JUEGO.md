@@ -293,8 +293,8 @@ Tocar un nombre en el ranking abre su ficha: banner, foto, nombre, lema,
 liga, puesto, puntos, kilometros, racha e insignias. El banner y el lema los
 elige cada uno en Tu > Perfil publico, de entre los que tiene.
 
-- **De serie** (`libre-*`): cuatro banners y cuatro lemas que tiene todo el
-  mundo desde el primer dia.
+- **De serie** (`libre-*`): tres banners (Calzada, Tinta y La vuelta) y cuatro
+  lemas que tiene todo el mundo desde el primer dia.
 - **Ganados**: el resto. Viven en `usuarios/{uid}.recompensas`, que el piloto
   no puede escribir. Hoy los concede la administracion (Pilotos y clanes >
   Banners y lemas ganados).
@@ -304,8 +304,11 @@ el primero se lleva un banner o un lema. Ese canje todavia no existe; cuando
 llegue, solo tiene que apuntar el id en `recompensas` (desde el worker, nunca
 desde el navegador), y todo lo demas ya funciona.
 
-Catalogo: `assets/data/recompensas.js`. Aspecto de cada banner:
-`assets/css/app.css` (`.banner-{id}`). Lo que lleva puesto cada uno:
+Catalogo: `assets/data/recompensas.js`. Cada banner es un SVG de 1200 x 400
+en `assets/img/banners/{id}.svg`; se recorta segun la pantalla (de 2,3:1 a
+6:1), asi que lo importante va en la franja central y la esquina de abajo a la
+izquierda queda bajo la foto. Las imagenes se sirven con cache de un año: si
+un dibujo cambia, cambia de nombre. Lo que lleva puesto cada uno:
 `vitrinas/{nombre}`, publico, y las reglas solo dejan ids libres o ganados.
 Las insignias de todos salen en `agregados/logros-publicos`, que escribe el
 worker.

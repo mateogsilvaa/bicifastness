@@ -293,8 +293,13 @@ Tocar un nombre en el ranking abre su ficha: banner, foto, nombre, lema,
 liga, puesto, puntos, kilometros, racha e insignias. El banner y el lema los
 elige cada uno en Tu > Perfil publico, de entre los que tiene.
 
-- **De serie** (`libre-*`): tres banners (Calzada, Tinta y La vuelta) y cuatro
-  lemas que tiene todo el mundo desde el primer dia.
+- **De serie** (`libre-*`): tres banners (Calzada, Tinta y La vuelta) y un lema
+  («Las cuestas también cuentan») que tiene todo el mundo desde el primer dia.
+  Todo lo demas tiene que ser dificil de conseguir.
+- **Estilo de cada lema**: no van entre comillas. Cada uno tiene su `estilo`
+  en el catalogo (`acelera`, `bateria`, `oro`...), que decide como se pinta
+  (`lema()` en `perfil-publico.js`, reglas `.lema-{estilo}` en `app.css`). Unos
+  se mueven y otros no. Un lema nuevo con un estilo nuevo necesita su regla CSS.
 - **Ganados**: el resto. Viven en `usuarios/{uid}.recompensas`, que el piloto
   no puede escribir. Hoy los concede la administracion (Pilotos y clanes >
   Banners y lemas ganados).

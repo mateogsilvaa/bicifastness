@@ -146,14 +146,22 @@
       <h1 id="titulo-perfil">Perfil público</h1>
     </div>
     <p class="menor apagado">
-      Es lo que ve quien toca tu nombre en el ranking. Los banners y lemas con
-      candado se ganan, y alguno está escondido en una pegatina de una bici.
+      Es lo que ve quien toca tu nombre en el ranking. Lo que tiene candado es
+      difícil de conseguir: sale de pegatinas escondidas en bicis, de eventos y
+      de retos.
     </p>
     <div class="vitrina-previa" id="vitrina-previa"><div class="esqueleto" aria-hidden="true" style="height: 230px"></div></div>
-    <h2 class="seccion-ajustes">Banner</h2>
-    <div class="vitrina-opciones" id="vitrina-banners" role="radiogroup" aria-label="Banner"><div class="esqueleto" aria-hidden="true" style="height: 96px"></div><div class="esqueleto" aria-hidden="true" style="height: 96px"></div></div>
-    <h2 class="seccion-ajustes">Lema</h2>
-    <div class="vitrina-lemas" id="vitrina-lemas" role="radiogroup" aria-label="Lema"><div class="esqueleto" aria-hidden="true" style="height: 52px"></div><div class="esqueleto" aria-hidden="true" style="height: 52px"></div></div>
+
+    <div class="segmento pestanas-vitrina" role="tablist" aria-label="Qué quieres cambiar">
+      <button type="button" role="tab" id="tab-vitrina-banner" aria-controls="panel-vitrina-banner" aria-selected="true">Banner</button>
+      <button type="button" role="tab" id="tab-vitrina-lema" aria-controls="panel-vitrina-lema" aria-selected="false">Lema</button>
+    </div>
+    <div id="panel-vitrina-banner" role="tabpanel" aria-labelledby="tab-vitrina-banner">
+      <div class="vitrina-grupo" id="vitrina-banners" role="radiogroup" aria-label="Banner"><div class="esqueleto" aria-hidden="true" style="height: 76px"></div><div class="esqueleto" aria-hidden="true" style="height: 76px"></div><div class="esqueleto" aria-hidden="true" style="height: 76px"></div></div>
+    </div>
+    <div id="panel-vitrina-lema" role="tabpanel" aria-labelledby="tab-vitrina-lema" class="oculto">
+      <div class="vitrina-grupo" id="vitrina-lemas" role="radiogroup" aria-label="Lema"></div>
+    </div>
     <p class="mensaje" id="msg-vitrina" aria-live="polite"></p>
     <a class="btn secundario ver-mi-ficha" id="ver-mi-ficha" href="/clasificacion/">Ver mi ficha en el ranking</a>
   </section>

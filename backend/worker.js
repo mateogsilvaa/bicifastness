@@ -2742,11 +2742,17 @@ async function resolverCanjes() {
 }
 
 /**
- * La tienda: los pagos nuevos de Stripe pasan a pedidos de la imprenta
- * (src/tienda.js). Sin `STRIPE_SECRET_KEY` no hace nada ni lee nada. Nunca
- * lanza: un fallo de Stripe o de la imprenta no puede tumbar la verificacion.
+ * La tienda: las ventas nuevas de Gumroad pasan a pedidos de la imprenta
+ * (src/tienda.js). Sin `GUMROAD_TOKEN` no hace nada ni lee nada. Nunca
+ * lanza: un fallo de Gumroad o de la imprenta no puede tumbar la verificacion.
  */
 async function venderEnLaTienda() {
+  try {
+    // Lo que se vende del catalogo de Printful, copiado para la web.
+    await tienda.sincronizarCatalogo({ db, admin, simular: SIMULAR });
+  } catch (error) {
+    console.warn('No se ha podido copiar el catalogo de Printful:', error.message);
+  }
   try {
     await tienda.procesarTienda({
       db,

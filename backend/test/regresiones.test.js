@@ -1016,7 +1016,7 @@ test('el borrado de cuenta no se deja ninguna coleccion con uid dentro', () => {
     // La lista blanca de la web en obras: correos que pone y quita la
     // administracion desde /admin/acceso/, sin uid. Se gestiona alli.
     'acceso_lista',
-    // Por donde va el worker leyendo los pagos de Stripe: ids de sesion.
+    // Por donde va el worker leyendo las ventas de Gumroad: ids de venta.
     'tienda_interno',
     // La analitica es anonima a proposito: `conSesion` es un booleano, no un
     // uid. Si algun dia guardara uno, hay que sacarlo de esta lista.

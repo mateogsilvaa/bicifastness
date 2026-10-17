@@ -6,21 +6,66 @@
  * Cerrada, no aparece en ningun sitio: ni el acceso en Tu, ni la invitacion,
  * ni la propia pagina (salvo para la administracion, que la puede probar).
  *
- * Coste: una lectura de `config/tienda` por pestaña, guardada 10 minutos.
+ * Coste: una lectura de `config/tienda` por pestaña, guardada 10 minutos. El
+ * catalogo de Printful (`config/tienda_catalogo`) solo lo lee la propia tienda.
  */
 
 import { db, doc, getDoc } from './firebase.js';
-import { el, reemplazar } from './dom.js';
+import { el, icono, reemplazar } from './dom.js';
 
 const CLAVE = 'bf_tienda';
+const CLAVE_CATALOGO = 'bf_tienda_catalogo';
+// Las fotos del catalogo las da Printful desde su CDN: solo se pintan de ahi.
+const IMAGEN_PRINTFUL = /^https:\/\/files\.cdn\.printful\.com\//;
+/** El enlace de un producto de Gumroad: https://pepa.gumroad.com/l/abc12 */
+export const ENLACE_GUMROAD = /^https:\/\/([a-z0-9-]+\.)?gumroad\.com\/l\/[A-Za-z0-9_-]+$/;
 const VIGENCIA = 10 * 60 * 1000;
 
 /** Los productos que se pueden comprar ahora: activos y con enlace de pago. */
 export function productosALaVenta(config) {
   if (!config?.visible) return [];
   return Object.entries(config.productos || {})
-    .filter(([, p]) => p?.activo && typeof p.enlacePago === 'string' && p.enlacePago.startsWith('https://buy.stripe.com/'))
+    .filter(([, p]) => p?.activo && typeof p.enlacePago === 'string' && ENLACE_GUMROAD.test(p.enlacePago))
     .map(([clave, p]) => ({ clave, ...p }));
+}
+
+/**
+ * Los productos del catalogo de Printful que se pueden comprar ahora: los que
+ * tienen enlace de Gumroad en `config/tienda` (`catalogo: { id: enlace }`) y
+ * siguen en el catalogo que copia el worker. Mas baratos primero.
+ */
+export function catalogoALaVenta(config, catalogo) {
+  if (!config?.visible) return [];
+  return Object.entries(config.catalogo || {})
+    .filter(([idPf, enlace]) => typeof enlace === 'string' && ENLACE_GUMROAD.test(enlace) && catalogo?.productos?.[idPf])
+    .map(([idPf, enlacePago]) => {
+      const p = catalogo.productos[idPf];
+      const variantes = Object.entries(p.variantes || {})
+        .map(([idV, v]) => ({ id: idV, ...v, imagen: imagenSegura(v.imagen) }))
+        .filter((v) => Number.isFinite(v.precio) && v.precio > 0)
+        .sort((a, b) => a.precio - b.precio);
+      return { id: idPf, clave: `pf_${idPf}`, nombre: p.nombre, imagen: imagenSegura(p.imagen), enlacePago, variantes };
+    })
+    .filter((p) => p.variantes.length)
+    .sort((a, b) => a.variantes[0].precio - b.variantes[0].precio);
+}
+
+const imagenSegura = (url) => (typeof url === 'string' && IMAGEN_PRINTFUL.test(url) ? url : null);
+
+/** `config/tienda_catalogo` (lo que el worker copia de Printful), o null. */
+export async function leerCatalogo() {
+  try {
+    const d = JSON.parse(sessionStorage.getItem(CLAVE_CATALOGO) || 'null');
+    if (d && Date.now() - d.t < VIGENCIA) return d.catalogo;
+  } catch { /* sin almacenamiento se lee */ }
+  try {
+    const snap = await getDoc(doc(db, 'config', 'tienda_catalogo'));
+    const catalogo = snap.exists() ? snap.data() : null;
+    try { sessionStorage.setItem(CLAVE_CATALOGO, JSON.stringify({ catalogo, t: Date.now() })); } catch { /* da igual */ }
+    return catalogo;
+  } catch {
+    return null;
+  }
 }
 
 /** `config/tienda`, o null si no existe o no se puede leer. */
@@ -43,7 +88,25 @@ export async function leerTienda({ fresca = false } = {}) {
 
 /** ¿Hay algo que enseñar? Es lo que deciden el acceso de Tu y la invitacion. */
 export async function tiendaAbierta() {
-  return productosALaVenta(await leerTienda()).length > 0;
+  const config = await leerTienda();
+  // Sin leer el catalogo: basta con que algun producto suyo tenga enlace.
+  const conEnlace = Object.values(config?.catalogo || {}).some((e) => typeof e === 'string' && ENLACE_GUMROAD.test(e));
+  return productosALaVenta(config).length > 0 || Boolean(config?.visible && conEnlace);
+}
+
+// --- El circulo con corazon -------------------------------------------------
+//
+// En Hoy, Ranking y Mapa (lo decide `iniciarPagina`): un circulo pequeño en la
+// esquina que lleva a la tienda. Solo si esta abierta; si no, ni se pinta.
+
+/** Pinta el acceso flotante a la tienda si hay algo a la venta. */
+export async function montarBurbujaTienda() {
+  if (document.querySelector('.burbuja-tienda')) return;
+  if (!(await tiendaAbierta())) return;
+  document.body.append(el('a', {
+    clase: 'burbuja-tienda',
+    attrs: { href: '/tienda/', 'aria-label': 'Tienda: apoya el proyecto', title: 'Tienda' },
+  }, [icono('corazon')]));
 }
 
 // --- La invitacion -----------------------------------------------------------

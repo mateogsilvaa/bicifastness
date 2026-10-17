@@ -131,11 +131,11 @@ jobs:
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
-          # La tienda (docs/TIENDA.md). Sin STRIPE_SECRET_KEY no se toca nada.
-          # La de Stripe basta con que sea restringida y de solo lectura de
-          # Checkout Sessions. TIENDA_CONFIRMAR=si manda los pedidos a
-          # produccion sin pasar por el panel de Printful.
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          # La tienda (docs/TIENDA.md). Sin GUMROAD_TOKEN no se toca nada.
+          # El token de Gumroad basta con que lea ventas (view_sales).
+          # TIENDA_CONFIRMAR=si manda los pedidos a produccion sin pasar por
+          # el panel de Printful.
+          GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
           PRINTFUL_TOKEN: ${{ secrets.PRINTFUL_TOKEN }}
           PRINTFUL_STORE_ID: ${{ secrets.PRINTFUL_STORE_ID }}
           CLOUDINARY_CLOUD: ${{ secrets.CLOUDINARY_CLOUD }}

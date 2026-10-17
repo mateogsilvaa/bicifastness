@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com https://recaptcha.google.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com https://files.cdn.printful.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com https://recaptcha.google.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="format-detection" content="telephone=no">
@@ -35,18 +35,29 @@
 
   <div class="tarjeta-grande tienda-intro">
     <span class="rotulo">Apoya el proyecto</span>
-    <p>BiciFastness es gratis y sin anuncios, pero mantenerlo cuesta dinero: servidores, dominio y el tiempo de verificar cada trayecto. Si te apetece echar una mano, llévate algo con <strong>tus propias marcas</strong>: tu nombre, tu clan, tu mejor tiempo y tu puesto.</p>
+    <p>BiciFastness es gratis y sin anuncios, pero mantenerlo cuesta dinero: servidores, dominio y el tiempo de verificar cada trayecto. Si te apetece echar una mano, llévate algo de la colección o una pieza con <strong>tus propias marcas</strong>: tu nombre, tu clan, tu mejor tiempo y tu puesto.</p>
   </div>
 
   <p class="mensaje" id="mensaje" aria-live="polite"></p>
-  <div id="tienda-contenido"><div class="esqueleto" style="height: 420px;"></div></div>
+
+  <!-- La coleccion: lo que esta montado en Printful, igual para todos. -->
+  <section id="tienda-catalogo" class="oculto" aria-labelledby="t-catalogo">
+    <h2 id="t-catalogo">La colección</h2>
+    <div id="catalogo-contenido"></div>
+  </section>
+
+  <!-- Con tus marcas: el diseño se pinta con tus datos. -->
+  <section id="tienda-personal" aria-labelledby="t-personal">
+    <h2 id="t-personal">Con tus marcas</h2>
+    <div id="tienda-contenido"><div class="esqueleto" style="height: 420px;"></div></div>
+  </section>
 
   <section id="mis-pedidos" class="oculto" aria-labelledby="t-pedidos">
     <h2 id="t-pedidos">Tus pedidos</h2>
     <div id="lista-pedidos"></div>
   </section>
 
-  <p class="apagado menor tienda-letra">Cada pieza se imprime bajo demanda con tus datos, así que, al estar hecha a medida, no admite desistimiento (art. 103.c de la Ley General para la Defensa de los Consumidores). Si llega defectuosa o dañada, te la cambiamos: escríbenos. El pago lo gestiona Stripe y la fabricación y el envío, nuestro proveedor de impresión bajo demanda, al que solo pasamos tu nombre, tu dirección de envío y el diseño.</p>
+  <p class="apagado menor tienda-letra">Cada pieza se imprime bajo demanda con tus datos, así que, al estar hecha a medida, no admite desistimiento (art. 103.c de la Ley General para la Defensa de los Consumidores). Si llega defectuosa o dañada, te la cambiamos: escríbenos. La venta y el cobro los hace Gumroad, que es quien te factura y gestiona los impuestos; la fabricación y el envío, nuestro proveedor de impresión bajo demanda, al que solo pasamos tu nombre, tu dirección de envío y el diseño.</p>
   <p class="apagado menor">Proyecto independiente, sin relación con BiciMAD, la EMT ni el Ayuntamiento de Madrid.</p>
 </main>
 

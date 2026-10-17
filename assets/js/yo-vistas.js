@@ -224,9 +224,13 @@ export function marcarAvisos(texto) {
   if (ultimoMenu) pintarMenu(...ultimoMenu);
 }
 
-/** La tienda abierta añade su entrada al menu; se repinta con lo ultimo que hubo. */
+/**
+ * La tienda abierta se enseña en el resumen, bien a la vista (la tarjeta del
+ * corazon), y tambien queda su entrada en el menu.
+ */
 export function marcarTienda(valor) {
   tiendaVisible = Boolean(valor);
+  document.getElementById('tarjeta-tienda')?.classList.toggle('oculto', !tiendaVisible);
   if (ultimoMenu) pintarMenu(...ultimoMenu);
 }
 
@@ -244,8 +248,8 @@ export function pintarMenu(perfil, { enRevision = 0 } = {}) {
     { href: '#perfil', icono: 'perfil', texto: 'Perfil público', detalle: 'Banner y lema' },
     // Lleva a Ajustes, donde estan los interruptores y los pasos para activarlos.
     { href: '#ajustes', icono: 'campana', texto: 'Avisos', detalle: textoAvisos, atencion: textoAvisos !== '' && textoAvisos !== 'Activados' && textoAvisos !== 'Muy pronto' },
-    // Discreta, al final y solo si la tienda esta abierta (assets/js/tienda.js).
-    ...(tiendaVisible ? [{ href: '/tienda/', icono: 'medalla', texto: 'Tienda', detalle: 'Apoya el proyecto' }] : []),
+    // Solo si la tienda esta abierta (assets/js/tienda.js).
+    ...(tiendaVisible ? [{ href: '/tienda/', icono: 'corazon', texto: 'Tienda', detalle: 'Apoya el proyecto' }] : []),
     // Solo para administradores, y solo es un enlace: la puerta de verdad
     // esta en cada pagina de /admin/ y en las reglas de Firestore.
     ...(esAdministrador ? [{ href: '/admin/panel/', icono: 'ajustes', texto: 'Administración', detalle: 'Panel' }] : []),

@@ -825,13 +825,17 @@ service cloud.firestore {
     // --- Tienda ---------------------------------------------------------------
     // Si se ve y que se vende. La lee cualquiera (la web decide si enseña el
     // acceso) y solo la cambia la administracion. Los precios de aqui son los
-    // que se ENSEÑAN: lo que se cobra lo fija el enlace de pago de Stripe, y el
-    // worker comprueba que lo cobrado cuadra antes de mandar nada a imprimir.
+    // que se ENSEÑAN: lo que se cobra lo fija el producto en Gumroad, y el
+    // worker comprueba que la venta es de ese producto antes de imprimir nada.
     match /config/tienda {
       allow read: if true;
       allow write: if esAdmin()
-        && datos().keys().hasOnly(['visible', 'productos', 'actualizado', 'por'])
+        && datos().keys().hasOnly(['visible', 'productos', 'catalogo', 'actualizado', 'por'])
         && datos().visible is bool
+        // La coleccion de Printful: { id del producto en Printful: enlace de Gumroad }.
+        // Las reglas no recorren un mapa; la web y el worker solo usan los
+        // enlaces que son de Gumroad.
+        && (!('catalogo' in datos()) || (datos().catalogo is map && datos().catalogo.size() <= 40))
         && datos().productos is map
         && datos().productos.keys().hasOnly(['camiseta', 'taza'])
         && (!('camiseta' in datos().productos) || productoTiendaValido(datos().productos.camiseta))
@@ -846,7 +850,7 @@ service cloud.firestore {
         && p.activo is bool
         && (p.precio is int || p.precio is float) && p.precio >= 0 && p.precio <= 200
         && p.enlacePago is string && p.enlacePago.size() <= 200
-        && (p.enlacePago == '' || p.enlacePago.matches('^https://buy[.]stripe[.]com/[A-Za-z0-9_]+$'))
+        && (p.enlacePago == '' || p.enlacePago.matches('^https://([a-z0-9-]+[.])?gumroad[.]com/l/[A-Za-z0-9_-]+$'))
         && p.variantes is map && p.variantes.size() <= 12;
     }
 
@@ -862,15 +866,23 @@ service cloud.firestore {
         && puedeUsarLaWeb()
         && pedidoId.matches(request.auth.uid + '_' + string(diaUTC()) + '_[0-4]')
         && datos().keys().hasOnly(['uid', 'producto', 'variante', 'viajeId', 'estado', 'creado'])
-        && datos().producto in ['camiseta', 'taza']
-        && datos().variante is string && datos().variante.size() <= 12
+        // Un personalizado, o uno de la coleccion de Printful (pf_<id>).
+        && (datos().producto in ['camiseta', 'taza'] || datos().producto.matches('pf_[0-9]{1,15}'))
+        && datos().variante is string && datos().variante.size() <= 20
         && (!('viajeId' in datos()) || (datos().viajeId is string && datos().viajeId.size() <= 80))
         && datos().estado == 'borrador'
         && datos().creado == request.time;
       allow update, delete: if false;
     }
 
-    // Lo que el worker apunta de Stripe (por donde va leyendo). Nadie mas.
+    // La coleccion copiada de Printful: nombres, fotos y precios. La lee
+    // cualquiera (es el escaparate) y solo la escribe el worker.
+    match /config/tienda_catalogo {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Lo que el worker apunta de Gumroad (por donde va leyendo). Nadie mas.
     match /tienda_interno/{doc} {
       allow read, write: if false;
     }

@@ -3,40 +3,58 @@
 /**
  * La tienda, del pago a la imprenta.
  *
- * No hay servidor que reciba el webhook de Stripe (la web es estatica y el
- * worker corre en GitHub Actions), asi que el worker hace de webhook al reves:
- * en cada ejecucion PREGUNTA a Stripe por las sesiones de pago completadas
- * desde la ultima vez. Para cada una:
+ * Vende dos cosas:
+ *   - el CATALOGO de Printful: los productos que ya estan montados alli, con
+ *     sus fotos y sus precios. El worker los copia a `config/tienda_catalogo`
+ *     (la web no puede preguntar a Printful: haria falta el token) y, al
+ *     venderse uno, lo pide a Printful por su `sync_variant_id`;
+ *   - los PERSONALIZADOS (camiseta y taza): el diseño se pinta con los datos
+ *     de cada piloto, como se explica abajo.
  *
- *   1. Busca el pedido borrador por `client_reference_id` (lo pone la web en el
- *      enlace de pago) y comprueba que lo cobrado es lo que vale el producto.
- *   2. Saca los datos que se imprimen de la BASE DE DATOS (perfil, clan,
+ * Cobra Gumroad, que es el vendedor a efectos fiscales (merchant of record):
+ * calcula, cobra y declara el IVA de cada pais. No hay servidor que reciba su
+ * aviso de venta (la web es estatica y el worker corre en GitHub Actions; y el
+ * "Ping" de Gumroad, ademas, no va firmado), asi que el worker hace de webhook
+ * al reves: en cada ejecucion PREGUNTA a Gumroad por las ventas desde la
+ * ultima vez (`GET /v2/sales`). Para cada una:
+ *
+ * En los dos casos:
+ *
+ *   1. Busca el pedido borrador por el campo personalizado `pedido` (lo
+ *      rellena la web en la URL del producto) y comprueba que la venta es del
+ *      producto que toca, cobrada y sin devolver.
+ *   2. (Solo personalizados.) Saca los datos que se imprimen de la BASE DE DATOS (perfil, clan,
  *      trayecto, puesto), nunca de lo que mando el navegador.
- *   3. Pinta el diseño con assets/js/tienda-diseno.js —el mismo de la vista
+ *   3. (Solo personalizados.) Pinta el diseño con assets/js/tienda-diseno.js —el mismo de la vista
  *      previa—, lo pasa a PNG con sharp y lo sube a Cloudinary.
- *   4. Crea el pedido en Printful con la direccion que recogio Stripe.
+ *   4. Crea el pedido en Printful con la direccion que recogio Gumroad.
  *
  * Es idempotente: el pedido de Printful lleva el id del nuestro como
  * `external_id`, y antes de crearlo se pregunta si ya existe. Una ejecucion
  * cortada a medias se retoma sin duplicar nada.
  *
  * Coste en Firestore: dos lecturas por ejecucion (la configuracion y por donde
- * va leyendo) y, por pedido pagado, las cinco o seis de sus datos. Sin las
- * claves de Stripe no lee nada.
+ * va leyendo) y, por pedido pagado, las cinco o seis de sus datos. Sin el
+ * token de Gumroad no lee nada.
  */
 
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { diaMadrid } = require('./util');
 
 const RAIZ = path.join(__dirname, '..', '..');
 const PEDIDO_ID = /^[A-Za-z0-9]{1,128}_\d{1,6}_[0-4]$/;
 const INTENTOS_MAX = 3;
+// Los productos del catalogo van en el pedido como `pf_<id de Printful>`.
+const DEL_CATALOGO = /^pf_(\d{1,15})$/;
+const CATALOGO_VIGENCIA = 60 * 60 * 1000;
+const CATALOGO_MAX = 40;
 
 /** Las claves, de las variables de entorno (secretos del repositorio). */
 function configuracion(env = process.env) {
   const cfg = {
-    stripe: env.STRIPE_SECRET_KEY || '',
+    gumroad: env.GUMROAD_TOKEN || '',
     printful: env.PRINTFUL_TOKEN || '',
     printfulTienda: env.PRINTFUL_STORE_ID || '',
     cloudinary: {
@@ -48,7 +66,10 @@ function configuracion(env = process.env) {
     // desde su panel. Con TIENDA_CONFIRMAR=si sale directo a produccion.
     confirmar: String(env.TIENDA_CONFIRMAR || '').toLowerCase() === 'si',
   };
-  cfg.lista = Boolean(cfg.stripe && cfg.printful && cfg.cloudinary.nube && cfg.cloudinary.clave && cfg.cloudinary.secreto);
+  // Cloudinary solo hace falta para los personalizados: el catalogo ya tiene
+  // sus ficheros en Printful.
+  cfg.lista = Boolean(cfg.gumroad && cfg.printful);
+  cfg.conCloudinary = Boolean(cfg.cloudinary.nube && cfg.cloudinary.clave && cfg.cloudinary.secreto);
   return cfg;
 }
 
@@ -99,41 +120,59 @@ function datosDiseno({ perfil, clan, viaje, puesto, total, nombreEstacion, emble
   };
 }
 
-/**
- * ¿Lo cobrado es lo que vale? Devuelve el motivo si no, o null si cuadra.
- * El precio lo fija el enlace de pago, que esta en Stripe y no se puede tocar
- * desde la web; esto pilla un enlace mal configurado o cambiado de producto.
- */
-function comprobarCobro(sesion, producto) {
-  if (!producto) return 'el producto del pedido ya no esta en la tienda';
-  if (sesion.payment_status !== 'paid') return `el pago esta "${sesion.payment_status}"`;
-  if (String(sesion.currency || '').toLowerCase() !== 'eur') return `moneda ${sesion.currency}`;
-  const esperado = Math.round(Number(producto.precio) * 100);
-  // Lo cobrado puede llevar envio o impuestos encima, nunca menos que el precio.
-  const cobrado = Number(sesion.amount_subtotal ?? sesion.amount_total);
-  if (!Number.isFinite(cobrado) || cobrado < esperado) return `se han cobrado ${cobrado} centimos y el producto vale ${esperado}`;
-  return null;
+/** "abc12" de https://pepa.gumroad.com/l/abc12, o null si no es un enlace de Gumroad. */
+function permalinkGumroad(enlace) {
+  const m = String(enlace || '').match(/^https:\/\/(?:[a-z0-9-]+\.)?gumroad\.com\/l\/([A-Za-z0-9_-]+)\/?$/);
+  return m ? m[1] : null;
+}
+
+/** El id de nuestro pedido, del campo personalizado `pedido` de la venta. */
+function pedidoDeVenta(venta) {
+  const valor = venta.custom_fields?.pedido;
+  return typeof valor === 'string' ? valor.trim() : null;
 }
 
 /**
- * La direccion de envio que recogio Stripe, en el formato de Printful.
- * Segun la version del API viene en `collected_information.shipping_details`
- * (2025 en adelante) o en `shipping_details`.
+ * ¿La venta vale para imprimir? Devuelve el motivo si no, o null si cuadra.
+ * El precio lo fija el producto en Gumroad y no se puede tocar desde la web, y
+ * el importe que da su API va en dolares (`price`, centimos de USD), asi que
+ * en vez del importe se comprueba que es el PRODUCTO del pedido: eso pilla un
+ * enlace cambiado de producto o una camiseta pagada con el precio de la taza.
  */
-function destinatario(sesion) {
-  const envio = sesion.collected_information?.shipping_details || sesion.shipping_details || null;
-  const dir = envio?.address;
-  if (!dir?.line1 || !dir?.country || !dir?.postal_code || !dir?.city) return null;
+function comprobarCobro(venta, producto) {
+  if (!producto) return 'el producto del pedido ya no esta en la tienda';
+  if (!venta.paid) return 'la venta no tiene importe';
+  if (venta.refunded || venta.partially_refunded) return 'la venta esta devuelta';
+  if (venta.chargedback || venta.disputed) return 'la venta tiene una disputa';
+  const esperado = permalinkGumroad(producto.enlacePago);
+  if (!esperado || venta.product_permalink !== esperado) {
+    return `la venta es del producto "${venta.product_permalink}" y el pedido es de "${esperado}"`;
+  }
+  return null;
+}
+
+// Printful pide el estado/provincia solo en estos paises, y como codigo.
+const CON_ESTADO = new Set(['US', 'CA', 'AU', 'JP']);
+
+/**
+ * La direccion de envio que recogio Gumroad, en el formato de Printful (el
+ * `recipient` de POST /orders). Gumroad la da en la venta solo si el producto
+ * es fisico ("Require shipping information"): `full_name`, `street_address`
+ * (una sola linea), `city`, `state`, `zip_code`, `country` (el nombre, en
+ * ingles) y `country_iso2` (el codigo, que es lo que quiere Printful).
+ */
+function destinatario(venta) {
+  const pais = String(venta.country_iso2 || '').toUpperCase();
+  if (!venta.street_address || !venta.city || !venta.zip_code || !/^[A-Z]{2}$/.test(pais)) return null;
+  const estado = String(venta.state || '').trim();
   return {
-    name: String(envio.name || sesion.customer_details?.name || '').slice(0, 100),
-    address1: dir.line1,
-    ...(dir.line2 ? { address2: dir.line2 } : {}),
-    city: dir.city,
-    ...(dir.state ? { state_code: dir.state } : {}),
-    country_code: dir.country,
-    zip: dir.postal_code,
-    ...(sesion.customer_details?.email ? { email: sesion.customer_details.email } : {}),
-    ...(sesion.customer_details?.phone ? { phone: sesion.customer_details.phone } : {}),
+    name: String(venta.full_name || '').trim().slice(0, 100),
+    address1: String(venta.street_address).trim(),
+    city: String(venta.city).trim(),
+    ...(CON_ESTADO.has(pais) && estado ? { state_code: estado } : {}),
+    country_code: pais,
+    zip: String(venta.zip_code).trim(),
+    ...(venta.email ? { email: venta.email } : {}),
   };
 }
 
@@ -154,6 +193,44 @@ function cuerpoPrintful({ pedidoId, recipient, varianteId, urlImagen, producto, 
   };
 }
 
+/**
+ * Un pedido del catalogo para Printful: el producto ya esta montado alli
+ * (diseño y precio), asi que basta con su variante sincronizada.
+ */
+function cuerpoPrintfulCatalogo({ pedidoId, recipient, syncVariantId }) {
+  return {
+    external_id: pedidoId,
+    shipping: 'STANDARD',
+    recipient,
+    items: [{ sync_variant_id: Number(syncVariantId), quantity: 1 }],
+  };
+}
+
+/**
+ * Un producto de Printful (`result` de GET /store/products/{id}) como lo
+ * enseña la web: nombre, foto y, por variante, su nombre, precio y foto. Las
+ * variantes ignoradas, sin existencias o sin precio no salen.
+ */
+function productoCatalogo(resultado) {
+  const sp = resultado?.sync_product;
+  if (!sp?.id || sp.is_ignored) return null;
+  const variantes = {};
+  for (const v of resultado.sync_variants || []) {
+    if (!v?.id || v.is_ignored) continue;
+    if (v.availability_status && v.availability_status !== 'active') continue;
+    const precio = Number(v.retail_price);
+    if (!Number.isFinite(precio) || precio <= 0) continue;
+    variantes[String(v.id)] = {
+      nombre: [v.size, v.color].filter(Boolean).join(' · ') || String(v.name || '').slice(0, 60),
+      precio,
+      moneda: String(v.currency || 'EUR').toUpperCase(),
+      imagen: (v.files || []).find((f) => f?.type === 'preview')?.preview_url || v.product?.image || null,
+    };
+  }
+  if (!Object.keys(variantes).length) return null;
+  return { nombre: String(sp.name || '').slice(0, 80), imagen: sp.thumbnail_url || null, variantes };
+}
+
 /** Firma de una subida a Cloudinary: sha1 de los parametros ordenados + secreto. */
 function firmaCloudinary(params, secreto) {
   const cadena = Object.keys(params).sort().map((k) => `${k}=${params[k]}`).join('&');
@@ -170,23 +247,27 @@ async function pedirJson(fetchFn, url, opciones = {}) {
   return { ok: res.ok, status: res.status, cuerpo };
 }
 
-/** Sesiones de pago completadas desde `desde` (segundos), con paginacion. */
-async function listarSesiones(fetchFn, clave, desde) {
+/**
+ * Las ventas desde el dia `desde` ("AAAA-MM-DD": Gumroad filtra por fecha, no
+ * por hora), con paginacion por `page_key`. Vienen de la mas nueva a la mas vieja.
+ */
+async function listarVentas(fetchFn, token, desde) {
   const todas = [];
-  let despues = null;
+  let clave = null;
   for (let pagina = 0; pagina < 10; pagina++) {
-    const q = new URLSearchParams({ status: 'complete', limit: '100', 'created[gte]': String(desde) });
-    if (despues) q.set('starting_after', despues);
-    const r = await pedirJson(fetchFn, `https://api.stripe.com/v1/checkout/sessions?${q}`, {
-      headers: { Authorization: `Bearer ${clave}` },
+    const q = new URLSearchParams({ after: desde });
+    if (clave) q.set('page_key', clave);
+    const r = await pedirJson(fetchFn, `https://api.gumroad.com/v2/sales?${q}`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
-    if (!r.ok) throw new Error(`Stripe ${r.status}: ${r.cuerpo?.error?.message || 'sin detalle'}`);
-    todas.push(...(r.cuerpo.data || []));
-    if (!r.cuerpo.has_more || !r.cuerpo.data?.length) break;
-    despues = r.cuerpo.data[r.cuerpo.data.length - 1].id;
+    if (!r.ok || r.cuerpo?.success === false) throw new Error(`Gumroad ${r.status}: ${r.cuerpo?.message || 'sin detalle'}`);
+    todas.push(...(r.cuerpo.sales || []));
+    clave = r.cuerpo.next_page_key || null;
+    if (!clave) break;
   }
   return todas;
 }
+
 
 async function subirCloudinary(fetchFn, cfg, png, publicId) {
   const timestamp = Math.floor(Date.now() / 1000);
@@ -201,13 +282,18 @@ async function subirCloudinary(fetchFn, cfg, png, publicId) {
   return r.cuerpo.secure_url;
 }
 
-/** Crea el pedido en Printful, o devuelve el que ya hubiera con ese id. */
-async function pedidoEnPrintful(fetchFn, cfg, cuerpo) {
-  const cabeceras = {
+/** Las cabeceras del API de Printful (v1). */
+function cabecerasPrintful(cfg) {
+  return {
     Authorization: `Bearer ${cfg.printful}`,
     'Content-Type': 'application/json',
     ...(cfg.printfulTienda ? { 'X-PF-Store-Id': cfg.printfulTienda } : {}),
   };
+}
+
+/** Crea el pedido en Printful, o devuelve el que ya hubiera con ese id. */
+async function pedidoEnPrintful(fetchFn, cfg, cuerpo) {
+  const cabeceras = cabecerasPrintful(cfg);
   const ya = await pedirJson(fetchFn, `https://api.printful.com/orders/@${encodeURIComponent(cuerpo.external_id)}`, { headers: cabeceras });
   if (ya.ok && ya.cuerpo?.result?.id) return { id: ya.cuerpo.result.id, estado: ya.cuerpo.result.status, nuevo: false };
   const r = await pedirJson(fetchFn, `https://api.printful.com/orders${cfg.confirmar ? '?confirm=1' : ''}`, {
@@ -215,6 +301,38 @@ async function pedidoEnPrintful(fetchFn, cfg, cuerpo) {
   });
   if (!r.ok || !r.cuerpo?.result?.id) throw new Error(`Printful ${r.status}: ${r.cuerpo?.error?.message || r.cuerpo?.result || 'sin detalle'}`);
   return { id: r.cuerpo.result.id, estado: r.cuerpo.result.status, nuevo: true };
+}
+
+// --- El catalogo de Printful -------------------------------------------------------
+
+/**
+ * Copia los productos de la tienda de Printful a `config/tienda_catalogo`, que
+ * es lo que lee la web. Como mucho una vez por hora: cuesta una lectura por
+ * ejecucion (saber cuando se copio) y, al copiar, una llamada por producto.
+ * Sin `PRINTFUL_TOKEN` no hace nada.
+ * @returns {Promise<object|null>} el catalogo copiado, o null si no tocaba
+ */
+async function sincronizarCatalogo({ db, admin, fetchFn = fetch, env = process.env, simular = false, ahora = Date.now() }) {
+  const cfg = configuracion(env);
+  if (!cfg.printful) return null;
+  const ref = db.doc('config/tienda_catalogo');
+  const snap = await ref.get();
+  if (snap.exists && ahora - (snap.data().actualizadoMs || 0) < CATALOGO_VIGENCIA) return null;
+
+  const opciones = { headers: cabecerasPrintful(cfg) };
+  const lista = await pedirJson(fetchFn, 'https://api.printful.com/store/products?limit=100', opciones);
+  if (!lista.ok) throw new Error(`Printful ${lista.status}: ${lista.cuerpo?.error?.message || 'sin detalle'}`);
+  const productos = {};
+  for (const p of (lista.cuerpo?.result || []).filter((x) => x?.id && !x.is_ignored).slice(0, CATALOGO_MAX)) {
+    const r = await pedirJson(fetchFn, `https://api.printful.com/store/products/${encodeURIComponent(p.id)}`, opciones);
+    if (!r.ok) throw new Error(`Printful ${r.status}: ${r.cuerpo?.error?.message || 'sin detalle'}`);
+    const producto = productoCatalogo(r.cuerpo?.result);
+    if (producto) productos[String(p.id)] = producto;
+  }
+  const catalogo = { productos, actualizadoMs: ahora };
+  if (!simular) await ref.set({ ...catalogo, actualizado: admin.firestore.FieldValue.serverTimestamp() });
+  console.log(`Tienda: catalogo de Printful copiado, ${Object.keys(productos).length} producto(s).`);
+  return catalogo;
 }
 
 // --- El trabajo de cada ejecucion -------------------------------------------------
@@ -234,99 +352,171 @@ async function pedidoEnPrintful(fetchFn, cfg, cuerpo) {
 async function procesarTienda(ctx) {
   const { db, admin, fetchFn = fetch, env = process.env, aPng, nombreEstacion, avisarAdmin, simular = false } = ctx;
   const cfg = configuracion(env);
-  if (!cfg.stripe) return 0;
+  if (!cfg.gumroad) return 0;
   if (!cfg.lista) {
-    console.warn('::warning::Tienda: hay clave de Stripe pero faltan las de Printful o Cloudinary. No se procesa nada.');
+    console.warn('::warning::Tienda: hay token de Gumroad pero falta el de Printful. No se procesa nada.');
     return 0;
   }
+  // El catalogo se lee solo si alguna venta es de el, y una vez.
+  let catalogoLeido = null;
+  const leerCatalogo = () => {
+    catalogoLeido = catalogoLeido || db.doc('config/tienda_catalogo').get().then((s) => (s.exists ? s.data() : {}));
+    return catalogoLeido;
+  };
 
   const [tiendaSnap, cursorSnap] = await Promise.all([
     db.doc('config/tienda').get(),
-    db.doc('tienda_interno/stripe').get(),
+    db.doc('tienda_interno/gumroad').get(),
   ]);
   const tienda = tiendaSnap.exists ? tiendaSnap.data() : {};
   const cursor = cursorSnap.exists ? cursorSnap.data() : {};
-  const ahora = Math.floor(Date.now() / 1000);
-  // Una hora de solape: una sesion que se completa justo al leer no se pierde.
-  const desde = Math.max(0, (cursor.desde || ahora - 3 * 86400) - 3600);
+  const ahora = Date.now();
+  // Gumroad filtra por dia: se pregunta desde el dia anterior al ultimo que se
+  // miro (un dia de solape, por los husos) y lo ya visto se salta por su id.
+  const desde = diaMadrid(new Date((cursor.desde || ahora - 3 * 864e5) - 864e5));
   const vistas = new Set(cursor.vistas || []);
 
-  const sesiones = (await listarSesiones(fetchFn, cfg.stripe, desde))
-    .filter((s) => !vistas.has(s.id))
-    .sort((a, b) => a.created - b.created);
-  if (!sesiones.length) {
-    if (!cursorSnap.exists && !simular) await db.doc('tienda_interno/stripe').set({ desde: ahora, vistas: [] });
+  const ventas = (await listarVentas(fetchFn, cfg.gumroad, desde))
+    .filter((v) => v.id && !vistas.has(v.id))
+    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  if (!ventas.length) {
+    if (!cursorSnap.exists && !simular) await db.doc('tienda_interno/gumroad').set({ desde: ahora, vistas: [] });
     return 0;
   }
 
   let mandados = 0;
   let pendienteMasViejo = null;
-  for (const sesion of sesiones) {
-    const resultado = await procesarSesion({ ...ctx, cfg, tienda, sesion, fetchFn, aPng, nombreEstacion, avisarAdmin, simular, db, admin });
+  for (const venta of ventas) {
+    const resultado = await procesarVenta({ ...ctx, cfg, tienda, leerCatalogo, venta, fetchFn, aPng, nombreEstacion, avisarAdmin, simular, db, admin });
     if (resultado === 'reintentar') {
-      pendienteMasViejo = pendienteMasViejo ?? sesion.created;
+      pendienteMasViejo = pendienteMasViejo ?? Date.parse(venta.created_at);
       continue;
     }
-    vistas.add(sesion.id);
+    vistas.add(venta.id);
     if (resultado === 'mandado') mandados += 1;
   }
 
   if (!simular) {
-    const ultima = Math.max(...sesiones.map((s) => s.created));
-    await db.doc('tienda_interno/stripe').set({
+    const ultima = Math.max(...ventas.map((v) => Date.parse(v.created_at) || 0));
+    await db.doc('tienda_interno/gumroad').set({
       // Lo que haya que reintentar sigue dentro de la ventana.
       desde: pendienteMasViejo ? Math.min(pendienteMasViejo, ultima) : ultima,
       vistas: [...vistas].slice(-300),
     });
   }
-  console.log(`Tienda: ${sesiones.length} pago(s) nuevo(s), ${mandados} pedido(s) a la imprenta.`);
+  console.log(`Tienda: ${ventas.length} venta(s) nueva(s), ${mandados} pedido(s) a la imprenta.`);
   return mandados;
 }
 
-/** Un pago. Devuelve 'mandado', 'revisar', 'ignorado' o 'reintentar'. */
-async function procesarSesion({ db, admin, cfg, tienda, sesion, fetchFn, aPng, nombreEstacion, avisarAdmin, simular }) {
-  const pedidoId = sesion.client_reference_id;
+/** Una venta. Devuelve 'mandado', 'revisar', 'ignorado' o 'reintentar'. */
+async function procesarVenta({ db, admin, cfg, tienda, leerCatalogo, venta, fetchFn, aPng, nombreEstacion, avisarAdmin, simular }) {
+  // Lo que se guarda de la venta en el pedido. Los importes, como los da
+  // Gumroad: centimos de dolar, el IVA incluido en `impuesto`.
+  const deLaVenta = {
+    gumroadVenta: venta.id, importe: Number.isFinite(venta.price) ? venta.price : null,
+    impuesto: Number.isFinite(venta.tax_cents) ? venta.tax_cents : null, moneda: 'usd',
+  };
+  const pedidoId = pedidoDeVenta(venta);
   if (!pedidoId || !PEDIDO_ID.test(pedidoId)) {
-    // Alguien ha pagado con el enlace sin pasar por la web: no sabemos que
-    // imprimir. Lo resuelve una persona (o se devuelve desde Stripe).
-    await avisarAdmin('Tienda: pago sin pedido', `La sesion ${sesion.id} de Stripe no trae un pedido de la web. Hay que resolverla a mano.`);
+    // Alguien ha comprado en Gumroad sin pasar por la web: no sabemos que
+    // imprimir. Lo resuelve una persona (o se devuelve desde Gumroad).
+    await avisarAdmin('Tienda: pago sin pedido', `La venta ${venta.id} de Gumroad (pedido nº ${venta.order_id}) no trae un pedido de la web. Hay que resolverla a mano.`);
     return 'revisar';
   }
   const ref = db.doc(`pedidos_tienda/${pedidoId}`);
   const snap = await ref.get();
   if (!snap.exists) {
-    await avisarAdmin('Tienda: pago de un pedido que no existe', `Sesion ${sesion.id}, pedido ${pedidoId}.`);
+    await avisarAdmin('Tienda: pago de un pedido que no existe', `Venta ${venta.id}, pedido ${pedidoId}.`);
     return 'revisar';
   }
   const pedido = snap.data();
   if (!['borrador', 'pagado'].includes(pedido.estado)) return 'ignorado';
 
-  const producto = tienda.productos?.[pedido.producto];
   const marcarRevisar = async (motivo) => {
     console.warn(`  [tienda ${pedidoId}] a revisar: ${motivo}`);
     if (!simular) {
       await ref.update({
-        estado: 'revisar', mensajeError: motivo.slice(0, 300), stripeSesion: sesion.id,
-        importe: sesion.amount_total ?? null, pagadoEn: admin.firestore.FieldValue.serverTimestamp(),
+        estado: 'revisar', mensajeError: motivo.slice(0, 300), ...deLaVenta,
+        pagadoEn: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
-    await avisarAdmin('Tienda: pedido pagado que hay que revisar', `Pedido ${pedidoId} (sesion ${sesion.id}): ${motivo}.`);
+    await avisarAdmin('Tienda: pedido pagado que hay que revisar', `Pedido ${pedidoId} (venta ${venta.id} de Gumroad): ${motivo}.`);
     return 'revisar';
   };
 
-  const cobro = comprobarCobro(sesion, producto);
+  const marcarPagado = async () => {
+    if (!simular && pedido.estado === 'borrador') {
+      await ref.update({
+        estado: 'pagado', ...deLaVenta, pagadoEn: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  };
+  const reintentarOAvisar = async (error) => {
+    // Un fallo de red o de un servicio: se reintenta en la siguiente ejecucion,
+    // hasta tres veces. Despues, a una persona.
+    const intentos = (pedido.intentos || 0) + 1;
+    console.warn(`  [tienda ${pedidoId}] intento ${intentos} fallido: ${error.message}`);
+    if (!simular) {
+      await ref.update({
+        intentos, mensajeError: String(error.message).slice(0, 300),
+        ...(intentos >= INTENTOS_MAX ? { estado: 'error' } : {}),
+      });
+    }
+    if (intentos >= INTENTOS_MAX) {
+      await avisarAdmin('Tienda: un pedido pagado no ha podido salir', `Pedido ${pedidoId}: ${error.message}`);
+      return 'revisar';
+    }
+    return 'reintentar';
+  };
+  const avisarNuevo = async (enviado, que) => {
+    if (!enviado.nuevo) return;
+    await avisarAdmin(
+      cfg.confirmar ? 'Tienda: pedido nuevo en produccion' : 'Tienda: pedido nuevo para confirmar',
+      `${que}. Printful #${enviado.id}` + (cfg.confirmar ? '.' : ': esta como borrador, confirmalo en el panel de Printful.'),
+    );
+  };
+
+  // --- Del catalogo de Printful ---
+  const delCatalogo = String(pedido.producto || '').match(DEL_CATALOGO);
+  if (delCatalogo) {
+    const idPrintful = delCatalogo[1];
+    const enCatalogo = (await leerCatalogo()).productos?.[idPrintful];
+    const enlacePago = tienda.catalogo?.[idPrintful];
+    const cobro = comprobarCobro(venta, enCatalogo && enlacePago ? { enlacePago } : null);
+    if (cobro) return marcarRevisar(cobro);
+    const variante = enCatalogo.variantes?.[pedido.variante];
+    if (!variante) return marcarRevisar(`la variante ${pedido.variante} ya no esta en el catalogo de Printful`);
+    const recipient = destinatario(venta);
+    if (!recipient) return marcarRevisar('Gumroad no ha recogido una direccion de envio completa (¿el producto es fisico y pide la direccion?)');
+    await marcarPagado();
+    if (simular) {
+      console.log(`  [tienda ${pedidoId}] se mandaria: ${enCatalogo.nombre} ${variante.nombre}`);
+      return 'mandado';
+    }
+    try {
+      const enviado = await pedidoEnPrintful(fetchFn, cfg, cuerpoPrintfulCatalogo({ pedidoId, recipient, syncVariantId: pedido.variante }));
+      await ref.update({
+        estado: cfg.confirmar ? 'en_produccion' : 'en_proveedor',
+        printfulId: enviado.id, mensajeError: admin.firestore.FieldValue.delete(),
+      });
+      await avisarNuevo(enviado, `${enCatalogo.nombre} ${variante.nombre}`);
+      return 'mandado';
+    } catch (error) {
+      return reintentarOAvisar(error);
+    }
+  }
+
+  // --- Personalizado ---
+  const producto = tienda.productos?.[pedido.producto];
+  const cobro = comprobarCobro(venta, producto);
   if (cobro) return marcarRevisar(cobro);
   const varianteId = producto.variantes?.[pedido.variante];
   if (!varianteId) return marcarRevisar(`no hay variante del proveedor para "${pedido.variante}"`);
-  const recipient = destinatario(sesion);
-  if (!recipient) return marcarRevisar('Stripe no ha recogido una direccion de envio completa (¿el enlace pide la direccion?)');
+  const recipient = destinatario(venta);
+  if (!recipient) return marcarRevisar('Gumroad no ha recogido una direccion de envio completa (¿el producto es fisico y pide la direccion?)');
+  if (!cfg.conCloudinary) return marcarRevisar('faltan las claves de Cloudinary, que hacen falta para los personalizados');
 
-  if (!simular && pedido.estado === 'borrador') {
-    await ref.update({
-      estado: 'pagado', stripeSesion: sesion.id, importe: sesion.amount_total ?? null,
-      moneda: sesion.currency || null, pagadoEn: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  }
+  await marcarPagado();
 
   try {
     const { disenoSVG, EMBLEMAS } = await cargarModulos();
@@ -344,30 +534,10 @@ async function procesarSesion({ db, admin, cfg, tienda, sesion, fetchFn, aPng, n
       estado: cfg.confirmar ? 'en_produccion' : 'en_proveedor',
       printfulId: enviado.id, imagenUrl: urlImagen, mensajeError: admin.firestore.FieldValue.delete(),
     });
-    if (enviado.nuevo) {
-      await avisarAdmin(
-        cfg.confirmar ? 'Tienda: pedido nuevo en produccion' : 'Tienda: pedido nuevo para confirmar',
-        `${pedido.producto} ${pedido.variante} de ${datos.nombre}. Printful #${enviado.id}`
-          + (cfg.confirmar ? '.' : ': esta como borrador, confirmalo en el panel de Printful.'),
-      );
-    }
+    await avisarNuevo(enviado, `${pedido.producto} ${pedido.variante} de ${datos.nombre}`);
     return 'mandado';
   } catch (error) {
-    // Un fallo de red o de un servicio: se reintenta en la siguiente ejecucion,
-    // hasta tres veces. Despues, a una persona.
-    const intentos = (pedido.intentos || 0) + 1;
-    console.warn(`  [tienda ${pedidoId}] intento ${intentos} fallido: ${error.message}`);
-    if (!simular) {
-      await ref.update({
-        intentos, mensajeError: String(error.message).slice(0, 300),
-        ...(intentos >= INTENTOS_MAX ? { estado: 'error' } : {}),
-      });
-    }
-    if (intentos >= INTENTOS_MAX) {
-      await avisarAdmin('Tienda: un pedido pagado no ha podido salir', `Pedido ${pedidoId}: ${error.message}`);
-      return 'revisar';
-    }
-    return 'reintentar';
+    return reintentarOAvisar(error);
   }
 }
 
@@ -398,13 +568,18 @@ async function reunirDatos(db, pedido, nombreEstacion, emblemas) {
 
 module.exports = {
   procesarTienda,
+  sincronizarCatalogo,
+  productoCatalogo,
+  cuerpoPrintfulCatalogo,
   configuracion,
   datosDiseno,
   comprobarCobro,
   destinatario,
+  permalinkGumroad,
+  pedidoDeVenta,
   cuerpoPrintful,
   firmaCloudinary,
   formatearTiempo,
-  listarSesiones,
+  listarVentas,
   cargarModulos,
 };

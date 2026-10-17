@@ -21,6 +21,11 @@
  *
  * `como` es lo que se enseña de una recompensa que aun no tienes: como se
  * consigue, sin destripar donde esta la pegatina.
+ *
+ * `colaboracion` (opcional) es para los banners hechos con un artista o una
+ * empresa: `{ nombre: 'Quien sea', logo: 'quien-sea.svg' }`, con el logo en
+ * `assets/img/colaboraciones/`. Debajo del banner sale "bicifastness x" y el
+ * logo; sin ese campo, no sale nada.
  */
 
 import { INSIGNIAS } from './insignias.js';
@@ -80,6 +85,13 @@ export const BANNER_POR_DEFECTO = 'libre-calzada';
 
 /** El dibujo de cada banner: un SVG de 1200 x 400 con el mismo nombre que su id. */
 export const imagenBanner = (id) => `/assets/img/banners/${BANNERS[id] ? id : BANNER_POR_DEFECTO}.svg`;
+
+/** El logo de una colaboracion, o null si el banner no es de ninguna. */
+export function colaboracionDe(id) {
+  const c = BANNERS[id]?.colaboracion;
+  if (!c?.nombre || !/^[a-z0-9-]+\.(svg|png|webp)$/.test(String(c.logo || ''))) return null;
+  return { nombre: c.nombre, logo: `/assets/img/colaboraciones/${c.logo}` };
+}
 
 export const esLibre = (id) => String(id || '').startsWith('libre-');
 

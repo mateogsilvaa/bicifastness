@@ -42,7 +42,7 @@ import { tiendaAbierta } from '/assets/js/tienda.js';
 import { estadoAvisos, guiaAvisos, avisoDePrueba } from '/assets/js/guia-avisos.js';
 import { leerVitrina, guardarVitrina, leerConfigRecompensas } from '/assets/js/vitrina.js';
 import { banner, lema, cabeceraPiloto, colorAvatar } from '/assets/js/perfil-publico.js';
-import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene, comoSeGana, imagenBanner } from '/assets/data/recompensas.js';
+import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene, comoSeGana, imagenBanner, colaboracionDe } from '/assets/data/recompensas.js';
 
 iniciarPagina('yo');
 
@@ -74,8 +74,12 @@ for (const boton of document.querySelectorAll('[data-ir]')) {
 
 // 8o: en escritorio el correo es un aviso mas; en el movil va en "Otros" (6e).
 const escritorioAjustes = window.matchMedia('(min-width: 1200px)');
+// Guardada aqui y no buscada cada vez: al repintar los avisos, la lista se
+// vacia con la fila dentro y `id()` ya no la encuentra. Y `prepend(null)` pinta
+// el texto "null" donde iba el correo.
+const filaCorreo = id('fila-correo');
 const colocarCorreo = () => {
-  (escritorioAjustes.matches ? id('lista-avisos') : id('lista-otros')).prepend(id('fila-correo'));
+  (escritorioAjustes.matches ? id('lista-avisos') : id('lista-otros')).prepend(filaCorreo);
   // Y la version, al pie del indice.
   if (escritorioAjustes.matches) document.querySelector('.indice-ajustes').append(id('pie-version'));
   else id('vista-ajustes').append(id('pie-version'));
@@ -361,6 +365,11 @@ function pintarVitrina() {
   };
 
   // Banners: miniaturas en rejilla.
+  // Los hechos con un artista o una empresa llevan su firma debajo.
+  const pieColaboracion = (clave) => {
+    const c = colaboracionDe(clave);
+    return c ? el('span', { clase: 'colaboracion' }, ['bicifastness x', el('img', { attrs: { src: c.logo, alt: c.nombre, loading: 'lazy' } })]) : null;
+  };
   const puesto = vitrina.banner || BANNER_POR_DEFECTO;
   const opcionBanner = ([clave, b]) => {
     const tiene = tienes(clave);
@@ -371,7 +380,7 @@ function pintarVitrina() {
         'aria-disabled': tiene ? null : 'true', 'aria-label': tiene ? b.titulo : `${b.titulo}, bloqueado`,
       },
       on: { click: () => (tiene ? elegirVitrina({ banner: clave }) : pista(`${b.titulo}: ${comoSeGana(clave, b.como, configRec)}`)) },
-    }, [banner(clave), el('span', { texto: b.titulo }), tiene ? null : icono('candado', 'icono candado-sobre')]);
+    }, [banner(clave), el('span', { texto: b.titulo }), pieColaboracion(clave), tiene ? null : icono('candado', 'icono candado-sobre')]);
   };
   const banners = Object.entries(BANNERS);
   const suyosB = banners.filter(([clave]) => tienes(clave));

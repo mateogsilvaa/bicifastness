@@ -4374,14 +4374,17 @@ html.acceso-pendiente main::before {
 .pestanas-vitrina { grid-template-columns: 1fr 1fr; margin: var(--e4) 0 var(--e3); }
 .pestanas-vitrina button[aria-selected='true'] { background: var(--papel-2); color: var(--tinta); }
 [data-theme='dark'] .pestanas-vitrina button[aria-selected='true'] { background: var(--linea-fuerte); }
-.vitrina-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: var(--e2); }
+.vitrina-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: var(--e2); }
 .opcion-banner { position: relative; display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 5px; border: 2px solid transparent; border-radius: 14px; background: var(--papel-2); color: var(--tinta); font: inherit; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer; }
-.opcion-banner .banner-piloto { height: 40px; border-radius: 9px; }
-.opcion-banner > span { padding: 0 3px 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opcion-banner .banner-piloto { height: 54px; border-radius: 9px; }
+/* Colaboraciones: "bicifastness x" y el logo de quien lo firma. */
+.opcion-banner .colaboracion { display: flex; align-items: center; gap: 5px; min-width: 0; padding: 0 3px 2px; color: var(--tinta-3); font-size: 11px; font-weight: 500; }
+.opcion-banner .colaboracion img { display: block; max-width: 72px; height: 16px; object-fit: contain; }
+.opcion-banner > span:not(.colaboracion) { padding: 0 3px 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .opcion-banner[aria-checked="true"] { border-color: var(--azul); }
 .opcion-banner.bloqueada .banner-piloto { filter: grayscale(.9) brightness(.65); }
 .opcion-banner.bloqueada > span { color: var(--tinta-3); }
-.opcion-banner .candado-sobre { position: absolute; left: 50%; top: 25px; width: 18px; height: 18px; transform: translate(-50%, -50%); color: #fff; }
+.opcion-banner .candado-sobre { position: absolute; left: 50%; top: 32px; width: 18px; height: 18px; transform: translate(-50%, -50%); color: #fff; }
 .vitrina-chips { display: flex; flex-wrap: wrap; gap: var(--e2); }
 .opcion-lema { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; max-width: 100%; padding: 6px 14px; border: 2px solid transparent; border-radius: 14px; background: var(--papel-2); color: var(--tinta); font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; }
 .opcion-lema .lema { font-size: 14px; }

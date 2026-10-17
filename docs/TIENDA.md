@@ -30,6 +30,31 @@ Worker (cada ejecución) ── 4. pregunta a Gumroad por las ventas nuevas
     └─ 8. crea el pedido en Printful con la dirección y la URL del PNG
 ```
 
+### La colección de Printful
+
+Además de los personalizados, la tienda vende **los productos que ya están
+montados en Printful**, con sus fotos y sus precios. Gumroad solo cobra:
+
+- El worker copia cada hora la tienda de Printful (`GET /store/products` y
+  `GET /store/products/{id}`) a `config/tienda_catalogo`: nombre, foto y, por
+  variante, su nombre, precio y foto. Las variantes ignoradas o sin existencias
+  no se copian. La web no puede preguntar a Printful directamente porque haría
+  falta el token.
+- En `/admin/tienda/` cada producto de la colección lleva su enlace de Gumroad
+  (`config/tienda.catalogo`, `{ id de Printful: enlace }`). Sin enlace no sale
+  en la web.
+- En Gumroad, **un producto por producto de Printful**, con el mismo precio y el
+  mismo campo `pedido`. Si las tallas de un producto cuestan distinto en
+  Printful, Gumroad cobra un único precio: o se igualan, o se separan en dos
+  productos.
+- El pedido se guarda como `producto: 'pf_<id>'` y `variante: '<id de variante
+  sincronizada>'`. Al venderse, el worker comprueba que la venta es del producto
+  de Gumroad de ese artículo y lo pide a Printful con
+  `items: [{ sync_variant_id, quantity: 1 }]`: el diseño y el precio ya están
+  allí, así que no pinta nada ni usa Cloudinary.
+- Las fotos se cargan del CDN de Printful (`files.cdn.printful.com`, añadido a
+  la CSP en `shared/cabeceras.json`), y la web no pinta ninguna de otro sitio.
+
 Piezas:
 
 | Qué | Dónde |
@@ -49,7 +74,7 @@ Piezas:
    `GET https://api.printful.com/products/{id}`. Ejemplos habituales (compruébalos
    en el catálogo, los ids cambian por color y talla): Bella+Canvas 3001 negra y
    la taza blanca brillante de 11 oz.
-2. **Cloudinary.** Cuenta gratuita. Necesitas el *cloud name*, la *API key* y el
+2. **Cloudinary** (solo para los personalizados). Cuenta gratuita. Necesitas el *cloud name*, la *API key* y el
    *API secret* (Dashboard). Solo se usa para alojar el PNG que lee Printful.
 3. **Gumroad.** Un producto **físico** por artículo (Camiseta, Taza):
    - Tipo «Physical product», con «Require shipping information» activado y

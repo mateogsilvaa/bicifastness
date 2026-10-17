@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com https://recaptcha.google.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com https://files.cdn.printful.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com https://recaptcha.google.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="format-detection" content="telephone=no">
@@ -44,6 +44,13 @@
     </section>
   </div>
 
+  <section class="adm-tarjeta adm-catalogo" aria-labelledby="t-catalogo">
+    <h2 id="t-catalogo">La colección de Printful</h2>
+    <p class="menor apagado">Los productos de tu tienda de Printful, con sus fotos y precios. Se copian solos cada hora; aquí no se cambian. Para vender uno, pega el enlace de su producto en Gumroad (mismo precio que en Printful). Sin enlace, no sale en la web.</p>
+    <div id="lista-catalogo"></div>
+  </section>
+
+  <h2 class="adm-subtitulo">Con sus marcas (personalizados)</h2>
   <div class="adm-dos" id="productos"></div>
   <button class="btn" type="button" id="btn-guardar" style="width: auto;">Guardar la tienda</button>
 </main>

@@ -4255,6 +4255,16 @@ body.en-obras { overflow: hidden; }
 .tienda-opciones button { min-height: 40px; padding: 0 var(--e4); border-radius: 999px; border: 1.5px solid var(--linea-fuerte); background: var(--papel-2); color: var(--tinta); font: inherit; font-weight: 700; cursor: pointer; }
 .tienda-opciones button[aria-checked="true"] { border-color: var(--tinta); background: var(--tinta); color: var(--papel); }
 .tienda-letra { margin-top: var(--e6); }
+#tienda-catalogo, #tienda-personal { margin-bottom: var(--e6); }
+#tienda-catalogo h2, #tienda-personal h2 { margin-bottom: var(--e3); }
+.tienda-rejilla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e3); }
+@media (min-width: 900px) { .tienda-rejilla { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.tienda-ficha { display: flex; flex-direction: column; gap: 4px; padding: var(--e2); border: var(--borde); border-radius: 16px; background: var(--papel-2); color: var(--tinta); font: inherit; text-align: left; cursor: pointer; }
+.tienda-ficha img, .tienda-ficha-sinfoto { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: var(--papel); margin-bottom: var(--e1); }
+.tienda-ficha strong { font-size: 15px; }
+.tienda-ficha span { font-size: 13px; color: var(--tinta-2); }
+.tienda-ficha:hover { border-color: var(--tinta); }
+.tienda-volver { align-self: flex-start; width: auto; padding: 0; min-height: 0; }
 #mis-pedidos { margin-top: var(--e6); }
 .tienda-pedido { display: flex; justify-content: space-between; align-items: center; gap: var(--e3); padding: var(--e3) var(--e4); border-radius: 14px; background: var(--papel-2); margin-bottom: var(--e2); }
 .invitacion-apoyo { display: flex; flex-direction: column; gap: var(--e2); }
@@ -4262,6 +4272,13 @@ body.en-obras { overflow: hidden; }
 .invitacion-apoyo-botones { display: flex; flex-wrap: wrap; gap: var(--e2); margin-top: var(--e2); }
 .invitacion-apoyo-botones .btn { width: auto; padding: 0 var(--e5); }
 .invitacion-apoyo-nunca { align-self: flex-start; border: 0; background: none; padding: 0; color: var(--tinta-3); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+.adm-catalogo { margin-bottom: var(--e5); }
+.adm-catalogo-fila { display: flex; gap: var(--e3); align-items: center; padding: var(--e3) 0; border-top: var(--borde); }
+.adm-catalogo-fila img, .adm-catalogo-sinfoto { flex: none; width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: var(--papel); }
+.adm-catalogo-datos { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.adm-catalogo-datos small { color: var(--tinta-2); }
+.adm-catalogo-datos input { width: 100%; }
+.adm-subtitulo { margin: var(--e4) 0 var(--e3); }
 .adm-tarjeta .campo { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: var(--tinta-2); }
 .adm-tarjeta .campo input, .adm-tarjeta .campo textarea { font-weight: 400; }
 .campo-check input { flex: none; width: auto; height: auto; min-height: 0; margin: 0; }

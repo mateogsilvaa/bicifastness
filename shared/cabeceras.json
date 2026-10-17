@@ -37,7 +37,8 @@
       "'self'",
       "data:",
       "blob:",
-      "https://server.arcgisonline.com"
+      "https://server.arcgisonline.com",
+      "https://files.cdn.printful.com"
     ],
     "connect-src": [
       "'self'",

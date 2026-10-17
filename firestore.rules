@@ -830,8 +830,12 @@ service cloud.firestore {
     match /config/tienda {
       allow read: if true;
       allow write: if esAdmin()
-        && datos().keys().hasOnly(['visible', 'productos', 'actualizado', 'por'])
+        && datos().keys().hasOnly(['visible', 'productos', 'catalogo', 'actualizado', 'por'])
         && datos().visible is bool
+        // La coleccion de Printful: { id del producto en Printful: enlace de Gumroad }.
+        // Las reglas no recorren un mapa; la web y el worker solo usan los
+        // enlaces que son de Gumroad.
+        && (!('catalogo' in datos()) || (datos().catalogo is map && datos().catalogo.size() <= 40))
         && datos().productos is map
         && datos().productos.keys().hasOnly(['camiseta', 'taza'])
         && (!('camiseta' in datos().productos) || productoTiendaValido(datos().productos.camiseta))
@@ -862,12 +866,20 @@ service cloud.firestore {
         && puedeUsarLaWeb()
         && pedidoId.matches(request.auth.uid + '_' + string(diaUTC()) + '_[0-4]')
         && datos().keys().hasOnly(['uid', 'producto', 'variante', 'viajeId', 'estado', 'creado'])
-        && datos().producto in ['camiseta', 'taza']
-        && datos().variante is string && datos().variante.size() <= 12
+        // Un personalizado, o uno de la coleccion de Printful (pf_<id>).
+        && (datos().producto in ['camiseta', 'taza'] || datos().producto.matches('pf_[0-9]{1,15}'))
+        && datos().variante is string && datos().variante.size() <= 20
         && (!('viajeId' in datos()) || (datos().viajeId is string && datos().viajeId.size() <= 80))
         && datos().estado == 'borrador'
         && datos().creado == request.time;
       allow update, delete: if false;
+    }
+
+    // La coleccion copiada de Printful: nombres, fotos y precios. La lee
+    // cualquiera (es el escaparate) y solo la escribe el worker.
+    match /config/tienda_catalogo {
+      allow read: if true;
+      allow write: if false;
     }
 
     // Lo que el worker apunta de Gumroad (por donde va leyendo). Nadie mas.

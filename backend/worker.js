@@ -2748,6 +2748,12 @@ async function resolverCanjes() {
  */
 async function venderEnLaTienda() {
   try {
+    // Lo que se vende del catalogo de Printful, copiado para la web.
+    await tienda.sincronizarCatalogo({ db, admin, simular: SIMULAR });
+  } catch (error) {
+    console.warn('No se ha podido copiar el catalogo de Printful:', error.message);
+  }
+  try {
     await tienda.procesarTienda({
       db,
       admin,

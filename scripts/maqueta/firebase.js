@@ -239,6 +239,19 @@ datos['config/tienda'] = {
     camiseta: { activo: true, precio: 24.9, enlacePago: 'https://maqueta.gumroad.com/l/camiseta', variantes: { S: 1, M: 2, L: 3, XL: 4 } },
     taza: { activo: true, precio: 14.9, enlacePago: 'https://maqueta.gumroad.com/l/taza', variantes: { unica: 5 } },
   },
+  catalogo: { 101: 'https://maqueta.gumroad.com/l/sudadera', 102: 'https://maqueta.gumroad.com/l/gorra' },
+};
+// La coleccion de Printful tal y como la copia el worker (sin fotos: en la
+// maqueta no hay ninguna de Printful, y la web solo pinta las de su CDN).
+datos['config/tienda_catalogo'] = {
+  actualizadoMs: Date.now(),
+  productos: {
+    101: {
+      nombre: 'Sudadera Calzada', imagen: null,
+      variantes: { 9001: { nombre: 'S · Negro', precio: 39.9, moneda: 'EUR' }, 9002: { nombre: 'M · Negro', precio: 39.9, moneda: 'EUR' }, 9003: { nombre: 'L · Negro', precio: 39.9, moneda: 'EUR' } },
+    },
+    102: { nombre: 'Gorra bicifastness', imagen: null, variantes: { 9101: { nombre: 'Única', precio: 22, moneda: 'EUR' } } },
+  },
 };
 // localStorage.maqueta_obras = '1' -> la web en construccion (assets/js/puerta.js).
 if ((() => { try { return localStorage.getItem('maqueta_obras'); } catch { return null; } })()) {

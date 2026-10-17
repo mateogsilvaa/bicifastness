@@ -31,7 +31,7 @@ const DIA_MS = 86400000;
 
 /**
  * "02471" y "2471" son la misma bici. Se guarda sin ceros delante (asi lo
- * exigen tambien las reglas) y se enseña con cuatro cifras.
+ * exigen tambien las reglas) y se enseña tal cual.
  */
 const normalizarBici = (n) => {
   const limpio = String(n ?? '').trim().replace(/^0+(?=\d)/, '');

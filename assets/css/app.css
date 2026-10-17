@@ -4477,3 +4477,15 @@ html.acceso-pendiente main::before {
 .canje-premio { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: var(--e2); padding: var(--e3); border-radius: var(--radio-tarjeta); background: var(--papel); }
 .canje-premio .banner-piloto { width: 100%; }
 .canje-premio .lema { font-size: 20px; }
+
+/* Compartir (assets/js/compartir.js): la vista previa de la imagen y sus botones. */
+.hoja-compartir { gap: var(--e3); }
+.compartir-vista { display: flex; justify-content: center; }
+.compartir-vista.esqueleto { aspect-ratio: 9 / 16; height: min(52vh, 460px); margin: 0 auto; border-radius: 16px; }
+.compartir-vista img { display: block; height: min(52vh, 460px); width: auto; max-width: 100%; border-radius: 16px; }
+.compartir-botones { display: flex; flex-wrap: wrap; gap: var(--e2); }
+.compartir-botones .btn { flex: 1 1 140px; }
+.boton-compartir { display: inline-flex; align-items: center; justify-content: center; gap: var(--e2); }
+.temporada-actual .boton-compartir { margin-top: var(--e3); }
+.detalle-barra-acciones { display: inline-flex; align-items: center; gap: var(--e2); margin-left: auto; }
+.compartir-ruta { width: auto; min-height: 40px; padding: 0 var(--e4); }

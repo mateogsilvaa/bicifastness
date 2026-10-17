@@ -22,6 +22,7 @@ import { traerAgregado } from '/assets/js/agregados.js';
 import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 import { diaMadrid, lunesDeLaSemana } from '/assets/js/dia.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
+import { botonCompartir, tarjetaRuta } from '/assets/js/compartir.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
 import {
   NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
@@ -660,11 +661,20 @@ async function pintarDetalleRuta(ruta, vista = null) {
   const mio = miPuesto(modoVista === 'hoy' ? { filas: deHoy, total: deHoy.length } : agregado);
   const record = filas[0];
   const objetivo = mio?.delante;
+  // Tu puesto en esta ruta, como imagen para compartir (assets/js/compartir.js).
+  const compartir = mio ? botonCompartir(() => ({
+    svg: tarjetaRuta({
+      piloto: perfil?.username, origen: nombreDe(ruta, ORIGEN), destino: nombreDe(ruta, DESTINO),
+      puesto: mio.yo.pos, total: mio.total, tiempo: mmss(mio.yo.marca), km,
+    }),
+    fichero: `bicifastness-ruta-${ruta}`,
+    texto: `${ordinal(mio.yo.pos)} de ${mio.total} en ${nombreDe(ruta, ORIGEN)} → ${nombreDe(ruta, DESTINO)} con ${mmss(mio.yo.marca)}. ¿Te atreves? https://bicifastness.es`,
+  }), { clase: 'btn secundario compartir-ruta', texto: 'Compartir' }) : null;
 
   reemplazar(destino, [
     el('div', { clase: 'detalle-barra' }, [
       el('button', { clase: 'boton-icono solo-movil-inline', attrs: { type: 'button', 'aria-label': 'Volver a las rutas' }, on: { click: cerrarRuta } }, [icono('atras')]),
-      pin,
+      el('span', { clase: 'detalle-barra-acciones' }, [compartir, pin]),
     ]),
     el('div', { clase: 'detalle-titulo' }, [
       // 4d: "001 → 102 · 1,9 km".

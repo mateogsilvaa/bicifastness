@@ -17,6 +17,7 @@ import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
 import { NIVELES, NOMBRES as LIGAS, emblemaLiga, chipDivision, numeroDeGrupo, LANZAMIENTO } from './ligas.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
 import { impugnable } from './motivos.js';
+import { botonCompartir, tarjetaTemporada } from './compartir.js';
 
 // --- Formato -----------------------------------------------------------------
 
@@ -517,6 +518,14 @@ export function pintarTemporadas(perfil, cerradas, puesto = null) {
     el('div', { clase: 'pista', attrs: { 'aria-hidden': 'true' } }, [
       el('span', { estilo: { width: `${Math.round((actual / mejor) * 100)}%` } }),
     ]),
+    botonCompartir(() => ({
+      svg: tarjetaTemporada({
+        piloto: perfil.username, mes: nombreMes(diaMadrid().slice(0, 7)), puntos: actual,
+        puesto: puesto?.pos || null, total: puesto?.total || null, division,
+      }),
+      fichero: `bicifastness-temporada-${diaMadrid().slice(0, 7)}`,
+      texto: `Mi temporada de ${nombreMes(diaMadrid().slice(0, 7)).toLowerCase()} en bicifastness: ${numero(actual)} puntos. https://bicifastness.es`,
+    }), { texto: 'Compartir mi temporada' }),
   ]));
 
   pintarBarrasTemporadas(actual, cerradas);

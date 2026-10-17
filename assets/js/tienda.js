@@ -10,16 +10,18 @@
  */
 
 import { db, doc, getDoc } from './firebase.js';
-import { el, reemplazar } from './dom.js';
+import { el, icono, reemplazar } from './dom.js';
 
 const CLAVE = 'bf_tienda';
+/** El enlace de un producto de Gumroad: https://pepa.gumroad.com/l/abc12 */
+export const ENLACE_GUMROAD = /^https:\/\/([a-z0-9-]+\.)?gumroad\.com\/l\/[A-Za-z0-9_-]+$/;
 const VIGENCIA = 10 * 60 * 1000;
 
 /** Los productos que se pueden comprar ahora: activos y con enlace de pago. */
 export function productosALaVenta(config) {
   if (!config?.visible) return [];
   return Object.entries(config.productos || {})
-    .filter(([, p]) => p?.activo && typeof p.enlacePago === 'string' && p.enlacePago.startsWith('https://buy.stripe.com/'))
+    .filter(([, p]) => p?.activo && typeof p.enlacePago === 'string' && ENLACE_GUMROAD.test(p.enlacePago))
     .map(([clave, p]) => ({ clave, ...p }));
 }
 
@@ -44,6 +46,21 @@ export async function leerTienda({ fresca = false } = {}) {
 /** ¿Hay algo que enseñar? Es lo que deciden el acceso de Tu y la invitacion. */
 export async function tiendaAbierta() {
   return productosALaVenta(await leerTienda()).length > 0;
+}
+
+// --- El circulo con corazon -------------------------------------------------
+//
+// En Hoy, Ranking y Mapa (lo decide `iniciarPagina`): un circulo pequeño en la
+// esquina que lleva a la tienda. Solo si esta abierta; si no, ni se pinta.
+
+/** Pinta el acceso flotante a la tienda si hay algo a la venta. */
+export async function montarBurbujaTienda() {
+  if (document.querySelector('.burbuja-tienda')) return;
+  if (!(await tiendaAbierta())) return;
+  document.body.append(el('a', {
+    clase: 'burbuja-tienda',
+    attrs: { href: '/tienda/', 'aria-label': 'Tienda: apoya el proyecto', title: 'Tienda' },
+  }, [icono('corazon')]));
 }
 
 // --- La invitacion -----------------------------------------------------------

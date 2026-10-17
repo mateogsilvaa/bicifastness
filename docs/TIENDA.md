@@ -7,21 +7,24 @@ ranking general. El dinero que sale de aquí ayuda a pagar el proyecto.
 ## Cómo funciona
 
 BiciFastness no tiene servidor propio. La web es estática (GitHub Pages) y el
-único proceso de confianza es el worker, que corre en GitHub Actions. Por eso
-el flujo «normal» (un endpoint que crea la sesión de Stripe y otro que recibe
-el webhook) se ha adaptado así:
+único proceso de confianza es el worker, que corre en GitHub Actions. Cobra
+**Gumroad**, que es el vendedor a efectos fiscales (*merchant of record*):
+factura al cliente y calcula, cobra y declara el IVA de cada país. El flujo
+«normal» (un endpoint que crea el pago y otro que recibe el webhook) se ha
+adaptado así:
 
 ```
 Navegador ── 1. vista previa (SVG, con tus datos)
     │
     ├─ 2. crea pedidos_tienda/{id}  (borrador: producto, talla, qué trayecto)
-    └─ 3. va al Payment Link de Stripe con ?client_reference_id={id}
+    └─ 3. va al producto de Gumroad con ?wanted=true&pedido={id}
                        │
-                 Stripe cobra y recoge la dirección
+      Gumroad cobra (con IVA y envío) y recoge la dirección;
+      el campo personalizado «pedido» viaja con la venta
                        │
-Worker (cada ejecución) ── 4. pregunta a Stripe por las sesiones completadas
+Worker (cada ejecución) ── 4. pregunta a Gumroad por las ventas nuevas
     │                        (hace de webhook, pero tirando en vez de recibir)
-    ├─ 5. comprueba que lo cobrado es el precio del producto
+    ├─ 5. comprueba que la venta es del producto del pedido y no está devuelta
     ├─ 6. saca los datos de Firestore (NO del navegador) y pinta el diseño
     ├─ 7. SVG → PNG con sharp → lo sube a Cloudinary
     └─ 8. crea el pedido en Printful con la dirección y la URL del PNG
@@ -33,7 +36,7 @@ Piezas:
 |---|---|
 | El diseño (el mismo para vista previa e impresión) | `assets/js/tienda-diseno.js` |
 | La página | `tienda/`, `assets/js/paginas/tienda.js` |
-| Acceso en Tú e invitación en Hoy | `assets/js/tienda.js` |
+| Círculo con corazón (Hoy, Ranking, Mapa), tarjeta en Yo e invitación en Hoy | `assets/js/tienda.js`, `assets/js/yo-vistas.js` |
 | Abrir/cerrar y configurar | `/admin/tienda/` → `config/tienda` |
 | Del pago a la imprenta | `backend/src/tienda.js` (lo llama el worker) |
 | Reglas | `firestore.rules`: `config/tienda`, `pedidos_tienda`, `tienda_interno` |
@@ -48,36 +51,54 @@ Piezas:
    la taza blanca brillante de 11 oz.
 2. **Cloudinary.** Cuenta gratuita. Necesitas el *cloud name*, la *API key* y el
    *API secret* (Dashboard). Solo se usa para alojar el PNG que lee Printful.
-3. **Stripe.** Un *Payment Link* por producto (Camiseta, Taza):
-   - Precio fijo en EUR, cantidad no ajustable.
-   - «Recoger direcciones de envío» activado, con los países a los que envíes.
-   - Tras el pago, redirigir a `https://bicifastness.app/tienda/?gracias=1`.
-   - Crea una **clave restringida** con permiso de *lectura* en «Checkout
-     Sessions». Es la única que necesita el worker: no puede cobrar ni
-     devolver nada.
-   - Prueba primero en modo test: los enlaces `buy.stripe.com/test_…` y la
-     clave `rk_test_…` funcionan igual.
+3. **Gumroad.** Un producto **físico** por artículo (Camiseta, Taza):
+   - Tipo «Physical product», con «Require shipping information» activado y
+     los países a los que envíes con su gasto de envío. Sin eso la venta no
+     trae dirección y el pedido se queda «a revisar».
+   - Precio fijo en EUR, sin variantes (la talla se elige en la web y va en
+     el pedido) y sin «Pay what you want».
+   - Un **campo personalizado** de texto llamado exactamente `pedido`. La web
+     lo rellena desde la URL (`?pedido=…`); es lo que ata la venta a nuestro
+     pedido. Márcalo como obligatorio: si alguien llega al producto sin pasar
+     por la web, no puede comprar a ciegas.
+   - El enlace que se pega en el panel es el de la página del producto,
+     `https://tu-usuario.gumroad.com/l/<permalink>`. Si le pones un permalink
+     personalizado, usa ese mismo: el worker compara el permalink de la venta
+     con el del enlace.
+   - El token: Settings → Advanced → Applications → crea una aplicación y
+     «Generate access token». Solo se usa para **leer ventas**
+     (`GET https://api.gumroad.com/v2/sales`).
+   - Prueba primero con una compra tuya y devuélvela desde Gumroad: el worker
+     no imprime ventas devueltas.
+   - Gumroad se queda su comisión (un porcentaje más una cantidad fija por
+     venta; mira la tarifa vigente) y paga por transferencia según su
+     calendario.
 4. **Secretos del repositorio** (Settings → Secrets and variables → Actions):
-   `STRIPE_SECRET_KEY`, `PRINTFUL_TOKEN`, `PRINTFUL_STORE_ID` (si el token es de
+   `GUMROAD_TOKEN`, `PRINTFUL_TOKEN`, `PRINTFUL_STORE_ID` (si el token es de
    cuenta y no de tienda), `CLOUDINARY_CLOUD`, `CLOUDINARY_API_KEY`,
-   `CLOUDINARY_API_SECRET`. Sin `STRIPE_SECRET_KEY` el worker no toca la tienda.
-5. **`/admin/tienda/`**: pega los enlaces de pago, el precio (el mismo que en
-   Stripe) y las variantes (`M=4012`, una por línea), marca «A la venta» y
-   pon la tienda «Visible».
+   `CLOUDINARY_API_SECRET`. Sin `GUMROAD_TOKEN` el worker no toca la tienda.
+5. **`/admin/tienda/`**: pega los enlaces de Gumroad, el precio (el mismo que
+   en Gumroad, sin impuestos ni envío) y las variantes de Printful (`M=4012`,
+   una por línea), marca «A la venta» y pon la tienda «Visible».
 6. Los primeros pedidos llegan a Printful como **borrador**: los confirmas tú
    desde su panel después de mirar el diseño. Cuando te fíes, crea la variable
    de repositorio `TIENDA_CONFIRMAR` = `si` y saldrán directos a producción.
 
-Antes de abrirla de verdad: unas condiciones de venta (quién vende, NIF,
-envíos, devoluciones) y, si se factura, el IVA. La página ya explica que, al
-ser personalizado, no hay desistimiento (art. 103.c TRLGDCU), pero eso no
-sustituye a unas condiciones.
+**Ojo:** Gumroad está pensado sobre todo para productos digitales. Admite
+físicos, pero conviene confirmar con su soporte que acepta merchandising
+impreso bajo demanda y cómo trata el IVA del envío, antes de abrir la tienda.
+Y aunque Gumroad venda, tú sigues siendo quien cobra sus pagos: eso va en tu
+declaración como ingreso.
+
+La página ya explica que, al ser personalizado, no hay desistimiento
+(art. 103.c TRLGDCU), pero eso no sustituye a unas condiciones de venta.
 
 ## Que no moleste
 
 - Cerrada en `/admin/tienda/`, no aparece en ningún sitio.
-- Abierta: una entrada al final del menú de Tú y, como mucho, **una tarjeta en
-  Hoy**: solo para quien lleva 5 trayectos verificados y una semana de cuenta,
+- Abierta: una tarjeta en el resumen de Yo (y su entrada en el menú), un
+  círculo pequeño con corazón en Hoy, Ranking y Mapa y, como mucho, **una
+  tarjeta en Hoy**: solo para quien lleva 5 trayectos verificados y una semana de cuenta,
   una vez al mes, tres veces en total, nunca si ya hay otra invitación en
   pantalla, y con «No volver a mostrar».
 
@@ -107,32 +128,31 @@ https://res.cloudinary.com/<nube>/image/upload/
   plantilla-camiseta.png
 ```
 
-### 2. El endpoint que crea la sesión de Stripe
+### 2. El endpoint que crea el pago
 
-No hace falta: el **Payment Link** es una sesión de Checkout ya configurada en
-Stripe, y admite `?client_reference_id=` para atarla al pedido. Ventaja de
-seguridad: el precio vive en Stripe y la web no puede tocarlo. Si algún día
-hay servidor (Cloud Run, Cloudflare Workers), el equivalente es:
-
-```js
-const sesion = await stripe.checkout.sessions.create({
-  mode: 'payment',
-  line_items: [{ price: PRECIO_CAMISETA, quantity: 1 }],
-  client_reference_id: pedidoId,
-  shipping_address_collection: { allowed_countries: ['ES', 'PT', 'FR', 'IT', 'DE'] },
-  success_url: 'https://bicifastness.app/tienda/?gracias=1',
-  cancel_url: 'https://bicifastness.app/tienda/',
-});
-res.redirect(303, sesion.url);
-```
+No hace falta: el producto de Gumroad ya es el pago configurado, y la web
+lleva al cliente a `https://tu-usuario.gumroad.com/l/<permalink>?wanted=true&pedido=<id>`.
+`wanted=true` salta directo al pago y `pedido` rellena el campo personalizado
+del mismo nombre. Ventaja de seguridad: el precio vive en Gumroad y la web no
+puede tocarlo.
 
 ### 3. El webhook y el pedido a Printful
 
-Sin servidor no hay a dónde mande Stripe el webhook, así que el worker
-**pregunta**: `GET /v1/checkout/sessions?status=complete&created[gte]=…`,
-desde la última vez que miró (`tienda_interno/stripe`). Tarda lo que tarde la
-siguiente ejecución del worker (unos minutos), que para un pedido que se
-imprime en días no importa. El pedido a Printful (`cuerpoPrintful`):
+Gumroad sí avisa de cada venta (su «Ping», un POST a la URL que le digas),
+pero sin servidor no hay a dónde mandarlo, y además ese aviso **no va
+firmado**: cualquiera podría inventarse una venta. Así que el worker
+**pregunta** con el token: `GET /v2/sales?after=AAAA-MM-DD`, desde el día
+anterior a la última vez que miró (`tienda_interno/gumroad`), y salta las
+ventas que ya vio por su id. Tarda lo que tarde la siguiente ejecución del
+worker (unos minutos), que para un pedido que se imprime en días no importa.
+
+De cada venta se usa: `custom_fields.pedido` (nuestro pedido),
+`product_permalink`, `paid`, `refunded`, `chargedback`, y la dirección
+(`full_name`, `street_address`, `city`, `state`, `zip_code`, `country_iso2`,
+`email`), que `destinatario` convierte en el `recipient` de Printful. Se
+guardan en el pedido `gumroadVenta`, `importe` e `impuesto` (en céntimos de
+dólar, que es como los da la API de Gumroad). El pedido a Printful
+(`cuerpoPrintful`):
 
 ```json
 {
@@ -146,7 +166,7 @@ imprime en días no importa. El pedido a Printful (`cuerpoPrintful`):
 
 `external_id` es el id de nuestro pedido, y antes de crearlo se pregunta
 `GET /orders/@{external_id}`: una ejecución cortada a medias nunca duplica un
-pedido. Si lo cobrado no cuadra con el precio, falta la dirección o la talla
+pedido. Si la venta no es del producto del pedido, falta la dirección o la talla
 no tiene variante, el pedido queda «a revisar» y te llega un correo. Un fallo
 de red se reintenta tres veces antes de avisar.
 

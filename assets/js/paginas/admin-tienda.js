@@ -2,7 +2,7 @@
 //
 // Lo que se guarda aqui (`config/tienda`) lo leen la web (que enseñar) y el
 // worker (que variante pedir a la imprenta y cuanto tiene que haberse cobrado).
-// Las claves secretas (Stripe, imprenta, Cloudinary) NO van aqui: son secretos
+// Las claves secretas (Gumroad, imprenta, Cloudinary) NO van aqui: son secretos
 // del repositorio, que solo ve el worker (docs/TIENDA.md).
 
 import {
@@ -16,7 +16,8 @@ import { PRODUCTOS_DISENO } from '/assets/js/tienda-diseno.js';
 iniciarPagina('admin');
 montarCabeceraAdmin('tienda');
 
-const ENLACE = /^https:\/\/buy\.stripe\.com\/[A-Za-z0-9_]+$/;
+// El mismo patron que firestore.rules y assets/js/tienda.js.
+const ENLACE = /^https:\/\/([a-z0-9-]+\.)?gumroad\.com\/l\/[A-Za-z0-9_-]+$/;
 const AYUDA_VARIANTES = {
   camiseta: 'Una por línea, talla=id de variante del proveedor. Ej.: M=4012',
   taza: 'Normalmente una sola: unica=id de variante. Ej.: unica=1320',
@@ -44,18 +45,18 @@ function tarjetaProducto(clave, p = {}) {
     ]),
     el('label', { clase: 'campo', attrs: { for: `${pre}-precio` } }, ['Precio que se enseña (€)',
       el('input', { attrs: { type: 'number', id: `${pre}-precio`, min: '0', max: '200', step: '0.01', value: String(p.precio ?? '') } })]),
-    el('label', { clase: 'campo', attrs: { for: `${pre}-enlace` } }, ['Enlace de pago de Stripe (Payment Link)',
-      el('input', { attrs: { type: 'url', id: `${pre}-enlace`, placeholder: 'https://buy.stripe.com/…', value: p.enlacePago || '' } })]),
+    el('label', { clase: 'campo', attrs: { for: `${pre}-enlace` } }, ['Enlace del producto en Gumroad',
+      el('input', { attrs: { type: 'url', id: `${pre}-enlace`, placeholder: 'https://tu-usuario.gumroad.com/l/…', value: p.enlacePago || '' } })]),
     el('label', { clase: 'campo', attrs: { for: `${pre}-variantes` } }, ['Variantes del proveedor',
       el('textarea', { attrs: { id: `${pre}-variantes`, rows: '4', placeholder: AYUDA_VARIANTES[clave] } })]),
-    el('p', { clase: 'menor apagado', texto: 'El precio de aquí tiene que ser el mismo que el del enlace: el worker no manda a imprimir nada si lo cobrado no cuadra.' }),
+    el('p', { clase: 'menor apagado', texto: 'El precio de aquí tiene que ser el mismo que el del producto en Gumroad (sin impuestos ni envío, que los suma Gumroad). El worker no imprime una venta que no sea de este producto.' }),
   ]);
 }
 
 function leerProducto(clave) {
   const pre = `p-${clave}`;
   const enlacePago = id(`${pre}-enlace`).value.trim();
-  if (enlacePago && !ENLACE.test(enlacePago)) throw new Error(`${PRODUCTOS_DISENO[clave].nombre}: el enlace tiene que ser de https://buy.stripe.com/`);
+  if (enlacePago && !ENLACE.test(enlacePago)) throw new Error(`${PRODUCTOS_DISENO[clave].nombre}: el enlace tiene que ser de un producto de Gumroad (https://….gumroad.com/l/…)`);
   const precio = Number(id(`${pre}-precio`).value);
   if (!Number.isFinite(precio) || precio < 0 || precio > 200) throw new Error(`${PRODUCTOS_DISENO[clave].nombre}: el precio no vale.`);
   const activo = id(`${pre}-activo`).checked;
@@ -100,7 +101,7 @@ async function pintarPedidos() {
     ? pagados.map((p) => el('div', { clase: 'adm-estado-fila' }, [
       el('span', {}, [
         el('strong', { texto: `${PRODUCTOS_DISENO[p.producto]?.nombre || p.producto} ${p.variante || ''}` }),
-        el('small', { texto: ` · ${p.creado?.toDate ? formatearFecha(p.creado.toDate()) : ''}${p.importe ? ` · ${(p.importe / 100).toFixed(2)} €` : ''}` }),
+        el('small', { texto: ` · ${p.creado?.toDate ? formatearFecha(p.creado.toDate()) : ''}${p.importe ? ` · ${(p.importe / 100).toFixed(2)} ${p.moneda === 'usd' ? 'USD' : '€'}` : ''}` }),
         p.mensajeError ? el('small', { texto: ` · ${p.mensajeError}` }) : null,
       ]),
       el('span', { clase: `chip ${['error', 'revisar'].includes(p.estado) ? 'rechazado' : 'revision'}`, texto: ESTADOS[p.estado] || p.estado }),

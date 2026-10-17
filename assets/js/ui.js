@@ -162,7 +162,7 @@ const DESTINOS = [
   { href: '/', slug: 'ahora', texto: 'Hoy', icono: 'hoy' },
   { href: '/clasificacion/', slug: 'clasificacion', texto: 'Ranking', icono: 'clasificacion' },
   { href: '/territorio/', slug: 'territorio', texto: 'Mapa', icono: 'mapa' },
-  { href: '/yo/', slug: 'yo', texto: 'Tú', icono: 'perfil' },
+  { href: '/yo/', slug: 'yo', texto: 'Yo', icono: 'perfil' },
 ];
 
 const SUBIR = { href: '/subir/', slug: 'subir', texto: 'Subir trayecto', icono: 'mas' };
@@ -567,6 +567,8 @@ export function montarPieLegal() {
     }));
 }
 
+const CON_BURBUJA_TIENDA = new Set(['ahora', 'clasificacion', 'territorio']);
+
 /** Arranque comun de cualquier pagina de la app. */
 export function iniciarPagina(seccionActiva) {
   // Lo primero: si algo revienta mas abajo, queremos enterarnos.
@@ -577,6 +579,12 @@ export function iniciarPagina(seccionActiva) {
   medir();
   aplicarTema();
   montarNavegacion(seccionActiva);
+  // El acceso a la tienda, un circulo con corazon, solo en las pestañas
+  // principales (en Yo va como tarjeta). Import dinamico: las legales y las de
+  // administracion no cargan ni leen nada de la tienda.
+  if (CON_BURBUJA_TIENDA.has(seccionActiva)) {
+    import('./tienda.js').then((m) => m.montarBurbujaTienda()).catch(() => { /* sin tienda, sin circulo */ });
+  }
   montarPieLegal();
   montarAvisoCookies();
   // Sin service worker no hay ni instalacion ni pantalla offline (#52). Se

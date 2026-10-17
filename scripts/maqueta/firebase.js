@@ -236,8 +236,8 @@ nombres.slice(0, 8).forEach((n, i) => {
 datos['config/tienda'] = {
   visible: true,
   productos: {
-    camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.stripe.com/test_maqueta', variantes: { S: 1, M: 2, L: 3, XL: 4 } },
-    taza: { activo: true, precio: 14.9, enlacePago: 'https://buy.stripe.com/test_maqueta', variantes: { unica: 5 } },
+    camiseta: { activo: true, precio: 24.9, enlacePago: 'https://maqueta.gumroad.com/l/camiseta', variantes: { S: 1, M: 2, L: 3, XL: 4 } },
+    taza: { activo: true, precio: 14.9, enlacePago: 'https://maqueta.gumroad.com/l/taza', variantes: { unica: 5 } },
   },
 };
 // localStorage.maqueta_obras = '1' -> la web en construccion (assets/js/puerta.js).

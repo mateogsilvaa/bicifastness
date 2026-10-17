@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="Tu perfil de piloto en BiciFastness: historial, insignias, clan y ajustes.">
 <meta name="robots" content="noindex">
-<title>Tú | BiciFastness</title>
+<title>Yo | BiciFastness</title>
 <link rel="icon" href="/images/icono/icono.svg?v=2" type="image/svg+xml">
 <link rel="icon" href="/images/icono/icono-48.png?v=2" sizes="48x48" type="image/png">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -66,6 +66,16 @@
       <span class="tarjeta-vitrina-editar">Editar</span>
     </a>
 
+    <!-- La tienda, a la vista: solo sale si esta abierta (yo-vistas.js, marcarTienda). -->
+    <a class="tarjeta-tienda oculto" href="/tienda/" id="tarjeta-tienda">
+      <span class="tarjeta-tienda-corazon" aria-hidden="true"><svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#corazon"></use></svg></span>
+      <span class="tarjeta-tienda-texto">
+        <strong>Tienda</strong>
+        <span>BiciFastness es gratis y sin anuncios. Apoya el proyecto.</span>
+      </span>
+      <svg class="icono flecha" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#derecha"></use></svg>
+    </a>
+
     <div class="tarjeta-grande" id="tarjeta-rating">
       <div class="cabeza"><span>BiciRating</span><span id="puesto-global"></span></div>
       <span class="rating hueco" id="rating" style="--ancho-hueco: 2.4em"></span>
@@ -105,7 +115,7 @@
   <!-- 6c · Historial -->
   <section class="vista oculto" id="vista-historial" aria-labelledby="titulo-historial">
     <div class="subcabecera">
-      <a class="boton-icono" href="#" aria-label="Volver"><span class="migas">Tú</span></a>
+      <a class="boton-icono" href="#" aria-label="Volver"><span class="migas">Yo</span></a>
       <h1 id="titulo-historial">Historial</h1>
     </div>
     <div class="filtros" id="filtros" role="group" aria-label="Filtrar por estado"></div>
@@ -169,7 +179,7 @@
   <!-- 6e · Ajustes -->
   <section class="vista oculto" id="vista-ajustes" aria-labelledby="titulo-ajustes">
     <div class="subcabecera">
-      <a class="boton-icono" href="#" aria-label="Volver"><span class="migas">Tú</span></a>
+      <a class="boton-icono" href="#" aria-label="Volver"><span class="migas">Yo</span></a>
       <h1 id="titulo-ajustes">Ajustes</h1>
     </div>
 

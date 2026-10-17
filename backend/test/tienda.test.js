@@ -2,7 +2,7 @@
 
 /**
  * La tienda: el diseño que se imprime y el camino del pago a la imprenta.
- * Nada sale a la red: Stripe, Cloudinary y Printful son un `fetch` de mentira.
+ * Nada sale a la red: Gumroad, Cloudinary y Printful son un `fetch` de mentira.
  */
 
 const test = require('node:test');
@@ -79,36 +79,49 @@ test('el tiempo se escribe igual que en la web', () => {
 
 // --- Cobro y direccion -----------------------------------------------------------
 
-const sesionBuena = (extra = {}) => ({
-  id: 'cs_1', created: 1000, client_reference_id: 'uid1_20000_0',
-  payment_status: 'paid', currency: 'eur', amount_subtotal: 2490, amount_total: 2980,
-  customer_details: { email: 'pepa@ejemplo.com', name: 'Pepa' },
-  collected_information: {
-    shipping_details: { name: 'Pepa Pérez', address: { line1: 'Calle Mayor 1', city: 'Madrid', postal_code: '28013', country: 'ES' } },
-  },
+// Una venta tal y como la da GET /v2/sales (los campos que se usan).
+const ventaBuena = (extra = {}) => ({
+  id: 'venta1', created_at: '2026-10-17T10:00:00Z', order_id: 123456,
+  product_permalink: 'camiseta1', paid: true, price: 2890, tax_cents: 607,
+  refunded: false, partially_refunded: false, chargedback: false, disputed: false,
+  email: 'pepa@ejemplo.com', full_name: 'Pepa Pérez',
+  street_address: 'Calle Mayor 1, 3ºB', city: 'Madrid', state: 'Madrid', zip_code: '28013',
+  country: 'Spain', country_iso2: 'ES',
+  custom_fields: { pedido: 'uid1_20000_0' },
   ...extra,
 });
 
-test('se manda a imprimir solo si lo cobrado cuadra con el precio', () => {
-  const producto = { precio: 24.9 };
-  assert.strictEqual(tienda.comprobarCobro(sesionBuena(), producto), null);
-  assert.match(tienda.comprobarCobro(sesionBuena({ amount_subtotal: 100 }), producto), /centimos/);
-  assert.match(tienda.comprobarCobro(sesionBuena({ payment_status: 'unpaid' }), producto), /unpaid/);
-  assert.match(tienda.comprobarCobro(sesionBuena({ currency: 'usd' }), producto), /moneda/);
-  assert.ok(tienda.comprobarCobro(sesionBuena(), undefined));
+test('el enlace de Gumroad se reconoce y se saca su permalink', () => {
+  assert.strictEqual(tienda.permalinkGumroad('https://pepa.gumroad.com/l/camiseta1'), 'camiseta1');
+  assert.strictEqual(tienda.permalinkGumroad('https://gumroad.com/l/abc_12'), 'abc_12');
+  assert.strictEqual(tienda.permalinkGumroad('https://buy.stripe.com/x'), null);
+  assert.strictEqual(tienda.permalinkGumroad('https://gumroad.com.malo.es/l/x'), null);
 });
 
-test('la direccion sale de cualquiera de las dos versiones del API de Stripe', () => {
-  const nueva = tienda.destinatario(sesionBuena());
-  assert.deepStrictEqual(nueva, {
-    name: 'Pepa Pérez', address1: 'Calle Mayor 1', city: 'Madrid', country_code: 'ES', zip: '28013', email: 'pepa@ejemplo.com',
+test('el pedido sale del campo personalizado de la venta', () => {
+  assert.strictEqual(tienda.pedidoDeVenta(ventaBuena()), 'uid1_20000_0');
+  assert.strictEqual(tienda.pedidoDeVenta(ventaBuena({ custom_fields: {} })), null);
+  assert.strictEqual(tienda.pedidoDeVenta(ventaBuena({ custom_fields: undefined })), null);
+});
+
+test('se manda a imprimir solo si la venta es del producto, cobrada y sin devolver', () => {
+  const producto = { precio: 24.9, enlacePago: 'https://pepa.gumroad.com/l/camiseta1' };
+  assert.strictEqual(tienda.comprobarCobro(ventaBuena(), producto), null);
+  assert.match(tienda.comprobarCobro(ventaBuena({ product_permalink: 'taza1' }), producto), /producto/);
+  assert.match(tienda.comprobarCobro(ventaBuena({ paid: false }), producto), /importe/);
+  assert.match(tienda.comprobarCobro(ventaBuena({ refunded: true }), producto), /devuelta/);
+  assert.match(tienda.comprobarCobro(ventaBuena({ chargedback: true }), producto), /disputa/);
+  assert.ok(tienda.comprobarCobro(ventaBuena(), undefined));
+});
+
+test('la direccion de Gumroad se convierte en el recipient de Printful', () => {
+  assert.deepStrictEqual(tienda.destinatario(ventaBuena()), {
+    name: 'Pepa Pérez', address1: 'Calle Mayor 1, 3ºB', city: 'Madrid', country_code: 'ES', zip: '28013', email: 'pepa@ejemplo.com',
   });
-  const vieja = tienda.destinatario(sesionBuena({
-    collected_information: undefined,
-    shipping_details: { name: 'Pepa', address: { line1: 'C/ Sol 2', line2: '3ºB', city: 'Madrid', postal_code: '28012', country: 'ES' } },
-  }));
-  assert.strictEqual(vieja.address2, '3ºB');
-  assert.strictEqual(tienda.destinatario(sesionBuena({ collected_information: undefined })), null);
+  const eeuu = tienda.destinatario(ventaBuena({ state: 'CA', country_iso2: 'US', city: 'San Francisco', zip_code: '94103' }));
+  assert.strictEqual(eeuu.state_code, 'CA', 'en EE. UU. Printful pide el estado');
+  assert.strictEqual(tienda.destinatario(ventaBuena({ street_address: '' })), null);
+  assert.strictEqual(tienda.destinatario(ventaBuena({ country_iso2: null })), null, 'sin codigo de pais no hay envio');
 });
 
 test('la firma de Cloudinary es la que documentan', () => {
@@ -120,12 +133,12 @@ test('la firma de Cloudinary es la que documentan', () => {
 // --- El flujo entero ---------------------------------------------------------------
 
 const ENV = {
-  STRIPE_SECRET_KEY: 'rk_test', PRINTFUL_TOKEN: 'pf', CLOUDINARY_CLOUD: 'nube', CLOUDINARY_API_KEY: 'k', CLOUDINARY_API_SECRET: 's',
+  GUMROAD_TOKEN: 'gr_test', PRINTFUL_TOKEN: 'pf', CLOUDINARY_CLOUD: 'nube', CLOUDINARY_API_KEY: 'k', CLOUDINARY_API_SECRET: 's',
 };
 
-function montar({ sesiones = [sesionBuena()], printfulYaExiste = false, cloudinaryFalla = false } = {}) {
+function montar({ ventas = [ventaBuena()], printfulYaExiste = false, cloudinaryFalla = false } = {}) {
   const db = new FirestoreFalso();
-  db.sembrar('config', [{ id: 'tienda', visible: true, productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.stripe.com/x', variantes: { M: 4012 } } } }]);
+  db.sembrar('config', [{ id: 'tienda', visible: true, productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://pepa.gumroad.com/l/camiseta1', variantes: { M: 4012 } } } }]);
   db.sembrar('pedidos_tienda', [{ id: 'uid1_20000_0', uid: 'uid1', producto: 'camiseta', variante: 'M', viajeId: 'v1', estado: 'borrador' }]);
   db.sembrar('usuarios', [{ id: 'uid1', username: 'pepa', clanId: null }]);
   db.sembrar('tiempos_viaje', [{ id: 'v1', uid: 'uid1', verificado: true, ruta: '002-110', tiempoSegundos: 749 }]);
@@ -135,7 +148,7 @@ function montar({ sesiones = [sesionBuena()], printfulYaExiste = false, cloudina
   const fetchFn = async (url, opciones = {}) => {
     llamadas.push({ url, metodo: opciones.method || 'GET', cuerpo: opciones.body });
     const responder = (status, cuerpo) => ({ ok: status < 300, status, text: async () => JSON.stringify(cuerpo) });
-    if (url.startsWith('https://api.stripe.com/')) return responder(200, { data: sesiones, has_more: false });
+    if (url.startsWith('https://api.gumroad.com/v2/sales')) return responder(200, { success: true, sales: ventas });
     if (url.startsWith('https://api.cloudinary.com/')) {
       return cloudinaryFalla ? responder(500, { error: { message: 'caido' } }) : responder(200, { secure_url: 'https://res.cloudinary.com/x.png' });
     }
@@ -162,6 +175,8 @@ test('un pago bueno acaba en un pedido de Printful con el diseño y la direccion
   assert.strictEqual(pedido.estado, 'en_proveedor', 'sin TIENDA_CONFIRMAR llega como borrador');
   assert.strictEqual(pedido.printfulId, 99);
   assert.strictEqual(pedido.imagenUrl, 'https://res.cloudinary.com/x.png');
+  assert.strictEqual(pedido.gumroadVenta, 'venta1');
+  assert.strictEqual(pedido.impuesto, 607, 'el IVA que cobro Gumroad queda apuntado');
 
   const alta = llamadas.find((l) => l.metodo === 'POST' && l.url.startsWith('https://api.printful.com/orders'));
   const cuerpo = JSON.parse(alta.cuerpo);
@@ -191,7 +206,7 @@ test('si el pedido ya estaba en Printful no se duplica', async () => {
 });
 
 test('un pago que no cuadra va a revisar y no se imprime', async () => {
-  const { db, ctx, llamadas, avisos } = montar({ sesiones: [sesionBuena({ amount_subtotal: 500 })] });
+  const { db, ctx, llamadas, avisos } = montar({ ventas: [ventaBuena({ product_permalink: 'taza1' })] });
   await tienda.procesarTienda(ctx);
   assert.strictEqual(db.leer('pedidos_tienda/uid1_20000_0').estado, 'revisar');
   assert.ok(!llamadas.some((l) => l.url.startsWith('https://api.printful.com/')));
@@ -216,7 +231,7 @@ test('un fallo de un servicio se reintenta, y al tercero avisa', async () => {
   assert.ok(avisos.some((a) => /no ha podido salir/.test(a)));
 });
 
-test('sin claves de Stripe la tienda no lee nada', async () => {
+test('sin token de Gumroad la tienda no lee nada', async () => {
   const { db, ctx } = montar();
   db.reiniciarContador();
   assert.strictEqual(await tienda.procesarTienda({ ...ctx, env: {} }), 0);
@@ -224,7 +239,7 @@ test('sin claves de Stripe la tienda no lee nada', async () => {
 });
 
 test('un pago sin pedido de la web avisa y no imprime nada', async () => {
-  const { ctx, llamadas, avisos } = montar({ sesiones: [sesionBuena({ client_reference_id: null })] });
+  const { ctx, llamadas, avisos } = montar({ ventas: [ventaBuena({ custom_fields: {} })] });
   await tienda.procesarTienda(ctx);
   assert.ok(avisos.some((a) => /pago sin pedido/.test(a)));
   assert.ok(!llamadas.some((l) => l.url.startsWith('https://api.printful.com/')));

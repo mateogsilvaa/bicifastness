@@ -690,7 +690,7 @@ test('un pedido de la tienda nace borrador, propio y con su id del dia', async (
 test('la tienda la ve cualquiera y solo la cambia la administracion', async () => {
   const config = (por) => ({
     visible: true,
-    productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.stripe.com/test_abc', variantes: { M: 4012 } } },
+    productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://pepa.gumroad.com/l/abc12', variantes: { M: 4012 } } },
     por, actualizado: serverTimestamp(),
   });
   await assertSucceeds(setDoc(doc(como('jefa', { admin: true }), 'config', 'tienda'), config('jefa')));
@@ -699,5 +699,5 @@ test('la tienda la ve cualquiera y solo la cambia la administracion', async () =
   const trampa = config('jefa');
   trampa.productos.camiseta.enlacePago = 'https://evil.example/pagar';
   await assertFails(setDoc(doc(como('jefa', { admin: true }), 'config', 'tienda'), trampa));
-  await assertFails(getDoc(doc(como(UID), 'tienda_interno', 'stripe')));
+  await assertFails(getDoc(doc(como(UID), 'tienda_interno', 'gumroad')));
 });

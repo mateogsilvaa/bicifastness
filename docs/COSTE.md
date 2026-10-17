@@ -353,7 +353,7 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | validarBasico y captura (por viaje procesado) | 3 | el conteo de su cupo del dia + la captura + la distancia de la ruta |
 | la ventana de huellas (una vez por ejecucion CON viajes) | 2 | la ventana guardada en un documento + las huellas posteriores a guardarla |
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
-| venderEnLaTienda (por ejecucion, solo con la clave de Stripe puesta) | 2 | la configuracion de la tienda + por donde va leyendo los pagos de Stripe |
+| venderEnLaTienda (por ejecucion, solo con el token de Gumroad puesto) | 2 | la configuracion de la tienda + por donde va leyendo las ventas de Gumroad |
 | metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |
 | reenviarCorreos (por pasada) | 1 | la cola de correos pendientes, acotada a 50 y ordenada por cuando toca |
 | metricas.tocaResumir (por pasada) | 1 | la marca del agregado, para saber si toca el resumen caro |

@@ -3,9 +3,9 @@
 // El flujo, sin servidor propio (docs/TIENDA.md):
 //   1. Aqui se pinta la vista previa con TUS datos (assets/js/tienda-diseno.js).
 //   2. "Comprar" crea un pedido borrador en Firestore (producto, talla y que
-//      trayecto imprimir) y lleva al enlace de pago de Stripe con el id del
-//      pedido como `client_reference_id`.
-//   3. El worker ve el pago en Stripe, vuelve a sacar los datos de la base de
+//      trayecto imprimir) y lleva al producto en Gumroad con el id del pedido
+//      en la URL, que rellena el campo personalizado `pedido` del pago.
+//   3. El worker ve la venta en Gumroad, vuelve a sacar los datos de la base de
 //      datos (no de aqui), genera el fichero de impresion con el MISMO diseño y
 //      manda el pedido al proveedor de impresion bajo demanda.
 
@@ -97,8 +97,13 @@ async function comprar(boton, { uid, producto, variante, viaje }) {
       uid, producto: producto.clave, variante, ...(viaje ? { viajeId: viaje.id } : {}),
       estado: 'borrador', creado: serverTimestamp(),
     });
-    // Sin el correo en la URL: Stripe lo pide en el propio pago.
-    window.location.href = `${producto.enlacePago}?client_reference_id=${encodeURIComponent(pedidoId)}`;
+    // Sin el correo en la URL: Gumroad lo pide en el propio pago. `wanted=true`
+    // va directo al pago, y `pedido` rellena el campo personalizado del mismo
+    // nombre, que es por donde el worker sabe que imprimir.
+    const destino = new URL(producto.enlacePago);
+    destino.searchParams.set('wanted', 'true');
+    destino.searchParams.set('pedido', pedidoId);
+    window.location.href = destino.href;
   } catch (error) {
     estado(id('mensaje'), error.message || 'No se ha podido preparar el pago.', 'error');
     boton.disabled = false;
@@ -159,7 +164,7 @@ function pintarTienda({ usuario, perfil, clan, marcas, puesto, productos }) {
       boton,
       el('p', {
         clase: 'menor apagado',
-        texto: 'Se imprime con tus datos del momento del pago. Pagas en Stripe y te llega a casa en una o dos semanas.',
+        texto: 'Se imprime con tus datos del momento del pago. Pagas en Gumroad, que suma el envío y los impuestos de tu país, y te llega a casa en una o dos semanas.',
       }),
     ]),
   ]));

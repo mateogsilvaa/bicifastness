@@ -37,7 +37,7 @@ let resumen = null;
 // --- Pintado -----------------------------------------------------------------
 
 const NOMBRE_SECCION = {
-  portada: 'Portada', hoy: 'Hoy', ranking: 'Ranking', mapa: 'Mapa', yo: 'Tú', subir: 'Subir', bici: 'Bicis', info: 'Cómo funciona', otra: 'Otras',
+  portada: 'Portada', hoy: 'Hoy', ranking: 'Ranking', mapa: 'Mapa', yo: 'Yo', subir: 'Subir', bici: 'Bicis', info: 'Cómo funciona', otra: 'Otras',
 };
 const NOMBRE_FUENTE = { directo: 'Directo', instagram: 'Instagram', google: 'Google', otros: 'Otras webs' };
 

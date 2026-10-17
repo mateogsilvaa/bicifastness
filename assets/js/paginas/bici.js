@@ -29,12 +29,12 @@ const POR_PAGINA = 10;
 document.querySelector('.bici-atras')?.append(icono('atras'));
 id('form-bici').prepend(icono('buscar'));
 
-const PISTA = 'Cuatro cifras, en la pegatina del guardabarros trasero.';
+const PISTA = 'El número de la pegatina del guardabarros trasero, como 18345.';
 
 function estadoInicial() {
   document.querySelector('.bici-pagina').classList.remove('con-ficha');
   reemplazar(destino, el('div', { clase: 'vacio bici-inicial' }, [
-    el('span', { clase: 'bici-inicial-numero', texto: '0000', attrs: { 'aria-hidden': 'true' } }),
+    el('span', { clase: 'bici-inicial-numero', texto: '00000', attrs: { 'aria-hidden': 'true' } }),
     el('h2', { texto: 'Escribe el número de una bici' }),
     el('p', { texto: `${PISTA} Verás su nota media y lo que han contado otros pilotos antes de cogerla.` }),
   ]));
@@ -313,8 +313,10 @@ campo.addEventListener('input', () => {
   const limpio = campo.value.replace(/\D/g, '');
   if (limpio !== campo.value) campo.value = limpio;
   clearTimeout(espera);
-  // Con cuatro cifras ya se busca; con menos, se espera a que termine de escribir.
-  espera = setTimeout(() => buscar(campo.value), limpio.length >= 4 ? 0 : 700);
+  // Con cinco cifras, el numero entero de una BiciMAD, ya se busca; con menos
+  // se espera a que termine de escribir. Antes saltaba con cuatro y buscaba
+  // la bici equivocada a mitad del numero.
+  espera = setTimeout(() => buscar(campo.value), limpio.length >= 5 ? 0 : 700);
 });
 
 const inicial = new URLSearchParams(window.location.search).get('n');

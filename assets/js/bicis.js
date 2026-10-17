@@ -26,8 +26,11 @@ export function normalizarBici(n) {
   return /^[1-9]\d{0,4}$/.test(limpio) ? limpio : null;
 }
 
-/** Con cuatro cifras, como en la pegatina. */
-export const mostrarBici = (n) => String(n ?? '').padStart(4, '0');
+/**
+ * Tal cual, sin ceros delante: las BiciMAD llevan cinco cifras (18345) y
+ * rellenar a cuatro dejaba numeros que no estan en ninguna pegatina.
+ */
+export const mostrarBici = (n) => String(n ?? '');
 
 /** 4,0 o mas verde; de 2,5 a 3,9 ambar; por debajo, rojo. Siempre con la cifra. */
 export const tonoNota = (v) => (v == null ? '' : v >= 4 ? 'bien' : v >= 2.5 ? 'medio' : 'mal');

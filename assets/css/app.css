@@ -4474,3 +4474,23 @@ html.acceso-pendiente main::before {
 .canje-premio { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: var(--e2); padding: var(--e3); border-radius: var(--radio-tarjeta); background: var(--papel); }
 .canje-premio .banner-piloto { width: 100%; }
 .canje-premio .lema { font-size: 20px; }
+
+/* Colabora (/colabora/): la pagina que se enlaza desde Instagram. */
+.colabora-intro .colabora-titular { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.2; color: var(--tinta); }
+.colabora-intro p { margin: 0; color: var(--tinta-2); line-height: 1.5; }
+.colabora-intro .btn { align-self: flex-start; width: auto; padding: 0 var(--e5); }
+.colabora-opciones { display: grid; gap: var(--e3); margin-top: var(--e3); }
+@media (min-width: 700px) { .colabora-opciones { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.colabora-opcion { display: flex; flex-direction: column; gap: var(--e2); padding: var(--e4); border: var(--borde); border-radius: 16px; background: var(--papel-2); }
+.colabora-opcion h3 { margin: 0; font-size: 17px; }
+.colabora-opcion p { margin: 0; line-height: 1.5; color: var(--tinta-2); }
+.colabora-opcion .colabora-recibes { color: var(--tinta); font-weight: 600; }
+.colabora-icono { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: var(--azul-tinte); color: var(--azul); }
+.colabora-artistas { display: flex; flex-direction: column; gap: var(--e2); padding: var(--e4); border-radius: 16px; background: var(--azul-tinte); }
+.colabora-artistas h2, .colabora-artistas p { margin: 0; }
+.colabora-artistas .colabora-icono { background: var(--papel-2); }
+.colabora-artistas .btn { align-self: flex-start; width: auto; padding: 0 var(--e5); }
+.colabora-lista { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--e2); line-height: 1.5; }
+.colabora-contacto p { margin: 0; color: var(--tinta-2); }
+.colabora-botones { display: flex; flex-wrap: wrap; gap: var(--e2); }
+.colabora-botones .btn { width: auto; padding: 0 var(--e5); }

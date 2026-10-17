@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com https://recaptcha.google.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BiciFastness">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="Colabora con BiciFastness: patrocina una liga, una ruta o un reto, crea un banner con tu marca o expón tu arte. Visibilidad entre ciclistas urbanos de Madrid a cambio de ayudar al proyecto.">
+<title>Colabora con nosotros | BiciFastness</title>
+<link rel="icon" href="/images/icono/icono.svg?v=2" type="image/svg+xml">
+<link rel="icon" href="/images/icono/icono-48.png?v=2" sizes="48x48" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png?v=2">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<nav id="nav-principal"></nav>
+
+<!--
+  Colabora (/colabora/). La pagina que se enlaza desde el perfil de Instagram:
+  se ve tambien con la web en obras (assets/js/puerta.js, LIBRES). Sin precios
+  cerrados a proposito: cada colaboracion se habla.
+-->
+<main class="container info colabora" id="principal">
+  <div class="subcabecera">
+    <a class="boton-icono" href="/" aria-label="Volver">
+      <svg class="icono" aria-hidden="true" focusable="false"><use href="/assets/img/iconos.svg#atras"></use></svg>
+    </a>
+    <h1>Colabora con nosotros</h1>
+  </div>
+
+  <div class="tarjeta-grande colabora-intro">
+    <span class="rotulo">BiciFastness × tú</span>
+    <p class="colabora-titular">Tu marca, en las calles que recorren cada día los ciclistas de Madrid.</p>
+    <p>BiciFastness es un juego gratuito y sin anuncios: los pilotos suben sus trayectos en BiciMAD, compiten en ligas y conquistan estaciones con su clan. Mantenerlo cuesta dinero. Si nos echas una mano, te damos un sitio dentro del juego.</p>
+    <a class="btn" href="mailto:bicifastness@gmail.com?subject=Quiero%20colaborar%20con%20BiciFastness">Quiero colaborar</a>
+  </div>
+
+  <section class="seccion-info" aria-labelledby="t-formas">
+    <h2 id="t-formas">Formas de colaborar</h2>
+    <p class="apagado">Cada una se puede ajustar a lo que buscas. Si no ves la tuya, cuéntanosla.</p>
+
+    <div class="colabora-opciones">
+      <article class="colabora-opcion">
+        <span class="colabora-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="/assets/img/iconos.svg#clasificacion"></use></svg></span>
+        <h3>Patrocina una liga</h3>
+        <p>Cada liga dura dos semanas. Durante la tuya, lleva tu nombre en el ranking y tu logo arriba de cada tabla.</p>
+        <p class="colabora-recibes">Te nombramos en Instagram al abrirla y al cerrarla, y puedes poner un premio para los primeros.</p>
+      </article>
+
+      <article class="colabora-opcion">
+        <span class="colabora-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="/assets/img/iconos.svg#ruta"></use></svg></span>
+        <h3>Patrocina una ruta</h3>
+        <p>Un tramo entre dos estaciones lleva tu nombre durante un mes: en el mapa y en su clasificación.</p>
+        <p class="colabora-recibes">Ideal para un negocio de la zona: la cafetería junto a la estación, el taller de la esquina.</p>
+      </article>
+
+      <article class="colabora-opcion">
+        <span class="colabora-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="/assets/img/iconos.svg#calendario"></use></svg></span>
+        <h3>Monta un reto o un evento</h3>
+        <p>Un reto de fin de semana con tu marca: llegar a una estación, sumar kilómetros, una quedada.</p>
+        <p class="colabora-recibes">Quien lo completa desbloquea un lema o un banner «bicifastness × tu marca» que luce en su perfil.</p>
+      </article>
+
+      <article class="colabora-opcion">
+        <span class="colabora-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="/assets/img/iconos.svg#medalla"></use></svg></span>
+        <h3>Un banner o un lema con tu marca</h3>
+        <p>Lo diseñamos juntos y se gana jugando. Se ve en el perfil público de cada piloto que lo lleve, y en el ranking.</p>
+        <p class="colabora-recibes">Debajo del banner sale «bicifastness ×» con tu logo.</p>
+      </article>
+
+      <article class="colabora-opcion">
+        <span class="colabora-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="/assets/img/iconos.svg#escudo"></use></svg></span>
+        <h3>Pon los premios</h3>
+        <p>Material de bici, un descuento, un café: para los ganadores de una liga, de una temporada o del clan que más estaciones conquiste.</p>
+        <p class="colabora-recibes">Anunciamos el premio con tu nombre en la web y en Instagram.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="seccion-info colabora-artistas" aria-labelledby="t-artistas">
+    <span class="colabora-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="/assets/img/iconos.svg#imagen"></use></svg></span>
+    <h2 id="t-artistas">¿Eres artista?</h2>
+    <p>Expón tu obra como banner. Los pilotos la eligen para su perfil público y debajo sale «bicifastness ×» con tu firma y un enlace a tu trabajo.</p>
+    <p>Escríbenos con unas cuantas piezas tuyas o tu portfolio y lo vemos juntos.</p>
+    <a class="btn secundario" href="mailto:bicifastness@gmail.com?subject=Soy%20artista%3A%20banner%20para%20BiciFastness">Enviar mi trabajo</a>
+  </section>
+
+  <section class="seccion-info" aria-labelledby="t-como">
+    <h2 id="t-como">Cómo lo hacemos</h2>
+    <ul class="colabora-lista">
+      <li><strong>Sin tarifas cerradas.</strong> Cuéntanos qué buscas y lo ajustamos a tu presupuesto.</li>
+      <li><strong>Sin datos de nadie.</strong> Ninguna colaboración incluye datos de los pilotos: no los vendemos ni los compartimos.</li>
+      <li><strong>Sin molestar.</strong> Nada de anuncios ni ventanas: tu marca va dentro del juego, donde aporta algo.</li>
+    </ul>
+  </section>
+
+  <div class="tarjeta-grande colabora-contacto">
+    <strong>Escríbenos</strong>
+    <p>Dinos quién eres y qué tienes en mente. Contestamos lo antes posible.</p>
+    <div class="colabora-botones">
+      <a class="btn" href="mailto:bicifastness@gmail.com?subject=Quiero%20colaborar%20con%20BiciFastness">bicifastness@gmail.com</a>
+      <a class="btn secundario" href="https://instagram.com/bicifastness" rel="noopener">Mensaje en Instagram</a>
+    </div>
+  </div>
+
+  <p class="apagado menor">Proyecto independiente, sin relación con BiciMAD, la EMT ni el Ayuntamiento de Madrid.</p>
+</main>
+
+<footer id="pie-legal"></footer>
+<div id="nav-inferior"></div>
+
+<script type="module" src="/assets/js/paginas/colabora.js"></script>
+</body>
+</html>

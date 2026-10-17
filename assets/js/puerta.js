@@ -17,8 +17,9 @@
 import { auth, db, doc, getDoc, onAuthStateChanged, signOut } from './firebase.js';
 
 // Las que tienen que verse siempre: entrar (para que los de la lista puedan),
-// los textos legales, darse de baja, la pantalla sin red y el panel.
-const LIBRES = [/^\/entrar\//, /^\/register\//, /^\/legal\//, /^\/baja\//, /^\/offline\//, /^\/mantenimiento\//, /^\/admin\//];
+// los textos legales, darse de baja, la pantalla sin red, el panel y
+// "Colabora", que se enlaza desde Instagram antes de abrir.
+const LIBRES = [/^\/entrar\//, /^\/register\//, /^\/legal\//, /^\/colabora\//, /^\/baja\//, /^\/offline\//, /^\/mantenimiento\//, /^\/admin\//];
 const CLAVE = 'bf_acceso';
 const VIGENCIA = 5 * 60 * 1000;
 

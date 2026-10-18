@@ -28,7 +28,7 @@ const { limpiarComentario } = require('./bicis');
 const { db } = require('./db');
 const { distribucion } = require('./verificacion');
 const divisiones = require('./divisiones');
-const { diaMadrid, lunesDe } = require('./util');
+const { diaMadrid, lunesDe, avatarSeguro } = require('./util');
 
 /**
  * Lo UNICO que puede viajar a un documento de lectura publica.
@@ -473,7 +473,7 @@ async function reconstruir({
       .map(({ u, puntos }, i) => ({
         pos: i + 1,
         nombre: u.username || 'Piloto',
-        avatar: u.avatarUrl || null,
+        avatar: avatarSeguro(u.avatarUrl),
         division: divisiones.esClasificado(u.division) ? u.division : divisiones.SIN_CLASIFICAR,
         clan: u.clanId || null,
         puntos,
@@ -646,7 +646,7 @@ async function reconstruir({
     return {
       pos: i + 1,
       nombre: piloto?.username || v.username || 'Piloto',
-      avatar: piloto?.avatarUrl || null,
+      avatar: avatarSeguro(piloto?.avatarUrl),
       clan: piloto?.clanId || null,
       marca: v.tiempoSegundos,
       fecha: String(v.fechaViaje || '').slice(0, 10) || null,

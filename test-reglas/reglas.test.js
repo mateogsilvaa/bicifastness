@@ -741,3 +741,100 @@ test('la tienda la ve cualquiera y solo la cambia la administracion', async () =
   await assertFails(setDoc(doc(como('jefa', { admin: true }), 'config', 'tienda'), trampa));
   await assertFails(getDoc(doc(como(UID), 'tienda_interno', 'stripe')));
 });
+
+// --- Endurecimiento (consola del navegador) ---------------------------------------
+
+test('el perfil no nace con un avatar que apunte fuera ni con mas de tres rutas ancladas', async () => {
+  const db = como(UID);
+  const conAvatar = (avatarUrl) => {
+    const lote = writeBatch(db);
+    lote.set(doc(db, 'usuarios', UID), { ...perfilNuevo(UID), avatarUrl });
+    lote.set(doc(db, 'nombres_usuario', 'piloto uno'), { uid: UID, creado: serverTimestamp() });
+    return lote.commit();
+  };
+  await assertFails(conAvatar('https://rastreo.example/pixel.png'));
+  await assertFails(conAvatar(`data:image/svg+xml,${'x'.repeat(3000)}`));
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'usuarios', UID), { ...perfilNuevo(UID), favoritas: ['001-002', '003-004', '005-006', '007-008'] });
+  lote.set(doc(db, 'nombres_usuario', 'piloto uno'), { uid: UID, creado: serverTimestamp() });
+  await assertFails(lote.commit());
+  await assertSucceeds(conAvatar('data:image/svg+xml,%3Csvg%3E'));
+});
+
+test('las preferencias de avisos son pocas claves', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura' });
+  });
+  const ref = doc(como(UID), 'usuarios', UID);
+  const muchas = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`t${i}`, true]));
+  await assertFails(updateDoc(ref, { push: { avisos: muchas } }));
+  await assertSucceeds(updateDoc(ref, { push: { avisos: { racha: true }, suscripciones: [] } }));
+});
+
+async function clanDe(lider, extra = {}) {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'clanes', 'c1'), {
+      nombre: 'Clan Uno', color: '#FF5A1F', lider, miembros: [lider], oficiales: [], solicitudes: [],
+      numMiembros: 1, ...extra,
+    });
+  });
+  return doc(como(lider), 'clanes', 'c1');
+}
+
+test('el lider no se repite en la plantilla para multiplicar la nota del clan', async () => {
+  const ref = await clanDe(UID, { solicitudes: ['quiere'] });
+  await assertFails(updateDoc(ref, { miembros: [UID, UID, UID], numMiembros: 3 }));
+  await assertFails(updateDoc(ref, { miembros: [UID, 'quiere', 'quiere'], solicitudes: [], numMiembros: 3 }));
+  await assertSucceeds(updateDoc(ref, { miembros: [UID, 'quiere'], solicitudes: [], numMiembros: 2 }));
+});
+
+test('el lider ni un oficial apuntan a nadie en las solicitudes', async () => {
+  const ref = await clanDe(UID, { miembros: [UID, OTRO], oficiales: [OTRO], numMiembros: 2, solicitudes: ['quiere'] });
+  // Primero lo "solicita" el lider, y despues lo acepta: eso es fichar a la fuerza.
+  await assertFails(updateDoc(ref, { solicitudes: ['quiere', 'el_mejor_del_ranking'] }));
+  await assertFails(updateDoc(doc(como(OTRO), 'clanes', 'c1'), { solicitudes: ['quiere', 'el_mejor_del_ranking'] }));
+  // Rechazar si se puede.
+  await assertSucceeds(updateDoc(ref, { solicitudes: [] }));
+});
+
+test('quien se va del clan no nombra oficiales al salir', async () => {
+  await clanDe('jefa', { miembros: ['jefa', UID, OTRO], oficiales: [UID], numMiembros: 3 });
+  const ref = doc(como(UID), 'clanes', 'c1');
+  await assertFails(updateDoc(ref, { miembros: ['jefa', OTRO], oficiales: [OTRO], numMiembros: 2 }));
+  await assertFails(updateDoc(ref, { miembros: ['jefa', OTRO], oficiales: [], numMiembros: 7 }));
+  await assertSucceeds(updateDoc(ref, { miembros: ['jefa', OTRO], oficiales: [], numMiembros: 2 }));
+});
+
+test('un clan no nace con campos inventados ni lo funda quien ya tiene clan', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura', clanId: null });
+    await setDoc(doc(ctx.firestore(), 'usuarios', OTRO), { uid: OTRO, username: 'Ana', usernameLower: 'ana', clanId: 'otro' });
+  });
+  const nuevo = (uid, extra) => ({
+    clanId: 'c9', nombre: 'Clan Nueve', color: '#FF5A1F', lider: uid, miembros: [uid], oficiales: [], solicitudes: [],
+    biciRating: 0, numMiembros: 1, logros: [], creado: serverTimestamp(), ...extra,
+  });
+  await assertFails(setDoc(doc(como(UID), 'clanes', 'c9'), nuevo(UID, { territorio: ['001'] })));
+  await assertFails(setDoc(doc(como(UID), 'clanes', 'c9'), nuevo(UID, { numMiembros: 9999 })));
+  await assertFails(setDoc(doc(como(UID), 'clanes', 'c9'), nuevo(UID, { clanId: 'otro_id' })));
+  await assertFails(setDoc(doc(como(UID), 'clanes', 'c9'), nuevo(UID, { nombre: 'mi-web.com' })));
+  await assertFails(setDoc(doc(como(OTRO), 'clanes', 'c9'), nuevo(OTRO)));
+  await assertSucceeds(setDoc(doc(como(UID), 'clanes', 'c9'), nuevo(UID)));
+});
+
+test('un error recogido no se reescribe: solo suma sesiones', async () => {
+  const ref = doc(anonimo(), 'errores_cliente', 'eabc123');
+  await assertSucceeds(setDoc(ref, error(), { merge: true }));
+  await assertFails(setDoc(ref, { ...error(), mensaje: 'Pulsa aqui: falso aviso' }, { merge: true }));
+  await assertFails(setDoc(ref, { ...error(), pila: 'otra pila' }, { merge: true }));
+  await assertFails(setDoc(ref, { ...error(), visto: Timestamp.fromMillis(0) }, { merge: true }));
+});
+
+test('un token con claims inventados no es administracion', async () => {
+  // El claim lo firma Firebase Auth: desde el navegador solo se puede pedir
+  // un token, no escribirlo. Pero ningun otro claim abre el panel.
+  const falso = como(UID, { rol: 'admin', esAdmin: true, admin: 'true' });
+  await assertFails(getDoc(doc(falso, 'config', 'general_privada')));
+  await assertFails(getDocs(collection(falso, 'reportes')));
+  await assertFails(getDocs(collection(falso, 'acceso_lista')));
+});

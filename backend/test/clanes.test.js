@@ -90,6 +90,20 @@ test('el clan puntua desde su plantilla, no desde lo que diga cada usuario', asy
   assert.strictEqual(clan.numMiembros, 3);
 });
 
+test('un miembro repetido en la plantilla cuenta una sola vez', async () => {
+  sembrar();
+  // Lo que escribia un lider desde la consola antes de que las reglas lo
+  // impidieran: el mismo uid cincuenta veces para multiplicar la nota.
+  bd.sembrar('clanes', [{
+    id: 'rayos', lider: 'u1', miembros: Array(50).fill('u1').concat(['u2']), numMiembros: 51,
+  }]);
+
+  await puntuacion.recalcularClan('rayos');
+  const clan = bd.leer('clanes/rayos');
+  assert.strictEqual(clan.biciRating, 150);
+  assert.strictEqual(clan.numMiembros, 2);
+});
+
 test('un clan vacio puntua cero, no falla', async () => {
   sembrar();
   bd.sembrar('clanes', [{ id: 'rayos', lider: 'u1', miembros: [], numMiembros: 0 }]);
@@ -415,4 +429,16 @@ test('el escudo solo usa colores y claves de verdad, y cae a liso sin segundo co
   // Tinta oscura sobre un color claro.
   assert.strictEqual(piezasEscudo({ color: '#E0A800' }).tinta, '#111110');
   assert.strictEqual(piezasEscudo({ color: '#13A89E' }).tinta, '#FFFFFF');
+});
+
+// --- El avatar que se publica ------------------------------------------------------
+
+test('solo se publica un avatar en data:, nunca una URL ajena', () => {
+  const { avatarSeguro } = require('../src/util');
+  assert.strictEqual(avatarSeguro('https://rastreo.example/pixel.png'), null);
+  assert.strictEqual(avatarSeguro('javascript:alert(1)'), null);
+  assert.strictEqual(avatarSeguro(`data:image/svg+xml,${'x'.repeat(20000)}`), null);
+  assert.strictEqual(avatarSeguro(42), null);
+  assert.strictEqual(avatarSeguro('data:image/svg+xml,%3Csvg%3E'), 'data:image/svg+xml,%3Csvg%3E');
+  assert.strictEqual(avatarSeguro('data:image/webp;base64,AAAA'), 'data:image/webp;base64,AAAA');
 });

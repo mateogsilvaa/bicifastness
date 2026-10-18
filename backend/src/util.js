@@ -254,7 +254,22 @@ function minutosDelDiaEnZona(fecha, zona) {
   return hora * 60 + Number(p.minute);
 }
 
+/**
+ * El avatar tal como se publica en los agregados, o null.
+ *
+ * `avatarUrl` lo escribe el navegador al crear el perfil, y los agregados los
+ * lee cualquiera sin sesion. Las reglas ya solo admiten el SVG de serie, pero
+ * hay perfiles de antes: aqui solo pasa una imagen en `data:` y pequeña. Una
+ * URL a un servidor ajeno haria que el navegador de todo el que abre un
+ * ranking le pidiera una imagen, y le dejara su IP.
+ */
+function avatarSeguro(url) {
+  if (typeof url !== 'string' || url.length > 14000) return null;
+  return /^data:image\/(svg\+xml|webp|jpeg|png)[;,]/.test(url) ? url : null;
+}
+
 module.exports = {
+  avatarSeguro,
   ESTACIONES,
   normalizarEstacion,
   buscarEstacion,

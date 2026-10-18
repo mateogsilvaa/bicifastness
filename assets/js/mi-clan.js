@@ -11,10 +11,13 @@
 // worker con lo que ya es publico en las clasificaciones.
 
 import { db, doc, getDoc, collection, getDocs, query, where, limit } from '/assets/js/firebase.js';
-import { escudoClan, COLORES_CLAN, lemaSeguro, contienePalabrasProhibidas } from '/assets/js/escudo-clan.js';
-import { identidadInicial, editorEscudo, editorFicha, identidadParaGuardar } from '/assets/js/editor-clan.js';
-import { cabeceraClan, abrirFichaClan } from '/assets/js/ficha-clan.js';
+import { escudoClan, COLORES_CLAN, COLORES_PRINCIPALES, lemaSeguro, contienePalabrasProhibidas } from '/assets/js/escudo-clan.js';
+import {
+  identidadInicial, pestanasEscudo, camposFicha, identidadParaGuardar, siglasDe, MAX_NOMBRE,
+} from '/assets/js/editor-clan.js';
+import { cabeceraClan, fichaEscala, abrirFichaClan, abrirCapa, temaDe, COLORES_TEMA } from '/assets/js/ficha-clan.js';
 import { mapaClan } from '/assets/js/mapa-clan.js';
+import { ESTACIONES } from '/assets/data/estaciones.js';
 import { id, el, icono, estado, reemplazar, avisar, esqueleto, abrirHoja } from '/assets/js/dom.js';
 import { miles, NOMBRE_DIVISION } from '/assets/js/ui.js';
 import {
@@ -75,20 +78,20 @@ function boton(contenido, alPulsar, { clase = 'btn secundario', etiqueta = null 
 }
 
 /** Confirmacion en hoja (5f; en escritorio, dialogo de 480 px). */
-function confirmarEnHoja({ rotulo, titulo, texto, aceptar, peligro = false, grave = false, extra = null, soloAceptar = false }) {
+function confirmarEnHoja({ rotulo, titulo, texto, aceptar, cancelar = 'Cancelar', peligro = false, grave = false, extra = null, soloAceptar = false }) {
   return new Promise((resolver) => {
     let hecho = false;
     const fin = (v) => { if (!hecho) { hecho = true; resolver(v); } };
     const { cerrar } = abrirHoja([
       rotulo ? el('span', { clase: 'rotulo', texto: rotulo }) : null,
       el('h2', { texto: titulo }),
-      el('p', { texto }),
+      texto ? el('p', { texto }) : null,
       extra,
       // 5f: el miembro elige entre cancelar y salir; el lider (ceder) y el
       // ultimo (disolver) solo ven su unica salida, y se cierra deslizando.
       el('div', { clase: 'dos-botones-hoja' }, [
-        soloAceptar ? null : el('button', { clase: 'btn tonal', texto: 'Cancelar', attrs: { type: 'button' }, on: { click: () => { cerrar(); fin(false); } } }),
-        el('button', { clase: `btn ${grave ? 'peligro lleno' : peligro ? 'peligro' : ''}`, texto: aceptar, attrs: { type: 'button' }, on: { click: () => { cerrar(); fin(true); } } }),
+        soloAceptar ? null : el('button', { clase: 'btn tonal', texto: cancelar, attrs: { type: 'button' }, on: { click: () => { fin(false); cerrar(); } } }),
+        el('button', { clase: `btn ${grave ? 'peligro lleno' : peligro ? 'peligro' : ''}`, texto: aceptar, attrs: { type: 'button' }, on: { click: () => { fin(true); cerrar(); } } }),
       ]),
     ], { etiqueta: titulo, clase: `dialogo-escritorio hoja-confirmar ${grave ? 'grave' : ''}`, alCerrar: () => fin(false) });
   });
@@ -309,102 +312,145 @@ function estacionesDe(cual) {
   return [...contexto.estaciones().entries()].filter(([, s]) => s.clanDominante === cual).map(([n]) => n);
 }
 
-/** Las estaciones por las que te mueves: el mapa de un clan que aun no tiene ninguna. */
+/** Las de los demas clanes, en su color: en el mapa se lee la frontera. */
+function vecinasDe(cual) {
+  const clanes = contexto.clanes();
+  return [...contexto.estaciones().entries()]
+    .filter(([, s]) => s.clanDominante && s.clanDominante !== cual)
+    .map(([n, s]) => ({ n, color: clanes.get(s.clanDominante)?.color }));
+}
+
+/** Tus tres estaciones habituales: las que mas puntos te han dado. */
 function misEstaciones() {
-  const mias = new Set();
-  for (const ruta of Object.keys(perfil?.puntosPorRuta || {})) for (const e of ruta.split('-')) mias.add(e.replace(/^0+(?=\d)/, ''));
-  return [...mias];
-}
-
-/**
- * La hoja de los editores del clan: cabecera con su titulo y una X, la vista
- * previa fija arriba, el contenido con su propio scroll y los botones siempre
- * a mano abajo. En el movil ocupa casi toda la pantalla; en escritorio es un
- * dialogo de 520 px.
- */
-function hojaClan({ etiqueta, rotulo, titulo, barra = null, previa, cuerpo, pie }) {
-  const tituloNodo = el('h2', { texto: titulo });
-  const rotuloNodo = el('span', { clase: 'rotulo-editor', texto: rotulo });
-  const cerrarX = el('button', { clase: 'boton-icono', attrs: { type: 'button', 'aria-label': 'Cerrar' } }, [icono('cerrar')]);
-  const desliza = el('div', { clase: 'hoja-clan-cuerpo' }, cuerpo);
-  const hoja = abrirHoja([
-    el('div', { clase: 'hoja-clan-cabeza' }, [el('div', {}, [rotuloNodo, tituloNodo]), cerrarX]),
-    barra,
-    previa,
-    desliza,
-    el('div', { clase: 'hoja-clan-pie' }, pie),
-  ], { etiqueta, clase: 'dialogo-escritorio hoja-clan' });
-  cerrarX.addEventListener('click', hoja.cerrar);
-  return {
-    ...hoja,
-    titular: (r, t) => { rotuloNodo.textContent = r; tituloNodo.textContent = t; },
-    arriba: () => { desliza.scrollTop = 0; },
-  };
-}
-
-/** Pestañas Escudo / Ficha encima de los dos editores (editor-clan.js). */
-function pestanasEditor(paneles, alCambiar) {
-  const botones = {};
-  const ver = (cual) => {
-    for (const [k, panel] of Object.entries(paneles)) {
-      panel.classList.toggle('oculto', k !== cual);
-      botones[k].setAttribute('aria-selected', String(k === cual));
+  const cuenta = new Map();
+  for (const [ruta, puntos] of Object.entries(perfil?.puntosPorRuta || {})) {
+    for (const e of ruta.split('-')) {
+      const n = e.replace(/^0+(?=\d)/, '');
+      cuenta.set(n, (cuenta.get(n) || 0) + (Number(puntos) || 1));
     }
-    alCambiar?.(cual);
-  };
-  const barra = el('div', { clase: 'segmento pestanas-clan', attrs: { role: 'tablist', 'aria-label': 'Qué quieres cambiar' } },
-    [['escudo', 'Escudo'], ['ficha', 'Ficha']].map(([k, texto]) => {
-      botones[k] = el('button', { texto, attrs: { type: 'button', role: 'tab' }, on: { click: () => ver(k) } });
-      return botones[k];
-    }));
-  ver('escudo');
-  return barra;
+  }
+  return [...cuenta.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n);
 }
 
 /**
- * Personalizar el clan (solo el lider): el escudo y la ficha publica. Se ve
- * en vivo mientras se elige; se guarda con una escritura y el resto de la web
- * lo recoge en la siguiente pasada de los agregados.
+ * Colores que ya lleva un clan con estaciones a menos de 1 km de las tuyas
+ * (16c): no se pueden elegir, para que en el mapa no se confundan.
+ */
+function coloresVecinos() {
+  const mias = misEstaciones().map((n) => ESTACIONES[n]).filter(Boolean);
+  const vecinos = new Map();
+  if (!mias.length) return vecinos;
+  const metros = (a, b) => Math.hypot((a.lat - b.lat) * 111320, (a.lon - b.lon) * 111320 * Math.cos((a.lat * Math.PI) / 180));
+  const clanes = contexto.clanes();
+  for (const [n, s] of contexto.estaciones()) {
+    const clanVecino = clanes.get(s.clanDominante);
+    const e = ESTACIONES[n];
+    if (!clanVecino?.color || !e || vecinos.has(clanVecino.color)) continue;
+    if (mias.some((m) => metros(m, e) < 1000)) vecinos.set(clanVecino.color, clanVecino.nombre);
+  }
+  return vecinos;
+}
+
+/** La vista previa del escudo en el ordenador: grande y a los tamaños en que se vera (16j). */
+function tamanosEscudo(datosClan) {
+  return el('div', { clase: 'tamanos-escudo' }, [['ranking', 'ranking'], ['mapa', 'mapa'], ['lista', 'lista']].map(([clase, rotulo]) => el('span', { clase }, [
+    escudoClan(datosClan),
+    el('small', { texto: rotulo }),
+  ])));
+}
+
+/**
+ * Editar el clan (16i, solo el lider): la ficha arriba y dos pestañas, Escudo
+ * y Ficha. Guardar solo se activa si hay cambios; salir con cambios pregunta.
+ * Se guarda con una escritura y el resto de la web lo recoge en la siguiente
+ * pasada de los agregados.
  */
 function hojaPersonalizar() {
   const elegido = identidadInicial(clan);
-  const mapa = { suyas: estacionesDe(clanId) };
-  const previa = el('div', { clase: 'hoja-clan-previa' });
+  const suyas = estacionesDe(clanId);
+  const mapa = { suyas, vecinas: vecinasDe(clanId) };
+  const inicial = JSON.stringify(identidadParaGuardar(elegido).datos);
+  const hayCambios = () => JSON.stringify(identidadParaGuardar(elegido).datos) !== inicial;
+  const datosClan = () => ({ ...elegido, nombre: clan.nombre, siglas: elegido.siglas || null });
+
+  const previa = el('div', { clase: 'vista-ficha' });
+  const aviso = el('p', { clase: 'aviso-color' });
+  const error = el('p', { clase: 'error-clan', attrs: { 'aria-live': 'polite' } });
+  const guardar = [
+    el('button', { clase: 'btn guardar-barra', texto: 'Guardar', attrs: { type: 'button', disabled: '' } }),
+    el('button', { clase: 'btn', texto: 'Guardar', attrs: { type: 'button', disabled: '' } }),
+  ];
   let ficha = null;
-  const pintarPrevia = () => {
-    reemplazar(previa, cabeceraClan({ ...elegido, nombre: clan.nombre, siglas: elegido.siglas || null }, { previa: true, ...mapa }));
+  const repintar = () => {
+    reemplazar(previa, [
+      cabeceraClan(datosClan(), mapa),
+      fichaEscala(datosClan(), {
+        ...mapa,
+        cifras: [[String(suyas.length), 'estaciones'], [miles(clan.biciRating || 0), 'BiciRating'], [String(clan.numMiembros), clan.numMiembros === 1 ? 'miembro' : 'miembros']],
+        plantilla: clan.miembros, miembros: clan.numMiembros, lider: clan.lider, yo: usuario?.uid,
+      }),
+    ]);
+    const cambiaColor = elegido.color !== (clan.color || elegido.color);
+    aviso.textContent = cambiaColor && suyas.length ? `Cambiar el color mueve también vuestras ${suyas.length} estaciones en el mapa.` : '';
+    for (const b of guardar) b.disabled = !hayCambios();
     ficha?.repintar();
   };
-  const escudo = editorEscudo(elegido, pintarPrevia, { nombre: () => clan.nombre });
-  ficha = editorFicha(elegido, pintarPrevia, { mapa: () => mapa });
-  const error = el('p', { clase: 'error-clan', attrs: { 'aria-live': 'polite' } });
-  let hoja = null;
-  const guardar = el('button', {
-    clase: 'btn', texto: 'Guardar cambios', attrs: { type: 'button' },
-    on: {
-      click: async () => {
-        const { datos, error: motivo } = identidadParaGuardar(elegido);
-        if (motivo) { error.textContent = motivo; return; }
-        guardar.disabled = true;
-        try {
-          await personalizarClan(clanId, datos);
-          hoja.cerrar();
-          avisar('Clan actualizado.', 'exito');
-          await recargar();
-        } catch {
-          error.textContent = 'No se ha podido guardar. Vuelve a intentarlo.';
-          guardar.disabled = false;
-        }
-      },
-    },
-  });
+  const escudo = pestanasEscudo(elegido, repintar, { nombre: () => clan.nombre, estilo: 'chips' });
+  ficha = camposFicha(elegido, repintar, { mapa: () => mapa, siglas: true });
 
-  pintarPrevia();
-  hoja = hojaClan({
-    etiqueta: 'Personalizar el clan', rotulo: clan.nombre, titulo: 'Personalizar el clan',
-    barra: pestanasEditor({ escudo, ficha }, () => hoja?.arriba()),
-    previa, cuerpo: [escudo, ficha, error], pie: [guardar],
-  });
+  const panelEscudo = el('div', { clase: 'panel-editar' }, [escudo.barra, escudo.paneles, aviso]);
+  const panelFicha = el('div', { clase: 'panel-editar oculto' }, [ficha]);
+  const botonesEF = {};
+  const segmento = el('div', { clase: 'segmentado', attrs: { role: 'tablist', 'aria-label': 'Qué quieres cambiar' } },
+    [['escudo', 'Escudo', panelEscudo], ['ficha', 'Ficha', panelFicha]].map(([clave, texto, panel]) => {
+      botonesEF[clave] = el('button', {
+        texto, attrs: { type: 'button', role: 'tab', 'aria-selected': String(clave === 'escudo') },
+        on: {
+          click: () => {
+            panelEscudo.classList.toggle('oculto', panel !== panelEscudo);
+            panelFicha.classList.toggle('oculto', panel !== panelFicha);
+            for (const [k, b] of Object.entries(botonesEF)) b.setAttribute('aria-selected', String(k === clave));
+          },
+        },
+      });
+      return botonesEF[clave];
+    }));
+
+  let capa = null;
+  const salir = async () => {
+    if (hayCambios()) {
+      const seguro = await confirmarEnHoja({ titulo: '¿Salir sin guardar?', texto: '', cancelar: 'Seguir editando', aceptar: 'Salir' });
+      if (!seguro) return;
+    }
+    capa.cerrar();
+  };
+  const alGuardar = async () => {
+    const { datos, error: motivo } = identidadParaGuardar(elegido);
+    if (motivo) { error.textContent = motivo; return; }
+    for (const b of guardar) b.disabled = true;
+    try {
+      await personalizarClan(clanId, datos);
+      capa.cerrar();
+      avisar('Clan actualizado.', 'exito');
+      await recargar();
+    } catch {
+      error.textContent = 'No se ha podido guardar. Vuelve a intentarlo.';
+      for (const b of guardar) b.disabled = false;
+    }
+  };
+  for (const b of guardar) b.addEventListener('click', alGuardar);
+  const cerrarX = () => el('button', { clase: 'boton-capa', attrs: { type: 'button', 'aria-label': 'Cerrar' }, on: { click: salir } }, [icono('cerrar', 'icono')]);
+
+  repintar();
+  capa = abrirCapa([
+    el('div', { clase: 'hoja-clan-barra' }, [cerrarX(), el('h2', { texto: 'Editar clan' }), guardar[0]]),
+    el('div', { clase: 'hoja-clan-izq' }, [previa]),
+    el('div', { clase: 'hoja-clan-der' }, [
+      el('div', { clase: 'cabeza-der' }, [segmento, cerrarX()]),
+      el('div', { clase: 'contenido-der' }, [panelEscudo, panelFicha, error]),
+      el('div', { clase: 'pie-der' }, [el('span'), guardar[1]]),
+    ]),
+  ], { etiqueta: 'Editar clan', clase: 'hoja-clan editar', alEscape: salir });
 }
 
 function pintarConClan(destino) {
@@ -496,84 +542,124 @@ function clanesCerca() {
   return lista.slice(0, 3).map((c) => ({ ...c, miembros: ranking.find((r) => r.nombre === c.nombre)?.viajes }));
 }
 
-const PASOS_CREAR = [
-  { rotulo: 'Nombre', titulo: '¿Cómo se llama tu clan?' },
-  { rotulo: 'Escudo', titulo: 'Diseña el escudo' },
-  { rotulo: 'Ficha', titulo: 'Preséntalo' },
-];
+const PASOS_CREAR = ['Nombre', 'Escudo', 'Ficha'];
+const TEXTO_SIGUIENTE = ['Siguiente: el escudo', 'Siguiente: la ficha'];
 
 /**
- * Crear un clan en tres pasos —nombre, escudo y ficha— en su propia hoja, con
- * la cabecera de su ficha publica arriba, en vivo: lo que se ve aqui es lo que
- * vera todo el mundo. Solo el nombre es obligatorio; lo demas se puede cambiar
- * despues. Su mapa, mientras no controle nada, enseña por donde te mueves.
+ * Crear un clan (16a-16e; 16j y 16k en el ordenador): tres pasos a pantalla
+ * completa con el escudo, o la ficha, siempre a la vista y actualizandose en
+ * vivo. Solo el nombre es obligatorio; lo demas se puede cambiar despues.
  */
-function abrirCrear(usados) {
-  const elegido = identidadInicial({}, COLORES_CLAN.find((c) => !usados.has(c)) || COLORES_CLAN[0]);
-  const mapa = { foco: misEstaciones() };
+function abrirCrear() {
+  const vecinos = coloresVecinos();
+  const elegido = identidadInicial({}, Object.keys(COLORES_PRINCIPALES).find((c) => !vecinos.has(c)) || COLORES_CLAN[0]);
+  const foco = misEstaciones();
+  const mapa = { foco };
   let paso = 0;
   let espera = null;
   let libre = false;
+  let siglasTocadas = false;
+  const escritorio = window.matchMedia('(min-width: 900px)').matches;
 
-  const nombre = el('input', { attrs: { type: 'text', id: 'clan-nombre', maxlength: '28', placeholder: 'Por ejemplo, Chamberí Fixie', autocomplete: 'off', 'aria-describedby': 'clan-nombre-estado clan-nombre-pista' } });
-  const estadoNombre = el('span', { clase: 'estado-nombre', attrs: { id: 'clan-nombre-estado', 'aria-live': 'polite' } });
+  // --- Paso 1 · Nombre (16a)
+  const nombre = el('input', { attrs: { type: 'text', id: 'clan-nombre', maxlength: String(MAX_NOMBRE), autocomplete: 'off', 'aria-describedby': 'clan-nombre-estado' } });
+  const estadoNombre = el('span', { clase: 'estado-nombre-clan', attrs: { id: 'clan-nombre-estado', 'aria-live': 'polite' } });
+  const cuenta = el('small', { clase: 'contador-nombre', texto: `0 / ${MAX_NOMBRE}` });
+  const siglas = el('input', { attrs: { type: 'text', maxlength: '3', 'aria-label': 'Siglas', autocapitalize: 'characters', autocomplete: 'off', spellcheck: 'false' } });
   const nombreActual = () => nombre.value.trim() || 'Tu clan';
+  const pasoNombre = el('div', { clase: 'paso-nombre' }, [
+    el('label', { clase: 'campo-nombre-clan', attrs: { for: 'clan-nombre' } }, [
+      el('span', { clase: 'etiqueta', texto: 'Nombre del clan' }),
+      el('span', { clase: 'caja' }, [nombre, estadoNombre]),
+      cuenta,
+    ]),
+    el('div', { clase: 'fila-siglas' }, [
+      el('div', {}, [el('strong', { texto: 'Siglas' }), el('span', { texto: 'Salen en el ranking y, si no eliges emblema, en el escudo.' })]),
+      siglas,
+    ]),
+  ]);
 
-  const previa = el('div', { clase: 'hoja-clan-previa' });
+  // --- Lo que se ve: el escudo (pasos 1 y 2) o la ficha (paso 3)
+  const escenario = el('div', { clase: 'escenario-escudo' });
+  const vistaFicha = el('div', { clase: 'vista-ficha' });
+  const datosClan = () => ({ ...elegido, nombre: nombreActual(), siglas: elegido.siglas || null });
   let ficha = null;
-  const pintarPrevia = () => {
-    reemplazar(previa, cabeceraClan({ ...elegido, nombre: nombreActual(), siglas: elegido.siglas || null }, { previa: true, ...mapa }));
+  const repintar = () => {
+    const d = datosClan();
+    reemplazar(escenario, [
+      escudoClan(d, { clase: 'escudo-clan escudo-grande' }),
+      el('span', { clase: 'nombre', texto: nombreActual() }),
+      el('span', { clase: 'nota', texto: 'Así empieza tu escudo. Lo vestirás en el paso 2.' }),
+      tamanosEscudo(d),
+    ]);
+    reemplazar(vistaFicha, [
+      cabeceraClan(d, mapa),
+      fichaEscala(d, {
+        ...mapa,
+        cifras: [['0', 'estaciones'], ['1', 'miembros'], ['—', 'puesto']],
+        plantilla: [{ uid: usuario?.uid, nombre: perfil?.username || 'Tú', puntos: null }], miembros: 1, lider: usuario?.uid, yo: usuario?.uid,
+      }),
+    ]);
     ficha?.repintar();
   };
-  const escudo = editorEscudo(elegido, pintarPrevia, { nombre: nombreActual, usados });
-  ficha = editorFicha(elegido, pintarPrevia, { mapa: () => mapa });
-  const pasoNombre = el('div', { clase: 'editor-clan' }, [
-    el('label', { clase: 'campo-clan campo-nombre-clan', attrs: { for: 'clan-nombre' } }, [
-      el('span', { clase: 'campo-cabeza' }, [el('span', { texto: 'Nombre del clan' }), estadoNombre]),
-      nombre,
-    ]),
-    el('p', { clase: 'pista-editor', attrs: { id: 'clan-nombre-pista' }, texto: 'Entre 3 y 28 letras. Es lo único que no se puede cambiar después: el escudo y la ficha, sí.' }),
-  ]);
-  const paneles = [pasoNombre, escudo, ficha];
 
-  const progreso = el('div', { clase: 'progreso-clan', attrs: { 'aria-hidden': 'true' } }, PASOS_CREAR.map(() => el('span')));
+  // --- Paso 2 · Escudo (16b-16d) y paso 3 · Ficha (16e)
+  const escudo = pestanasEscudo(elegido, repintar, { nombre: nombreActual, vecinos });
+  ficha = camposFicha(elegido, repintar, { mapa: () => mapa, plegar: !escritorio });
+  const paneles = [pasoNombre, escudo.paneles, ficha];
+
+  const progreso = () => el('div', { clase: 'hoja-clan-progreso', attrs: { 'aria-hidden': 'true' } }, PASOS_CREAR.map(() => el('span')));
+  const progresos = [progreso(), progreso(), progreso()];
+  const textosPaso = [];
+  const textoPaso = () => { const s = el('span', { clase: 'paso' }); textosPaso.push(s); return s; };
   const error = el('p', { clase: 'error-clan', attrs: { 'aria-live': 'polite' } });
-  const atras = el('button', { clase: 'btn tonal', texto: 'Atrás', attrs: { type: 'button' } });
-  const siguiente = el('button', { clase: 'btn', attrs: { type: 'button' } });
-  let hoja = null;
+  const siguiente = el('button', { clase: 'btn siguiente-clan', attrs: { type: 'button' } });
+  const atrasPie = el('button', { clase: 'atras-pie', attrs: { type: 'button' } });
+  const botonBarra = el('button', { clase: 'boton-capa', attrs: { type: 'button' } });
+  let capa = null;
 
   function pintarPaso() {
+    capa?.capa.classList.remove('paso-1', 'paso-2', 'paso-3');
+    capa?.capa.classList.add(`paso-${paso + 1}`);
     paneles.forEach((p, i) => p.classList.toggle('oculto', i !== paso));
-    [...progreso.children].forEach((s, i) => s.classList.toggle('hecho', i <= paso));
-    hoja?.titular(`Paso ${paso + 1} de ${PASOS_CREAR.length} · ${PASOS_CREAR[paso].rotulo}`, PASOS_CREAR[paso].titulo);
-    hoja?.arriba();
-    atras.classList.toggle('oculto', paso === 0);
-    siguiente.textContent = paso === PASOS_CREAR.length - 1 ? 'Crear el clan' : 'Siguiente';
+    escudo.barra.classList.toggle('oculto', paso !== 1);
+    for (const p of progresos) [...p.children].forEach((s, i) => s.classList.toggle('hecho', i <= paso));
+    for (const s of textosPaso) s.textContent = `${paso + 1} de ${PASOS_CREAR.length}`;
+    reemplazar(botonBarra, icono(paso === 0 ? 'cerrar' : 'atras', 'icono'));
+    botonBarra.setAttribute('aria-label', paso === 0 ? 'Cerrar' : 'Atrás');
+    atrasPie.textContent = paso === 0 ? '' : `← ${PASOS_CREAR[paso - 1]}`;
+    reemplazar(siguiente, paso < 2
+      ? [el('span', { texto: TEXTO_SIGUIENTE[paso] }), icono('flecha', 'icono')]
+      : [el('span', { texto: `Fundar ${nombreActual()}` })]);
     siguiente.disabled = !libre;
     error.textContent = '';
-    // El nombre puede haber cambiado: las iniciales del escudo, con el.
     if (paso === 1) escudo.repintar();
   }
 
+  const marcar = (texto, clase) => {
+    reemplazar(estadoNombre, clase === 'libre' ? [icono('check', 'icono'), texto] : [texto]);
+    estadoNombre.className = `estado-nombre-clan ${clase}`;
+  };
   nombre.addEventListener('input', () => {
     clearTimeout(espera);
     libre = false;
     siguiente.disabled = true;
-    pintarPrevia();
+    cuenta.textContent = `${nombre.value.length} / ${MAX_NOMBRE}`;
+    if (!siglasTocadas) { elegido.siglas = siglasDe(nombre.value); siglas.value = elegido.siglas; }
+    repintar();
+    if (paso === 2) reemplazar(siguiente, el('span', { texto: `Fundar ${nombreActual()}` }));
     const limpio = nombre.value.trim();
-    const marcar = (texto, clase) => { estadoNombre.textContent = texto; estadoNombre.className = `estado-nombre ${clase}`; };
-    if (limpio.length < 3) { marcar(limpio ? 'Muy corto' : '', 'mal'); return; }
+    if (limpio.length < 3) { marcar('', ''); return; }
     // Solo letras, numeros, espacios y algun signo corriente: nada de
     // emojis, simbolos raros ni caracteres invisibles en un nombre publico.
-    if (!/^[\p{L}\p{N}][\p{L}\p{N} '._-]*$/u.test(limpio)) { marcar('Solo letras y números', 'mal'); return; }
-    if (contienePalabrasProhibidas(limpio)) { marcar('No permitido', 'mal'); return; }
-    marcar('Comprobando…', 'espera');
+    if (!/^[\p{L}\p{N}][\p{L}\p{N} '._-]*$/u.test(limpio) || contienePalabrasProhibidas(limpio)) { marcar('No permitido', 'mal'); return; }
+    marcar('…', 'espera');
     espera = setTimeout(async () => {
       const cid = limpio.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
       try {
         const existe = (await getDoc(doc(db, 'clanes', cid))).exists();
         libre = !existe;
-        marcar(existe ? 'Ya existe' : 'Disponible', existe ? 'mal' : 'libre');
+        marcar(existe ? 'Ocupado' : 'Libre', existe ? 'mal' : 'libre');
       } catch {
         libre = true; // sin poder mirarlo se deja intentar: crearClan lo comprueba
         marcar('', '');
@@ -582,42 +668,101 @@ function abrirCrear(usados) {
     }, 400);
   });
   nombre.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && libre) siguiente.click(); });
+  siglas.addEventListener('input', () => {
+    siglasTocadas = true;
+    siglas.value = siglas.value.toUpperCase().replace(/[^A-Z0-9ÑÁÉÍÓÚ]/g, '').slice(0, 3);
+    elegido.siglas = siglas.value;
+    repintar();
+  });
 
-  atras.addEventListener('click', () => { paso = Math.max(0, paso - 1); pintarPaso(); });
+  const atras = () => { if (paso === 0) capa.cerrar(); else { paso -= 1; pintarPaso(); } };
+  botonBarra.addEventListener('click', atras);
+  atrasPie.addEventListener('click', atras);
   siguiente.addEventListener('click', async () => {
     if (!libre) return;
-    if (paso < PASOS_CREAR.length - 1) {
-      paso += 1;
-      pintarPaso();
-      return;
-    }
+    if (paso < 2) { paso += 1; pintarPaso(); return; }
     const { datos, error: motivo } = identidadParaGuardar(elegido);
     if (motivo) { error.textContent = motivo; return; }
     siguiente.disabled = true;
     try {
       const nuevo = await crearClan({ nombre: nombre.value.trim(), ...datos });
-      hoja.cerrar();
-      avisar('Clan creado. Ahora, a por estaciones.', 'exito');
+      capa.cerrar();
       clanId = nuevo;
       await recargar();
+      abrirFundado({ ...datos, nombre: nombre.value.trim() }, foco);
     } catch (e) {
       error.textContent = e.message || 'No se ha podido crear el clan.';
       siguiente.disabled = false;
     }
   });
 
-  pintarPrevia();
-  hoja = hojaClan({
-    etiqueta: 'Crear un clan', rotulo: '', titulo: '', barra: progreso,
-    previa, cuerpo: [...paneles, error], pie: [atras, siguiente],
-  });
+  const cerrarX = el('button', { clase: 'boton-capa', attrs: { type: 'button', 'aria-label': 'Cerrar' } }, [icono('cerrar', 'icono')]);
+  repintar();
+  capa = abrirCapa([
+    el('div', { clase: 'hoja-clan-barra' }, [botonBarra, el('h2', { texto: 'Nuevo clan' }), textoPaso()]),
+    progresos[0],
+    el('div', { clase: 'hoja-clan-izq' }, [
+      el('div', { clase: 'cabeza-izq' }, [el('div', {}, [el('strong', { texto: 'Nuevo clan' }), textoPaso()]), progresos[1]]),
+      escenario,
+      vistaFicha,
+    ]),
+    el('div', { clase: 'hoja-clan-der' }, [
+      el('div', { clase: 'cabeza-der' }, [
+        escudo.barra,
+        el('span', { clase: 'titulo-der' }, ['Nuevo clan ', textoPaso()]),
+        cerrarX,
+      ]),
+      progresos[2],
+      el('div', { clase: 'contenido-der' }, [...paneles, error]),
+      el('div', { clase: 'pie-der' }, [atrasPie, siguiente]),
+    ]),
+  ], { etiqueta: 'Nuevo clan', clase: 'hoja-clan crear paso-1' });
+  cerrarX.addEventListener('click', capa.cerrar);
   pintarPaso();
   nombre.focus();
 }
 
+/**
+ * Clan fundado (16f): el escudo cae sobre el mapa con tus estaciones
+ * habituales marcadas. Lo siguiente util: invitar.
+ */
+function abrirFundado(datosClan, foco) {
+  const tema = temaDe(datosClan);
+  const invitar = el('button', { clase: 'btn' }, [icono('compartir', 'icono'), el('span', { texto: 'Invitar a la primera persona' })]);
+  const verla = el('button', { clase: 'enlace-fundado', texto: 'Ver la ficha del clan', attrs: { type: 'button' } });
+  const capa = abrirCapa([
+    // La caja es vertical: el mapa se recorta y sin esto los anillos crecen 3 veces.
+    mapaClan({ color: datosClan.color, tema, foco, ancho: 1500 }),
+    el('div', { clase: 'contenido-fundado' }, [
+      escudoClan(datosClan, { clase: 'escudo-clan', aro: COLORES_TEMA[tema].fondo }),
+      el('h2', { texto: datosClan.nombre }),
+      el('p', { texto: 'Ya existe. Tus tres estaciones habituales están marcadas: pedalead por ellas y serán vuestras.' }),
+      el('span', { clase: 'relleno' }),
+      invitar,
+      verla,
+    ]),
+  ], { etiqueta: `${datosClan.nombre} fundado`, clase: `clan-fundado ${tema}` });
+  invitar.addEventListener('click', async () => {
+    invitar.disabled = true;
+    try {
+      const { enlace } = await crearInvitacion(clanId);
+      if (navigator.share) {
+        try { await navigator.share({ title: `Únete a ${datosClan.nombre}`, text: `Entra en ${datosClan.nombre} en bicifastness`, url: enlace }); } catch { /* cancelado */ }
+      } else {
+        await navigator.clipboard.writeText(enlace);
+        avisar('Enlace de invitación copiado.', 'exito');
+      }
+    } catch (e) {
+      avisar(e.message || 'No se ha podido crear la invitación.');
+    } finally {
+      invitar.disabled = false;
+    }
+  });
+  verla.addEventListener('click', () => { capa.cerrar(); verFicha(clanId); });
+}
+
 function pintarSinClan(destino) {
   const cerca = clanesCerca();
-  const usados = new Set(cerca.map((c) => c.color));
 
   const codigo = el('input', { attrs: { type: 'text', id: 'codigo-invitacion', placeholder: 'Código de invitación', autocomplete: 'off', 'aria-label': 'Código de invitación' } });
   const entrar = boton('Entrar', async () => {
@@ -644,28 +789,23 @@ function pintarSinClan(destino) {
       boton('Pedir', () => pedirEntrada(c.cid), { clase: 'btn secundario pedir', etiqueta: `Pedir entrar en ${c.nombre}` }),
     ]))) : null,
     el('div', { clase: 'fila-codigo' }, [codigo, entrar]),
-    // Crear va en su propia hoja: tres pasos con la vista previa delante no
-    // caben con dignidad debajo de la lista.
-    el('div', { clase: 'crear-clan-cta' }, [
-      mapaClan({ color: COLORES_CLAN.find((c) => !usados.has(c)) || COLORES_CLAN[0], foco: misEstaciones() }),
-      el('div', { clase: 'textos' }, [
-        el('strong', { texto: 'O monta el tuyo' }),
-        el('span', { texto: 'Nombre, escudo y ficha en tres pasos.' }),
-      ]),
-      el('button', { clase: 'btn', texto: 'Crear un clan', attrs: { type: 'button' }, on: { click: () => abrirCrear(usados) } }),
-    ]),
+    el('button', { clase: 'btn', texto: 'Crear un clan', attrs: { type: 'button' }, on: { click: () => abrirCrear() } }),
   ]));
 }
 
 /**
  * La ficha publica de un clan, con lo que sabe esta pantalla: sus estaciones,
- * su puesto y si se puede pedir entrar.
+ * las de sus vecinos, su puesto y si se puede pedir entrar.
  */
 export function verFicha(cual) {
+  const ranking = contexto.ranking();
   const nombreClan = contexto.clanes().get(cual)?.nombre;
-  const puesto = nombreClan ? contexto.ranking().findIndex((c) => c.nombre === nombreClan) + 1 : 0;
-  const accion = cual === clanId ? 'mio' : usuario && !perfil?.clanId ? 'pedir' : null;
-  return abrirFichaClan(cual, { suyas: estacionesDe(cual), puesto: puesto || null, accion, alPedir: pedirEntrada });
+  const puesto = nombreClan ? ranking.findIndex((c) => c.nombre === nombreClan) + 1 : 0;
+  return abrirFichaClan(cual, {
+    suyas: estacionesDe(cual), vecinas: vecinasDe(cual), puesto: puesto || null, total: ranking.length || null,
+    yo: usuario?.uid || null, puedePedir: Boolean(usuario) && !perfil?.clanId,
+    alPedir: pedirEntrada, alEditar: cual === clanId && papel() === 'lider' ? hojaPersonalizar : null,
+  });
 }
 
 // --- Carga ---------------------------------------------------------------------

@@ -36,28 +36,28 @@ export const EMBLEMAS = {
 };
 
 /**
- * La silueta del escudo. `cuadro` es la de siempre y la que lleva quien no ha
- * elegido; las demas se recortan con `clip-path` (app.css, `.escudo-clan`).
+ * La silueta del escudo, en un lienzo de 100 x 100 (16 Clanes, EscudoClan).
+ * `cuadro` es la de quien no ha elegido.
  */
 export const FORMAS = {
-  cuadro: { nombre: 'Cuadrado' },
-  circulo: { nombre: 'Círculo' },
-  hexagono: { nombre: 'Hexágono' },
-  blason: { nombre: 'Blasón' },
-  octogono: { nombre: 'Octógono' },
+  cuadro: { nombre: 'Cuadro', d: 'M24 4 H76 A20 20 0 0 1 96 24 V76 A20 20 0 0 1 76 96 H24 A20 20 0 0 1 4 76 V24 A20 20 0 0 1 24 4 Z' },
+  circulo: { nombre: 'Círculo', d: 'M50 3 A47 47 0 1 1 49.99 3 Z' },
+  hexagono: { nombre: 'Hexágono', d: 'M50 3 L91 26.5 V73.5 L50 97 L9 73.5 V26.5 Z' },
+  blason: { nombre: 'Blasón', d: 'M10 6 H90 Q94 6 94 10 V46 C94 72 74 88 50 97 C26 88 6 72 6 46 V10 Q6 6 10 6 Z' },
+  octogono: { nombre: 'Octógono', d: 'M31 4 H69 L96 31 V69 L69 96 H31 L4 69 V31 Z' },
 };
 
 /**
- * Como se reparten los dos colores. Sin patron (o sin segundo color) el escudo
- * es liso, como hasta ahora.
+ * Como se reparten los dos colores: lo que se pinta con el segundo. El aro no
+ * es un relleno: es el borde de la silueta (ver `piezasEscudo`).
  */
 export const PATRONES = {
-  mitad: { nombre: 'Mitad' },
-  diagonal: { nombre: 'Diagonal' },
-  franja: { nombre: 'Franja' },
-  rayas: { nombre: 'Rayas' },
-  cuartos: { nombre: 'Cuartos' },
-  aro: { nombre: 'Aro' },
+  mitad: { nombre: 'Mitad', d: 'M50 0 H100 V100 H50 Z' },
+  diagonal: { nombre: 'Diagonal', d: 'M100 0 V100 H0 Z' },
+  franja: { nombre: 'Franja', d: 'M0 37 H100 V63 H0 Z' },
+  rayas: { nombre: 'Rayas', d: 'M14 0 H28 V100 H14 Z M43 0 H57 V100 H43 Z M72 0 H86 V100 H72 Z' },
+  cuartos: { nombre: 'Cuartos', d: 'M50 0 H100 V50 H50 Z M0 50 H50 V100 H0 Z' },
+  aro: { nombre: 'Aro', d: '' },
 };
 
 /** 16 colores con buen contraste con el blanco del emblema. */
@@ -66,23 +66,49 @@ export const COLORES_CLAN = [
   '#D7263D', '#1B80E5', '#0B7A75', '#6D28D9', '#C2410C', '#4D7C0F', '#BE185D', '#111110',
 ];
 
+/** Los 8 que se ofrecen al elegir (16c), con nombre para los avisos. */
+export const COLORES_PRINCIPALES = {
+  '#FF5A1F': 'naranja', '#E23D8C': 'rosa', '#13A89E': 'turquesa', '#8B5CF6': 'morado',
+  '#E0A800': 'mostaza', '#3D8B37': 'verde', '#8A5A3C': 'marrón', '#5B6470': 'gris',
+};
+
 const HEX = /^#[0-9a-fA-F]{6}$/;
+const SIGLAS = /^[A-Z0-9ÑÁÉÍÓÚ]{1,3}$/;
+
+const luminancia = (h) => {
+  const n = parseInt(h.slice(1), 16);
+  return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+};
 
 /**
- * El fondo del escudo como valor de `background` de CSS. Los colores llegan de
- * la base de datos: lo que no sea un hex de verdad no entra.
+ * Lo que hace falta para pintar un escudo, sin DOM: silueta, colores, patron,
+ * tinta y que va dentro. Los datos llegan de la base de datos, asi que todo se
+ * valida: lo que no sea un hex o una clave conocida no entra.
+ *
+ * @param {object} clan  color, color2, patron, forma, emblema, siglas
+ * @param {string} [iniciales]  si no hay siglas validas
  */
-export function fondoEscudo({ color, color2, patron } = {}, porDefecto = 'var(--tinta-3)') {
-  const a = HEX.test(String(color || '')) ? color : porDefecto;
-  const b = HEX.test(String(color2 || '')) ? color2 : null;
-  if (!b || !PATRONES[patron] || b === a) return a;
-  switch (patron) {
-    case 'mitad': return `linear-gradient(90deg, ${a} 50%, ${b} 50%)`;
-    case 'diagonal': return `linear-gradient(135deg, ${a} 50%, ${b} 50%)`;
-    case 'franja': return `linear-gradient(180deg, ${a} 36%, ${b} 36% 64%, ${a} 64%)`;
-    case 'rayas': return `repeating-linear-gradient(90deg, ${a} 0 16.66%, ${b} 16.66% 33.33%)`;
-    case 'cuartos': return `conic-gradient(${a} 0 25%, ${b} 0 50%, ${a} 0 75%, ${b} 0)`;
-    case 'aro': return `radial-gradient(circle, ${a} 56%, ${b} calc(56% + 1px))`;
-    default: return a;
-  }
+export function piezasEscudo(clan = {}, iniciales = '') {
+  const forma = FORMAS[clan.forma] ? clan.forma : 'cuadro';
+  const c1 = HEX.test(String(clan.color || '')) ? clan.color : '#8A8F98';
+  const c2 = HEX.test(String(clan.color2 || '')) ? clan.color2 : null;
+  const patron = c2 && PATRONES[clan.patron] ? clan.patron : null;
+  const claro = luminancia(c1) > 0.62;
+  const emblema = EMBLEMAS[clan.emblema] ? clan.emblema : null;
+  const siglas = emblema ? '' : (typeof clan.siglas === 'string' && SIGLAS.test(clan.siglas) ? clan.siglas : String(iniciales || '').toUpperCase().slice(0, 3));
+  const sube = forma === 'blason' ? -3 : 0;
+  return {
+    silueta: FORMAS[forma].d,
+    c1,
+    c2: patron ? c2 : null,
+    patron: patron && patron !== 'aro' ? PATRONES[patron].d : '',
+    aro: patron === 'aro',
+    tinta: claro ? '#111110' : '#FFFFFF',
+    halo: claro ? 'rgba(255,255,255,.35)' : 'rgba(0,0,0,.22)',
+    emblema: emblema ? EMBLEMAS[emblema].d : null,
+    transformEmblema: `translate(${50 - 12 * 2.2} ${50 - 12 * 2.2 + sube}) scale(2.2)`,
+    siglas,
+    tamSiglas: siglas.length > 2 ? 34 : 42,
+    ySiglas: (siglas.length > 2 ? 62 : 65) + sube,
+  };
 }

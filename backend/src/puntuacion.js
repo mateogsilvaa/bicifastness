@@ -19,6 +19,7 @@ const territorio = require('./territorio');
 // Firestore se coge de `db.js`, no de `admin` directamente: es lo que permite
 // que el contador de cuota (#38) vea TODO lo que hace el backend.
 const { db } = require('./db');
+const { avatarSeguro } = require('./util');
 
 /** Puntos que da una posicion (0-indexada) en el ranking de una ruta. */
 function puntosPorPosicion(indice) {
@@ -229,7 +230,10 @@ async function recalcularClan(clanId) {
   if (!clan.exists) return;
 
   const datosClan = clan.data();
-  const miembros = datosClan.miembros || [];
+  // Cada uno una vez. Las reglas ya no dejan repetir a nadie en la plantilla,
+  // pero si un clan de antes lo tiene, aqui no cuenta doble: un lider que se
+  // ponia cincuenta veces multiplicaba por cincuenta la nota del clan.
+  const miembros = [...new Set((datosClan.miembros || []).filter((u) => typeof u === 'string' && u))];
   if (!miembros.length) {
     await db().doc(`clanes/${clanId}`).set({ biciRating: 0, numMiembros: 0 }, { merge: true });
     await db().doc(`agregados/clan-${clanId}`).set(plantillaClanVacio(clanId, datosClan));
@@ -272,7 +276,7 @@ async function recalcularClan(clanId) {
     return {
       uid,
       nombre: datos.username || 'Piloto',
-      avatar: datos.avatarUrl || null,
+      avatar: avatarSeguro(datos.avatarUrl),
       puntos: datos.biciRating || 0,
       viajes: datos.viajesVerificados || 0,
       metros: datos.metrosTotales || 0,

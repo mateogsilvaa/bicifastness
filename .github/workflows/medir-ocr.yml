@@ -48,12 +48,17 @@ jobs:
       - name: Medir
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          # Por variable y no pegado en el script: `limite` es texto libre, y
+          # `${{ }}` dentro de `run` se sustituye ANTES de que lo lea bash, asi
+          # que un `"; curl ...` ahi se ejecutaba con el secreto a mano.
+          LIMITE: ${{ inputs.limite }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
             echo "::error::Sin FIREBASE_SERVICE_ACCOUNT no hay capturas que medir."
             exit 1
           fi
-          node scripts/medir-ocr.js --limite "${{ inputs.limite }}" --salida informe-ocr.json ${{ inputs.todos && '--todos' || '' }}
+          case "$LIMITE" in ''|*[!0-9]*) echo "::error::El limite tiene que ser un numero."; exit 1 ;; esac
+          node scripts/medir-ocr.js --limite "$LIMITE" --salida informe-ocr.json ${{ inputs.todos && '--todos' || '' }}
 
       # El informe lleva solo recuentos y porcentajes: ni ids de viaje (llevan
       # el uid), ni imagenes, ni nada de lo leido. El repositorio es publico, asi

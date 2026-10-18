@@ -200,6 +200,12 @@ service cloud.firestore {
         && datos().logros.size() == 0
         && datos().clanId == null
         && datos().suspendido == false
+        // El avatar de serie es un SVG en data: (`avatarPorDefecto`), y se
+        // publica tal cual en las clasificaciones. Sin esto cabia cualquier
+        // URL —un pixel de rastreo en un servidor ajeno— o un texto de 1 MiB.
+        && datos().avatarUrl is string && datos().avatarUrl.size() <= 2000
+        && datos().avatarUrl.matches('^data:image/svg[+]xml,.*')
+        && datos().favoritas is list && datos().favoritas.size() <= 3
         && consentimientoValido()
         && puedeUsarLaWeb();
 
@@ -264,7 +270,10 @@ service cloud.firestore {
         && datos().push.keys().hasOnly(['suscripciones', 'avisos', 'ultimoAvisoRacha'])
         && (!('suscripciones' in datos().push)
             || (datos().push.suscripciones is list
-                && datos().push.suscripciones.size() <= 10));
+                && datos().push.suscripciones.size() <= 10))
+        // Las preferencias son un interruptor por tipo de aviso: pocas claves.
+        && (!('avisos' in datos().push)
+            || (datos().push.avisos is map && datos().push.avisos.size() <= 20));
 
       // El clan al que pertenece (#29).
       //
@@ -553,7 +562,12 @@ service cloud.firestore {
       // El tope tambien impide que acabe todo el mundo en el mismo clan y el
       // mapa se quede sin partida.
       function cabeAlguienMas() {
-        return datos().miembros.size() <= 50;
+        return datos().miembros.size() <= 50
+          // Y cada uno UNA vez. `hasOnly` no mira repetidos, y la puntuacion
+          // del clan suma la de cada entrada: un lider que se ponia cincuenta
+          // veces a si mismo (o a quien le hubiera pedido entrar) multiplicaba
+          // por cincuenta la nota del clan.
+          && datos().miembros.toSet().size() == datos().miembros.size();
       }
 
       // Quien entra en la plantilla tiene que estar en las solicitudes. Antes el
@@ -563,6 +577,11 @@ service cloud.firestore {
       // worker, que no pasa por aqui. Y el contador es el de la lista.
       function soloEntraQuienLoPide() {
         return datos().miembros.hasOnly(previo().miembros.concat(previo().solicitudes))
+          // La lista de solicitudes solo la escribe quien pide entrar. El lider
+          // la puede vaciar (aceptar o rechazar), nunca llenar: si no, metia ahi
+          // el uid de cualquiera y en la escritura siguiente lo pasaba a la
+          // plantilla, que es justo lo que este bloque tenia que impedir.
+          && datos().get('solicitudes', []).hasOnly(previo().get('solicitudes', []))
           && (!('numMiembros' in datos()) || datos().numMiembros == datos().miembros.size());
       }
 
@@ -626,6 +645,22 @@ service cloud.firestore {
         && datos().logros.size() == 0
         && datos().nombre is string
         && datos().nombre.size() >= 3 && datos().nombre.size() <= 28
+        && textoLimpio(datos().nombre, 28)
+        // Lista cerrada. Sin ella, el clan nacia con los campos que quisiera
+        // quien lo crea —un `numMiembros` de 9.999, una liga, un territorio—
+        // y este documento lo lee cualquiera sin sesion.
+        && datos().keys().hasOnly([
+          'clanId', 'nombre', 'lider', 'miembros', 'oficiales', 'solicitudes',
+          'biciRating', 'numMiembros', 'logros', 'creado',
+          'color', 'color2', 'patron', 'forma', 'emblema', 'siglas',
+          'descripcion', 'zona', 'presentacion', 'tema', 'entrada',
+        ])
+        && (!('clanId' in datos()) || datos().clanId == clanId)
+        && (!('numMiembros' in datos()) || datos().numMiembros == 1)
+        && (!('creado' in datos()) || datos().creado == request.time)
+        // Quien ya esta en un clan no funda otro: saldria en la plantilla de
+        // los dos y sumaria puntos a ambos.
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('clanId', null) == null
         && datos().color.matches('^#[0-9a-fA-F]{6}$')
         // La identidad con la que nace: las mismas formas que al cambiarla.
         && identidadValida(datos().keys());
@@ -708,7 +743,14 @@ service cloud.firestore {
         && previo().miembros.hasAny([request.auth.uid])
         && !datos().miembros.hasAny([request.auth.uid])
         // Y solo se saca a si mismo: el resto de la lista queda igual.
-        && previo().miembros.hasOnly(datos().miembros.concat([request.auth.uid]));
+        && previo().miembros.hasOnly(datos().miembros.concat([request.auth.uid]))
+        && datos().miembros.hasOnly(previo().miembros)
+        // Lo mismo con los oficiales: solo puede salir el. Antes, al irse, se
+        // podia escribir cualquier lista de oficiales y dejar a un compinche
+        // con poder para expulsar a toda la plantilla.
+        && datos().get('oficiales', []).hasOnly(previo().get('oficiales', []))
+        && previo().get('oficiales', []).hasOnly(datos().get('oficiales', []).concat([request.auth.uid]))
+        && (!('numMiembros' in datos()) || datos().numMiembros == datos().miembros.size());
 
       allow delete: if esLider();
     }
@@ -1177,7 +1219,13 @@ service cloud.firestore {
         // "le pasa a 50.000 personas" y lo subia al primer puesto de lo que
         // arreglar (#67).
         && datos().sesiones is int
-        && datos().sesiones == (resource == null ? 1 : previo().sesiones + 1);
+        && datos().sesiones == (resource == null ? 1 : previo().sesiones + 1)
+        && datos().visto == request.time
+        // Sumar una sesion a un error no es reescribirlo. Sin esto, cualquiera
+        // sin sesion cambiaba el mensaje y la pila de un error ya recogido, que
+        // es lo que lee la administracion para decidir que arreglar.
+        && (resource == null
+          || (datos().mensaje == previo().mensaje && datos().pila == previo().pila));
     }
 
     // --- Foto de perfil --------------------------------------------------------

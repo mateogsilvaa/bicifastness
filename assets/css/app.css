@@ -1219,6 +1219,9 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .campo-clan textarea { min-height: 72px; resize: vertical; font-size: 15px; line-height: 1.4; }
 .campo-clan .contador { flex: none; font-size: 12px; color: var(--tinta-3); }
 .campos-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.campo-clan select { flex: 1; min-width: 0; height: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; font: inherit; font-size: 15px; color: var(--tinta); appearance: none; cursor: pointer; }
+.caja.desplegable { padding-right: 12px; }
+.caja.desplegable .icono { flex: none; width: 16px; height: 16px; color: var(--tinta-3); pointer-events: none; }
 .plegable-presentacion summary { display: inline-flex; align-items: center; gap: 6px; list-style: none; font-size: 14px; font-weight: 600; color: var(--azul); cursor: pointer; }
 .plegable-presentacion summary::-webkit-details-marker { display: none; }
 .plegable-presentacion summary .icono { width: 18px; height: 18px; }

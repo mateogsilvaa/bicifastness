@@ -26,6 +26,18 @@ cuesta hoy con seis usuarios, sino **como crece**.
 
 ## Lo que ya encontro, y ya esta arreglado
 
+### El dominio de las estaciones releia todo su historial (y lo volvia a sumar)
+
+Cada recalculo de una estacion leia todos los viajes de las rutas que la tocan
+y los SUMABA otra vez a lo acumulado: 25.000 lecturas al dia con 200 pilotos y
+730.000 con 1.000, y ademas el decaimiento no servia de nada. Ahora cada viaje
+aprobado suma una vez, el dia que se aprueba, y se lee por su id
+(`puntuacion.cargarViajesNuevos`). Con eso, el contexto antifraude sacado del
+perfil (`worker.ritmoPiloto`, una lectura en vez de 40 viajes) y el podio de
+una ruta por paginas (`recalcularRuta`, 25 en vez de 200), un dia con 200
+pilotos pasa del 173% de la cuota al 94%. La simulacion de una semana entera
+esta en [SIMULACION.md](SIMULACION.md).
+
 ### `metricas.resumir` se llevaba el 95% de todas las lecturas
 
 Leia `usuarios` y `tiempos_viaje` enteros y se ejecutaba **en cada pasada del
@@ -295,10 +307,10 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 <!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 9251 | 19% |
-| u50 | 50 | 3000 | 22.280 | 45% |
-| u200 | 200 | 15.000 | 86.539 | 173% **se agota** |
-| u1000 | 1000 | 90.000 | 1.224.316 | 2449% **se agota** |
+| hoy | 6 | 1022 | 8308 | 17% |
+| u50 | 50 | 3000 | 15.295 | 31% |
+| u200 | 200 | 15.000 | 46.832 | 94% |
+| u1000 | 1000 | 90.000 | 377.649 | 755% **se agota** |
 <!-- fin:escenarios -->
 
 
@@ -338,15 +350,15 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 |---|---:|---|
 | metricas.resumir (una vez cada 6 h) | 677 | los 200 dias + el resumen anterior + las altas recientes y su ultimo viaje + los conteos de totales y ventanas |
 | clanes.limpiarDoblesMembresias y clanes.rescatarSinLider (UNA vez al dia) | 530 | los clanes enteros + los usuarios con clan (tope 500), dos veces |
-| recalcularEstaciones (con los agregados, como mucho cada 15 min) | 281 | el indice de rutas + los clanes (de ahi sale de quien es cada piloto) + los viajes de las rutas que tocan cada estacion |
-| recalcularRuta (por viaje APROBADO que entra en el podio) | 248 | los 200 mas rapidos de esa ruta + quien ya puntuaba en ella |
+| cerrarRachas (UNA vez al dia, en el trabajo diario) | 277 | TODOS los usuarios + los viajes sin decidir, para cerrar las rachas que se han roto |
 | avisarRachasEnPeligro (UNA vez al dia, a las 20:00) | 240 | TODOS los usuarios, para ver a quien se le cae la racha |
-| cerrarRachas (UNA vez al dia, en el trabajo diario) | 240 | TODOS los usuarios, para cerrar las rachas que se han roto |
 | temporadas.cerrar (UNA vez al mes) | 240 | TODOS los usuarios, para repartir las insignias de la temporada |
 | pilotos-cache: lectura completa de usuarios (cada 2 h) | 240 | la unica vez que se lee usuarios entera para reconstruir; el resto, la cache |
 | reconstruirAgregados (parcial, como mucho cada 15 min) | 204 | las paginas de pilotos de la cache + los tocados + clanes + los viajes de las rutas movidas y de las tres del turno + el agregado del mapa y las estaciones movidas + el conteo agregado + el indice, la portada y lo que quedara pendiente |
 | avisarRevisionesLentas (UNA vez al dia, en el trabajo diario) | 50 | los 50 viajes mas antiguos en revision sin avisar |
-| reunirContexto (por viaje procesado) | 46 | el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id + los de la misma ruta y dia + el viaje de la huella mas parecida |
+| recalcularRuta (por viaje APROBADO que entra en el podio) | 34 | una pagina de 25 de los mas rapidos + los siete que puntuaban + los que entran |
+| recalcularEstaciones (con los agregados, como mucho cada 15 min) | 33 | los viajes aprobados en la ventana, por id + los clanes + cada estacion movida |
+| reunirContexto (por viaje procesado) | 7 | el agregado de la ruta + su perfil (con su ritmo) + el duplicado exacto por id + los de la misma ruta y dia + el viaje de la huella mas parecida |
 | cola y bajas (por pasada) | 4 | las consultas de cola, recalculo pendiente, capturas de rechazos caducadas y bajas |
 | revisarNombresDeClan (UNA vez al dia, en el trabajo diario) | 3 | los clanes creados en los ultimos dos dias |
 | avisarRecordPerdido (por viaje APROBADO que bate el record de su ruta) | 3 | los dos mas rapidos de la ruta + el perfil de quien tenia el record |

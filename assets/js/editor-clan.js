@@ -33,8 +33,12 @@ export function identidadInicial(clan = {}, color = COLORES_CLAN[0]) {
     zona: clan.zona || '',
     presentacion: clan.presentacion || '',
     tema: TEMAS[clan.tema] ? clan.tema : 'oscuro',
+    entrada: ENTRADA[clan.entrada] ? clan.entrada : 'permiso',
   };
 }
+
+/** Como se entra en el clan (16e, "Entrada"): las claves de las reglas. */
+export const ENTRADA = { permiso: 'Pidiendo permiso', libre: 'Libre', invitacion: 'Solo con invitación' };
 
 /** Un radio con aspecto de tarjeta (forma, reparto, emblema). */
 function radio({ elegido, etiqueta, alElegir, hijos }) {
@@ -216,14 +220,25 @@ export function camposFicha(elegido, cambio, { mapa = () => ({}), plegar = false
     });
   }
 
+  // "Entrada" (16e): un desplegable con la flecha del diseño.
+  const entrada = el('select', { attrs: { 'aria-label': 'Entrada' } }, Object.entries(ENTRADA).map(([clave, texto]) => el('option', {
+    texto, attrs: { value: clave, selected: elegido.entrada === clave ? '' : null },
+  })));
+  entrada.addEventListener('change', () => { elegido.entrada = entrada.value; cambio(); });
+  const campoEntrada = el('label', { clase: 'campo-clan' }, [
+    el('span', { clase: 'etiqueta', texto: 'Entrada' }),
+    el('span', { clase: 'caja desplegable' }, [entrada, icono('abajo', 'icono')]),
+  ]);
+
   const raiz = el('div', { clase: 'campos-ficha' }, [
     el('span', { clase: 'etiqueta-suelta', texto: 'Fondo del mapa' }),
     temas,
     campoTexto({ etiqueta: 'Lema', valor: elegido.descripcion, tope: MAX_LEMA, placeholder: 'Una frase que os defina', alEscribir: (v) => { elegido.descripcion = v; cambio(); } }),
     el('div', { clase: 'campos-dos' }, [
       campoTexto({ etiqueta: 'Barrio', valor: elegido.zona, tope: MAX_ZONA, placeholder: 'Chamberí', alEscribir: (v) => { elegido.zona = v; cambio(); } }),
-      campoSiglas,
+      campoEntrada,
     ]),
+    campoSiglas,
     plegar
       ? el('details', { clase: 'plegable-presentacion', attrs: { open: elegido.presentacion ? '' : null } }, [
         el('summary', {}, [icono('mas', 'icono'), el('span', { texto: 'Añadir presentación' })]),
@@ -267,6 +282,7 @@ export function identidadParaGuardar(elegido) {
       siglas: /^[A-Z0-9ÑÁÉÍÓÚ]{1,3}$/.test(elegido.siglas || '') ? elegido.siglas : null,
       ...limpios,
       tema: TEMAS[elegido.tema] ? elegido.tema : 'oscuro',
+      entrada: ENTRADA[elegido.entrada] ? elegido.entrada : 'permiso',
     },
   };
 }

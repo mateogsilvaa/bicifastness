@@ -23,7 +23,7 @@ import { miles, NOMBRE_DIVISION } from '/assets/js/ui.js';
 import {
   crearClan, solicitarEntrada, retirarSolicitud, responderSolicitud,
   expulsarMiembro, cambiarOficial, cederLiderazgo, abandonarClan, disolverClan,
-  crearInvitacion, usarInvitacion, confirmarEntrada, personalizarClan,
+  crearInvitacion, usarInvitacion, confirmarEntrada, personalizarClan, unirseClan,
 } from '/assets/js/acciones.js';
 
 /** Estado de la pantalla. Se vuelve a leer entero tras cada accion. */
@@ -786,7 +786,7 @@ function pintarSinClan(destino) {
         el('span', { clase: 'nombre', texto: c.nombre }),
         el('span', { clase: 'clan', texto: [c.miembros ? `${c.miembros} miembros` : null, c.estacion ? `controla ${contexto.nombreDe(c.estacion)}` : null].filter(Boolean).join(' · ') }),
       ]),
-      boton('Pedir', () => pedirEntrada(c.cid), { clase: 'btn secundario pedir', etiqueta: `Pedir entrar en ${c.nombre}` }),
+      c.entrada === 'invitacion' ? null : boton(c.entrada === 'libre' ? 'Unirse' : 'Pedir', () => pedirEntrada(c.cid), { clase: 'btn secundario pedir', etiqueta: `${c.entrada === 'libre' ? 'Unirse a' : 'Pedir entrar en'} ${c.nombre}` }),
     ]))) : null,
     el('div', { clase: 'fila-codigo' }, [codigo, entrar]),
     el('button', { clase: 'btn', texto: 'Crear un clan', attrs: { type: 'button' }, on: { click: () => abrirCrear() } }),
@@ -865,6 +865,7 @@ async function leerClan(cual) {
     zona: datos.zona || '',
     presentacion: datos.presentacion || '',
     tema: datos.tema || null,
+    entrada: datos.entrada || 'permiso',
     lider: datos.lider || null,
     oficiales: datos.oficiales || [],
     biciRating: datos.biciRating || 0,
@@ -947,6 +948,21 @@ export async function pedirEntrada(cual) {
   // Las solicitudes estan en vivo en el documento: no hay que esperar a que se
   // rehaga ningun agregado para saber si ya pediste.
   const objetivo = await leerClan(cual);
+  if (!objetivo) { avisar('Ese clan ya no existe.'); return; }
+  if (objetivo.entrada === 'libre') {
+    try {
+      await unirseClan(cual);
+      avisar(`Ya eres de ${objetivo.nombre}.`, 'exito');
+    } catch (error) {
+      avisar(error.message || 'No has podido entrar. Vuelve a intentarlo.');
+    }
+    await recargar();
+    return;
+  }
+  if (objetivo.entrada === 'invitacion') {
+    avisar('En este clan solo se entra con el enlace de invitación del líder.', 'info');
+    return;
+  }
   const yaPedida = (objetivo?.candidatos || []).some((c) => c.uid === usuario.uid);
   if (yaPedida) {
     await retirarSolicitud(cual);

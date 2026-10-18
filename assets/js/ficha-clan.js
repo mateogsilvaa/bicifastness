@@ -189,13 +189,16 @@ export async function abrirFichaClan(clanId, {
     ? el('button', { clase: 'boton-capa', attrs: { type: 'button', 'aria-label': 'Editar el clan' }, on: { click: () => { cerrar(); alEditar(); } } }, [icono('lapiz', 'icono')])
     : null;
 
-  // "Pedir entrar" / "Solicitud enviada" / nada si ya eres de dentro.
+  // "Pedir entrar" / "Solicitud enviada" / nada si ya eres de dentro. En un
+  // clan libre se entra sin pedir; en uno de invitacion, solo con el enlace.
+  const entrada = datos.entrada || 'permiso';
   const boton = () => {
     if (esMiembro) return null;
-    if (pedida) return el('button', { clase: 'btn', texto: 'Solicitud enviada', attrs: { type: 'button', disabled: '' } });
+    if (entrada === 'invitacion') return el('button', { clase: 'btn', texto: 'Solo con invitación', attrs: { type: 'button', disabled: '' } });
+    if (pedida && entrada === 'permiso') return el('button', { clase: 'btn', texto: 'Solicitud enviada', attrs: { type: 'button', disabled: '' } });
     if (!puedePedir || !alPedir) return null;
     return el('button', {
-      clase: 'btn', texto: 'Pedir entrar', attrs: { type: 'button' },
+      clase: 'btn', texto: entrada === 'libre' ? 'Unirse' : 'Pedir entrar', attrs: { type: 'button' },
       on: { click: async (ev) => { ev.currentTarget.disabled = true; cerrar(); await alPedir(clanId); } },
     });
   };

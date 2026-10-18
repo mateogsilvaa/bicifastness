@@ -235,6 +235,68 @@ test('sin indice de rutas se lee todo, en vez de borrar el mapa', async () => {
     'sin indice, el dominio se ha calculado sobre cero viajes');
 });
 
+// --- Territorio incremental: cada viaje suma una vez -------------------------------
+
+test('con los viajes nuevos, el dominio lee esos viajes y los clanes, nada mas', async () => {
+  const { viajes: totalViajes } = sembrar();
+  await puntuacion.reconstruirAgregados();
+
+  bd.reiniciarContador();
+  await puntuacion.recalcularEstaciones(['001', '002'], null, { viajeIds: ['001-002-0', '002-001-1'] });
+
+  // 2 viajes + 2 clanes + las 2 estaciones; nada de releer las rutas.
+  assert.ok(bd.coste.lecturas <= 8, `${bd.coste.lecturas} lecturas para dos viajes nuevos (de ${totalViajes})`);
+  assert.ok(Object.keys(bd.leer('estaciones_stats/001').cuota).length > 0, 'el viaje nuevo no ha sumado');
+});
+
+test('un viaje suma al territorio una vez, no en cada recalculo', async () => {
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+
+  await puntuacion.recalcularEstaciones(['001'], null, { viajeIds: ['001-002-0'] });
+  const primero = bd.leer('estaciones_stats/001').acumulado;
+
+  // Otra pasada sin viajes nuevos el mismo dia: nada que sumar.
+  await puntuacion.recalcularEstaciones(['001'], null, { viajeIds: [] });
+  assert.deepStrictEqual(bd.leer('estaciones_stats/001').acumulado, primero,
+    'el mismo viaje ha vuelto a sumar');
+});
+
+test('un clan que deja de pedalear pierde la estacion frente al que sigue', async () => {
+  sembrar();
+  await puntuacion.reconstruirAgregados();
+  const rojo = 'u0';
+  const azul = 'u1';
+  // Los rojos dominaban hace tiempo...
+  bd.sembrar('estaciones_stats', [{ id: '001', acumulado: { rojos: 300 }, ultimoDecaimiento: '2026-07-01' }]);
+  // ...y ahora solo pedalean los azules por alli, viaje a viaje.
+  const nuevos = [];
+  for (let k = 0; k < 6; k++) nuevos.push({ id: `nuevo-${k}`, uid: k % 2 ? azul : azul, ruta: '001-002', verificado: true, tiempoSegundos: 400 + k, distanciaMetros: 2000 });
+  bd.sembrar('tiempos_viaje', nuevos);
+  for (const v of nuevos) await puntuacion.recalcularEstaciones(['001'], null, { viajeIds: [v.id] });
+
+  assert.strictEqual(bd.leer('estaciones_stats/001').lider, 'azules',
+    `los rojos siguen delante sin pedalear: ${JSON.stringify(bd.leer('estaciones_stats/001').cuota)} (${rojo})`);
+});
+
+// --- El podio de una ruta, sin leer sus 200 mejores tiempos ----------------------
+
+test('recalcular el podio de una ruta lee una pagina, no los 200 mas rapidos', async () => {
+  sembrar();
+  // Una ruta muy concurrida: 150 viajes de pilotos distintos.
+  const muchos = Array.from({ length: 150 }, (_, k) => ({
+    id: `concurrida-${k}`, uid: `u${k % 40}`, ruta: '001-003', verificado: true, tiempoSegundos: 200 + k, distanciaMetros: 2000,
+  }));
+  bd.sembrar('tiempos_viaje', muchos);
+  await puntuacion.recalcularRuta('001-003');
+  const conPuntos = (await bd.collection('usuarios').get()).docs.filter((d) => (d.data().puntosPorRuta || {})['001-003'] > 0);
+  assert.strictEqual(conPuntos.length, 7, 'el podio son siete pilotos');
+
+  bd.reiniciarContador();
+  await puntuacion.recalcularRuta('001-003');
+  assert.ok(bd.coste.lecturas <= 25 + 7 + 5, `${bd.coste.lecturas} lecturas para rehacer un podio de siete`);
+});
+
 // --- Las rutas que esperan -----------------------------------------------------
 
 test('lo movido mientras el limitador espera no se pierde', async () => {
@@ -250,7 +312,7 @@ test('lo movido mientras el limitador espera no se pierde', async () => {
   assert.deepStrictEqual(pendientes.estaciones.sort(), ['001', '002', '003']);
 
   await agregados.olvidarPendientes();
-  assert.deepStrictEqual(await agregados.leerPendientes(), { rutas: [], estaciones: [], pilotos: [] });
+  assert.deepStrictEqual(await agregados.leerPendientes(), { rutas: [], estaciones: [], pilotos: [], viajes: [] });
 });
 
 test('apuntar cero cosas no escribe nada', async () => {

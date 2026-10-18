@@ -804,6 +804,15 @@ function evaluar(contexto) {
   if (decisiva) {
     decision = decisiva.decisiva;
     resumen = decisiva.mensaje;
+  } else if (riesgoSinLectura >= RIESGO.UMBRAL_RECHAZO && contexto.primerViaje) {
+    // El primer trayecto de alguien no se rechaza solo por señales sumadas:
+    // lo mira una persona. Un primer rechazo es donde mas gente se va (lo dice
+    // scripts/simular-semana.js), y en quien empieza las señales blandas — un
+    // recorte raro, un ritmo sin historial con el que compararse — pesan mas
+    // de lo que deberian. Lo decisivo (velocidad imposible, captura repetida o
+    // manipulada) se sigue rechazando igual.
+    decision = 'revision';
+    resumen = 'Primer trayecto: lo revisa una persona en vez de rechazarlo solo.';
   } else if (riesgoSinLectura >= RIESGO.UMBRAL_RECHAZO) {
     decision = 'rechazado';
     resumen = 'Se han acumulado demasiadas señales de fraude.';

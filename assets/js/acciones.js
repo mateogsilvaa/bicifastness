@@ -456,8 +456,16 @@ export async function personalizarClan(clanId, identidad) {
   await updateDoc(doc(db, 'clanes', clanId), camposIdentidad(identidad));
 }
 
+/**
+ * Como se entra en un clan (16e, "Entrada"). Las mismas claves que las reglas.
+ * - permiso: se pide y el lider o un oficial acepta (lo de siempre).
+ * - libre: quien no tiene clan entra sin esperar.
+ * - invitacion: solo con el enlace del lider; no se puede pedir.
+ */
+export const ENTRADAS = ['permiso', 'libre', 'invitacion'];
+
 /** Los campos de identidad tal como se guardan, con sus topes. */
-function camposIdentidad({ color, color2 = null, patron = null, forma = 'cuadro', emblema = null, siglas = null, descripcion = '', zona = '', presentacion = '', tema = 'oscuro' }) {
+function camposIdentidad({ color, color2 = null, patron = null, forma = 'cuadro', emblema = null, siglas = null, descripcion = '', zona = '', presentacion = '', tema = 'oscuro', entrada = 'permiso' }) {
   return {
     color,
     color2: color2 || null,
@@ -469,6 +477,7 @@ function camposIdentidad({ color, color2 = null, patron = null, forma = 'cuadro'
     zona: String(zona || '').slice(0, 30),
     presentacion: String(presentacion || '').slice(0, 200),
     tema: tema === 'claro' ? 'claro' : 'oscuro',
+    entrada: ENTRADAS.includes(entrada) ? entrada : 'permiso',
   };
 }
 
@@ -528,6 +537,26 @@ export async function solicitarEntrada(clanId) {
   }
 
   await updateDoc(doc(db, 'clanes', clanId), { solicitudes: arrayUnion(uidActual()) });
+}
+
+/**
+ * Entrar en un clan libre: te apuntas tu mismo y, despues, tu perfil apunta
+ * al clan (las reglas solo dejan escribir tu `clanId` si el clan ya te lista).
+ */
+export async function unirseClan(clanId) {
+  const uid = uidActual();
+  const clan = await getDoc(doc(db, 'clanes', clanId));
+  if (!clan.exists()) throw new Error('Ese clan ya no existe.');
+  const datos = clan.data();
+  if ((datos.entrada || 'permiso') !== 'libre') throw new Error('En este clan hay que pedir entrar.');
+  if ((datos.miembros || []).length >= MAX_MIEMBROS) throw new Error('Este clan está lleno.');
+  await updateDoc(doc(db, 'clanes', clanId), {
+    miembros: arrayUnion(uid),
+    // El numero exacto y no un incremento: un clan viejo puede no tener el campo.
+    numMiembros: (datos.miembros || []).length + 1,
+    solicitudes: arrayRemove(uid),
+  });
+  await updateDoc(doc(db, 'usuarios', uid), { clanId });
 }
 
 /** Retira la propia solicitud. La misma regla que la de arriba, al reves. */

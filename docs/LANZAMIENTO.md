@@ -165,8 +165,9 @@ falta tocar nada mas. El detalle esta en
 
 ## Lo que hay que asumir al abrir
 
-- **El coste aguanta hasta unas cien personas al dia en el plan gratuito.** Con
-  50 el modelo da el 47% de la cuota de lecturas; con 200 se pasa (207%). Para
+- **El coste aguanta hasta unas doscientas personas al dia en el plan gratuito.**
+  Con 50 el modelo da el 31% de la cuota de lecturas; con 200, el 94%; con 1.000
+  se pasa con mucho. Ver tambien [SIMULACION.md](SIMULACION.md). Para
   eso esta el plan Blaze con alerta de presupuesto: centimos al dia. Ver
   [COSTE.md](COSTE.md) y el paso 11 de [PUESTA-EN-MARCHA.md](PUESTA-EN-MARCHA.md).
 - **Las distancias son estimadas** mientras no se genere la tabla (#6). Los

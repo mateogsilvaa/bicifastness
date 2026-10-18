@@ -221,6 +221,12 @@ const pilotosTocados = new Set();
 const pilotosConClan = new Set();
 
 /**
+ * Viajes aprobados en esta ejecucion de pilotos con clan: son lo unico que
+ * suma al territorio, y suman una vez (puntuacion.cargarViajesNuevos).
+ */
+const viajesTerritorio = new Set();
+
+/**
  * Apunta lo que ha movido un viaje. La ruta siempre (su clasificacion cambia);
  * las estaciones solo si el piloto tiene clan: el dominio del mapa sale de los
  * viajes de los clanes (src/territorio.js) y un piloto sin clan no lo mueve.
@@ -456,6 +462,46 @@ async function completarCandidatos(candidatos) {
   });
 }
 
+/** Hasta cuantas velocidades recientes se guardan del piloto. */
+const RITMO_GUARDADO = 40;
+
+/** La velocidad de un viaje por calle, la misma que usa el antifraude. */
+function velocidadDeViaje(v) {
+  const metros = distanciaCalleMetros(...String(v.ruta || '').split('-'));
+  return metros && v.tiempoSegundos ? Number(((metros / v.tiempoSegundos) * 3.6).toFixed(2)) : null;
+}
+
+/**
+ * Su ritmo a partir de sus viajes verificados: las ultimas velocidades y la
+ * mejor marca en cada ruta. Es lo que el antifraude compara con el viaje nuevo.
+ */
+function ritmoDeViajes(viajes) {
+  const mejorPorRuta = {};
+  for (const v of viajes) {
+    if (!v.ruta || !v.tiempoSegundos) continue;
+    if (!(v.ruta in mejorPorRuta) || v.tiempoSegundos < mejorPorRuta[v.ruta]) mejorPorRuta[v.ruta] = v.tiempoSegundos;
+  }
+  return { velocidades: viajes.map(velocidadDeViaje).filter(Boolean).slice(0, RITMO_GUARDADO), mejorPorRuta };
+}
+
+/**
+ * El ritmo del piloto. Va guardado en su perfil (`velocidadesRecientes` y
+ * `mejorPorRuta`, que escribe `premiar` al aprobar cada viaje): una lectura en
+ * vez de sus 40 ultimos viajes por cada viaje que se verifica. Con 200 pilotos
+ * eran 9.000 lecturas al dia (docs/COSTE.md).
+ *
+ * Un perfil de antes de esto no lo tiene: se leen sus viajes como siempre.
+ */
+async function ritmoPiloto(uid, perfil) {
+  if (perfil && Array.isArray(perfil.velocidadesRecientes)) {
+    return { velocidades: perfil.velocidadesRecientes, mejorPorRuta: perfil.mejorPorRuta || {} };
+  }
+  const snap = await db.collection('tiempos_viaje')
+    .where('uid', '==', uid).where('verificado', '==', true)
+    .orderBy('creado', 'desc').limit(RITMO_GUARDADO).get();
+  return ritmoDeViajes(snap.docs.map((d) => d.data()));
+}
+
 /** Contexto competitivo y estadistico que alimenta al motor. */
 async function reunirContexto(viaje, uid, hashSha, hashPerceptual = null, capturaId = null) {
   const [rutaSnap, propiosSnap, huellas, exacta, mismoDia] = await Promise.all([
@@ -464,9 +510,9 @@ async function reunirContexto(viaje, uid, hashSha, hashPerceptual = null, captur
     // comprobacion estadistica siempre quiso, y no lo que recibia — y el record
     // vigente en la primera fila. Una lectura en vez de doscientas.
     db.doc(`agregados/ruta-${viaje.ruta}`).get(),
-    db.collection('tiempos_viaje')
-      .where('uid', '==', uid).where('verificado', '==', true)
-      .orderBy('creado', 'desc').limit(40).get(),
+    // El ritmo del piloto sale de su perfil (`ritmoPiloto`): una lectura en vez
+    // de sus 40 ultimos viajes. Solo quien aun no lo tiene guardado los lee.
+    db.doc(`usuarios/${uid}`).get().catch(() => null),
     cargarHuellas(),
     // El duplicado byte a byte NO se busca recorriendo la ventana: el id del
     // documento es el sha, asi que es una lectura directa. Ademas de costar una
@@ -486,7 +532,7 @@ async function reunirContexto(viaje, uid, hashSha, hashPerceptual = null, captur
   ]);
 
   const ruta = rutaSnap.exists ? rutaSnap.data() : {};
-  const propios = propiosSnap.docs.map((d) => d.data());
+  const ritmo = await ritmoPiloto(uid, propiosSnap?.exists ? propiosSnap.data() : null);
 
   const exactos = exacta && exacta.exists
     ? [{
@@ -540,15 +586,11 @@ async function reunirContexto(viaje, uid, hashSha, hashPerceptual = null, captur
     marcaUltimoPuntuable: (ruta.filas?.length || 0) >= PUNTOS.POR_POSICION.length
       ? ruta.filas[PUNTOS.POR_POSICION.length - 1].marca
       : null,
-    mejorTiempoPropio: propios
-      .filter((v) => v.ruta === viaje.ruta)
-      .reduce((mejor, v) => (mejor === null || v.tiempoSegundos < mejor ? v.tiempoSegundos : mejor), null),
-    velocidadesPrevias: propios
-      .map((v) => {
-        const metros = distanciaCalleMetros(...String(v.ruta || '').split('-'));
-        return metros && v.tiempoSegundos ? (metros / v.tiempoSegundos) * 3.6 : null;
-      })
-      .filter(Boolean),
+    mejorTiempoPropio: ritmo.mejorPorRuta[viaje.ruta] ?? null,
+    // Sin ningun viaje verificado: un rechazo por señales sumadas va a revision
+    // humana (verificacion.evaluar).
+    primerViaje: !(propiosSnap?.exists && (propiosSnap.data().viajesVerificados || 0) > 0),
+    velocidadesPrevias: ritmo.velocidades,
     // `capturaId` viaja con la huella para poder distinguir "la misma imagen
     // otra vez" de "varios trayectos de la misma captura" (#11).
     //
@@ -853,6 +895,7 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
       && await puntuacion.multiplicadorRuta(viaje.ruta) === 1;
     if (!fueraDelPodio) await puntuacion.recalcularRuta(viaje.ruta);
     apuntarEstaciones(viaje.ruta, { territorio: pilotosConClan.has(String(viaje.uid)) });
+    if (pilotosConClan.has(String(viaje.uid))) viajesTerritorio.add(doc.id);
 
     // Solo si bate la marca que habia: es lo unico que cuesta lecturas, y pasa
     // pocas veces. Sin record previo (ruta nueva) no hay a quien avisar.
@@ -1259,6 +1302,20 @@ async function premiar(doc, viaje) {
     if (!usuario.exists) return;
 
     const previo = usuario.data();
+    // El ritmo que lee el antifraude (`ritmoPiloto`). Quien aun no lo tiene se
+    // siembra una vez con sus ultimos viajes; dentro de la transaccion, antes
+    // de escribir nada, que es cuando se puede leer.
+    let ritmoPrevio = Array.isArray(previo.velocidadesRecientes)
+      ? { velocidades: previo.velocidadesRecientes, mejorPorRuta: previo.mejorPorRuta || {} }
+      : null;
+    if (!ritmoPrevio) {
+      const suyos = await tx.get(db.collection('tiempos_viaje')
+        .where('uid', '==', viaje.uid).where('verificado', '==', true)
+        .orderBy('creado', 'desc').limit(RITMO_GUARDADO));
+      ritmoPrevio = ritmoDeViajes(suyos.docs.filter((d) => d.id !== doc.id).map((d) => d.data()));
+    }
+    const velocidadNueva = velocidadDeViaje(viaje);
+    const marcaPrevia = ritmoPrevio.mejorPorRuta[viaje.ruta];
     const racha = rachas.registrarDiaActivo({
       racha: previo.racha,
       mejorRacha: previo.mejorRacha,
@@ -1381,6 +1438,14 @@ async function premiar(doc, viaje) {
       escudos: racha.escudos,
       diasHastaEscudo: racha.diasHastaEscudo,
       ultimoDiaActivo: racha.ultimoDiaActivo,
+      // Lo mas reciente primero, como lo leia el antifraude.
+      velocidadesRecientes: [velocidadNueva, ...ritmoPrevio.velocidades].filter(Boolean).slice(0, RITMO_GUARDADO),
+      mejorPorRuta: {
+        ...ritmoPrevio.mejorPorRuta,
+        ...(viaje.ruta && viaje.tiempoSegundos && !(marcaPrevia <= viaje.tiempoSegundos)
+          ? { [viaje.ruta]: viaje.tiempoSegundos }
+          : {}),
+      },
       // Solo si hay algo nuevo. La mayoria de los viajes no desbloquean nada, y
       // un `arrayUnion` vacio es una escritura por viaje para confirmar que no
       // hay novedad.
@@ -1445,6 +1510,11 @@ async function revertirPremio(doc, viaje) {
       ? { puntosLiga: menos(-(viaje.puntos || 0)) }
       : {}),
     ...(viaje.fueraDeCupo === true ? { viajesSinPuntos: menos(-1) } : {}),
+    // El ritmo guardado podia llevar este viaje (una marca falsa como su mejor
+    // tiempo): se borra y se vuelve a sembrar de sus viajes al aprobar el
+    // siguiente (`premiar`).
+    velocidadesRecientes: admin.firestore.FieldValue.delete(),
+    mejorPorRuta: admin.firestore.FieldValue.delete(),
   }).catch((err) => {
     // Si el usuario ya no existe (cuenta borrada), no hay nada que devolver.
     console.warn(`No se han podido revertir los acumulados de ${viaje.uid}:`, err.message);
@@ -1723,6 +1793,9 @@ async function aplicarDecisionesManuales() {
       await puntuacion.recalcularRuta(ruta);
       apuntarEstaciones(ruta);
     }
+    // Los aprobados a mano suman al territorio como los automaticos. Uno
+    // anulado no resta: lo que sumo decae solo, como todo lo demas.
+    for (const doc of aprobadosAMano) viajesTerritorio.add(doc.id);
     // Despues de rehacer las rutas. Los records grandes pasan TODOS por aqui
     // (`record_pulverizado` los manda a revision), asi que sin esto el aviso
     // solo saltaria con los records pequeños.
@@ -2460,9 +2533,37 @@ async function revisarNombresDeClan() {
   return encolados;
 }
 
+/**
+ * El dia mas reciente de cada piloto con un viaje que AUN NO se ha decidido
+ * (en cola o en revision humana).
+ *
+ * Sin esto, la noche le cobraba a alguien un dia que si pedaleo: su viaje de
+ * ayer seguia en revision cuando paso el cierre, el dia contaba como perdido y
+ * se le iba un escudo o la racha entera. Al aprobarlo despues ya no habia
+ * vuelta atras. Le pasaba justo a quien mas usa la web (el que sube a diario),
+ * y por un retraso nuestro, no suyo.
+ *
+ * Dos consultas acotadas: la cola y la revision son pocos viajes.
+ */
+async function diasEnEspera() {
+  const enEspera = new Map();
+  for (const estado of ['pendiente', 'revision']) {
+    const snap = await db.collection('tiempos_viaje').where('estado', '==', estado).limit(1000).get();
+    for (const d of snap.docs) {
+      const { uid, fechaViaje } = d.data();
+      if (!uid || !fechaViaje) continue;
+      const dia = rachas.diaDe(new Date(`${String(fechaViaje).slice(0, 10)}T12:00:00Z`));
+      if (!enEspera.has(uid) || dia > enEspera.get(uid)) enEspera.set(uid, dia);
+    }
+  }
+  return enEspera;
+}
+
 async function cerrarRachas() {
   try {
     const snap = await db.collection('usuarios').get();
+    const enEspera = await diasEnEspera();
+    let aplazados = 0;
 
     let lote = db.batch();
     let enLote = 0;
@@ -2472,6 +2573,14 @@ async function cerrarRachas() {
 
     for (const doc of snap.docs) {
       const datos = doc.data();
+      // Tiene un viaje sin decidir de despues de su ultimo dia activo: ese dia
+      // puede no estar perdido. Se le juzga cuando se decida (si se rechaza,
+      // la noche siguiente cuenta los dias como siempre).
+      const espera = enEspera.get(doc.id);
+      if (espera !== undefined && (datos.ultimoDiaActivo == null || espera > datos.ultimoDiaActivo)) {
+        aplazados++;
+        continue;
+      }
       const cierre = rachas.cerrarDiasPerdidos({
         racha: datos.racha,
         mejorRacha: datos.mejorRacha,
@@ -2519,6 +2628,7 @@ async function cerrarRachas() {
       console.log(`Rachas: ${rotas} rotas, ${escudosGastados} escudo(s) gastado(s), `
         + `${tocados} piloto(s) afectado(s).`);
     }
+    if (aplazados) console.log(`Rachas: ${aplazados} piloto(s) con un viaje sin decidir, se juzgan cuando se decida.`);
     return tocados;
   } catch (error) {
     // Que esto falle no puede parar la verificacion de viajes.
@@ -3041,6 +3151,7 @@ async function main() {
     const rutas = new Set([...rutasTocadas, ...pendientes.rutas]);
     const estaciones = new Set([...estacionesTocadas, ...pendientes.estaciones]);
     const pilotos = new Set([...pilotosTocados, ...pendientes.pilotos]);
+    const viajesNuevos = new Set([...viajesTerritorio, ...(pendientes.viajes || [])]);
 
     // El dominio de las estaciones, con la MISMA cadencia que los agregados y
     // no en cada pasada con viajes. Nadie lo ve si no es a traves del mapa, que
@@ -3052,7 +3163,7 @@ async function main() {
     // Lo unico que lo lee entre medias es el bonus de territorio propio, y ese
     // puede ir un cuarto de hora por detras sin que nadie lo note.
     if (estaciones.size) {
-      const cuantas = await puntuacion.recalcularEstaciones(estaciones);
+      const cuantas = await puntuacion.recalcularEstaciones(estaciones, null, { viajeIds: viajesNuevos });
       console.log(`Dominio recalculado en ${cuantas} estaciones.`);
     }
 
@@ -3066,6 +3177,7 @@ async function main() {
     rutasTocadas.clear();
     estacionesTocadas.clear();
     pilotosTocados.clear();
+    viajesTerritorio.clear();
   } else if (huboMovimiento && !SIMULAR) {
     // Se apunta para la proxima: el proceso muere al acabar la ejecucion, asi
     // que sin esto la ruta se quedaria con el agregado viejo. Vale para las dos
@@ -3074,13 +3186,14 @@ async function main() {
     // Con `catch` porque apuntar no puede tumbar la pasada, pero hablando: si
     // esto falla, las rutas y estaciones movidas se pierden al morir el proceso
     // y sus agregados se quedan viejos hasta que alguien vuelva a moverlas.
-    await agregados.apuntarPendientes(rutasTocadas, estacionesTocadas, pilotosTocados)
+    await agregados.apuntarPendientes(rutasTocadas, estacionesTocadas, pilotosTocados, viajesTerritorio)
       .catch((error) => console.warn('No se ha podido apuntar lo pendiente:', error.message));
     console.log(`Agregados: movimiento en ${rutasTocadas.size} rutas y `
       + `${estacionesTocadas.size} estaciones, sin reconstruir todavia. `
       + 'Queda apuntado para la proxima.');
     estacionesTocadas.clear();
     pilotosTocados.clear();
+    viajesTerritorio.clear();
   }
 
   // Metricas, en dos mitades con coste MUY distinto.

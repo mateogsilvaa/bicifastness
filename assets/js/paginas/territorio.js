@@ -13,7 +13,7 @@ import { escudoClan } from '/assets/js/escudo-clan.js';
 import { id, el, icono, estado, reemplazar } from '/assets/js/dom.js';
 import { traerAgregado } from '/assets/js/agregados.js';
 import { auth, onAuthStateChanged, db, doc, getDoc } from '/assets/js/firebase.js';
-import { iniciar as iniciarMiClan, pedirEntrada, datosMiClan } from '/assets/js/mi-clan.js';
+import { iniciar as iniciarMiClan, pedirEntrada, datosMiClan, verFicha } from '/assets/js/mi-clan.js';
 import { bicisEnVivo, bicisDe, textoBicis, haceCuanto, claveEstacion } from '/assets/js/bicis-vivo.js';
 
 iniciarPagina('territorio');
@@ -390,7 +390,10 @@ function pintarClanes() {
   reemplazar(id('lista-clanes'), el('div', { clase: 'lista-ranking clanes' }, orden.map((c, i) => el('div', { clase: `fila-clan ${c.clanId === miClanId ? 'tuya' : ''}` }, [
     el('span', { clase: 'pos', texto: String(c.ranking?.pos || i + 1) }),
     escudoClan(c),
-    el('span', { clase: 'quien' }, [
+    el('button', {
+      clase: 'quien abre-ficha', attrs: { type: 'button', 'aria-label': `Ver la ficha de ${c.nombre || c.clanId}` },
+      on: { click: () => verFicha(c.clanId) },
+    }, [
       el('span', { clase: 'nombre', texto: c.nombre || c.clanId }),
       el('span', { clase: 'clan', texto: `${c.ranking?.viajes ?? '—'} miembros · ${c.dominadas} estaciones` }),
     ]),
@@ -444,6 +447,14 @@ onAuthStateChanged(auth, async (u) => {
   resumenClan();
   pintarClanes();
   repintarPuntos();
+  // Desde el ranking de clanes se llega con `?clan=`: se abre su ficha, una vez.
+  const pedido = new URLSearchParams(window.location.search).get('clan');
+  if (pedido && porClan.has(pedido)) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('clan');
+    window.history.replaceState({}, '', url);
+    verFicha(pedido);
+  }
 });
 
 // --- Carga --------------------------------------------------------------------------------

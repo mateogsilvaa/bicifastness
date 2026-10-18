@@ -861,7 +861,10 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 
 .sin-desplazamiento { overflow: hidden; }
 
-.territorio { position: relative; height: calc(100dvh - var(--alto-barra) - var(--pie-barra)); overflow: hidden; }
+/* `isolation`: los z-index del mapa (Leaflet, la hoja de 600) se quedan dentro, y
+   las hojas que se abren encima (opciones, invitar, la ficha de un clan) no
+   quedan tapadas por el panel. */
+.territorio { position: relative; isolation: isolate; height: calc(100dvh - var(--alto-barra) - var(--pie-barra)); overflow: hidden; }
 #mapa { position: absolute; inset: 0; background: var(--papel-2); }
 /* Las teselas de Esri ya vienen en gris (claro u oscuro): sin filtros. */
 
@@ -1063,6 +1066,67 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .personalizar-campos { display: grid; grid-template-columns: 96px 1fr; gap: 10px; }
 .personalizar-campos .campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--tinta-2); }
 .personalizar-campos input { min-height: 44px; border-radius: 12px; }
+
+/* Formas del escudo (FORMAS en assets/data/emblemas-clan.js). Con clip-path,
+   para no pelearse con los border-radius de cada sitio donde va. */
+.escudo-clan.forma-circulo { clip-path: circle(50%); }
+.escudo-clan.forma-hexagono { clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
+.escudo-clan.forma-octogono { clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
+.escudo-clan.forma-blason { clip-path: polygon(0 0, 100% 0, 100% 58%, 86% 80%, 50% 100%, 14% 80%, 0 58%); padding-bottom: 12%; }
+.escudo-clan.enorme { width: 84px; height: 84px; border-radius: 24px; font-size: 26px; }
+
+/* Editor del clan (assets/js/editor-clan.js): crear y personalizar. */
+.editor-clan { display: flex; flex-direction: column; gap: var(--e3); }
+.editor-clan-opciones { display: flex; flex-direction: column; gap: var(--e3); }
+.editor-clan-grupo { display: flex; flex-direction: column; gap: 8px; }
+.editor-clan-grupo > .rotulo { margin: 0; }
+.editor-clan .muestras-color { display: grid; grid-template-columns: repeat(8, 30px); gap: 10px; }
+.editor-clan .pista { font-size: 12px; color: var(--tinta-3); display: inline-flex; align-items: center; gap: 4px; }
+.rejilla-formas { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
+.opcion-escudo { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px 6px; border: 2px solid transparent; border-radius: 14px; background: var(--papel-3); color: var(--tinta-2); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.opcion-escudo .escudo-clan { width: 34px; height: 34px; border-radius: 10px; font-size: 12px; }
+.opcion-escudo.elegida { border-color: var(--azul); color: var(--tinta); }
+.editor-clan .campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--tinta-2); }
+.editor-clan .campo input, .editor-clan .campo textarea { min-height: 44px; border-radius: 12px; font: inherit; font-size: 15px; font-weight: 400; color: var(--tinta); }
+.editor-clan .campo textarea { resize: vertical; padding: 10px 12px; line-height: 1.4; }
+.editor-clan .campo-cabeza { display: flex; justify-content: space-between; }
+.editor-clan .contador { font-weight: 400; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+.campo-siglas input { max-width: 120px; text-transform: uppercase; letter-spacing: .06em; font-weight: 800; }
+.rejilla-emblemas { grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); }
+.pestanas-clan { margin: 0; }
+.pestanas-clan button[aria-selected='true'] { background: var(--papel-2); color: var(--tinta); }
+[data-theme='dark'] .pestanas-clan button[aria-selected='true'] { background: var(--linea-fuerte); }
+.personalizar-muestra:has(.ficha-clan-cabeza) { display: block; padding: 0; background: none; }
+.hoja-personalizar-clan .personalizar-muestra { position: sticky; top: 0; z-index: 2; background: var(--papel-2); padding-bottom: var(--e2); }
+
+/* Crear un clan por pasos. */
+.pasos-clan { display: flex; gap: var(--e2); margin: 0; padding: 0; list-style: none; }
+.pasos-clan li { flex: 1; display: flex; align-items: center; gap: 6px; padding-top: 8px; border-top: 3px solid var(--linea-fuerte); font-size: 13px; font-weight: 600; color: var(--tinta-3); }
+.pasos-clan li.actual { border-color: var(--azul); color: var(--tinta); }
+.pasos-clan li.hecho { border-color: var(--tinta); color: var(--tinta-2); }
+.pasos-clan .num { font-variant-numeric: tabular-nums; font-weight: 800; }
+.botones-pasos { display: flex; gap: var(--e2); }
+.botones-pasos > .btn { flex: 1; }
+.botones-pasos .btn:disabled { opacity: .45; }
+
+/* La ficha del clan (assets/js/ficha-clan.js), y su cabecera como vista previa. */
+.ficha-clan { display: flex; flex-direction: column; gap: var(--e3); }
+.ficha-clan-cabeza { display: flex; flex-direction: column; }
+.ficha-clan-cabeza .banner-clan { height: 110px; }
+.ficha-clan-cabeza.previa .banner-clan { height: 76px; border-radius: 16px; }
+.ficha-clan-identidad { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0 var(--e2); }
+.ficha-clan-identidad .escudo-clan.enorme { margin-top: -44px; border: 4px solid var(--papel-2); }
+.ficha-clan-cabeza.previa .escudo-clan.enorme { width: 64px; height: 64px; border-radius: 18px; font-size: 20px; margin-top: -34px; }
+.ficha-clan-nombre { margin: 4px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.ficha-clan-cabeza.previa .ficha-clan-nombre { font-size: 19px; }
+.ficha-clan-lema { margin: 0; font-size: 15px; font-style: italic; color: var(--tinta-2); overflow-wrap: anywhere; }
+.ficha-clan-identidad .chip-clan { gap: 4px; background: var(--papel-3); }
+.ficha-clan-presentacion { margin: 0; padding: 0 var(--e2); font-size: 15px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.ficha-clan-mas { font-size: 13px; padding-top: 6px; }
+.ficha-clan-tuyo { align-self: flex-start; }
+
+/* Tocar un clan abre su ficha. */
+.abre-ficha { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 
 @media (min-width: 900px) {
   .territorio { height: 100dvh; }

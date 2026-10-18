@@ -446,20 +446,33 @@ export async function avisarCambioDeClave(dispositivo) {
 export const MAX_MIEMBROS = 50;
 
 /**
- * El lider cambia la identidad del clan: color, emblema o siglas y lema. Las
- * reglas validan cada campo (firestore.rules, `clanes`).
+ * El lider cambia la identidad del clan: el escudo (forma, colores, patron,
+ * emblema o siglas) y la ficha (lema, barrio, presentacion y banner). Las
+ * reglas validan cada campo (firestore.rules, `clanes`); `identidad` sale de
+ * `identidadParaGuardar` (editor-clan.js), ya limpia.
  */
-export async function personalizarClan(clanId, { color, emblema, siglas, descripcion }) {
-  if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error('El color no es valido.');
-  await updateDoc(doc(db, 'clanes', clanId), {
+export async function personalizarClan(clanId, identidad) {
+  if (!/^#[0-9a-f]{6}$/i.test(identidad.color)) throw new Error('El color no es valido.');
+  await updateDoc(doc(db, 'clanes', clanId), camposIdentidad(identidad));
+}
+
+/** Los campos de identidad tal como se guardan, con sus topes. */
+function camposIdentidad({ color, color2 = null, patron = null, forma = 'cuadro', emblema = null, siglas = null, descripcion = '', zona = '', presentacion = '', banner = null }) {
+  return {
     color,
+    color2: color2 || null,
+    patron: color2 && patron ? patron : null,
+    forma: forma || 'cuadro',
     emblema: emblema || null,
     siglas: siglas || null,
     descripcion: String(descripcion || '').slice(0, 80),
-  });
+    zona: String(zona || '').slice(0, 30),
+    presentacion: String(presentacion || '').slice(0, 200),
+    banner: banner || null,
+  };
 }
 
-export async function crearClan({ nombre, descripcion, color, emblema = null }) {
+export async function crearClan({ nombre, ...identidad }) {
   const uid = uidActual();
   const limpio = limpiarNombre(nombre, 28);
   const clanId = limpio.toLowerCase()
@@ -468,7 +481,7 @@ export async function crearClan({ nombre, descripcion, color, emblema = null }) 
     .slice(0, 40);
 
   if (clanId.length < 3) throw new Error('Ese nombre de clan no es valido.');
-  if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error('El color no es valido.');
+  if (!/^#[0-9a-f]{6}$/i.test(identidad.color)) throw new Error('El color no es valido.');
 
   const existente = await getDoc(doc(db, 'clanes', clanId));
   if (existente.exists()) throw new Error('Ya existe un clan con ese nombre.');
@@ -479,9 +492,7 @@ export async function crearClan({ nombre, descripcion, color, emblema = null }) 
   await setDoc(doc(db, 'clanes', clanId), {
     clanId,
     nombre: limpio,
-    descripcion: String(descripcion || '').slice(0, 80),
-    color,
-    emblema: emblema || null,
+    ...camposIdentidad(identidad),
     lider: uid,
     miembros: [uid],
     oficiales: [],

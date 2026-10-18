@@ -360,3 +360,45 @@ test('un enlace de invitacion no te mete en dos clanes a la vez', async () => {
   // Y la invitacion no se ha gastado.
   assert.strictEqual((await bd.doc('invitaciones/abc123').get()).data().usos, 0);
 });
+
+// --- La identidad del clan -----------------------------------------------------------
+//
+// Emblemas, formas y patrones estan escritos en tres sitios: el catalogo del
+// navegador, las reglas y el agregado del mapa. Si uno se queda atras, un clan
+// elige algo que no se puede guardar o que el mapa no publica.
+
+test('emblemas, formas y patrones son los mismos en el catalogo, las reglas y el agregado', async () => {
+  const raiz = path.join(__dirname, '..', '..');
+  const catalogo = await import(`data:text/javascript;base64,${
+    Buffer.from(fs.readFileSync(path.join(raiz, 'assets/data/emblemas-clan.js'), 'utf8')).toString('base64')}`);
+  const reglas = fs.readFileSync(path.join(raiz, 'firestore.rules'), 'utf8');
+  const agregado = fs.readFileSync(path.join(raiz, 'backend/src/agregados.js'), 'utf8');
+  const lista = (texto, campo) => {
+    const m = texto.match(new RegExp(String.raw`datos\(\)\.${campo} in \[([^\]]+)\]`));
+    return m[1].match(/'([a-z]+)'/g).map((x) => x.slice(1, -1)).sort();
+  };
+  const conjunto = (nombre) => agregado.match(new RegExp(String.raw`const ${nombre} = new Set\(\[([^\]]+)\]`))[1]
+    .match(/'([a-z]+)'/g).map((x) => x.slice(1, -1)).sort();
+
+  for (const [campo, claves, set] of [
+    ['emblema', Object.keys(catalogo.EMBLEMAS), 'EMBLEMAS_CLAN'],
+    ['forma', Object.keys(catalogo.FORMAS), 'FORMAS_CLAN'],
+    ['patron', Object.keys(catalogo.PATRONES), 'PATRONES_CLAN'],
+  ]) {
+    assert.deepStrictEqual(lista(reglas, campo), [...claves].sort(), `las reglas no admiten los mismos ${campo}`);
+    assert.deepStrictEqual(conjunto(set), [...claves].sort(), `el agregado no publica los mismos ${campo}`);
+  }
+});
+
+test('el fondo del escudo solo usa colores de verdad y cae a liso sin segundo color', async () => {
+  const raiz = path.join(__dirname, '..', '..');
+  const { fondoEscudo } = await import(`data:text/javascript;base64,${
+    Buffer.from(fs.readFileSync(path.join(raiz, 'assets/data/emblemas-clan.js'), 'utf8')).toString('base64')}`);
+  assert.strictEqual(fondoEscudo({ color: '#FF5A1F' }), '#FF5A1F');
+  assert.strictEqual(fondoEscudo({ color: '#FF5A1F', patron: 'mitad' }), '#FF5A1F');
+  assert.strictEqual(fondoEscudo({ color: '#FF5A1F', color2: '#FF5A1F', patron: 'mitad' }), '#FF5A1F');
+  assert.match(fondoEscudo({ color: '#FF5A1F', color2: '#111110', patron: 'mitad' }), /linear-gradient\(90deg, #FF5A1F 50%, #111110 50%\)/);
+  // Lo que llega de la base de datos no se cuela en el CSS.
+  assert.strictEqual(fondoEscudo({ color: 'red;background:url(x)', color2: '#111110', patron: 'mitad' }, 'gris'), 'linear-gradient(90deg, gris 50%, #111110 50%)');
+  assert.strictEqual(fondoEscudo({ color: '#FF5A1F', color2: 'url(x)', patron: 'rayas' }), '#FF5A1F');
+});

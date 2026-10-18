@@ -11,9 +11,10 @@
 // worker con lo que ya es publico en las clasificaciones.
 
 import { db, doc, getDoc, collection, getDocs, query, where, limit } from '/assets/js/firebase.js';
-import {
-  escudoClan, COLORES_CLAN, EMBLEMAS, svgEmblema, lemaSeguro, MAX_LEMA, inicialesDe, contienePalabrasProhibidas,
-} from '/assets/js/escudo-clan.js';
+import { escudoClan, COLORES_CLAN, lemaSeguro, contienePalabrasProhibidas } from '/assets/js/escudo-clan.js';
+import { identidadInicial, editorEscudo, editorFicha, identidadParaGuardar } from '/assets/js/editor-clan.js';
+import { cabeceraClan, abrirFichaClan } from '/assets/js/ficha-clan.js';
+import { leerConfigRecompensas } from '/assets/js/vitrina.js';
 import { id, el, icono, estado, reemplazar, avisar, esqueleto, abrirHoja } from '/assets/js/dom.js';
 import { miles, NOMBRE_DIVISION } from '/assets/js/ui.js';
 import {
@@ -304,99 +305,72 @@ function bloqueSalida() {
 }
 
 /**
- * Personalizar el clan (solo el lider): color, emblema o siglas y un lema. Se
- * ve el escudo en vivo mientras se elige; se guarda con una escritura y el
- * resto de la web lo recoge en la siguiente pasada de los agregados.
+ * Pestañas Escudo / Ficha encima de los dos editores (editor-clan.js). La
+ * vista previa va arriba y no se mueve: se ve el resultado mientras se elige.
  */
-function hojaPersonalizar() {
-  const elegido = {
-    color: clan.color || COLORES_CLAN[0],
-    emblema: clan.emblema || null,
-    siglas: clan.siglas || '',
-    descripcion: clan.descripcion || '',
+function pestanasEditor(escudo, ficha) {
+  const paneles = { escudo, ficha };
+  const botones = {};
+  const ver = (cual) => {
+    for (const [k, panel] of Object.entries(paneles)) {
+      panel.classList.toggle('oculto', k !== cual);
+      botones[k].setAttribute('aria-selected', String(k === cual));
+    }
   };
+  const barra = el('div', { clase: 'segmento pestanas-vitrina pestanas-clan', attrs: { role: 'tablist', 'aria-label': 'Qué quieres cambiar' } },
+    [['escudo', 'Escudo'], ['ficha', 'Ficha']].map(([k, texto]) => {
+      botones[k] = el('button', { texto, attrs: { type: 'button', role: 'tab' }, on: { click: () => ver(k) } });
+      return botones[k];
+    }));
+  ver('escudo');
+  return barra;
+}
+
+/**
+ * Personalizar el clan (solo el lider): el escudo entero y la ficha publica.
+ * Se ve en vivo mientras se elige; se guarda con una escritura y el resto de
+ * la web lo recoge en la siguiente pasada de los agregados.
+ */
+async function hojaPersonalizar() {
+  const elegido = identidadInicial(clan);
+  const config = await leerConfigRecompensas();
   const muestra = el('div', { clase: 'personalizar-muestra' });
-  const pintarMuestra = () => reemplazar(muestra, [
-    escudoClan({ ...elegido, nombre: clan.nombre, siglas: elegido.siglas || null }, { clase: 'escudo-clan grande', tam: 30 }),
-    el('span', { clase: 'datos' }, [
-      el('strong', { texto: clan.nombre }),
-      elegido.descripcion
-        ? el('span', { clase: 'lema-clan', texto: elegido.descripcion })
-        : el('span', { clase: 'apagado', texto: 'Sin lema' }),
-    ]),
-  ]);
+  const pintarMuestra = () => reemplazar(muestra, cabeceraClan({ ...elegido, nombre: clan.nombre, siglas: elegido.siglas || null }, { previa: true }));
 
-  const colores = el('div', { clase: 'muestras-color', attrs: { role: 'radiogroup', 'aria-label': 'Color del clan' } });
-  const pintarColores = () => reemplazar(colores, COLORES_CLAN.map((c) => el('button', {
-    clase: 'muestra-color',
-    estilo: { background: c },
-    attrs: { type: 'button', role: 'radio', 'aria-checked': String(c === elegido.color), 'aria-label': `Color ${c}` },
-    on: { click: () => { elegido.color = c; pintarColores(); pintarMuestra(); } },
-  })));
-
-  const emblemas = el('div', { clase: 'rejilla-emblemas', attrs: { role: 'radiogroup', 'aria-label': 'Emblema' } });
-  const pintarEmblemas = () => reemplazar(emblemas, [
-    el('button', {
-      clase: `emblema-opcion${!elegido.emblema ? ' elegida' : ''}`,
-      texto: (elegido.siglas || inicialesDe(clan.nombre)).slice(0, 3),
-      attrs: { type: 'button', role: 'radio', 'aria-checked': String(!elegido.emblema), 'aria-label': 'Siglas' },
-      on: { click: () => { elegido.emblema = null; pintarEmblemas(); pintarMuestra(); } },
-    }),
-    ...Object.entries(EMBLEMAS).map(([clave, { nombre }]) => el('button', {
-      clase: `emblema-opcion${elegido.emblema === clave ? ' elegida' : ''}`,
-      attrs: { type: 'button', role: 'radio', 'aria-checked': String(elegido.emblema === clave), 'aria-label': nombre, title: nombre },
-      on: { click: () => { elegido.emblema = clave; pintarEmblemas(); pintarMuestra(); } },
-    }, [svgEmblema(clave, 20)])),
-  ]);
-
-  const siglas = el('input', { attrs: { type: 'text', maxlength: '3', placeholder: inicialesDe(clan.nombre), 'aria-label': 'Siglas (hasta 3)', autocapitalize: 'characters' } });
-  siglas.value = elegido.siglas;
-  siglas.addEventListener('input', () => {
-    siglas.value = siglas.value.toUpperCase().replace(/[^A-Z0-9ÑÁÉÍÓÚ]/g, '').slice(0, 3);
-    elegido.siglas = siglas.value;
-    pintarEmblemas();
-    pintarMuestra();
-  });
-  const lema = el('input', { attrs: { type: 'text', maxlength: String(MAX_LEMA), placeholder: 'Un lema (opcional)', 'aria-label': 'Lema del clan' } });
-  lema.value = elegido.descripcion;
-  lema.addEventListener('input', () => { elegido.descripcion = lema.value; pintarMuestra(); });
+  const escudo = editorEscudo(elegido, pintarMuestra, { nombre: () => clan.nombre });
+  const ficha = editorFicha(elegido, pintarMuestra, { perfil, config });
   const error = el('p', { clase: 'encuesta-pista error', attrs: { 'aria-live': 'polite' } });
 
   pintarMuestra();
-  pintarColores();
-  pintarEmblemas();
   const { cerrar } = abrirHoja([
     el('div', { clase: 'personalizar-clan' }, [
       el('h2', { texto: 'Personalizar el clan' }),
       muestra,
-      el('span', { clase: 'rotulo', texto: 'Color' }), colores,
-      el('span', { clase: 'rotulo', texto: 'Emblema' }), emblemas,
-      el('div', { clase: 'personalizar-campos' }, [
-        el('label', { clase: 'campo' }, [el('span', { texto: 'Siglas' }), siglas]),
-        el('label', { clase: 'campo' }, [el('span', { texto: 'Lema' }), lema]),
-      ]),
+      pestanasEditor(escudo, ficha),
+      escudo,
+      ficha,
       error,
       el('button', {
-        clase: 'btn', texto: 'Guardar', attrs: { type: 'button' },
+        clase: 'btn guardar-clan', texto: 'Guardar', attrs: { type: 'button' },
         on: {
-          click: async () => {
-            const limpio = lemaSeguro(elegido.descripcion);
-            if (elegido.descripcion.trim() && !limpio) { error.textContent = 'El lema no puede llevar enlaces.'; return; }
-            if (contienePalabrasProhibidas(limpio)) { error.textContent = 'Ese lema no se puede publicar.'; return; }
+          click: async (ev) => {
+            const { datos, error: motivo } = identidadParaGuardar(elegido);
+            if (motivo) { error.textContent = motivo; return; }
+            ev.currentTarget.disabled = true;
             try {
-              await personalizarClan(clanId, {
-                color: elegido.color, emblema: elegido.emblema, siglas: elegido.siglas, descripcion: limpio,
-              });
+              await personalizarClan(clanId, datos);
               cerrar();
+              avisar('Clan actualizado.', 'exito');
               await recargar();
             } catch {
               error.textContent = 'No se ha podido guardar. Vuelve a intentarlo.';
+              ev.currentTarget.disabled = false;
             }
           },
         },
       }),
     ]),
-  ], { etiqueta: 'Personalizar el clan', clase: 'dialogo-escritorio' });
+  ], { etiqueta: 'Personalizar el clan', clase: 'dialogo-escritorio hoja-personalizar-clan' });
 }
 
 function pintarConClan(destino) {
@@ -409,6 +383,7 @@ function pintarConClan(destino) {
   menu.addEventListener('click', () => {
     const { cerrar } = abrirHoja([
       el('h2', { texto: clan.nombre }),
+      el('button', { clase: 'btn secundario', texto: 'Ver la ficha del clan', attrs: { type: 'button' }, on: { click: () => { cerrar(); verFicha(clanId); } } }),
       papel() === 'lider' ? el('button', { clase: 'btn secundario', texto: 'Personalizar el clan', attrs: { type: 'button' }, on: { click: () => { cerrar(); hojaPersonalizar(); } } }) : null,
       el('button', { clase: 'btn peligro', texto: papel() === 'lider' && clan.miembros.length <= 1 ? 'Disolver el clan' : 'Dejar el clan', attrs: { type: 'button' }, on: { click: () => { cerrar(); salir().catch((e) => avisar(e.message)); } } }),
     ], { etiqueta: 'Opciones del clan', clase: 'dialogo-escritorio' });
@@ -416,7 +391,10 @@ function pintarConClan(destino) {
 
   reemplazar(destino, el('div', { clase: 'mi-clan' }, [
     el('div', { clase: 'mi-clan-cabeza' }, [
-      escudoClan(clan, { clase: 'escudo-clan grande', tam: 26 }),
+      el('button', {
+        clase: 'abre-ficha', attrs: { type: 'button', 'aria-label': `Ver la ficha de ${clan.nombre}` },
+        on: { click: () => verFicha(clanId) },
+      }, [escudoClan(clan, { clase: 'escudo-clan grande', tam: 26 })]),
       el('span', { clase: 'datos' }, [
         el('h2', { texto: clan.nombre }),
         clan.descripcion ? el('span', { clase: 'lema-clan', texto: lemaSeguro(clan.descripcion) }) : null,
@@ -451,6 +429,9 @@ function pintarConClan(destino) {
       papel() === 'lider'
         ? boton([icono('enlace', 'icono peq'), el('span', { texto: 'Invitar' })], abrirInvitacion, { clase: 'btn' })
         : boton([icono('enlace', 'icono peq'), el('span', { texto: 'Invitar' })], () => avisar('Los enlaces de invitación los crea el líder: pídele uno.'), { clase: 'btn secundario' }),
+      papel() === 'lider'
+        ? el('button', { clase: 'boton-cuadrado', attrs: { type: 'button', 'aria-label': 'Personalizar el clan', title: 'Personalizar el clan' }, on: { click: () => hojaPersonalizar() } }, [icono('lapiz')])
+        : null,
       menu,
     ]),
   ]));
@@ -481,39 +462,62 @@ function clanesCerca() {
   return lista.slice(0, 3).map((c) => ({ ...c, miembros: ranking.find((r) => r.nombre === c.nombre)?.viajes }));
 }
 
-function pintarSinClan(destino) {
-  const cerca = clanesCerca();
-  const usados = new Set(cerca.map((c) => c.color));
-  const elegido = {
-    color: COLORES_CLAN.find((c) => !usados.has(c)) || COLORES_CLAN[0],
-    emblema: null,
-  };
+const PASOS_CREAR = [
+  { clave: 'nombre', titulo: 'Nombre' },
+  { clave: 'escudo', titulo: 'Escudo' },
+  { clave: 'ficha', titulo: 'Ficha' },
+];
 
-  const nombre = el('input', { attrs: { type: 'text', id: 'clan-nombre', maxlength: '28', placeholder: 'Nombre del clan', autocomplete: 'off', 'aria-describedby': 'clan-nombre-estado' } });
-  const estadoNombre = el('span', { clase: 'estado-nombre', attrs: { id: 'clan-nombre-estado', 'aria-live': 'polite' } });
-  const lema = el('input', { attrs: { type: 'text', maxlength: String(MAX_LEMA), placeholder: 'Lema (opcional)', 'aria-label': 'Lema del clan', autocomplete: 'off' } });
+/**
+ * Crear un clan en tres pasos —nombre, escudo y ficha— con la cabecera de su
+ * ficha publica arriba, en vivo: lo que se ve aqui es lo que vera todo el
+ * mundo. Solo el nombre es obligatorio; lo demas se puede cambiar despues.
+ */
+async function bloqueCrear(usados) {
+  const elegido = identidadInicial({}, COLORES_CLAN.find((c) => !usados.has(c)) || COLORES_CLAN[0]);
+  const config = await leerConfigRecompensas();
+  let paso = 0;
   let espera = null;
   let libre = false;
 
-  // El escudo en vivo: lo que se ve aqui es lo que vera todo el mundo.
-  const muestra = el('div', { clase: 'personalizar-muestra crear' });
-  const pintarMuestra = () => reemplazar(muestra, [
-    escudoClan({ ...elegido, nombre: nombre.value.trim() || 'Tu clan' }, { clase: 'escudo-clan grande', tam: 28 }),
-    el('span', { clase: 'datos' }, [
-      el('strong', { texto: nombre.value.trim() || 'Tu clan' }),
-      lema.value.trim()
-        ? el('span', { clase: 'lema-clan', texto: lema.value.trim() })
-        : el('span', { clase: 'apagado', texto: 'Así lo verán en el mapa y el ranking' }),
-    ]),
-  ]);
+  const nombre = el('input', { attrs: { type: 'text', id: 'clan-nombre', maxlength: '28', placeholder: 'Nombre del clan', autocomplete: 'off', 'aria-describedby': 'clan-nombre-estado' } });
+  const estadoNombre = el('span', { clase: 'estado-nombre', attrs: { id: 'clan-nombre-estado', 'aria-live': 'polite' } });
+  const nombreActual = () => nombre.value.trim() || 'Tu clan';
 
-  const crear = el('button', { clase: 'btn', texto: 'Crear el clan', attrs: { type: 'button', disabled: '' } });
-  const actualizarBoton = () => { crear.disabled = !libre; };
+  const muestra = el('div', { clase: 'personalizar-muestra crear' });
+  const pintarMuestra = () => reemplazar(muestra, cabeceraClan({ ...elegido, nombre: nombreActual(), siglas: elegido.siglas || null }, { previa: true }));
+
+  const escudo = editorEscudo(elegido, pintarMuestra, { nombre: nombreActual, usados });
+  const ficha = editorFicha(elegido, pintarMuestra, { perfil, config });
+  const pasoNombre = el('div', { clase: 'editor-clan' }, [
+    el('label', { clase: 'solo-lectores', attrs: { for: 'clan-nombre' }, texto: 'Nombre del clan' }),
+    el('div', { clase: 'campo-nombre' }, [nombre, estadoNombre]),
+    el('span', { clase: 'pista', texto: 'Entre 3 y 28 letras. Es lo único que no se puede cambiar después.' }),
+  ]);
+  const paneles = [pasoNombre, escudo, ficha];
+
+  const indicador = el('ol', { clase: 'pasos-clan', attrs: { 'aria-label': 'Pasos' } });
+  const error = el('p', { clase: 'encuesta-pista error', attrs: { 'aria-live': 'polite' } });
+  const atras = el('button', { clase: 'btn tonal', texto: 'Atrás', attrs: { type: 'button' } });
+  const siguiente = el('button', { clase: 'btn', attrs: { type: 'button' } });
+
+  function pintarPaso() {
+    paneles.forEach((p, i) => p.classList.toggle('oculto', i !== paso));
+    reemplazar(indicador, PASOS_CREAR.map((p, i) => el('li', {
+      clase: i === paso ? 'actual' : i < paso ? 'hecho' : '',
+      attrs: { 'aria-current': i === paso ? 'step' : null },
+    }, [el('span', { clase: 'num', texto: String(i + 1) }), el('span', { texto: p.titulo })])));
+    atras.classList.toggle('oculto', paso === 0);
+    siguiente.textContent = paso === PASOS_CREAR.length - 1 ? 'Crear el clan' : 'Siguiente';
+    siguiente.disabled = !libre;
+    error.textContent = '';
+    if (paso === 1) escudo.repintar();
+  }
 
   nombre.addEventListener('input', () => {
     clearTimeout(espera);
     libre = false;
-    actualizarBoton();
+    siguiente.disabled = true;
     pintarMuestra();
     const limpio = nombre.value.trim();
     if (limpio.length < 3) { estadoNombre.textContent = limpio ? 'Muy corto' : ''; estadoNombre.className = 'estado-nombre mal'; return; }
@@ -534,56 +538,49 @@ function pintarSinClan(destino) {
         libre = true; // sin poder mirarlo se deja intentar: crearClan lo comprueba
         estadoNombre.textContent = '';
       }
-      actualizarBoton();
+      siguiente.disabled = !libre;
     }, 400);
   });
-  lema.addEventListener('input', pintarMuestra);
+  nombre.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && libre) siguiente.click(); });
 
-  const muestras = el('div', { clase: 'colores-clan', attrs: { role: 'radiogroup', 'aria-label': 'Color del clan' } });
-  const pintarMuestras = () => reemplazar(muestras, COLORES_CLAN.map((c) => el('button', {
-    clase: `muestra-color ${usados.has(c) ? 'usado' : ''}`,
-    attrs: { type: 'button', role: 'radio', 'aria-checked': String(c === elegido.color), 'aria-label': `Color ${c}${usados.has(c) ? ', ya lo usa un clan cerca' : ''}` },
-    estilo: { background: c },
-    on: { click: () => { elegido.color = c; pintarMuestras(); pintarMuestra(); } },
-  })));
-
-  const emblemas = el('div', { clase: 'rejilla-emblemas', attrs: { role: 'radiogroup', 'aria-label': 'Emblema' } });
-  const pintarEmblemas = () => reemplazar(emblemas, [
-    el('button', {
-      clase: `emblema-opcion${!elegido.emblema ? ' elegida' : ''}`,
-      texto: 'Aa',
-      attrs: { type: 'button', role: 'radio', 'aria-checked': String(!elegido.emblema), 'aria-label': 'Iniciales', title: 'Iniciales' },
-      on: { click: () => { elegido.emblema = null; pintarEmblemas(); pintarMuestra(); } },
-    }),
-    ...Object.entries(EMBLEMAS).map(([clave, { nombre: titulo }]) => el('button', {
-      clase: `emblema-opcion${elegido.emblema === clave ? ' elegida' : ''}`,
-      attrs: { type: 'button', role: 'radio', 'aria-checked': String(elegido.emblema === clave), 'aria-label': titulo, title: titulo },
-      on: { click: () => { elegido.emblema = clave; pintarEmblemas(); pintarMuestra(); } },
-    }, [svgEmblema(clave, 20)])),
-  ]);
-
-  pintarMuestra();
-  pintarMuestras();
-  pintarEmblemas();
-
-  crear.addEventListener('click', async () => {
+  atras.addEventListener('click', () => { paso = Math.max(0, paso - 1); pintarPaso(); });
+  siguiente.addEventListener('click', async () => {
     if (!libre) return;
-    const textoLema = lemaSeguro(lema.value);
-    if (lema.value.trim() && (!textoLema || contienePalabrasProhibidas(textoLema))) {
-      avisar('Ese lema no se puede publicar.');
+    if (paso < PASOS_CREAR.length - 1) {
+      paso += 1;
+      pintarPaso();
+      muestra.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       return;
     }
-    crear.disabled = true;
+    const { datos, error: motivo } = identidadParaGuardar(elegido);
+    if (motivo) { error.textContent = motivo; return; }
+    siguiente.disabled = true;
     try {
-      const nuevo = await crearClan({ nombre: nombre.value.trim(), descripcion: textoLema, color: elegido.color, emblema: elegido.emblema });
+      const nuevo = await crearClan({ nombre: nombre.value.trim(), ...datos });
       avisar('Clan creado.', 'exito');
       clanId = nuevo;
       await recargar();
-    } catch (error) {
-      avisar(error.message);
-      actualizarBoton();
+    } catch (e) {
+      error.textContent = e.message || 'No se ha podido crear el clan.';
+      siguiente.disabled = false;
     }
   });
+
+  pintarMuestra();
+  pintarPaso();
+  return el('div', { clase: 'crear-clan' }, [
+    el('h3', { texto: 'Crear un clan' }),
+    indicador,
+    muestra,
+    ...paneles,
+    error,
+    el('div', { clase: 'dos-botones-hoja botones-pasos' }, [atras, siguiente]),
+  ]);
+}
+
+async function pintarSinClan(destino) {
+  const cerca = clanesCerca();
+  const usados = new Set(cerca.map((c) => c.color));
 
   const codigo = el('input', { attrs: { type: 'text', id: 'codigo-invitacion', placeholder: 'Código de invitación', autocomplete: 'off', 'aria-label': 'Código de invitación' } });
   const entrar = boton('Entrar', async () => {
@@ -594,33 +591,38 @@ function pintarSinClan(destino) {
     await recargar();
   }, { clase: 'btn tonal' });
 
+  const hueco = el('div', { clase: 'esqueleto', attrs: { 'aria-hidden': 'true' }, estilo: { height: '220px' } });
   reemplazar(destino, el('div', { clase: 'sin-clan' }, [
     el('h2', { texto: 'Solo se conquista en equipo' }),
     el('p', { clase: 'apagado', texto: 'Los clanes se disputan las estaciones. Si tu clan controla una, tus trayectos que la tocan suman un 10 % más.' }),
     cerca.length ? el('span', { clase: 'rotulo', texto: perfil?.puntosPorRuta && cerca.some((c) => c.estacion) ? 'Cerca de tus estaciones' : 'Clanes activos' }) : null,
     cerca.length ? el('div', { clase: 'lista-ranking clanes' }, cerca.map((c) => el('div', { clase: 'fila-clan' }, [
       escudoClan(c),
-      el('span', { clase: 'quien' }, [
+      el('button', {
+        clase: 'quien abre-ficha', attrs: { type: 'button', 'aria-label': `Ver la ficha de ${c.nombre}` },
+        on: { click: () => verFicha(c.cid) },
+      }, [
         el('span', { clase: 'nombre', texto: c.nombre }),
         el('span', { clase: 'clan', texto: [c.miembros ? `${c.miembros} miembros` : null, c.estacion ? `controla ${contexto.nombreDe(c.estacion)}` : null].filter(Boolean).join(' · ') }),
       ]),
       boton('Pedir', () => pedirEntrada(c.cid), { clase: 'btn secundario pedir', etiqueta: `Pedir entrar en ${c.nombre}` }),
     ]))) : null,
     el('div', { clase: 'fila-codigo' }, [codigo, entrar]),
-    el('div', { clase: 'crear-clan' }, [
-      el('h3', { texto: 'Crear un clan' }),
-      muestra,
-      el('label', { clase: 'solo-lectores', attrs: { for: 'clan-nombre' }, texto: 'Nombre del clan' }),
-      el('div', { clase: 'campo-nombre' }, [nombre, estadoNombre]),
-      lema,
-      el('span', { clase: 'rotulo', texto: 'Color' }),
-      muestras,
-      usados.size ? el('span', { clase: 'pista', texto: 'Los colores apagados ya los usa un clan con estaciones cerca de ti.' }) : null,
-      el('span', { clase: 'rotulo', texto: 'Emblema' }),
-      emblemas,
-      crear,
-    ]),
+    hueco,
   ]));
+  hueco.replaceWith(await bloqueCrear(usados));
+}
+
+/**
+ * La ficha publica de un clan, con lo que sabe esta pantalla: sus estaciones,
+ * su puesto y si se puede pedir entrar.
+ */
+export function verFicha(cual) {
+  const estaciones = [...contexto.estaciones().values()].filter((s) => s.clanDominante === cual).length;
+  const nombreClan = contexto.clanes().get(cual)?.nombre;
+  const puesto = nombreClan ? contexto.ranking().findIndex((c) => c.nombre === nombreClan) + 1 : 0;
+  const accion = cual === clanId ? 'mio' : usuario && !perfil?.clanId ? 'pedir' : null;
+  return abrirFichaClan(cual, { estaciones, puesto: puesto || null, accion, alPedir: pedirEntrada });
 }
 
 // --- Carga ---------------------------------------------------------------------
@@ -672,8 +674,14 @@ async function leerClan(cual) {
     nombre: datos.nombre || cual,
     descripcion: datos.descripcion || '',
     color: datos.color || null,
+    color2: datos.color2 || null,
+    patron: datos.patron || null,
+    forma: datos.forma || null,
     emblema: datos.emblema || null,
     siglas: datos.siglas || null,
+    zona: datos.zona || '',
+    presentacion: datos.presentacion || '',
+    banner: datos.banner || null,
     lider: datos.lider || null,
     oficiales: datos.oficiales || [],
     biciRating: datos.biciRating || 0,

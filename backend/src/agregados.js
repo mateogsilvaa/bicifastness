@@ -354,11 +354,21 @@ async function olvidarPendientes() {
  * pinta). El lema pasa por el mismo filtro que los comentarios de las bicis:
  * sin enlaces ni insultos, o vacio.
  */
-const EMBLEMAS_CLAN = new Set(['rayo', 'llama', 'corona', 'estrella', 'montana', 'rueda', 'ola', 'diana', 'flecha', 'escudo', 'calavera', 'oso']);
+const EMBLEMAS_CLAN = new Set([
+  'rayo', 'llama', 'corona', 'estrella', 'montana', 'rueda', 'ola', 'diana', 'flecha', 'escudo', 'calavera', 'oso',
+  'bici', 'pinon', 'casco', 'crono', 'timbre', 'pin', 'sol', 'luna', 'corazon', 'hoja', 'trofeo', 'semaforo',
+]);
+const FORMAS_CLAN = new Set(['cuadro', 'circulo', 'hexagono', 'blason', 'octogono']);
+const PATRONES_CLAN = new Set(['mitad', 'diagonal', 'franja', 'rayas', 'cuartos', 'aro']);
+const HEX = /^#[0-9a-fA-F]{6}$/;
 function identidadClan(c) {
+  const color2 = HEX.test(String(c.color2 || '')) ? c.color2 : null;
   return {
     nombre: c.nombre || c.id,
     color: c.color || null,
+    color2,
+    patron: color2 && PATRONES_CLAN.has(c.patron) ? c.patron : null,
+    forma: FORMAS_CLAN.has(c.forma) ? c.forma : null,
     emblema: EMBLEMAS_CLAN.has(c.emblema) ? c.emblema : null,
     siglas: typeof c.siglas === 'string' && /^[A-Z0-9ÑÁÉÍÓÚ]{1,3}$/.test(c.siglas) ? c.siglas : null,
     lema: limpiarComentario(c.descripcion).slice(0, 80),

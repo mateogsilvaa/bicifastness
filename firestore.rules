@@ -592,7 +592,14 @@ service cloud.firestore {
           && (!('presentacion' in campos) || textoLimpio(datos().presentacion, 200))
           // El clan no elige banner: su cabecera es su mapa. Solo el fondo.
           // (assets/js/mapa-clan.js).
-          && (!('tema' in campos) || datos().tema in ['oscuro', 'claro']);
+          && (!('tema' in campos) || datos().tema in ['oscuro', 'claro'])
+          // Como se entra (16e, "Entrada"): pidiendo permiso, libre o solo con
+          // invitacion. Sin el campo, pidiendo permiso, como hasta ahora.
+          && (!('entrada' in campos) || datos().entrada in ['permiso', 'libre', 'invitacion']);
+      }
+
+      function entradaDe(clan) {
+        return clan.get('entrada', 'permiso');
       }
 
       function esLider() {
@@ -630,7 +637,7 @@ service cloud.firestore {
         && cambia().hasOnly([
           'miembros', 'solicitudes', 'numMiembros',
           'oficiales', 'lider', 'descripcion', 'color', 'emblema', 'siglas',
-          'color2', 'patron', 'forma', 'zona', 'presentacion', 'tema',
+          'color2', 'patron', 'forma', 'zona', 'presentacion', 'tema', 'entrada',
         ])
         && cabeAlguienMas()
         && soloEntraQuienLoPide()
@@ -670,8 +677,28 @@ service cloud.firestore {
       allow update: if autenticado()
         && cambia().hasOnly(['solicitudes'])
         && datos().solicitudes.size() <= 100
+        // Pedir solo se puede en un clan que entra pidiendo permiso: en uno
+        // libre se entra sin mas, y en uno de invitacion, con el enlace.
+        // Retirar la propia solicitud se puede siempre.
+        && (datos().solicitudes.size() <= previo().solicitudes.size() || entradaDe(previo()) == 'permiso')
         && datos().solicitudes.hasOnly(previo().solicitudes.concat([request.auth.uid]))
         && previo().solicitudes.hasOnly(datos().solicitudes.concat([request.auth.uid]));
+
+      // Entrar en un clan libre: alguien sin clan se apunta a si mismo, al
+      // final de la plantilla, y si tenia una solicitud pendiente se le quita.
+      // Nada mas cambia: ni el lider, ni los oficiales, ni a nadie de dentro.
+      allow update: if autenticado()
+        && puedeUsarLaWeb()
+        && cuentaActiva()
+        && entradaDe(previo()) == 'libre'
+        && cambia().hasOnly(['miembros', 'numMiembros', 'solicitudes'])
+        && !previo().miembros.hasAny([request.auth.uid])
+        && datos().miembros == previo().miembros.concat([request.auth.uid])
+        && cabeAlguienMas()
+        && datos().get('numMiembros', datos().miembros.size()) == datos().miembros.size()
+        && datos().get('solicitudes', []).hasOnly(previo().get('solicitudes', []))
+        && previo().get('solicitudes', []).hasOnly(datos().get('solicitudes', []).concat([request.auth.uid]))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('clanId', null) == null;
 
       // Irse del clan. Cualquiera puede, menos el lider: dejaria el clan sin
       // quien lo gestione. Antes tiene que ceder el mando o disolverlo.

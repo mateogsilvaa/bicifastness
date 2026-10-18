@@ -604,6 +604,39 @@ test('el lider viste el escudo y la ficha del clan: forma, patron, barrio, prese
   await assertFails(updateDoc(doc(como(OTRO), 'clanes', 'c1'), { forma: 'circulo' }));
 });
 
+test('la entrada del clan: libre se entra solo, con permiso se pide, con invitacion no se puede pedir', async () => {
+  const TERCERO = 'piloto3';
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    const bd = ctx.firestore();
+    for (const uid of [UID, OTRO, TERCERO]) await setDoc(doc(bd, 'usuarios', uid), { uid, username: uid, usernameLower: uid, clanId: null });
+    await setDoc(doc(bd, 'usuarios', TERCERO), { uid: TERCERO, username: TERCERO, usernameLower: TERCERO, clanId: 'otro' });
+    const base = { color: '#FF5A1F', lider: UID, miembros: [UID], oficiales: [], solicitudes: [], numMiembros: 1 };
+    await setDoc(doc(bd, 'clanes', 'libre'), { ...base, nombre: 'Libre', entrada: 'libre' });
+    await setDoc(doc(bd, 'clanes', 'cerrado'), { ...base, nombre: 'Cerrado', entrada: 'invitacion' });
+    await setDoc(doc(bd, 'clanes', 'permiso'), { ...base, nombre: 'Permiso' });
+  });
+  // El lider elige el modo, y solo entre los tres.
+  await assertSucceeds(updateDoc(doc(como(UID), 'clanes', 'permiso'), { entrada: 'permiso' }));
+  await assertFails(updateDoc(doc(como(UID), 'clanes', 'permiso'), { entrada: 'abierto' }));
+  await assertFails(updateDoc(doc(como(OTRO), 'clanes', 'permiso'), { entrada: 'libre' }));
+
+  // Libre: alguien sin clan se apunta a si mismo, y nada mas.
+  const libre = doc(como(OTRO), 'clanes', 'libre');
+  await assertFails(updateDoc(libre, { miembros: [UID, OTRO, TERCERO], numMiembros: 3 }));
+  await assertFails(updateDoc(libre, { miembros: [UID, OTRO], numMiembros: 2, lider: OTRO }));
+  await assertFails(updateDoc(libre, { miembros: [UID, OTRO], numMiembros: 7 }));
+  await assertSucceeds(updateDoc(libre, { miembros: [UID, OTRO], numMiembros: 2, solicitudes: [] }));
+  await assertSucceeds(updateDoc(doc(como(OTRO), 'usuarios', OTRO), { clanId: 'libre' }));
+  // Quien ya tiene clan no se apunta a otro.
+  await assertFails(updateDoc(doc(como(TERCERO), 'clanes', 'libre'), { miembros: [UID, OTRO, TERCERO], numMiembros: 3 }));
+  // Ni se entra solo en uno que no es libre.
+  await assertFails(updateDoc(doc(como(OTRO), 'clanes', 'permiso'), { miembros: [UID, OTRO], numMiembros: 2 }));
+
+  // Con invitacion no se puede pedir; con permiso, si.
+  await assertFails(updateDoc(doc(como(TERCERO), 'clanes', 'cerrado'), { solicitudes: [TERCERO] }));
+  await assertSucceeds(updateDoc(doc(como(TERCERO), 'clanes', 'permiso'), { solicitudes: [TERCERO] }));
+});
+
 test('un clan nace con su escudo, sus siglas y su ficha, con las mismas formas', async () => {
   await entorno.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: [] });

@@ -397,7 +397,7 @@ test('el mapa no publica nada de los clanes que no se pinte', async () => {
   // emblema, siglas y lema: lo que pinta escudo-clan.js). Ni miembros, ni lider, ni
   // puntuacion: este documento lo lee cualquiera sin sesion (#60).
   for (const [id, clan] of Object.entries(mapa.clanes)) {
-    assert.deepStrictEqual(Object.keys(clan).sort(), ['color', 'color2', 'emblema', 'forma', 'lema', 'nombre', 'patron', 'siglas'],
+    assert.deepStrictEqual(Object.keys(clan).sort(), ['color', 'color2', 'emblema', 'entrada', 'forma', 'lema', 'nombre', 'patron', 'siglas'],
       `el mapa publica de ${id} mas de lo que pinta: ${Object.keys(clan)}`);
   }
   assert.ok(!/miembros|lider|biciRating|uid/.test(JSON.stringify(mapa.clanes)));

@@ -397,9 +397,9 @@ function pintarClanes() {
       el('span', { clase: 'nombre', texto: c.nombre || c.clanId }),
       el('span', { clase: 'clan', texto: `${c.ranking?.viajes ?? '—'} miembros · ${c.dominadas} estaciones` }),
     ]),
-    haySesion && !miClanId
+    haySesion && !miClanId && c.entrada !== 'invitacion'
       ? el('button', {
-        clase: 'btn secundario pedir', texto: 'Pedir', attrs: { type: 'button', 'aria-label': `Pedir entrar en ${c.nombre || c.clanId}` },
+        clase: 'btn secundario pedir', texto: c.entrada === 'libre' ? 'Unirse' : 'Pedir', attrs: { type: 'button', 'aria-label': `${c.entrada === 'libre' ? 'Unirse a' : 'Pedir entrar en'} ${c.nombre || c.clanId}` },
         on: { click: () => pedirEntrada(c.clanId) },
       })
       : el('strong', { clase: 'valor', texto: String(c.ranking?.puntos ?? '') }),

@@ -205,8 +205,10 @@ const WORKER = [
     // no lo miraba. Escribe poco —solo a quien ha perdido racha o gastado
     // escudo— pero LEE a todo el mundo, y eso crece con las altas de siempre,
     // no con la gente que entra hoy.
-    coste: ({ U }) => U,
-    detalle: 'TODOS los usuarios, para cerrar las rachas que se han roto',
+    // + los viajes aun sin decidir (cola y revision): a quien tiene uno no se le
+    // cobra el dia hasta que se decida (worker.diasEnEspera).
+    coste: ({ U, S }) => U + min1(S * 0.15) + 1,
+    detalle: 'TODOS los usuarios + los viajes sin decidir, para cerrar las rachas que se han roto',
   },
   {
     nombre: 'clanes.limpiarDoblesMembresias y clanes.rescatarSinLider (UNA vez al dia)',
@@ -264,11 +266,11 @@ const WORKER = [
     // y en una nueva entran todos. Los aprobados a mano (anulaciones incluidas)
     // la rehacen siempre, y son pocos.
     veces: ({ S }) => Math.round(S * 0.5 / 3),
-    // Acotado a los 200 mas rapidos de la ruta: solo puntuan los siete
-    // primeros, y a quien se cae del podio se le quitan los puntos por la otra
-    // consulta.
-    coste: ({ U, V }) => min1(Math.min(200, viajesEnRuta(V))) + min1(U * 0.1) + min1(U * 0.1),
-    detalle: 'los 200 mas rapidos de esa ruta + quien ya puntuaba en ella',
+    // Por paginas de 25 hasta tener siete pilotos distintos: casi siempre una.
+    // Quien ya puntuaba en la ruta son los siete del podio (la consulta trae su
+    // documento) y solo se leen aparte los que entran nuevos.
+    coste: ({ V }) => min1(Math.min(25, viajesEnRuta(V))) + min1(7) + min1(2),
+    detalle: 'una pagina de 25 de los mas rapidos + los siete que puntuaban + los que entran',
   },
   {
     nombre: 'avisarRecordPerdido (por viaje APROBADO que bate el record de su ruta)',
@@ -297,14 +299,14 @@ const WORKER = [
     // se calcula una. Lo segundo no se modela: las estaciones de cada ventana
     // se cuentan como si no se repitieran nunca, que es el peor caso.
     veces: ({ S }) => ventanasConMovimiento(S, 96),
-    // La influencia sobre una estacion sale SOLO de los viajes de las rutas que
-    // la tocan, y el indice de `agregados/rutas` dice cuales son. Antes esto
-    // leia `usuarios` y `tiempos_viaje` enteros.
-    coste: ({ C, V, E, S }) => min1(1) + C
-      + Math.max(2, Math.min(60, Math.round((S / ventanasConMovimiento(S, 96)) * 2)))
-      * (min1(1) + rutasPorEstacion(V, E) * min1(viajesPorRutaActiva(V))),
-    detalle: 'el indice de rutas + los clanes (de ahi sale de quien es cada piloto) '
-      + '+ los viajes de las rutas que tocan cada estacion',
+    // Cada viaje suma al territorio UNA vez, el dia que se aprueba
+    // (puntuacion.cargarViajesNuevos): se leen por id los aprobados de la
+    // ventana, los clanes (de ahi sale de quien es cada piloto) y cada
+    // estacion movida. Antes se releian todos los viajes de las rutas que tocan
+    // cada estacion: 731.000 lecturas al dia con 1.000 pilotos.
+    coste: ({ C, S }) => min1(Math.max(1, Math.round(S / ventanasConMovimiento(S, 96)))) + C
+      + Math.max(2, Math.min(60, Math.round((S / ventanasConMovimiento(S, 96)) * 2))),
+    detalle: 'los viajes aprobados en la ventana, por id + los clanes + cada estacion movida',
   },
   {
     nombre: 'reconstruirAgregados (parcial, como mucho cada 15 min)',
@@ -347,8 +349,10 @@ const WORKER = [
     // Los de la misma ruta y el mismo dia son pocos (un tope de 20, en la
     // practica dos o tres), y los viajes de las huellas parecidas se leen solo
     // si hay alguna parecida: como mucho tres, casi siempre una o ninguna.
-    coste: () => min1(1) + min1(40) + min1(1) + min1(3) + min1(1),
-    detalle: 'el agregado de la ruta + sus 40 viajes recientes + el duplicado exacto por id '
+    // Su ritmo (velocidades recientes y mejor marca por ruta) va en el perfil:
+    // una lectura en vez de sus 40 ultimos viajes (worker.ritmoPiloto).
+    coste: () => min1(1) + min1(1) + min1(1) + min1(3) + min1(1),
+    detalle: 'el agregado de la ruta + su perfil (con su ritmo) + el duplicado exacto por id '
       + '+ los de la misma ruta y dia + el viaje de la huella mas parecida',
   },
   {
@@ -550,4 +554,8 @@ if (require.main === module) {
   }
 }
 
-module.exports = { ESCENARIOS, PANTALLAS, WORKER, CUOTA_LECTURAS, calcular, insostenibles };
+module.exports = {
+  ESCENARIOS, PANTALLAS, WORKER, CUOTA_LECTURAS, calcular, insostenibles,
+  // Para scripts/simular-semana.js, que reconstruye el coste de antes.
+  min1, viajesEnRuta, ventanasConMovimiento, rutasPorEstacion, viajesPorRutaActiva,
+};

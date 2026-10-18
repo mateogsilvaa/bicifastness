@@ -635,3 +635,20 @@ test('una ruta sin velocidad calculable no revienta el motor', () => {
   // `kmh.toFixed` lanzaba y el viaje acababa como error del worker.
   assert.doesNotThrow(() => evaluar(contextoBase({ ruta: '235-235', lectura: lecturaLimpia(600, '235-235') })));
 });
+
+test('el primer trayecto no se rechaza solo por señales sumadas: va a revision', () => {
+  // Rapido pero posible, de madrugada, y mucho mejor que lo suyo: ninguna es
+  // decisiva, pero sumadas pasan del umbral de rechazo.
+  const segundos = Math.round((METROS / 1000) / 23 * 3600);
+  const salida = 3 * 3600;
+  const lectura = { ...lecturaLimpia(segundos), horaSalida: '03:00:00', horaLlegada: new Date((salida + segundos) * 1000).toISOString().slice(11, 19) };
+  const ctx = contextoBase({ tiempoSegundos: segundos, lectura, mejorTiempoPropio: Math.round(segundos * 1.6), velocidadesPrevias: [10, 10, 10, 10, 10] });
+
+  assert.strictEqual(evaluar(ctx).decision, 'rechazado', 'con historial, se rechaza como siempre');
+  const primero = evaluar({ ...ctx, primerViaje: true });
+  assert.strictEqual(primero.decision, 'revision');
+  assert.match(primero.resumen, /Primer trayecto/);
+
+  // Lo decisivo se sigue rechazando aunque sea el primero.
+  assert.strictEqual(evaluar(contextoBase({ tiempoSegundos: 120, primerViaje: true })).decision, 'rechazado');
+});

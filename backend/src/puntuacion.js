@@ -108,25 +108,34 @@ async function multiplicadorRuta(ruta) {
 async function recalcularRuta(ruta) {
   const multiplicador = await multiplicadorRuta(ruta);
 
-  // Ordenado y acotado: solo puntuan los siete primeros, asi que leer la ruta
-  // entera era pagar por lo que no se usa. El indice `ruta + verificado +
-  // tiempoSegundos` ya existe y sirve este orden sin nada nuevo.
-  const snapshot = await db().collection('tiempos_viaje')
+  // Ordenado y POR PAGINAS: solo puntuan los siete primeros pilotos, y como
+  // los viajes llegan del mas rapido al mas lento, la primera vez que sale un
+  // piloto es su mejor marca. En cuanto hay siete distintos ya esta: casi
+  // siempre en la primera pagina de 25. Antes se leian los 200 mas rapidos en
+  // cada viaje que entraba en el podio (docs/COSTE.md). El indice `ruta +
+  // verificado + tiempoSegundos` ya existe y sirve este orden.
+  const PODIO = PUNTOS.POR_POSICION.length;
+  const PAGINA = 25;
+  const base = db().collection('tiempos_viaje')
     .where('ruta', '==', ruta)
     .where('verificado', '==', true)
-    .orderBy('tiempoSegundos', 'asc')
-    .limit(PUNTOS.TOPE_CLASIFICACION_RUTA)
-    .get();
+    .orderBy('tiempoSegundos', 'asc');
 
   /** @type {Map<string, number>} uid -> mejor tiempo */
   const mejorPorPiloto = new Map();
-  for (const doc of snapshot.docs) {
-    const { uid, tiempoSegundos } = doc.data();
-    if (!uid) continue;
-    const actual = mejorPorPiloto.get(uid);
-    if (actual === undefined || tiempoSegundos < actual) {
-      mejorPorPiloto.set(uid, tiempoSegundos);
+  let ultimo = null;
+  let leidos = 0;
+  while (mejorPorPiloto.size < PODIO && leidos < PUNTOS.TOPE_CLASIFICACION_RUTA) {
+    const pagina = await (ultimo ? base.startAfter(ultimo) : base).limit(PAGINA).get();
+    for (const doc of pagina.docs) {
+      const { uid, tiempoSegundos } = doc.data();
+      if (!uid) continue;
+      const actual = mejorPorPiloto.get(uid);
+      if (actual === undefined || tiempoSegundos < actual) mejorPorPiloto.set(uid, tiempoSegundos);
     }
+    leidos += pagina.docs.length;
+    if (pagina.docs.length < PAGINA) break;
+    ultimo = pagina.docs[pagina.docs.length - 1];
   }
 
   const clasificacion = [...mejorPorPiloto.entries()]
@@ -146,12 +155,15 @@ async function recalcularRuta(ruta) {
   const conPuntosPrevios = await db().collection('usuarios').where(campoRuta, '>', 0).get();
 
   // Union de los dos conjuntos: los que puntuan ahora y los que puntuaban antes.
-  const afectados = new Set([...puntosPorUid.keys(), ...conPuntosPrevios.docs.map((d) => d.id)]);
-  if (afectados.size === 0) return 0;
+  // Los que puntuaban antes ya estan leidos (la consulta trae el documento); se
+  // leen aparte solo los que entran ahora. Y solo cuentan los del podio: los que
+  // quedan detras no tienen puntos que poner ni quitar en esta ruta.
+  const previos = new Map(conPuntosPrevios.docs.map((d) => [d.id, d]));
+  const nuevos = [...puntosPorUid.entries()].filter(([uid, puntos]) => puntos > 0 && !previos.has(uid)).map(([uid]) => uid);
+  if (!previos.size && !nuevos.length) return 0;
 
-  // Una sola lectura por lotes en vez de un get() por piloto dentro del bucle.
-  const refs = [...afectados].map((uid) => db().doc(`usuarios/${uid}`));
-  const documentos = await db().getAll(...refs);
+  const leidosAhora = nuevos.length ? await db().getAll(...nuevos.map((uid) => db().doc(`usuarios/${uid}`))) : [];
+  const documentos = [...previos.values(), ...leidosAhora];
 
   const clanesAfectados = new Set();
   const escrituras = [];
@@ -370,11 +382,12 @@ async function recalcularEstacion(estacionId, viajesPrecargados = null, usuarios
  *
  * `base` es opcional: si no viene, se lee aqui.
  */
-async function recalcularEstaciones(estacionIds, base = null) {
+async function recalcularEstaciones(estacionIds, base = null, { viajeIds = null } = {}) {
   const unicas = [...new Set([...estacionIds].filter(Boolean).map(String))];
   if (!unicas.length) return 0;
 
-  const { viajes, usuarios } = base || await cargarEstaciones(unicas);
+  const { viajes, usuarios } = base
+    || (viajeIds ? await cargarViajesNuevos(viajeIds) : await cargarEstaciones(unicas));
 
   for (const estacionId of unicas) {
     await recalcularEstacion(estacionId, viajes, usuarios);
@@ -437,6 +450,41 @@ async function cargarEstaciones(estacionIds) {
     for (const uid of clan.data().miembros || []) usuarios.push({ uid, clanId: clan.id });
   }
 
+  return { viajes, usuarios };
+}
+
+/**
+ * Lo que hace falta para sumar al territorio SOLO los viajes nuevos.
+ *
+ * El camino de siempre (`cargarEstaciones`) relee todos los viajes de las rutas
+ * que tocan cada estacion y los vuelve a sumar a lo acumulado en cada
+ * recalculo. Eso tenia dos problemas:
+ *
+ * - Coste: con 200 pilotos al dia eran 25.000 lecturas diarias, y con 1.000,
+ *   730.000. Era, de lejos, lo que mas leia del proyecto (docs/COSTE.md).
+ * - Juego: un viaje de hace tres meses se volvia a sumar cada vez que alguien
+ *   pasaba por la estacion, asi que el decaimiento no servia de nada y un clan
+ *   que se paraba no perdia su territorio mientras otros siguieran pedaleando
+ *   alli (docs/JUEGO.md: "pedalear esta semana, no la de hace tres meses").
+ *
+ * Ahora el worker apunta los viajes que aprueba y aqui se leen solo esos, por
+ * id: cada viaje suma UNA vez, el dia que se aprueba, y luego decae.
+ *
+ * @param {Iterable<string>} viajeIds
+ */
+async function cargarViajesNuevos(viajeIds) {
+  const ids = [...new Set([...viajeIds].filter(Boolean).map(String))];
+  const [docs, clanesSnap] = await Promise.all([
+    ids.length ? db().getAll(...ids.map((id) => db().doc(`tiempos_viaje/${id}`))) : [],
+    db().collection('clanes').get(),
+  ]);
+  // Uno anulado entre medias ya no cuenta.
+  const viajes = docs.filter((d) => d.exists && d.data().verificado === true)
+    .map((d) => ({ viajeId: d.id, ...d.data() }));
+  const usuarios = [];
+  for (const clan of clanesSnap.docs) {
+    for (const uid of clan.data().miembros || []) usuarios.push({ uid, clanId: clan.id });
+  }
   return { viajes, usuarios };
 }
 
@@ -663,6 +711,7 @@ module.exports = {
   recalcularEstacion,
   recalcularTrasCambio,
   recalcularEstaciones,
+  cargarViajesNuevos,
   estacionesDe,
   reconstruirAgregados,
   cargarBase,

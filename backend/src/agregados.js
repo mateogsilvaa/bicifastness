@@ -290,11 +290,12 @@ const listaDe = (valores) => [...new Set([...(valores || [])].filter(Boolean).ma
  * Van juntas porque se pierden por el mismo motivo: la pasada las ha movido y el
  * limitador ha dicho que todavia no toca reconstruir.
  */
-async function apuntarPendientes(rutas, estaciones = [], pilotos = []) {
+async function apuntarPendientes(rutas, estaciones = [], pilotos = [], viajes = []) {
   const conRutas = listaDe(rutas);
   const conEstaciones = listaDe(estaciones);
   const conPilotos = listaDe(pilotos);
-  if (!conRutas.length && !conEstaciones.length && !conPilotos.length) return 0;
+  const conViajes = listaDe(viajes);
+  if (!conRutas.length && !conEstaciones.length && !conPilotos.length && !conViajes.length) return 0;
 
   await db().doc(PENDIENTES).set({
     ...(conRutas.length
@@ -307,10 +308,15 @@ async function apuntarPendientes(rutas, estaciones = [], pilotos = []) {
     ...(conPilotos.length
       ? { pilotos: admin.firestore.FieldValue.arrayUnion(...conPilotos) }
       : {}),
+    // Los viajes aprobados que aun no han sumado al territorio: cada uno suma
+    // una vez (puntuacion.cargarViajesNuevos).
+    ...(conViajes.length
+      ? { viajes: admin.firestore.FieldValue.arrayUnion(...conViajes) }
+      : {}),
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
 
-  return conRutas.length + conEstaciones.length + conPilotos.length;
+  return conRutas.length + conEstaciones.length + conPilotos.length + conViajes.length;
 }
 
 /** Lo apuntado. Una lectura. */
@@ -322,9 +328,10 @@ async function leerPendientes() {
       rutas: Array.isArray(datos.rutas) ? datos.rutas : [],
       estaciones: Array.isArray(datos.estaciones) ? datos.estaciones : [],
       pilotos: Array.isArray(datos.pilotos) ? datos.pilotos : [],
+      viajes: Array.isArray(datos.viajes) ? datos.viajes : [],
     };
   } catch {
-    return { rutas: [], estaciones: [], pilotos: [] };
+    return { rutas: [], estaciones: [], pilotos: [], viajes: [] };
   }
 }
 
@@ -337,6 +344,7 @@ async function olvidarPendientes() {
     rutas: [],
     estaciones: [],
     pilotos: [],
+    viajes: [],
     actualizado: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
 }
@@ -372,6 +380,8 @@ function identidadClan(c) {
     emblema: EMBLEMAS_CLAN.has(c.emblema) ? c.emblema : null,
     siglas: typeof c.siglas === 'string' && /^[A-Z0-9ÑÁÉÍÓÚ]{1,3}$/.test(c.siglas) ? c.siglas : null,
     lema: limpiarComentario(c.descripcion).slice(0, 80),
+    // Como se entra: el boton de la lista dice Pedir, Unirse o nada.
+    entrada: ['permiso', 'libre', 'invitacion'].includes(c.entrada) ? c.entrada : 'permiso',
   };
 }
 

@@ -580,6 +580,45 @@ test('el lider personaliza el clan con emblema, siglas y lema validos', async ()
   await assertFails(updateDoc(doc(como(OTRO), 'clanes', 'c1'), { emblema: 'llama' }));
 });
 
+test('el lider viste el escudo y la ficha del clan: forma, patron, barrio, presentacion y banner', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: ['metro'] });
+    await setDoc(doc(ctx.firestore(), 'clanes', 'c1'), {
+      nombre: 'Clan Uno', color: '#FF5A1F', lider: UID, miembros: [UID, OTRO], oficiales: [], solicitudes: [],
+    });
+  });
+  const ref = doc(como(UID), 'clanes', 'c1');
+  await assertSucceeds(updateDoc(ref, {
+    forma: 'blason', color2: '#111110', patron: 'rayas', emblema: 'bici',
+    zona: 'Chamberí', presentacion: 'Quedamos en Iglesia a las 7:30.', banner: 'libre-tinta',
+  }));
+  // Un banner que ha ganado el lider, si; uno que no, no.
+  await assertSucceeds(updateDoc(ref, { banner: 'metro' }));
+  await assertFails(updateDoc(ref, { banner: 'neon' }));
+  await assertFails(updateDoc(ref, { forma: 'estrella' }));
+  await assertFails(updateDoc(ref, { patron: 'lunares' }));
+  await assertFails(updateDoc(ref, { color2: 'url(x)' }));
+  await assertFails(updateDoc(ref, { zona: 'x'.repeat(31) }));
+  await assertFails(updateDoc(ref, { presentacion: 'Apuntate en www.clan-uno.es' }));
+  await assertFails(updateDoc(doc(como(OTRO), 'clanes', 'c1'), { forma: 'circulo' }));
+});
+
+test('un clan nace con su escudo, sus siglas y su ficha, con las mismas formas', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: [] });
+  });
+  const nuevo = (extra) => ({
+    clanId: 'c9', nombre: 'Clan Nueve', color: '#FF5A1F', lider: UID, miembros: [UID], oficiales: [], solicitudes: [],
+    biciRating: 0, numMiembros: 1, logros: [], ...extra,
+  });
+  await assertFails(setDoc(doc(como(UID), 'clanes', 'c9'), nuevo({ banner: 'neon' })));
+  await assertFails(setDoc(doc(como(UID), 'clanes', 'c9'), nuevo({ siglas: 'demasiado' })));
+  await assertSucceeds(setDoc(doc(como(UID), 'clanes', 'c9'), nuevo({
+    siglas: 'CN', forma: 'hexagono', color2: '#1B80E5', patron: 'mitad', emblema: 'pinon',
+    descripcion: 'Los nueve', zona: 'Vallecas', presentacion: 'Salimos los sabados.', banner: 'libre-la-vuelta',
+  })));
+});
+
 // --- Web en construccion ----------------------------------------------------------
 
 async function enObras() {

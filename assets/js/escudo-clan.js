@@ -9,14 +9,17 @@
 
 import { el } from './dom.js';
 import { PALABRAS_PROHIBIDAS } from '../data/palabras-prohibidas.js';
-import { EMBLEMAS } from '../data/emblemas-clan.js';
+import { EMBLEMAS, FORMAS, fondoEscudo } from '../data/emblemas-clan.js';
 
 // Las reglas admiten exactamente estas claves (firestore.rules, `clanes`).
-export { EMBLEMAS, COLORES_CLAN } from '../data/emblemas-clan.js';
+export { EMBLEMAS, FORMAS, PATRONES, COLORES_CLAN, fondoEscudo } from '../data/emblemas-clan.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
 export const MAX_LEMA = 80;
+/** La presentacion de la ficha del clan y su barrio (firestore.rules, `clanes`). */
+export const MAX_PRESENTACION = 200;
+export const MAX_ZONA = 30;
 
 const COLOR = /^#[0-9a-fA-F]{6}$/;
 const SIGLAS = /^[A-Z0-9ÑÁÉÍÓÚ]{1,3}$/;
@@ -57,17 +60,18 @@ export function svgEmblema(clave, tam = 20) {
  */
 export function escudoClan(clan = {}, { clase = 'escudo-clan', tam = 18 } = {}) {
   const { emblema, texto } = contenidoEscudo(clan);
+  const forma = FORMAS[clan.forma] && clan.forma !== 'cuadro' ? ` forma-${clan.forma}` : '';
   return el('span', {
-    clase: `${clase}${emblema ? ' con-emblema' : ''}`,
-    estilo: { background: colorSeguroClan(clan.color) || 'var(--tinta-3)' },
+    clase: `${clase}${emblema ? ' con-emblema' : ''}${forma}`,
+    estilo: { background: fondoEscudo(clan) },
     texto: emblema ? undefined : texto,
     attrs: { title: clan.nombre || null },
   }, emblema ? [svgEmblema(emblema, tam)] : []);
 }
 
 /** El lema que se publica: texto plano, sin enlaces y con tope. */
-export function lemaSeguro(texto) {
-  const t = String(texto || '').replace(/\s+/g, ' ').trim().slice(0, MAX_LEMA);
+export function lemaSeguro(texto, tope = MAX_LEMA) {
+  const t = String(texto || '').replace(/\s+/g, ' ').trim().slice(0, tope);
   return /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|es|net|org|io|me|ly|link|xyz|info|app|gg|co|tk|ru|cat|eu)\b)/i.test(t) ? '' : t;
 }
 

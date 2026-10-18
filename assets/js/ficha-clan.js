@@ -1,5 +1,5 @@
 /**
- * La ficha publica de un clan: banner, escudo, nombre, lema, barrio,
+ * La ficha publica de un clan: su mapa, escudo, nombre, lema, barrio,
  * presentacion, cifras y quien va delante. Se abre al tocar un clan en el mapa
  * o en el ranking, y su cabecera es tambien la vista previa mientras el lider
  * lo crea o lo personaliza: lo que se ve al editar es lo que vera todo el mundo.
@@ -12,32 +12,37 @@ import { db, doc, getDoc } from '/assets/js/firebase.js';
 import { el, icono, reemplazar, abrirHoja, esqueleto } from '/assets/js/dom.js';
 import { miles } from '/assets/js/ui.js';
 import { escudoClan, lemaSeguro, MAX_PRESENTACION, MAX_ZONA } from '/assets/js/escudo-clan.js';
-import { imagenBanner } from '/assets/data/recompensas.js';
+import { mapaClan } from '/assets/js/mapa-clan.js';
 
 /** Texto plano de la base de datos, con tope y sin enlaces (o vacio). */
 const textoSeguro = (t, tope) => lemaSeguro(t, tope);
 
 /**
- * La cabecera: el banner de fondo, el escudo montado encima, el nombre, el
- * lema y el barrio. Todo entra por `textContent`.
+ * La cabecera: arriba, su trozo de Madrid (mapa-clan.js); debajo, el escudo
+ * montado sobre el mapa, el nombre, el lema y el barrio. Todo entra por
+ * `textContent`.
+ *
+ * @param {object} clan
+ * @param {object} [o]
+ * @param {boolean} [o.previa]  la de los editores: mas baja
+ * @param {Array<string>} [o.suyas]  estaciones que controla
+ * @param {Array<string>} [o.foco]   donde mirar si no controla ninguna
  */
-export function cabeceraClan(clan = {}, { previa = false } = {}) {
+export function cabeceraClan(clan = {}, { previa = false, suyas = [], foco = [] } = {}) {
   const lema = textoSeguro(clan.descripcion, 80);
   const zona = textoSeguro(clan.zona, MAX_ZONA);
   return el('div', { clase: `ficha-clan-cabeza${previa ? ' previa' : ''}` }, [
-    el('div', {
-      clase: 'banner-piloto banner-clan',
-      attrs: { 'aria-hidden': 'true' },
-      estilo: { backgroundImage: `url("${imagenBanner(clan.banner)}")` },
-    }),
+    mapaClan({ color: clan.color, tema: clan.tema, suyas, foco }),
     el('div', { clase: 'ficha-clan-identidad' }, [
-      escudoClan(clan, { clase: 'escudo-clan enorme', tam: 38 }),
-      el('h2', { clase: 'ficha-clan-nombre', texto: clan.nombre || 'Tu clan' }),
-      lema
-        ? el('p', { clase: 'ficha-clan-lema', texto: lema })
-        : previa ? el('p', { clase: 'ficha-clan-lema apagado', texto: 'Sin lema' }) : null,
-      zona ? el('span', { clase: 'chip-clan' }, [icono('pin', 'icono peq'), el('span', { texto: zona })]) : null,
+      escudoClan(clan, { clase: 'escudo-clan enorme', tam: previa ? 28 : 34 }),
+      el('div', { clase: 'ficha-clan-textos' }, [
+        el('h2', { clase: 'ficha-clan-nombre', texto: clan.nombre || 'Tu clan' }),
+        lema
+          ? el('p', { clase: 'ficha-clan-lema', texto: lema })
+          : previa ? el('p', { clase: 'ficha-clan-lema sin-lema', texto: 'Sin lema todavía' }) : null,
+      ]),
     ]),
+    zona ? el('span', { clase: 'chip-clan ficha-clan-zona' }, [icono('pin', 'icono peq'), el('span', { texto: zona })]) : null,
   ]);
 }
 
@@ -46,12 +51,12 @@ export function cabeceraClan(clan = {}, { previa = false } = {}) {
  *
  * @param {string} clanId
  * @param {object} [o]
- * @param {number|null} [o.estaciones]  las que controla (las sabe el mapa)
+ * @param {Array<string>} [o.suyas]  estaciones que controla (las sabe el mapa)
  * @param {number|null} [o.puesto]      en el ranking de clanes
  * @param {'mio'|'pedir'|null} [o.accion]  que boton lleva abajo
  * @param {Function} [o.alPedir]        pedir entrar (lo pone quien sabe hacerlo)
  */
-export async function abrirFichaClan(clanId, { estaciones = null, puesto = null, accion = null, alPedir = null } = {}) {
+export async function abrirFichaClan(clanId, { suyas = [], puesto = null, accion = null, alPedir = null } = {}) {
   const cuerpo = el('div', { clase: 'ficha-clan' }, esqueleto(3, 90));
   const { cerrar } = abrirHoja([cuerpo], { etiqueta: 'Clan', clase: 'dialogo-escritorio hoja-ficha-clan' });
 
@@ -83,13 +88,13 @@ export async function abrirFichaClan(clanId, { estaciones = null, puesto = null,
   const lider = (publicado.miembros || []).find((m) => m.uid === datos.lider)?.nombre;
 
   reemplazar(cuerpo, [
-    cabeceraClan(clan),
+    cabeceraClan(clan, { suyas }),
     presentacion ? el('p', { clase: 'ficha-clan-presentacion', texto: presentacion }) : null,
     el('div', { clase: 'cifras-tres' }, [
       el('div', {}, [el('strong', { texto: String(miembros) }), el('span', { texto: miembros === 1 ? 'miembro' : 'miembros' })]),
       el('div', {}, [el('strong', { texto: miles(datos.biciRating || 0) }), el('span', { texto: 'BiciRating' })]),
       el('div', {}, [
-        el('strong', { texto: estaciones == null ? '—' : String(estaciones) }),
+        el('strong', { texto: String(suyas.length) }),
         el('span', { texto: puesto ? `estaciones · ${puesto}.º` : 'estaciones' }),
       ]),
     ]),

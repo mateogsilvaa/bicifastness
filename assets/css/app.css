@@ -1036,9 +1036,6 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .fila-codigo .btn { width: 72px; padding: 0; font-size: 16px; font-weight: 700; }
 /* Sin codigo, "Entrar" apagado; el boton de crear sale al escribir un nombre. */
 .fila-codigo:has(input:placeholder-shown) .btn { color: var(--tinta-4); }
-.crear-clan:has(.campo-nombre input:placeholder-shown) > .btn { display: none; }
-.crear-clan { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: var(--borde); }
-.crear-clan .campo-nombre input { font-size: 16px; font-weight: 400; min-height: 52px; border-radius: 12px; }
 .estado-nombre.libre { color: var(--verde); }
 .estado-nombre.mal { color: var(--rojo); }
 .estado-nombre.espera { color: var(--tinta-3); font-weight: 400; }
@@ -1046,26 +1043,14 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .muestra-color { width: 30px; height: 30px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; }
 .muestra-color.usado { opacity: .3; }
 .muestra-color[aria-checked='true'] { outline: 2px solid var(--tinta); outline-offset: 2px; opacity: 1; }
-.crear-clan .pista { font-size: 12px; color: var(--tinta-3); }
-.crear-clan .colores-clan { display: grid; grid-template-columns: repeat(8, 30px); gap: 10px; }
-.crear-clan > input { min-height: 48px; border-radius: 12px; }
-.crear-clan .btn:disabled { opacity: .45; }
 
 /* Escudo con emblema (assets/js/escudo-clan.js) y personalizacion del clan. */
 .con-emblema { color: var(--blanco); }
 .con-emblema svg { display: block; }
 .lema-clan { display: block; font-size: 13px; font-style: italic; color: var(--tinta-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.personalizar-clan { display: flex; flex-direction: column; gap: var(--e3); }
-.personalizar-muestra { display: flex; align-items: center; gap: var(--e3); padding: var(--e3); border-radius: 16px; background: var(--papel-3); }
-.personalizar-muestra .datos { display: flex; flex-direction: column; min-width: 0; }
-.personalizar-clan .muestras-color { display: grid; grid-template-columns: repeat(8, 30px); gap: 10px; }
-.rejilla-emblemas { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
 .emblema-opcion { height: 44px; border: 0; border-radius: 12px; background: var(--papel-3); color: var(--tinta); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; cursor: pointer; font-family: inherit; }
 .emblema-opcion svg { display: block; }
 .emblema-opcion.elegida { background: var(--tinta); color: var(--papel); }
-.personalizar-campos { display: grid; grid-template-columns: 96px 1fr; gap: 10px; }
-.personalizar-campos .campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--tinta-2); }
-.personalizar-campos input { min-height: 44px; border-radius: 12px; }
 
 /* Formas del escudo (FORMAS en assets/data/emblemas-clan.js). Con clip-path,
    para no pelearse con los border-radius de cada sitio donde va. */
@@ -1073,57 +1058,127 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .escudo-clan.forma-hexagono { clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
 .escudo-clan.forma-octogono { clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
 .escudo-clan.forma-blason { clip-path: polygon(0 0, 100% 0, 100% 58%, 86% 80%, 50% 100%, 14% 80%, 0 58%); padding-bottom: 12%; }
-.escudo-clan.enorme { width: 84px; height: 84px; border-radius: 24px; font-size: 26px; }
+.escudo-clan.enorme { width: 76px; height: 76px; border-radius: 22px; font-size: 24px; }
 
-/* Editor del clan (assets/js/editor-clan.js): crear y personalizar. */
-.editor-clan { display: flex; flex-direction: column; gap: var(--e3); }
-.editor-clan-opciones { display: flex; flex-direction: column; gap: var(--e3); }
-.editor-clan-grupo { display: flex; flex-direction: column; gap: 8px; }
-.editor-clan-grupo > .rotulo { margin: 0; }
-.editor-clan .muestras-color { display: grid; grid-template-columns: repeat(8, 30px); gap: 10px; }
-.editor-clan .pista { font-size: 12px; color: var(--tinta-3); display: inline-flex; align-items: center; gap: 4px; }
-.rejilla-formas { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
-.opcion-escudo { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px 6px; border: 2px solid transparent; border-radius: 14px; background: var(--papel-3); color: var(--tinta-2); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
-.opcion-escudo .escudo-clan { width: 34px; height: 34px; border-radius: 10px; font-size: 12px; }
-.opcion-escudo.elegida { border-color: var(--azul); color: var(--tinta); }
-.editor-clan .campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--tinta-2); }
-.editor-clan .campo input, .editor-clan .campo textarea { min-height: 44px; border-radius: 12px; font: inherit; font-size: 15px; font-weight: 400; color: var(--tinta); }
-.editor-clan .campo textarea { resize: vertical; padding: 10px 12px; line-height: 1.4; }
-.editor-clan .campo-cabeza { display: flex; justify-content: space-between; }
-.editor-clan .contador { font-weight: 400; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
-.campo-siglas input { max-width: 120px; text-transform: uppercase; letter-spacing: .06em; font-weight: 800; }
-.rejilla-emblemas { grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); }
-.pestanas-clan { margin: 0; }
-.pestanas-clan button[aria-selected='true'] { background: var(--papel-2); color: var(--tinta); }
-[data-theme='dark'] .pestanas-clan button[aria-selected='true'] { background: var(--linea-fuerte); }
-.personalizar-muestra:has(.ficha-clan-cabeza) { display: block; padding: 0; background: none; }
-.hoja-personalizar-clan .personalizar-muestra { position: sticky; top: 0; z-index: 2; background: var(--papel-2); padding-bottom: var(--e2); }
+/* El mapa del clan (assets/js/mapa-clan.js): su "banner". Un SVG que llena
+   la caja recortando lo que sobra; el clan elige el fondo. */
+.mapa-clan { position: relative; overflow: hidden; border-radius: 18px; background: #16171A; }
+.mapa-clan svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.mapa-clan .red { fill: rgba(242, 241, 238, .22); }
+.mapa-clan .nucleo { stroke: #16171A; }
+.mapa-clan.claro { background: #ECEAE4; }
+.mapa-clan.claro .red { fill: rgba(17, 17, 16, .22); }
+.mapa-clan.claro .nucleo { stroke: #ECEAE4; }
 
-/* Crear un clan por pasos. */
-.pasos-clan { display: flex; gap: var(--e2); margin: 0; padding: 0; list-style: none; }
-.pasos-clan li { flex: 1; display: flex; align-items: center; gap: 6px; padding-top: 8px; border-top: 3px solid var(--linea-fuerte); font-size: 13px; font-weight: 600; color: var(--tinta-3); }
-.pasos-clan li.actual { border-color: var(--azul); color: var(--tinta); }
-.pasos-clan li.hecho { border-color: var(--tinta); color: var(--tinta-2); }
-.pasos-clan .num { font-variant-numeric: tabular-nums; font-weight: 800; }
-.botones-pasos { display: flex; gap: var(--e2); }
-.botones-pasos > .btn { flex: 1; }
-.botones-pasos .btn:disabled { opacity: .45; }
-
-/* La ficha del clan (assets/js/ficha-clan.js), y su cabecera como vista previa. */
-.ficha-clan { display: flex; flex-direction: column; gap: var(--e3); }
+/* La cabecera de la ficha del clan, y la vista previa de los editores. */
 .ficha-clan-cabeza { display: flex; flex-direction: column; }
-.ficha-clan-cabeza .banner-clan { height: 110px; }
-.ficha-clan-cabeza.previa .banner-clan { height: 76px; border-radius: 16px; }
-.ficha-clan-identidad { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0 var(--e2); }
-.ficha-clan-identidad .escudo-clan.enorme { margin-top: -44px; border: 4px solid var(--papel-2); }
-.ficha-clan-cabeza.previa .escudo-clan.enorme { width: 64px; height: 64px; border-radius: 18px; font-size: 20px; margin-top: -34px; }
-.ficha-clan-nombre { margin: 4px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -.03em; overflow-wrap: anywhere; }
-.ficha-clan-cabeza.previa .ficha-clan-nombre { font-size: 19px; }
-.ficha-clan-lema { margin: 0; font-size: 15px; font-style: italic; color: var(--tinta-2); overflow-wrap: anywhere; }
-.ficha-clan-identidad .chip-clan { gap: 4px; background: var(--papel-3); }
-.ficha-clan-presentacion { margin: 0; padding: 0 var(--e2); font-size: 15px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.ficha-clan-cabeza > .mapa-clan { height: 132px; }
+.ficha-clan-identidad { display: flex; align-items: flex-end; gap: var(--e3); padding: 0 var(--e3); position: relative; }
+.ficha-clan-identidad .escudo-clan.enorme { margin-top: -34px; }
+.ficha-clan-identidad .escudo-clan.enorme { flex: none; border: 4px solid var(--papel-2); }
+.ficha-clan-identidad .escudo-clan.enorme[class*='forma-'] { border: 0; }
+.ficha-clan-textos { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-bottom: 2px; }
+.ficha-clan-nombre { margin: 0; font-size: 24px; font-weight: 800; font-stretch: 88%; letter-spacing: -.02em; line-height: 1.1; overflow-wrap: anywhere; }
+.ficha-clan-lema { margin: 0; font-size: 14px; font-style: italic; color: var(--tinta-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ficha-clan-lema.sin-lema { color: var(--tinta-3); }
+.ficha-clan-zona { align-self: flex-start; gap: 4px; margin: var(--e2) 0 0 var(--e3); background: var(--papel-3); }
+.ficha-clan-cabeza.previa > .mapa-clan { height: 84px; border-radius: 16px; }
+.ficha-clan-cabeza.previa .ficha-clan-identidad { padding: 0 var(--e2); gap: 10px; }
+.ficha-clan-cabeza.previa .escudo-clan.enorme { width: 56px; height: 56px; border-radius: 16px; font-size: 18px; border-width: 3px; margin-top: -26px; }
+.ficha-clan-cabeza.previa .ficha-clan-nombre { font-size: 18px; }
+.ficha-clan-cabeza.previa .ficha-clan-lema { font-size: 13px; white-space: nowrap; }
+.ficha-clan-cabeza:not(.previa) .ficha-clan-lema { white-space: normal; }
+.ficha-clan-cabeza.previa .ficha-clan-zona { display: none; }
+
+/* La ficha del clan. */
+.hoja.hoja-ficha-clan { max-height: calc(100dvh - 48px); overflow-y: auto; }
+.ficha-clan { display: flex; flex-direction: column; gap: var(--e4); }
+.ficha-clan-presentacion { margin: 0; padding: 0 var(--e3); font-size: 15px; line-height: 1.45; color: var(--tinta-2); white-space: pre-line; overflow-wrap: anywhere; }
+.ficha-clan .cifras-tres > div { background: var(--papel-3); }
 .ficha-clan-mas { font-size: 13px; padding-top: 6px; }
 .ficha-clan-tuyo { align-self: flex-start; }
+
+/* La hoja de crear y personalizar: cabecera, vista previa fija, contenido con
+   su propio scroll y los botones siempre abajo. */
+.hoja.hoja-clan { top: calc(40px + env(safe-area-inset-top, 0px)); gap: var(--e3); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
+.hoja-clan-cabeza { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--e3); }
+.hoja-clan-cabeza > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hoja.hoja-clan h2 { font-size: 22px; line-height: 1.15; }
+.hoja-clan-cabeza .boton-icono { flex: none; margin: -6px -8px 0 0; }
+.rotulo-editor { font-size: 12px; font-weight: 700; color: var(--tinta-3); letter-spacing: .02em; }
+.progreso-clan { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.progreso-clan span { height: 4px; border-radius: 2px; background: var(--papel-3); transition: background-color 200ms; }
+.progreso-clan span.hecho { background: var(--azul-relleno); }
+.pestanas-clan { grid-template-columns: 1fr 1fr; }
+.pestanas-clan button[aria-selected='true'] { background: var(--papel-2); color: var(--tinta); }
+[data-theme='dark'] .pestanas-clan button[aria-selected='true'] { background: var(--linea-fuerte); }
+.hoja-clan-previa { flex: none; }
+.hoja-clan-cuerpo { flex: 1; min-height: 0; overflow-y: auto; margin: 0 calc(-1 * var(--margen)); padding: var(--e2) var(--margen) var(--e3); border-top: var(--borde); }
+.hoja-clan-pie { display: flex; gap: var(--e2); padding-top: var(--e3); border-top: var(--borde); }
+.hoja-clan-pie .btn { flex: 1; }
+.hoja-clan-pie .btn.tonal { flex: 0 0 34%; background: var(--papel-3); }
+.hoja-clan-pie .btn:disabled { opacity: .4; }
+.error-clan { margin: 0; font-size: 14px; color: var(--rojo); }
+.error-clan:empty { display: none; }
+
+/* Editor del clan (assets/js/editor-clan.js). Bloques con titulo y las
+   opciones en rejillas que llenan el ancho: sin huecos sueltos a la derecha. */
+.editor-clan { display: flex; flex-direction: column; gap: var(--e5); }
+.editor-bloque { display: flex; flex-direction: column; gap: 10px; }
+.editor-bloque > h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.subbloque { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.pista-editor { margin: 0; font-size: 13px; line-height: 1.4; color: var(--tinta-3); }
+.paleta-clan { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; }
+.paleta-clan .muestra-color { width: 100%; height: auto; aspect-ratio: 1; max-width: 40px; justify-self: center; }
+.paleta-clan .muestra-color:disabled { opacity: .15; cursor: default; }
+.rejilla-formas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.rejilla-disenos { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.opcion-escudo { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; padding: 10px 2px 8px; border: 2px solid transparent; border-radius: 14px; background: var(--papel-3); color: var(--tinta-2); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.rejilla-disenos .opcion-escudo { padding: 8px 0; aspect-ratio: 1; }
+.opcion-escudo .escudo-clan { width: 30px; height: 30px; border-radius: 9px; }
+.rejilla-disenos .opcion-escudo .escudo-clan { width: 26px; height: 26px; border-radius: 8px; }
+.opcion-escudo > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opcion-escudo.elegida { border-color: var(--azul); background: var(--azul-tinte); color: var(--tinta); }
+.rejilla-emblemas { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.subbloque-diseno { display: flex; flex-direction: column; gap: 10px; }
+.emblema-opcion { aspect-ratio: 1; height: auto; border: 2px solid transparent; }
+.emblema-opcion.siglas { font-size: 12px; letter-spacing: .02em; }
+.emblema-opcion.elegida { border-color: var(--azul); background: var(--azul-tinte); color: var(--tinta); }
+.opcion-siglas { display: grid; grid-template-columns: 44px minmax(0, 1fr) 84px; align-items: center; gap: 12px; padding: 8px 8px 8px 8px; border: 2px solid transparent; border-radius: 14px; background: var(--papel-3); cursor: pointer; }
+.opcion-siglas.elegida { border-color: var(--azul); background: var(--azul-tinte); }
+.opcion-siglas .emblema-opcion { width: 44px; background: var(--papel-2); }
+.opcion-siglas .textos { display: flex; flex-direction: column; min-width: 0; }
+.opcion-siglas strong { font-size: 14px; }
+.opcion-siglas small { font-size: 12px; color: var(--tinta-3); }
+.opcion-siglas input { width: 100%; min-height: 44px; padding: 0 8px; border: 2px solid transparent; border-radius: 12px; background: var(--papel-2); font: inherit; font-size: 16px; text-align: center; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; color: var(--tinta); }
+.opcion-siglas input:focus { border-color: var(--azul-relleno); }
+.campo-clan { display: flex; flex-direction: column; gap: 6px; }
+.campo-clan .campo-cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e2); font-size: 13px; font-weight: 600; color: var(--tinta-2); }
+.campo-clan .contador { font-size: 12px; font-weight: 400; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+.campo-clan input, .campo-clan textarea { width: 100%; min-height: 48px; padding: 0 14px; border: 2px solid transparent; border-radius: 12px; background: var(--papel-3); font: inherit; font-size: 16px; color: var(--tinta); }
+.campo-clan textarea { min-height: 96px; padding: 12px 14px; line-height: 1.45; resize: vertical; }
+.campo-clan input:focus, .campo-clan textarea:focus { border-color: var(--azul-relleno); }
+.campo-nombre-clan input { min-height: 56px; font-size: 20px; font-weight: 700; }
+.campo-nombre-clan .estado-nombre { position: static; transform: none; font-size: 13px; }
+.rejilla-temas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opcion-tema { display: flex; flex-direction: column; gap: 6px; padding: 6px 6px 8px; border: 2px solid transparent; border-radius: 16px; background: var(--papel-3); color: var(--tinta-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.opcion-tema .mapa-clan { height: 58px; border-radius: 11px; }
+.opcion-tema.elegida { border-color: var(--azul); color: var(--tinta); }
+
+/* Sin clan: crear va en su propia hoja; aqui, la invitacion a hacerlo. */
+.crear-clan-cta { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--e3); padding: 0 0 var(--e3); border-radius: 18px; background: var(--papel-3); overflow: hidden; }
+.crear-clan-cta > .mapa-clan { grid-column: 1 / -1; height: 72px; border-radius: 0; }
+.crear-clan-cta .textos { display: flex; flex-direction: column; gap: 2px; padding-left: var(--e3); min-width: 0; }
+.crear-clan-cta .textos strong { font-size: 16px; }
+.crear-clan-cta .textos span { font-size: 13px; color: var(--tinta-2); }
+.crear-clan-cta .btn { width: auto; min-height: 44px; margin-right: var(--e3); padding: 0 var(--e4); }
+
+@media (min-width: 900px) {
+  .hoja.dialogo-escritorio.hoja-clan { top: 50%; width: 520px; height: min(780px, calc(100dvh - 64px)); padding: 24px 28px; }
+  .hoja-clan-cuerpo { margin: 0 -28px; padding: var(--e2) 28px var(--e3); }
+  .rejilla-emblemas { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .hoja.dialogo-escritorio.hoja-ficha-clan { width: 520px; max-height: calc(100dvh - 64px); }
+}
 
 /* Tocar un clan abre su ficha. */
 .abre-ficha { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }

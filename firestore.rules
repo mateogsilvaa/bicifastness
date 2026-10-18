@@ -590,9 +590,9 @@ service cloud.firestore {
           && (!('descripcion' in campos) || textoLimpio(datos().descripcion, 80))
           && (!('zona' in campos) || textoLimpio(datos().zona, 30))
           && (!('presentacion' in campos) || textoLimpio(datos().presentacion, 200))
-          // El banner: uno de serie o uno que haya ganado quien lo pone (el
-          // lider), como en la vitrina del perfil.
-          && (!('banner' in campos) || recompensaValida(datos().banner));
+          // El clan no elige banner: su cabecera es su mapa. Solo el fondo.
+          // (assets/js/mapa-clan.js).
+          && (!('tema' in campos) || datos().tema in ['oscuro', 'claro']);
       }
 
       function esLider() {
@@ -630,7 +630,7 @@ service cloud.firestore {
         && cambia().hasOnly([
           'miembros', 'solicitudes', 'numMiembros',
           'oficiales', 'lider', 'descripcion', 'color', 'emblema', 'siglas',
-          'color2', 'patron', 'forma', 'zona', 'presentacion', 'banner',
+          'color2', 'patron', 'forma', 'zona', 'presentacion', 'tema',
         ])
         && cabeAlguienMas()
         && soloEntraQuienLoPide()

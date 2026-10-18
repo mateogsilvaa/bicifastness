@@ -9,10 +9,10 @@
 
 import { el } from './dom.js';
 import { PALABRAS_PROHIBIDAS } from '../data/palabras-prohibidas.js';
-import { EMBLEMAS, FORMAS, fondoEscudo } from '../data/emblemas-clan.js';
+import { EMBLEMAS, piezasEscudo } from '../data/emblemas-clan.js';
 
 // Las reglas admiten exactamente estas claves (firestore.rules, `clanes`).
-export { EMBLEMAS, FORMAS, PATRONES, COLORES_CLAN, fondoEscudo } from '../data/emblemas-clan.js';
+export { EMBLEMAS, FORMAS, PATRONES, COLORES_CLAN, COLORES_PRINCIPALES } from '../data/emblemas-clan.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -54,19 +54,60 @@ export function svgEmblema(clave, tam = 20) {
   return svg;
 }
 
+let instancias = 0;
+
+function nodo(tipo, attrs = {}) {
+  const n = document.createElementNS(NS, tipo);
+  for (const [k, v] of Object.entries(attrs)) if (v !== null && v !== undefined) n.setAttribute(k, String(v));
+  return n;
+}
+
 /**
- * El escudo listo para pintar. `clase` se suma a la del sitio donde va
- * (`escudo-clan`, `escudo-clan grande`, `insignia-clan`…).
+ * El escudo como un SVG de 100 x 100 (16 Clanes, EscudoClan): la silueta
+ * recorta el color, el patron del segundo color y un brillo; encima, el
+ * emblema o las siglas con un halo para que se lean sobre cualquier color.
+ *
+ * `clase` se suma a la del sitio donde va (`escudo-clan`, `escudo-clan grande`,
+ * `insignia-clan`…): el tamaño lo pone el CSS de cada sitio.
+ *
+ * @param {object} [o]
+ * @param {string|null} [o.aro]  un aro alrededor del color de fondo (la ficha)
+ * @param {number} [o.grosorAro]
  */
-export function escudoClan(clan = {}, { clase = 'escudo-clan', tam = 18 } = {}) {
-  const { emblema, texto } = contenidoEscudo(clan);
-  const forma = FORMAS[clan.forma] && clan.forma !== 'cuadro' ? ` forma-${clan.forma}` : '';
-  return el('span', {
-    clase: `${clase}${emblema ? ' con-emblema' : ''}${forma}`,
-    estilo: { background: fondoEscudo(clan) },
-    texto: emblema ? undefined : texto,
-    attrs: { title: clan.nombre || null },
-  }, emblema ? [svgEmblema(emblema, tam)] : []);
+export function escudoClan(clan = {}, { clase = 'escudo-clan', aro = null, grosorAro = 10 } = {}) {
+  const e = piezasEscudo(clan, inicialesDe(clan.nombre));
+  const id = `escudo-${++instancias}`;
+  const svg = nodo('svg', { viewBox: '0 0 100 100', 'aria-hidden': 'true', focusable: 'false' });
+  const recorte = nodo('clipPath', { id });
+  recorte.append(nodo('path', { d: e.silueta }));
+  const defs = nodo('defs');
+  defs.append(recorte);
+  svg.append(defs);
+  if (aro) svg.append(nodo('path', { d: e.silueta, fill: 'none', stroke: aro, 'stroke-width': grosorAro, 'stroke-linejoin': 'round' }));
+
+  const dentro = nodo('g', { 'clip-path': `url(#${id})` });
+  dentro.append(nodo('rect', { width: 100, height: 100, fill: e.c1 }));
+  if (e.patron) dentro.append(nodo('path', { d: e.patron, fill: e.c2 }));
+  if (e.aro) dentro.append(nodo('path', { d: e.silueta, fill: 'none', stroke: e.c2, 'stroke-width': 16 }));
+  dentro.append(nodo('path', { d: 'M0 0 H100 V44 C70 36 30 36 0 44 Z', fill: '#FFFFFF', opacity: '.1' }));
+  svg.append(dentro);
+
+  if (e.emblema) {
+    const g = nodo('g', { transform: e.transformEmblema });
+    const trazo = { fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+    g.append(nodo('path', { d: e.emblema, stroke: e.halo, 'stroke-width': 5.4, ...trazo }));
+    g.append(nodo('path', { d: e.emblema, stroke: e.tinta, 'stroke-width': 2.3, ...trazo }));
+    svg.append(g);
+  } else if (e.siglas) {
+    const t = nodo('text', {
+      x: 50, y: e.ySiglas, 'text-anchor': 'middle', fill: e.tinta, stroke: e.halo, 'stroke-width': 5,
+      'paint-order': 'stroke', class: 'siglas-escudo', 'font-size': e.tamSiglas,
+    });
+    t.textContent = e.siglas;
+    svg.append(t);
+  }
+
+  return el('span', { clase, attrs: { title: clan.nombre || null } }, [svg]);
 }
 
 /** El lema que se publica: texto plano, sin enlaces y con tope. */

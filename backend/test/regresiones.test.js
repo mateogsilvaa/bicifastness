@@ -506,7 +506,16 @@ test('el sistema de diseno no admite sombras', () => {
     // 3b: el brillo de la franja azul que recorre la captura al leerla.
     'box-shadow: 0 0 24px 6px rgba(27, 128, 229, .6);',
     // 14: el aro de papel del punto que recorre el trayecto de obras.
-    'box-shadow: 0 0 0 4px var(--papel);'];
+    'box-shadow: 0 0 0 4px var(--papel);',
+    // 16 Clanes: la pestaña elegida del segmentado, el aro de la muestra de
+    // color elegida y el del candado de un color de vecino, y los dialogos de
+    // crear y de la ficha sobre el mapa (con borde claro, si no una ficha
+    // oscura se funde con el fondo).
+    'box-shadow: 0 1px 2px rgba(0,0,0,.06);',
+    'box-shadow: 0 0 0 3px var(--papel-2), 0 0 0 5px var(--tinta);',
+    'box-shadow: 0 0 0 1px #E0DDD5;',
+    'box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 30px 80px rgba(0,0,0,.5);',
+    'box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 30px 80px rgba(0,0,0,.55);'];
   const decorativas = sombras.filter((s) => !s.includes('inset') && !s.includes('none') && !DEL_DISEÑO.includes(s));
   assert.deepStrictEqual(decorativas, [], `sombras decorativas: ${decorativas.join(' ')}`);
 });

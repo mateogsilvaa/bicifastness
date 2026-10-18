@@ -390,15 +390,29 @@ test('emblemas, formas y patrones son los mismos en el catalogo, las reglas y el
   }
 });
 
-test('el fondo del escudo solo usa colores de verdad y cae a liso sin segundo color', async () => {
+test('el escudo solo usa colores y claves de verdad, y cae a liso sin segundo color', async () => {
   const raiz = path.join(__dirname, '..', '..');
-  const { fondoEscudo } = await import(`data:text/javascript;base64,${
+  const { piezasEscudo, FORMAS, PATRONES } = await import(`data:text/javascript;base64,${
     Buffer.from(fs.readFileSync(path.join(raiz, 'assets/data/emblemas-clan.js'), 'utf8')).toString('base64')}`);
-  assert.strictEqual(fondoEscudo({ color: '#FF5A1F' }), '#FF5A1F');
-  assert.strictEqual(fondoEscudo({ color: '#FF5A1F', patron: 'mitad' }), '#FF5A1F');
-  assert.strictEqual(fondoEscudo({ color: '#FF5A1F', color2: '#FF5A1F', patron: 'mitad' }), '#FF5A1F');
-  assert.match(fondoEscudo({ color: '#FF5A1F', color2: '#111110', patron: 'mitad' }), /linear-gradient\(90deg, #FF5A1F 50%, #111110 50%\)/);
-  // Lo que llega de la base de datos no se cuela en el CSS.
-  assert.strictEqual(fondoEscudo({ color: 'red;background:url(x)', color2: '#111110', patron: 'mitad' }, 'gris'), 'linear-gradient(90deg, gris 50%, #111110 50%)');
-  assert.strictEqual(fondoEscudo({ color: '#FF5A1F', color2: 'url(x)', patron: 'rayas' }), '#FF5A1F');
+  const liso = piezasEscudo({ color: '#FF5A1F', patron: 'mitad' }, 'cr');
+  assert.strictEqual(liso.c1, '#FF5A1F');
+  assert.strictEqual(liso.patron, '');
+  assert.strictEqual(liso.silueta, FORMAS.cuadro.d);
+  assert.strictEqual(liso.siglas, 'CR');
+  const mitad = piezasEscudo({ color: '#FF5A1F', color2: '#111110', patron: 'mitad', forma: 'blason', emblema: 'bici' });
+  assert.strictEqual(mitad.patron, PATRONES.mitad.d);
+  assert.strictEqual(mitad.silueta, FORMAS.blason.d);
+  assert.ok(mitad.emblema);
+  assert.strictEqual(mitad.siglas, '');
+  // Lo que llega de la base de datos no se cuela en el SVG.
+  const raro = piezasEscudo({ color: 'red;x', color2: 'url(x)', patron: 'rayas', forma: '../x', emblema: 'cohete', siglas: '<b>' }, 'AB');
+  assert.strictEqual(raro.c1, '#8A8F98');
+  assert.strictEqual(raro.c2, null);
+  assert.strictEqual(raro.patron, '');
+  assert.strictEqual(raro.silueta, FORMAS.cuadro.d);
+  assert.strictEqual(raro.emblema, null);
+  assert.strictEqual(raro.siglas, 'AB');
+  // Tinta oscura sobre un color claro.
+  assert.strictEqual(piezasEscudo({ color: '#E0A800' }).tinta, '#111110');
+  assert.strictEqual(piezasEscudo({ color: '#13A89E' }).tinta, '#FFFFFF');
 });

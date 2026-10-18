@@ -1,24 +1,26 @@
 /**
- * Las dos mitades de la identidad de un clan, para crearlo y para cambiarlo:
+ * Las piezas con las que se crea y se edita un clan (16 Clanes, 16b-16e y
+ * 16i): las tres pestañas del escudo (Forma, Colores, Emblema) y los campos de
+ * la ficha (fondo del mapa, lema, barrio y presentacion).
  *
- * - El escudo: forma, color, segundo color con su patron, emblema o siglas.
- * - La ficha: lema, barrio, presentacion y el fondo de su mapa (claro u
- *   oscuro). El "banner" de un clan no se elige: es su territorio
- *   (mapa-clan.js).
- *
- * Las dos trabajan sobre el mismo objeto `elegido` y avisan con `cambio()`
- * cada vez que algo se mueve, para que quien las use repinte la vista previa.
+ * Todas trabajan sobre el mismo objeto `elegido` y avisan con `cambio()` cada
+ * vez que algo se mueve, para que quien las use repinte lo que haga falta.
+ * Toda miniatura se pinta con la seleccion actual: se elige viendo.
  * Lo que se guarda lo vuelven a mirar las reglas (firestore.rules, `clanes`).
  */
 
-import { el, reemplazar } from '/assets/js/dom.js';
+import { el, icono, reemplazar } from '/assets/js/dom.js';
 import {
-  escudoClan, svgEmblema, inicialesDe, lemaSeguro, contienePalabrasProhibidas,
-  EMBLEMAS, FORMAS, PATRONES, COLORES_CLAN, MAX_LEMA, MAX_PRESENTACION, MAX_ZONA,
+  escudoClan, inicialesDe, lemaSeguro, contienePalabrasProhibidas,
+  EMBLEMAS, FORMAS, PATRONES, COLORES_CLAN, COLORES_PRINCIPALES, MAX_LEMA, MAX_PRESENTACION, MAX_ZONA,
 } from '/assets/js/escudo-clan.js';
 import { mapaClan, TEMAS } from '/assets/js/mapa-clan.js';
 
-/** Lo que lleva un clan que no ha elegido nada: el de siempre. */
+export const MAX_NOMBRE = 24;
+const NEGRO = '#111110';
+const BLANCO = '#FFFFFF';
+
+/** Lo que lleva un clan que no ha elegido nada. */
 export function identidadInicial(clan = {}, color = COLORES_CLAN[0]) {
   return {
     color: clan.color || color,
@@ -34,174 +36,208 @@ export function identidadInicial(clan = {}, color = COLORES_CLAN[0]) {
   };
 }
 
-/** Un segundo color que se distinga del primero. */
-const otroColor = (c) => (c === '#111110' ? '#FFD23F' : '#111110');
-
-/** Un bloque del editor: titulo arriba y lo que se elige debajo. */
-const bloque = (titulo, ...hijos) => el('section', { clase: 'editor-bloque' }, [el('h3', { texto: titulo }), ...hijos]);
-
-function paleta(etiqueta, actual, elegir, { usados = new Set(), fuera = null } = {}) {
-  return el('div', { clase: 'paleta-clan', attrs: { role: 'radiogroup', 'aria-label': etiqueta } }, COLORES_CLAN.map((c) => el('button', {
-    clase: `muestra-color${usados.has(c) ? ' usado' : ''}`,
-    estilo: { background: c },
-    attrs: {
-      type: 'button', role: 'radio', 'aria-checked': String(c === actual), disabled: c === fuera ? '' : null,
-      'aria-label': `${etiqueta} ${c}${usados.has(c) ? ', ya lo usa un clan cerca' : ''}`,
-    },
-    on: { click: () => elegir(c) },
-  })));
+/** Un radio con aspecto de tarjeta (forma, reparto, emblema). */
+function radio({ elegido, etiqueta, alElegir, hijos }) {
+  return el('button', {
+    clase: 'opcion-escudo',
+    attrs: { type: 'button', role: 'radio', 'aria-checked': String(elegido), 'aria-label': etiqueta, title: etiqueta },
+    on: { click: alElegir },
+  }, hijos);
 }
 
-/** Un boton de una rejilla de opciones (forma, diseño). */
-function opcion({ elegida, titulo, alElegir, muestra, rotulo = true }) {
+/** Un circulo de color. `bloqueado` lleva el aviso de que lo usa un vecino. */
+function muestra({ hex, elegido, etiqueta, alElegir, bloqueado = false, ninguno = false }) {
   return el('button', {
-    clase: `opcion-escudo${elegida ? ' elegida' : ''}`,
-    attrs: { type: 'button', role: 'radio', 'aria-checked': String(elegida), 'aria-label': titulo, title: titulo },
-    on: { click: alElegir },
-  }, [muestra, rotulo ? el('span', { texto: titulo }) : null]);
+    clase: `muestra-color${ninguno ? ' ninguno' : ''}`,
+    estilo: ninguno ? {} : { background: hex },
+    attrs: {
+      type: 'button', role: 'radio', 'aria-checked': String(elegido), 'aria-label': etiqueta,
+      'aria-disabled': bloqueado ? 'true' : null,
+    },
+    on: { click: () => { if (!bloqueado) alElegir(); } },
+  }, [ninguno ? icono('cerrar', 'icono') : null, bloqueado ? el('span', { clase: 'candado-color', attrs: { 'aria-hidden': 'true' } }) : null]);
 }
 
 /**
- * El editor del escudo.
+ * Las tres pestañas del escudo.
  *
  * @param {object} elegido  lo que se va eligiendo (se modifica en el sitio)
  * @param {Function} cambio  se llama tras cada cambio
  * @param {object} [o]
  * @param {() => string} [o.nombre]  el nombre del clan, para las iniciales
- * @param {Set<string>} [o.usados]  colores de clanes cerca
+ * @param {Map<string,string>} [o.vecinos]  color -> nombre del clan vecino que lo lleva
+ * @param {'segmentado'|'chips'} [o.estilo]  pestañas (crear) o chips (editar, 16i)
+ * @returns {{barra: HTMLElement, paneles: HTMLElement, repintar: Function, ver: Function}}
  */
-export function editorEscudo(elegido, cambio, { nombre = () => '', usados = new Set() } = {}) {
-  // Lo que se repinta en cada cambio va en su caja; las siglas no, para no
-  // perder el foco mientras se escriben.
-  const formas = el('div', { clase: 'rejilla-formas', attrs: { role: 'radiogroup', 'aria-label': 'Forma' } });
-  const colores = el('div');
-  const disenos = el('div', { clase: 'subbloque-diseno' });
-  const emblemas = el('div', { clase: 'rejilla-emblemas', attrs: { role: 'radiogroup', 'aria-label': 'Emblema' } });
+export function pestanasEscudo(elegido, cambio, { nombre = () => '', vecinos = new Map(), estilo = 'segmentado' } = {}) {
+  const PESTANAS = [['forma', 'Forma'], ['colores', 'Colores'], ['emblema', 'Emblema']];
+  let actual = 'forma';
+  const botones = {};
+  const barra = el('div', {
+    clase: estilo === 'chips' ? 'chips-clan' : 'segmentado',
+    attrs: { role: 'tablist', 'aria-label': 'Partes del escudo' },
+  }, PESTANAS.map(([clave, texto]) => {
+    botones[clave] = el('button', { texto, attrs: { type: 'button', role: 'tab' }, on: { click: () => ver(clave) } });
+    return botones[clave];
+  }));
+  const paneles = el('div', { clase: 'paneles-escudo' });
 
-  const siglas = el('input', { attrs: { type: 'text', maxlength: '3', 'aria-label': 'Siglas, hasta tres', autocapitalize: 'characters', autocomplete: 'off', spellcheck: 'false' } });
-  siglas.value = elegido.siglas;
-  siglas.addEventListener('input', () => {
-    siglas.value = siglas.value.toUpperCase().replace(/[^A-Z0-9ÑÁÉÍÓÚ]/g, '').slice(0, 3);
-    elegido.siglas = siglas.value;
-    // Escribir siglas es querer verlas: se quita el emblema.
-    elegido.emblema = null;
-    pintar();
-  });
-  const muestraSiglas = el('span', { clase: 'emblema-opcion siglas', attrs: { 'aria-hidden': 'true' } });
-  const filaSiglas = el('div', { clase: 'opcion-siglas', attrs: { role: 'radio', tabindex: '0', 'aria-label': 'Siglas en vez de emblema' } }, [
-    muestraSiglas,
-    el('span', { clase: 'textos' }, [el('strong', { texto: 'Siglas' }), el('small', { texto: 'En vez de emblema. Hasta tres.' })]),
-    siglas,
-  ]);
-  const elegirSiglas = () => { elegido.emblema = null; pintar(); };
-  filaSiglas.addEventListener('click', (ev) => { if (ev.target !== siglas) { elegirSiglas(); siglas.focus(); } });
-  filaSiglas.addEventListener('keydown', (ev) => { if (ev.target === filaSiglas && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); elegirSiglas(); } });
+  const mini = (extra = {}) => escudoClan({ ...elegido, nombre: nombre(), siglas: elegido.siglas || null, ...extra });
 
-  const opciones = el('div', { clase: 'editor-clan' }, [
-    bloque('Forma', formas),
-    bloque('Color', colores),
-    bloque('Diseño', disenos),
-    bloque('Emblema', filaSiglas, emblemas),
-  ]);
+  const pintores = {
+    forma: () => el('div', { clase: 'rejilla-formas', attrs: { role: 'radiogroup', 'aria-label': 'Forma' } },
+      Object.entries(FORMAS).map(([clave, { nombre: titulo }]) => radio({
+        elegido: elegido.forma === clave, etiqueta: titulo,
+        alElegir: () => { elegido.forma = clave; pintar(); },
+        // Al crear, la forma sola (16b); al editar, con lo que ya lleva (16i).
+        hijos: [estilo === 'chips' ? mini({ forma: clave }) : mini({ forma: clave, emblema: null, siglas: null, nombre: '' }), el('span', { texto: titulo })],
+      }))),
 
-  const mini = (extra) => escudoClan({ ...elegido, nombre: nombre(), siglas: elegido.siglas || null, ...extra }, { clase: 'escudo-clan', tam: 16 });
+    colores: () => {
+      const principales = Object.keys(COLORES_PRINCIPALES);
+      const vecino = principales.find((c) => vecinos.has(c));
+      const segundos = [null, NEGRO, BLANCO, ...principales.filter((c) => c !== elegido.color).slice(0, 5)];
+      const conSegundo = Boolean(elegido.color2);
+      return el('div', { clase: 'panel-colores' }, [
+        el('div', { clase: 'opciones-titulo' }, [el('span', { texto: 'Color del clan' }), el('small', { texto: 'el del mapa' })]),
+        el('div', { clase: 'rejilla-colores', attrs: { role: 'radiogroup', 'aria-label': 'Color del clan' } }, principales.map((hex) => muestra({
+          hex, elegido: elegido.color === hex, bloqueado: vecinos.has(hex),
+          etiqueta: vecinos.has(hex) ? `${COLORES_PRINCIPALES[hex]}, lo lleva ${vecinos.get(hex)}` : COLORES_PRINCIPALES[hex],
+          alElegir: () => {
+            elegido.color = hex;
+            if (elegido.color2 === hex) elegido.color2 = NEGRO;
+            pintar();
+          },
+        }))),
+        vecino ? el('p', { clase: 'opciones-nota', texto: `El ${COLORES_PRINCIPALES[vecino]} lo lleva ${vecinos.get(vecino)}, vecino tuyo.` }) : null,
+        el('div', { clase: 'opciones-titulo' }, [el('span', { texto: 'Segundo color' })]),
+        el('div', { clase: 'rejilla-colores', attrs: { role: 'radiogroup', 'aria-label': 'Segundo color' } }, segundos.map((hex) => muestra({
+          hex, ninguno: !hex, elegido: (elegido.color2 || null) === hex,
+          etiqueta: !hex ? 'Ninguno' : hex === NEGRO ? 'Negro' : hex === BLANCO ? 'Blanco' : COLORES_PRINCIPALES[hex],
+          alElegir: () => {
+            elegido.color2 = hex;
+            elegido.patron = hex ? (elegido.patron || 'diagonal') : null;
+            pintar();
+          },
+        }))),
+        el('div', { clase: 'opciones-titulo' }, [el('span', { texto: 'Reparto' })]),
+        el('div', {
+          clase: 'rejilla-patrones', attrs: { role: 'radiogroup', 'aria-label': 'Reparto', 'aria-disabled': conSegundo ? null : 'true' },
+        }, Object.entries(PATRONES).map(([clave, { nombre: titulo }]) => radio({
+          elegido: conSegundo && elegido.patron === clave, etiqueta: titulo,
+          alElegir: () => { elegido.patron = clave; elegido.color2 ||= NEGRO; pintar(); },
+          hijos: [mini({ patron: clave, color2: elegido.color2 || NEGRO, emblema: null, siglas: null, nombre: '' }), el('span', { texto: titulo })],
+        }))),
+      ]);
+    },
+
+    // La primera casilla son las siglas: elegirla quita el emblema (16d).
+    emblema: () => el('div', { clase: 'rejilla-emblemas', attrs: { role: 'radiogroup', 'aria-label': 'Emblema' } }, [
+      radio({
+        elegido: !elegido.emblema, etiqueta: 'Siglas',
+        alElegir: () => { elegido.emblema = null; pintar(); },
+        hijos: [mini({ emblema: null })],
+      }),
+      ...Object.entries(EMBLEMAS).map(([clave, { nombre: titulo }]) => radio({
+        elegido: elegido.emblema === clave, etiqueta: titulo,
+        alElegir: () => { elegido.emblema = clave; pintar(); },
+        hijos: [mini({ emblema: clave })],
+      })),
+    ]),
+  };
 
   function pintar() {
-    const iniciales = elegido.siglas || inicialesDe(nombre()) || 'ABC';
-    siglas.placeholder = inicialesDe(nombre()) || 'ABC';
-    const conPatron = Boolean(elegido.patron && elegido.color2);
-    const color2 = elegido.color2 || otroColor(elegido.color);
-
-    reemplazar(formas, Object.entries(FORMAS).map(([clave, { nombre: titulo }]) => opcion({
-      elegida: elegido.forma === clave, titulo, muestra: mini({ forma: clave, emblema: null, siglas: null, nombre: '' }),
-      alElegir: () => { elegido.forma = clave; pintar(); },
-    })));
-
-    reemplazar(colores, [
-      paleta('Color', elegido.color, (c) => {
-        elegido.color = c;
-        if (elegido.color2 === c) elegido.color2 = otroColor(c);
-        pintar();
-      }, { usados }),
-      usados.size ? el('p', { clase: 'pista-editor', texto: 'Los colores apagados ya los usa un clan con estaciones cerca de ti.' }) : null,
-    ]);
-
-    reemplazar(disenos, [
-      el('div', { clase: 'rejilla-disenos', attrs: { role: 'radiogroup', 'aria-label': 'Diseño' } }, [
-        opcion({
-          elegida: !conPatron, titulo: 'Liso', rotulo: false, muestra: mini({ patron: null, emblema: null, siglas: null, nombre: '' }),
-          alElegir: () => { elegido.patron = null; elegido.color2 = null; pintar(); },
-        }),
-        ...Object.entries(PATRONES).map(([clave, { nombre: titulo }]) => opcion({
-          elegida: conPatron && elegido.patron === clave, titulo, rotulo: false,
-          muestra: mini({ patron: clave, color2, emblema: null, siglas: null, nombre: '' }),
-          alElegir: () => { elegido.patron = clave; elegido.color2 = color2; pintar(); },
-        })),
-      ]),
-      conPatron ? el('div', { clase: 'subbloque' }, [
-        el('span', { clase: 'rotulo-editor', texto: 'Segundo color' }),
-        paleta('Segundo color', elegido.color2, (c) => { elegido.color2 = c; pintar(); }, { fuera: elegido.color }),
-      ]) : null,
-    ]);
-
-    muestraSiglas.textContent = iniciales.slice(0, 3);
-    filaSiglas.classList.toggle('elegida', !elegido.emblema);
-    filaSiglas.setAttribute('aria-checked', String(!elegido.emblema));
-    reemplazar(emblemas, Object.entries(EMBLEMAS).map(([clave, { nombre: titulo }]) => el('button', {
-      clase: `emblema-opcion${elegido.emblema === clave ? ' elegida' : ''}`,
-      attrs: { type: 'button', role: 'radio', 'aria-checked': String(elegido.emblema === clave), 'aria-label': titulo, title: titulo },
-      on: { click: () => { elegido.emblema = clave; pintar(); } },
-    }, [svgEmblema(clave, 20)])));
+    reemplazar(paneles, pintores[actual]());
     cambio();
   }
-
-  pintar();
-  opciones.repintar = pintar;
-  return opciones;
+  function ver(clave) {
+    actual = clave;
+    for (const [k, b] of Object.entries(botones)) b.setAttribute('aria-selected', String(k === clave));
+    pintar();
+  }
+  ver('forma');
+  return { barra, paneles, repintar: pintar, ver };
 }
 
-/** Un campo de texto con su contador. */
-function campoTexto({ etiqueta, valor, tope, placeholder, largo = false, alEscribir }) {
+/** Un campo de texto con su contador dentro, a la derecha (16e). */
+export function campoTexto({ etiqueta, valor = '', tope, placeholder = '', largo = false, alEscribir, id = null }) {
   const entrada = el(largo ? 'textarea' : 'input', {
-    attrs: { type: largo ? null : 'text', maxlength: String(tope), placeholder, autocomplete: 'off', rows: largo ? '3' : null },
+    attrs: { id, type: largo ? null : 'text', maxlength: String(tope), placeholder, autocomplete: 'off', rows: largo ? '3' : null },
   });
   entrada.value = valor;
   const cuenta = el('small', { clase: 'contador', texto: `${valor.length}/${tope}` });
   entrada.addEventListener('input', () => {
-    cuenta.textContent = `${entrada.value.length}/${tope}`;
     alEscribir(entrada.value);
+    cuenta.textContent = `${entrada.value.length}/${tope}`;
   });
-  return el('label', { clase: 'campo-clan' }, [el('span', { clase: 'campo-cabeza' }, [el('span', { texto: etiqueta }), cuenta]), entrada]);
+  const campo = el('label', { clase: 'campo-clan' }, [
+    el('span', { clase: 'etiqueta', texto: etiqueta }),
+    el('span', { clase: `caja${largo ? ' larga' : ''}` }, [entrada, cuenta]),
+  ]);
+  campo.entrada = entrada;
+  return campo;
 }
 
 /**
- * El editor de la ficha: lema, barrio, presentacion y el fondo del mapa.
+ * Los campos de la ficha (16e): fondo del mapa con dos miniaturas del mapa
+ * real, lema, barrio y presentacion.
  *
  * @param {object} [o]
- * @param {() => object} [o.mapa]  las estaciones que se pintan en el mapa ({suyas, foco})
+ * @param {() => object} [o.mapa]  las estaciones que se pintan ({suyas, foco, vecinas})
+ * @param {boolean} [o.plegar]  la presentacion bajo "Añadir presentación" (crear, en el movil)
+ * @param {boolean} [o.siglas]  con el campo de siglas (editar: al crear van en el paso 1)
  */
-export function editorFicha(elegido, cambio, { mapa = () => ({}) } = {}) {
+export function camposFicha(elegido, cambio, { mapa = () => ({}), plegar = false, siglas = false } = {}) {
   const temas = el('div', { clase: 'rejilla-temas', attrs: { role: 'radiogroup', 'aria-label': 'Fondo del mapa' } });
   const pintarTemas = () => reemplazar(temas, Object.entries(TEMAS).map(([clave, { nombre }]) => el('button', {
-    clase: `opcion-tema${elegido.tema === clave ? ' elegida' : ''}`,
-    attrs: { type: 'button', role: 'radio', 'aria-checked': String(elegido.tema === clave), 'aria-label': `Mapa ${nombre.toLowerCase()}` },
+    clase: 'opcion-tema',
+    attrs: { type: 'button', role: 'radio', 'aria-checked': String(elegido.tema === clave), 'aria-label': `Fondo ${nombre.toLowerCase()}` },
     on: { click: () => { elegido.tema = clave; pintarTemas(); cambio(); } },
-  }, [mapaClan({ color: elegido.color, tema: clave, ...mapa() }), el('span', { texto: nombre })])));
+  }, [
+    el('span', { clase: 'miniatura-mapa' }, [mapaClan({ color: elegido.color, tema: clave, ...mapa(), ancho: 170 })]),
+    el('span', { clase: 'nombre-tema', texto: nombre }),
+  ])));
   pintarTemas();
 
-  const raiz = el('div', { clase: 'editor-clan' }, [
-    bloque('Presentación',
-      campoTexto({ etiqueta: 'Lema', valor: elegido.descripcion, tope: MAX_LEMA, placeholder: 'Una frase que os defina', alEscribir: (v) => { elegido.descripcion = v; cambio(); } }),
-      campoTexto({ etiqueta: 'Barrio o zona', valor: elegido.zona, tope: MAX_ZONA, placeholder: 'Chamberí, Vallecas, Moncloa…', alEscribir: (v) => { elegido.zona = v; cambio(); } }),
-      campoTexto({ etiqueta: 'Sobre el clan', valor: elegido.presentacion, tope: MAX_PRESENTACION, placeholder: 'Cuándo salís, qué buscáis, a quién queréis dentro…', largo: true, alEscribir: (v) => { elegido.presentacion = v; cambio(); } })),
-    bloque('Fondo del mapa',
-      temas,
-      el('p', { clase: 'pista-editor', texto: 'Arriba de la ficha va vuestro trozo de Madrid: las estaciones que controláis, en vuestro color.' })),
+  const presentacion = campoTexto({
+    etiqueta: 'Presentación', valor: elegido.presentacion, tope: MAX_PRESENTACION, largo: true,
+    placeholder: 'Cuándo salís, por dónde, a quién queréis dentro…', alEscribir: (v) => { elegido.presentacion = v; cambio(); },
+  });
+
+  let campoSiglas = null;
+  if (siglas) {
+    campoSiglas = campoTexto({
+      etiqueta: 'Siglas', valor: elegido.siglas, tope: 3, alEscribir: (v) => {
+        const limpio = v.toUpperCase().replace(/[^A-Z0-9ÑÁÉÍÓÚ]/g, '').slice(0, 3);
+        if (limpio !== v) campoSiglas.entrada.value = limpio;
+        elegido.siglas = limpio;
+        cambio();
+      },
+    });
+  }
+
+  const raiz = el('div', { clase: 'campos-ficha' }, [
+    el('span', { clase: 'etiqueta-suelta', texto: 'Fondo del mapa' }),
+    temas,
+    campoTexto({ etiqueta: 'Lema', valor: elegido.descripcion, tope: MAX_LEMA, placeholder: 'Una frase que os defina', alEscribir: (v) => { elegido.descripcion = v; cambio(); } }),
+    el('div', { clase: 'campos-dos' }, [
+      campoTexto({ etiqueta: 'Barrio', valor: elegido.zona, tope: MAX_ZONA, placeholder: 'Chamberí', alEscribir: (v) => { elegido.zona = v; cambio(); } }),
+      campoSiglas,
+    ]),
+    plegar
+      ? el('details', { clase: 'plegable-presentacion', attrs: { open: elegido.presentacion ? '' : null } }, [
+        el('summary', {}, [icono('mas', 'icono'), el('span', { texto: 'Añadir presentación' })]),
+        presentacion,
+      ])
+      : presentacion,
   ]);
-  // El color puede haber cambiado en la otra pestaña o el otro paso.
+  // El color puede cambiar en otra pestaña: las miniaturas del mapa, con el.
   raiz.repintar = pintarTemas;
   return raiz;
 }
+
+/** Las siglas que se proponen al escribir el nombre (16a). */
+export const siglasDe = (nombre) => inicialesDe(nombre).replace(/[^A-Z0-9ÑÁÉÍÓÚ]/g, '').slice(0, 3);
 
 /**
  * Lo que se va a guardar, limpio, o el motivo por el que no se puede.

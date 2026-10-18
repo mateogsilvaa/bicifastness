@@ -1039,145 +1039,391 @@ body.soltando .lateral-subir { outline: 2px solid var(--azul-relleno); outline-o
 .estado-nombre.libre { color: var(--verde); }
 .estado-nombre.mal { color: var(--rojo); }
 .estado-nombre.espera { color: var(--tinta-3); font-weight: 400; }
-.colores-clan { display: flex; gap: var(--e2); flex-wrap: wrap; }
-.muestra-color { width: 30px; height: 30px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; }
-.muestra-color.usado { opacity: .3; }
-.muestra-color[aria-checked='true'] { outline: 2px solid var(--tinta); outline-offset: 2px; opacity: 1; }
 
 /* Escudo con emblema (assets/js/escudo-clan.js) y personalizacion del clan. */
 .con-emblema { color: var(--blanco); }
 .con-emblema svg { display: block; }
 .lema-clan { display: block; font-size: 13px; font-style: italic; color: var(--tinta-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.emblema-opcion { height: 44px; border: 0; border-radius: 12px; background: var(--papel-3); color: var(--tinta); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; cursor: pointer; font-family: inherit; }
-.emblema-opcion svg { display: block; }
-.emblema-opcion.elegida { background: var(--tinta); color: var(--papel); }
 
-/* Formas del escudo (FORMAS en assets/data/emblemas-clan.js). Con clip-path,
-   para no pelearse con los border-radius de cada sitio donde va. */
-.escudo-clan.forma-circulo { clip-path: circle(50%); }
-.escudo-clan.forma-hexagono { clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
-.escudo-clan.forma-octogono { clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
-.escudo-clan.forma-blason { clip-path: polygon(0 0, 100% 0, 100% 58%, 86% 80%, 50% 100%, 14% 80%, 0 58%); padding-bottom: 12%; }
-.escudo-clan.enorme { width: 76px; height: 76px; border-radius: 22px; font-size: 24px; }
+/* ==========================================================================
+   Clanes: crear, editar, ficha publica y clan fundado (16 Clanes, 16a-16l;
+   clanes-handoff/clanes.css). Las variables del paquete van a las de esta
+   hoja: --superficie es --papel-2, --superficie-2 es --papel-3 y el azul de
+   relleno, --azul-relleno.
+   ========================================================================== */
 
-/* El mapa del clan (assets/js/mapa-clan.js): su "banner". Un SVG que llena
-   la caja recortando lo que sobra; el clan elige el fondo. */
-.mapa-clan { position: relative; overflow: hidden; border-radius: 18px; background: #16171A; }
-.mapa-clan svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.mapa-clan .red { fill: rgba(242, 241, 238, .22); }
-.mapa-clan .nucleo { stroke: #16171A; }
-.mapa-clan.claro { background: #ECEAE4; }
-.mapa-clan.claro .red { fill: rgba(17, 17, 16, .22); }
-.mapa-clan.claro .nucleo { stroke: #ECEAE4; }
+/* El escudo es un SVG de 100 x 100 (escudo-clan.js): el tamaño lo pone cada sitio. */
+.escudo-clan > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.siglas-escudo { font-family: inherit; font-weight: 800; font-stretch: 80%; letter-spacing: -.04em; }
 
-/* La cabecera de la ficha del clan, y la vista previa de los editores. */
-.ficha-clan-cabeza { display: flex; flex-direction: column; }
-.ficha-clan-cabeza > .mapa-clan { height: 132px; }
-.ficha-clan-identidad { display: flex; align-items: flex-end; gap: var(--e3); padding: 0 var(--e3); position: relative; }
-.ficha-clan-identidad .escudo-clan.enorme { margin-top: -34px; }
-.ficha-clan-identidad .escudo-clan.enorme { flex: none; border: 4px solid var(--papel-2); }
-.ficha-clan-identidad .escudo-clan.enorme[class*='forma-'] { border: 0; }
-.ficha-clan-textos { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-bottom: 2px; }
-.ficha-clan-nombre { margin: 0; font-size: 24px; font-weight: 800; font-stretch: 88%; letter-spacing: -.02em; line-height: 1.1; overflow-wrap: anywhere; }
-.ficha-clan-lema { margin: 0; font-size: 14px; font-style: italic; color: var(--tinta-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ficha-clan-lema.sin-lema { color: var(--tinta-3); }
-.ficha-clan-zona { align-self: flex-start; gap: 4px; margin: var(--e2) 0 0 var(--e3); background: var(--papel-3); }
-.ficha-clan-cabeza.previa > .mapa-clan { height: 84px; border-radius: 16px; }
-.ficha-clan-cabeza.previa .ficha-clan-identidad { padding: 0 var(--e2); gap: 10px; }
-.ficha-clan-cabeza.previa .escudo-clan.enorme { width: 56px; height: 56px; border-radius: 16px; font-size: 18px; border-width: 3px; margin-top: -26px; }
-.ficha-clan-cabeza.previa .ficha-clan-nombre { font-size: 18px; }
-.ficha-clan-cabeza.previa .ficha-clan-lema { font-size: 13px; white-space: nowrap; }
-.ficha-clan-cabeza:not(.previa) .ficha-clan-lema { white-space: normal; }
-.ficha-clan-cabeza.previa .ficha-clan-zona { display: none; }
+/* El mapa del clan (mapa-clan.js) llena la caja que lo contiene. */
+.mapa-clan { position: absolute; inset: 0; }
+.mapa-clan svg { display: block; width: 100%; height: 100%; }
 
-/* La ficha del clan. */
-.hoja.hoja-ficha-clan { max-height: calc(100dvh - 48px); overflow-y: auto; }
-.ficha-clan { display: flex; flex-direction: column; gap: var(--e4); }
-.ficha-clan-presentacion { margin: 0; padding: 0 var(--e3); font-size: 15px; line-height: 1.45; color: var(--tinta-2); white-space: pre-line; overflow-wrap: anywhere; }
-.ficha-clan .cifras-tres > div { background: var(--papel-3); }
-.ficha-clan-mas { font-size: 13px; padding-top: 6px; }
-.ficha-clan-tuyo { align-self: flex-start; }
+/* El tema del CLAN pinta toda la ficha, no solo el mapa, con independencia
+   del tema claro/oscuro de la app. */
+.ficha-clan, .previa-clan, .clan-fundado { background: var(--fondo-clan); color: var(--tinta-clan); }
+.ficha-clan.oscuro, .ficha-clan-cabeza.oscuro, .previa-clan.oscuro, .clan-fundado.oscuro {
+  --fondo-clan: #0E0F10; --tinta-clan: #F2F1EE; --tinta-clan-2: #B3B2AE; --tinta-clan-3: #8B8A87;
+  --tarjeta-clan: #18191B; --chip-clan: rgba(14,15,16,.78); --linea-clan: #222326; --enlace-clan: #5AA8F2; --color-clan: #8A8F98;
+}
+.ficha-clan.claro, .ficha-clan-cabeza.claro, .previa-clan.claro, .clan-fundado.claro {
+  --fondo-clan: #F3F1EC; --tinta-clan: #111110; --tinta-clan-2: #55534D; --tinta-clan-3: #6E6C66;
+  --tarjeta-clan: #FFFFFF; --chip-clan: rgba(255,255,255,.85); --linea-clan: #E0DDD5; --enlace-clan: #1466C2; --color-clan: #8A8F98;
+}
 
-/* La hoja de crear y personalizar: cabecera, vista previa fija, contenido con
-   su propio scroll y los botones siempre abajo. */
-.hoja.hoja-clan { top: calc(40px + env(safe-area-inset-top, 0px)); gap: var(--e3); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
-.hoja-clan-cabeza { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--e3); }
-.hoja-clan-cabeza > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.hoja.hoja-clan h2 { font-size: 22px; line-height: 1.15; }
-.hoja-clan-cabeza .boton-icono { flex: none; margin: -6px -8px 0 0; }
-.rotulo-editor { font-size: 12px; font-weight: 700; color: var(--tinta-3); letter-spacing: .02em; }
-.progreso-clan { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.progreso-clan span { height: 4px; border-radius: 2px; background: var(--papel-3); transition: background-color 200ms; }
-.progreso-clan span.hecho { background: var(--azul-relleno); }
-.pestanas-clan { grid-template-columns: 1fr 1fr; }
-.pestanas-clan button[aria-selected='true'] { background: var(--papel-2); color: var(--tinta); }
-[data-theme='dark'] .pestanas-clan button[aria-selected='true'] { background: var(--linea-fuerte); }
-.hoja-clan-previa { flex: none; }
-.hoja-clan-cuerpo { flex: 1; min-height: 0; overflow-y: auto; margin: 0 calc(-1 * var(--margen)); padding: var(--e2) var(--margen) var(--e3); border-top: var(--borde); }
-.hoja-clan-pie { display: flex; gap: var(--e2); padding-top: var(--e3); border-top: var(--borde); }
-.hoja-clan-pie .btn { flex: 1; }
-.hoja-clan-pie .btn.tonal { flex: 0 0 34%; background: var(--papel-3); }
-.hoja-clan-pie .btn:disabled { opacity: .4; }
+.velo-clan { display: none; }
+.boton-capa { width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; background: none; color: inherit; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.boton-capa .icono { width: 24px; height: 24px; }
+.solo-escritorio-clan { display: none !important; }
+
+/* ---------- Crear y editar: a pantalla completa ---------- */
+.hoja-clan {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column;
+  background: var(--papel); color: var(--tinta);
+  padding-top: env(safe-area-inset-top);
+}
+.hoja-clan-barra { height: 52px; padding: 0 12px 0 8px; flex: none; display: grid; grid-template-columns: 44px 1fr auto; align-items: center; }
+.hoja-clan-barra h2 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 0; }
+.hoja-clan .paso { font-size: 13px; font-weight: 400; color: var(--tinta-3); min-width: 44px; text-align: right; }
+.hoja-clan-progreso { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 0 20px 8px; flex: none; }
+.hoja-clan-progreso span { height: 4px; border-radius: 2px; background: var(--linea); }
+.hoja-clan-progreso span.hecho { background: var(--azul-relleno); }
+.hoja-clan.paso-1 > .hoja-clan-progreso { padding-bottom: 14px; }
+.hoja-clan.paso-3 > .hoja-clan-progreso { padding-bottom: 12px; }
+.hoja-clan-izq { flex: none; }
+.cabeza-izq, .tamanos-escudo, .ficha-escala, .titulo-der, .cabeza-der .boton-capa, .hoja-clan-der > .hoja-clan-progreso, .atras-pie { display: none; }
+
+/* Escenario: el escudo grande, fijo, nunca se desplaza */
+.escenario-escudo { flex: none; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.escenario-escudo .escudo-grande { width: 148px; height: 148px; }
+.escenario-escudo .nombre { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+.escenario-escudo .nota { display: none; font-size: 13px; color: var(--tinta-3); }
+.paso-1 .escenario-escudo { height: auto; padding: 26px 0 8px; gap: 14px; }
+.paso-1 .escenario-escudo .escudo-grande { width: 132px; height: 132px; }
+.paso-1 .escenario-escudo .nombre { display: none; }
+.paso-1 .escenario-escudo .nota { display: block; }
+.paso-3 .escenario-escudo, .crear:not(.paso-3) .vista-ficha { display: none; }
+@media (max-height: 720px) { .escenario-escudo { height: 160px; } .escenario-escudo .escudo-grande { width: 116px; height: 116px; } }
+
+/* La columna de las opciones; en el paso 2, el panel blanco que sube */
+.hoja-clan-der { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px calc(20px + env(safe-area-inset-bottom)); }
+.contenido-der { display: flex; flex-direction: column; gap: 22px; flex: 1; }
+.pie-der { position: sticky; bottom: 0; margin-top: auto; padding-top: 12px; background: var(--papel); }
+.paso-2 .hoja-clan-der { background: var(--papel-2); border-radius: 28px 28px 0 0; padding-top: 14px; gap: 14px; }
+.paso-2 .pie-der { background: var(--papel-2); }
+.paso-1 .hoja-clan-der { padding-top: 22px; }
+.paso-3 .hoja-clan-der { padding-top: 16px; }
+.siguiente-clan { width: 100%; height: 56px; min-height: 56px; border-radius: 16px; background: var(--azul-relleno); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 17px; font-weight: 700; }
+.siguiente-clan .icono { width: 20px; height: 20px; }
+.siguiente-clan:disabled { opacity: .45; }
 .error-clan { margin: 0; font-size: 14px; color: var(--rojo); }
 .error-clan:empty { display: none; }
 
-/* Editor del clan (assets/js/editor-clan.js). Bloques con titulo y las
-   opciones en rejillas que llenan el ancho: sin huecos sueltos a la derecha. */
-.editor-clan { display: flex; flex-direction: column; gap: var(--e5); }
-.editor-bloque { display: flex; flex-direction: column; gap: 10px; }
-.editor-bloque > h3 { margin: 0; font-size: 15px; font-weight: 700; }
-.subbloque { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-.pista-editor { margin: 0; font-size: 13px; line-height: 1.4; color: var(--tinta-3); }
-.paleta-clan { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; }
-.paleta-clan .muestra-color { width: 100%; height: auto; aspect-ratio: 1; max-width: 40px; justify-self: center; }
-.paleta-clan .muestra-color:disabled { opacity: .15; cursor: default; }
-.rejilla-formas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-.rejilla-disenos { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
-.opcion-escudo { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; padding: 10px 2px 8px; border: 2px solid transparent; border-radius: 14px; background: var(--papel-3); color: var(--tinta-2); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
-.rejilla-disenos .opcion-escudo { padding: 8px 0; aspect-ratio: 1; }
-.opcion-escudo .escudo-clan { width: 30px; height: 30px; border-radius: 9px; }
-.rejilla-disenos .opcion-escudo .escudo-clan { width: 26px; height: 26px; border-radius: 8px; }
-.opcion-escudo > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opcion-escudo.elegida { border-color: var(--azul); background: var(--azul-tinte); color: var(--tinta); }
-.rejilla-emblemas { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
-.subbloque-diseno { display: flex; flex-direction: column; gap: 10px; }
-.emblema-opcion { aspect-ratio: 1; height: auto; border: 2px solid transparent; }
-.emblema-opcion.siglas { font-size: 12px; letter-spacing: .02em; }
-.emblema-opcion.elegida { border-color: var(--azul); background: var(--azul-tinte); color: var(--tinta); }
-.opcion-siglas { display: grid; grid-template-columns: 44px minmax(0, 1fr) 84px; align-items: center; gap: 12px; padding: 8px 8px 8px 8px; border: 2px solid transparent; border-radius: 14px; background: var(--papel-3); cursor: pointer; }
-.opcion-siglas.elegida { border-color: var(--azul); background: var(--azul-tinte); }
-.opcion-siglas .emblema-opcion { width: 44px; background: var(--papel-2); }
-.opcion-siglas .textos { display: flex; flex-direction: column; min-width: 0; }
-.opcion-siglas strong { font-size: 14px; }
-.opcion-siglas small { font-size: 12px; color: var(--tinta-3); }
-.opcion-siglas input { width: 100%; min-height: 44px; padding: 0 8px; border: 2px solid transparent; border-radius: 12px; background: var(--papel-2); font: inherit; font-size: 16px; text-align: center; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; color: var(--tinta); }
-.opcion-siglas input:focus { border-color: var(--azul-relleno); }
+/* Paso 1 · Nombre y siglas (16a) */
+.paso-nombre { display: flex; flex-direction: column; gap: 22px; }
+.campo-nombre-clan { display: flex; flex-direction: column; gap: 6px; }
+.campo-nombre-clan .etiqueta, .campo-clan .etiqueta, .etiqueta-suelta { font-size: 13px; color: var(--tinta-2); }
+.campo-nombre-clan .caja { height: 56px; border-radius: 14px; background: var(--papel-2); padding: 0 16px; display: flex; align-items: center; gap: 8px; }
+.campo-nombre-clan .caja:focus-within, .campo-clan .caja:focus-within { box-shadow: inset 0 0 0 2px var(--azul-relleno); }
+.campo-nombre-clan input, .campo-clan input, .campo-clan textarea { flex: 1; min-width: 0; height: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; font: inherit; color: var(--tinta); box-shadow: none; outline: none; }
+.campo-nombre-clan input { font-size: 19px; font-weight: 700; }
+.estado-nombre-clan { flex: none; display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; }
+.estado-nombre-clan .icono { width: 16px; height: 16px; stroke-width: 2.4; }
+.estado-nombre-clan.libre { color: var(--verde); }
+.estado-nombre-clan.mal { color: var(--rojo); }
+.estado-nombre-clan.espera { color: var(--tinta-3); }
+.contador-nombre { align-self: flex-end; font-size: 12px; color: var(--tinta-3); }
+.fila-siglas { display: grid; grid-template-columns: 1fr 132px; gap: 14px; align-items: end; }
+.fila-siglas > div { display: flex; flex-direction: column; gap: 4px; }
+.fila-siglas strong { font-size: 15px; }
+.fila-siglas span { font-size: 13px; line-height: 1.4; color: var(--tinta-2); }
+.fila-siglas input { height: 56px; min-height: 56px; border: 0; border-radius: 14px; background: var(--papel-2); text-align: center; font-size: 24px; font-weight: 800; font-stretch: 80%; letter-spacing: .06em; text-transform: uppercase; }
+.fila-siglas input:focus { box-shadow: inset 0 0 0 2px var(--azul-relleno); }
+
+/* Segmentado (Forma · Colores · Emblema / Escudo · Ficha) */
+.segmentado { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--papel-3); border-radius: 12px; padding: 3px; }
+.segmentado button { height: 38px; min-height: 0; border: 0; border-radius: 10px; background: none; font-family: inherit; font-size: 15px; font-weight: 600; color: var(--tinta-2); cursor: pointer; }
+.segmentado button[aria-selected="true"] { background: var(--papel-2); color: var(--tinta); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+[data-theme='dark'] .segmentado button[aria-selected="true"] { background: var(--linea-fuerte); }
+.chips-clan { display: flex; gap: 6px; }
+.chips-clan button { padding: 7px 12px; min-height: 0; border: 0; border-radius: 999px; background: var(--papel-2); font-family: inherit; font-size: 13px; font-weight: 600; color: var(--tinta); cursor: pointer; }
+.chips-clan button[aria-selected="true"] { background: var(--tinta); color: var(--papel); }
+
+/* Opcion generica: tarjeta con miniatura del escudo */
+.opcion-escudo {
+  border: 0; border-radius: 14px; background: var(--papel); padding: 10px 0 8px; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  font-family: inherit; font-size: 11px; font-weight: 500; line-height: 1.1; color: var(--tinta-2); cursor: pointer;
+  transition: box-shadow .16s ease, background .16s ease;
+}
+.opcion-escudo .escudo-clan { width: 44px; height: 44px; }
+.opcion-escudo[aria-checked="true"] { background: #E3EFFC; box-shadow: inset 0 0 0 2px var(--azul-relleno); color: #1466C2; font-weight: 800; }
+[data-theme='dark'] .opcion-escudo[aria-checked="true"] { background: #13263D; color: #5AA8F2; }
+.editar .opcion-escudo { background: var(--papel-2); }
+.editar .rejilla-formas .escudo-clan { width: 42px; height: 42px; }
+.rejilla-formas { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.rejilla-patrones { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: -6px; }
+.rejilla-patrones .opcion-escudo { padding: 7px 0 5px; gap: 4px; border-radius: 12px; font-size: 10px; }
+.rejilla-patrones .escudo-clan { width: 34px; height: 34px; }
+.rejilla-patrones[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+.rejilla-emblemas { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.rejilla-emblemas .opcion-escudo { aspect-ratio: 1; padding: 0; justify-content: center; border-radius: 12px; }
+.rejilla-emblemas .escudo-clan { width: 38px; height: 38px; }
+
+/* Muestras de color */
+.panel-colores { display: flex; flex-direction: column; gap: 14px; }
+.rejilla-colores { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-top: -6px; }
+.muestra-color { width: auto; height: auto; min-height: 0; aspect-ratio: 1; padding: 0; border: 0; border-radius: 50%; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; color: var(--tinta-3); }
+.muestra-color[aria-checked="true"] { box-shadow: 0 0 0 3px var(--papel-2), 0 0 0 5px var(--tinta); }
+.muestra-color.ninguno { background: var(--papel); box-shadow: inset 0 0 0 1px var(--linea); }
+.muestra-color.ninguno .icono { width: 14px; height: 14px; }
+.muestra-color.ninguno[aria-checked="true"] { box-shadow: 0 0 0 3px var(--papel-2), 0 0 0 5px var(--tinta); }
+.muestra-color[aria-label="Blanco"]:not([aria-checked="true"]) { box-shadow: inset 0 0 0 1px var(--linea-fuerte); }
+.muestra-color[aria-disabled="true"] { opacity: .35; cursor: not-allowed; }
+.candado-color { position: absolute; right: -2px; top: -2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px #E0DDD5; display: flex; align-items: center; justify-content: center; }
+.candado-color::after { content: ''; width: 6px; height: 1.5px; background: #6E6C66; }
+.opciones-titulo { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; font-weight: 700; }
+.opciones-titulo small { font-size: 12px; font-weight: 400; color: var(--tinta-3); }
+.opciones-nota { margin: -6px 0 0; font-size: 12px; color: var(--tinta-3); }
+
+/* ---------- Vista previa de la ficha (16e, 16i) ---------- */
+.previa-clan { margin: 0 16px; border-radius: 22px; overflow: hidden; background: var(--tarjeta-clan); color: var(--tinta-clan); flex: none; }
+.ficha-clan-cabeza { position: relative; height: 206px; background: var(--fondo-clan); }
+.ficha-clan-cabeza.previa { height: 112px; background: none; }
+.editar .ficha-clan-cabeza.previa { height: 104px; }
+.chip-previa { position: absolute; right: 10px; top: 10px; z-index: 1; padding: 4px 9px; border-radius: 8px; background: var(--chip-clan); color: var(--tinta-clan-2); font-size: 11px; font-weight: 700; }
+.previa-clan .ficha-clan-identidad { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: end; margin-top: -30px; padding: 0 16px 16px; position: relative; }
+.editar .previa-clan .ficha-clan-identidad { margin-top: -28px; padding-bottom: 14px; }
+.previa-clan .escudo-clan.enorme { width: 64px; height: 64px; }
+.editar .previa-clan .escudo-clan.enorme { width: 60px; height: 60px; }
+.textos-previa { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-bottom: 2px; }
+.previa-clan .ficha-clan-nombre { font-size: 19px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
+.editar .previa-clan .ficha-clan-nombre { font-size: 18px; }
+.previa-clan .ficha-clan-lema { font-size: 13px; color: var(--tinta-clan-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Paso 3 y pestaña Ficha: fondo del mapa, lema, barrio y presentacion */
+.campos-ficha { display: flex; flex-direction: column; gap: 12px; }
+.rejilla-temas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: -4px; }
+.opcion-tema { display: block; border: 0; padding: 0; min-height: 0; border-radius: 16px; overflow: hidden; background: var(--papel-2); color: var(--tinta); box-shadow: inset 0 0 0 1px var(--linea); cursor: pointer; text-align: left; font-family: inherit; }
+.opcion-tema .miniatura-mapa { display: block; position: relative; height: 54px; }
+.opcion-tema .nombre-tema { height: 40px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 500; }
+.opcion-tema .nombre-tema::after { content: ''; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #8B8A87; }
+.opcion-tema[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--azul-relleno); }
+.opcion-tema[aria-checked="true"] .nombre-tema { font-weight: 700; }
+.opcion-tema[aria-checked="true"] .nombre-tema::after { box-shadow: inset 0 0 0 6px var(--azul-relleno); }
 .campo-clan { display: flex; flex-direction: column; gap: 6px; }
-.campo-clan .campo-cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e2); font-size: 13px; font-weight: 600; color: var(--tinta-2); }
-.campo-clan .contador { font-size: 12px; font-weight: 400; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
-.campo-clan input, .campo-clan textarea { width: 100%; min-height: 48px; padding: 0 14px; border: 2px solid transparent; border-radius: 12px; background: var(--papel-3); font: inherit; font-size: 16px; color: var(--tinta); }
-.campo-clan textarea { min-height: 96px; padding: 12px 14px; line-height: 1.45; resize: vertical; }
-.campo-clan input:focus, .campo-clan textarea:focus { border-color: var(--azul-relleno); }
-.campo-nombre-clan input { min-height: 56px; font-size: 20px; font-weight: 700; }
-.campo-nombre-clan .estado-nombre { position: static; transform: none; font-size: 13px; }
-.rejilla-temas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.opcion-tema { display: flex; flex-direction: column; gap: 6px; padding: 6px 6px 8px; border: 2px solid transparent; border-radius: 16px; background: var(--papel-3); color: var(--tinta-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-.opcion-tema .mapa-clan { height: 58px; border-radius: 11px; }
-.opcion-tema.elegida { border-color: var(--azul); color: var(--tinta); }
+.campo-clan .caja { height: 50px; border-radius: 12px; background: var(--papel-2); padding: 0 14px; display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.campo-clan .caja.larga { height: auto; align-items: flex-start; padding: 12px 14px; }
+.campo-clan textarea { min-height: 72px; resize: vertical; font-size: 15px; line-height: 1.4; }
+.campo-clan .contador { flex: none; font-size: 12px; color: var(--tinta-3); }
+.campos-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plegable-presentacion summary { display: inline-flex; align-items: center; gap: 6px; list-style: none; font-size: 14px; font-weight: 600; color: var(--azul); cursor: pointer; }
+.plegable-presentacion summary::-webkit-details-marker { display: none; }
+.plegable-presentacion summary .icono { width: 18px; height: 18px; }
+.plegable-presentacion[open] summary { display: none; }
 
-/* Sin clan: crear va en su propia hoja; aqui, la invitacion a hacerlo. */
-.crear-clan-cta { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--e3); padding: 0 0 var(--e3); border-radius: 18px; background: var(--papel-3); overflow: hidden; }
-.crear-clan-cta > .mapa-clan { grid-column: 1 / -1; height: 72px; border-radius: 0; }
-.crear-clan-cta .textos { display: flex; flex-direction: column; gap: 2px; padding-left: var(--e3); min-width: 0; }
-.crear-clan-cta .textos strong { font-size: 16px; }
-.crear-clan-cta .textos span { font-size: 13px; color: var(--tinta-2); }
-.crear-clan-cta .btn { width: auto; min-height: 44px; margin-right: var(--e3); padding: 0 var(--e4); }
+/* Editar (16i): Guardar en la barra, pestañas Escudo · Ficha */
+.guardar-barra { width: auto; min-height: 0; padding: 8px 14px; border-radius: 10px; background: var(--azul-relleno); color: #fff; font-size: 14px; font-weight: 700; }
+.guardar-barra:disabled, .editar .pie-der .btn:disabled { opacity: .45; }
+.editar .hoja-clan-der { padding-top: 16px; }
+.editar .pie-der { display: none; }
+.editar .contenido-der { gap: 0; }
+.panel-editar { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.aviso-color { margin: 0; background: #F6ECDC; color: #5C3700; border-radius: 14px; padding: 12px 14px; font-size: 13px; line-height: 1.45; }
+.aviso-color:empty { display: none; }
 
+/* ---------- Ficha publica (16g, 16h) ---------- */
+.capa-ficha-clan { position: fixed; inset: 0; z-index: 60; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
+.ficha-clan-carga { height: 320px; margin: 20px; }
+.ficha-clan-cabeza:not(.previa):not(.escala)::before {          /* fundido superior para la barra y el estado */
+  content: ''; position: absolute; inset: 0 0 auto; height: 100px; z-index: 1; pointer-events: none;
+  background: linear-gradient(var(--fondo-clan), transparent); opacity: .85;
+}
+.barra-ficha { position: absolute; left: 8px; right: 12px; top: max(8px, env(safe-area-inset-top)); z-index: 2; height: 44px; display: flex; align-items: center; justify-content: space-between; color: var(--tinta-clan); }
+.barra-ficha .acciones { display: flex; gap: 8px; }
+.barra-ficha .acciones .boton-capa { width: 40px; height: 40px; background: var(--chip-clan); }
+.barra-ficha .acciones .icono { width: 20px; height: 20px; }
+.territorio-clan {
+  position: absolute; right: 14px; bottom: 12px; z-index: 1;
+  padding: 5px 10px; border-radius: 9px; background: var(--chip-clan); color: var(--tinta-clan);
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700;
+}
+.territorio-clan::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--color-clan); }
+
+.capa-ficha-clan .ficha-clan-identidad { position: relative; z-index: 2; margin-top: -42px; padding: 0 20px; display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: 14px; row-gap: 12px; }
+.capa-ficha-clan .escudo-clan.enorme { width: 88px; height: 88px; }
+.ficha-clan-identidad .puesto { order: 2; margin: 0 0 6px auto; padding: 6px 10px; border-radius: 9px; background: var(--chip-clan); font-size: 12px; font-weight: 800; }
+.ficha-clan-titulo { order: 3; flex-basis: 100%; display: flex; flex-direction: column; gap: 6px; }
+.boton-identidad { display: none; }
+.ficha-clan-nombre { margin: 0; font-size: 30px; font-weight: 800; font-stretch: 84%; letter-spacing: -.04em; line-height: 1; overflow-wrap: anywhere; color: var(--tinta-clan); }
+.ficha-clan-lema { margin: 0; font-size: 16px; line-height: 1.4; font-style: italic; color: var(--tinta-clan-2); }
+.ficha-clan-lema::before { content: '“'; } .ficha-clan-lema::after { content: '”'; }
+.previa-clan .ficha-clan-lema { font-style: normal; }
+.previa-clan .ficha-clan-lema::before, .previa-clan .ficha-clan-lema::after { content: none; }
+.ficha-clan-cuerpo { padding: 0 20px; display: flex; flex-direction: column; }
+.columna-datos { display: flex; flex-direction: column; }
+.ficha-clan-presentacion { margin: 10px 0 0; font-size: 14px; line-height: 1.5; color: var(--tinta-clan-2); overflow-wrap: anywhere; }
+.ficha-clan-cifras { margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); border-radius: 18px; background: var(--tarjeta-clan); }
+.ficha-clan-cifras > div { padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ficha-clan-cifras > div + div { box-shadow: inset 1px 0 0 rgba(128,128,128,.18); }
+.ficha-clan-cifras .cifra-puesto { display: none; }
+.ficha-clan-cifras strong { font-size: 26px; font-weight: 800; font-stretch: 72%; line-height: 1; font-variant-numeric: tabular-nums; }
+.ficha-clan-cifras span { font-size: 12px; color: var(--tinta-clan-3); }
+.columna-plantilla { display: flex; flex-direction: column; padding-top: 16px; }
+.cabeza-suman { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 2px; }
+.cabeza-suman span { font-size: 16px; font-weight: 700; }
+.cabeza-suman small { font-size: 13px; color: var(--tinta-clan-3); }
+.fila-suman { display: grid; grid-template-columns: 22px 32px 1fr auto; gap: 10px; align-items: center; height: 48px; border-bottom: 1px solid var(--linea-clan); }
+.fila-suman .pos { font-size: 14px; font-weight: 800; font-stretch: 80%; color: var(--tinta-clan-3); }
+.fila-suman .inicial { width: 32px; height: 32px; border-radius: 50%; background: var(--tarjeta-clan); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+.fila-suman .nombre { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; font-weight: 600; }
+.fila-suman .nombre small { font-size: 11px; font-weight: 700; color: var(--tinta-clan-3); }
+.fila-suman strong { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ficha-clan-pie { position: sticky; bottom: 0; margin-top: auto; padding: 12px 20px calc(26px + env(safe-area-inset-bottom)); background: var(--fondo-clan); }
+.ficha-clan .btn { width: 100%; height: 54px; min-height: 54px; border-radius: 16px; background: var(--azul-relleno); color: #fff; font-size: 17px; font-weight: 700; }
+.ficha-clan .btn:disabled { opacity: .5; }
+
+/* ---------- Clan fundado (16f) ---------- */
+.clan-fundado { position: fixed; inset: 0; z-index: 61; display: flex; flex-direction: column; overflow: hidden; }
+.clan-fundado > .mapa-clan { inset: 0 0 auto; height: 56%; }
+.clan-fundado > .mapa-clan::after { content: ''; position: absolute; inset: auto 0 0; height: 30%; background: linear-gradient(transparent, var(--fondo-clan)); }
+.contenido-fundado { position: relative; flex: 1; padding: 30dvh 24px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+.clan-fundado .escudo-clan { width: 124px; height: 124px; animation: escudo-cae .42s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes escudo-cae { from { transform: scale(1.15); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .clan-fundado .escudo-clan { animation: none; } }
+.contenido-fundado h2 { margin: 6px 0 0; font-size: 34px; font-weight: 800; font-stretch: 84%; letter-spacing: -.04em; line-height: 1; }
+.contenido-fundado p { margin: 0; max-width: 30ch; font-size: 15px; line-height: 1.45; color: var(--tinta-clan-2); }
+.contenido-fundado .relleno { flex: 1; }
+.contenido-fundado .btn { width: 100%; height: 56px; min-height: 56px; border-radius: 16px; background: var(--azul-relleno); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 17px; font-weight: 700; }
+.contenido-fundado .btn .icono { width: 20px; height: 20px; }
+.enlace-fundado { border: 0; background: none; padding: 6px; font-family: inherit; font-size: 15px; font-weight: 600; color: var(--enlace-clan); cursor: pointer; }
+
+/* ---------- Ordenador (16j, 16k, 16l) ---------- */
 @media (min-width: 900px) {
-  .hoja.dialogo-escritorio.hoja-clan { top: 50%; width: 520px; height: min(780px, calc(100dvh - 64px)); padding: 24px 28px; }
-  .hoja-clan-cuerpo { margin: 0 -28px; padding: var(--e2) 28px var(--e3); }
-  .rejilla-emblemas { grid-template-columns: repeat(8, minmax(0, 1fr)); }
-  .hoja.dialogo-escritorio.hoja-ficha-clan { width: 520px; max-height: calc(100dvh - 64px); }
+  .velo-clan { display: block; position: fixed; inset: 0; z-index: 59; background: rgba(14,15,16,.8); }
+  .solo-movil-clan { display: none !important; }
+  .solo-escritorio-clan { display: flex !important; }
+
+  /* Crear y editar: dialogo de 960 x 640, dos columnas */
+  .hoja-clan {
+    inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: min(960px, 92vw); height: min(640px, 88vh); padding: 0;
+    border-radius: 28px; overflow: hidden; background: var(--papel-2);
+    display: grid; grid-template-columns: 440px 1fr; grid-template-rows: 100%;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 30px 80px rgba(0,0,0,.5);
+  }
+  .hoja-clan-barra, .hoja-clan > .hoja-clan-progreso { display: none; }
+  .hoja-clan-izq { background: var(--papel); display: flex; flex-direction: column; padding: 24px; min-height: 0; overflow: hidden; }
+  .crear:not(.paso-3) .cabeza-izq { display: block; }
+  .cabeza-izq > div { display: flex; align-items: center; justify-content: space-between; }
+  .cabeza-izq strong { font-size: 18px; font-weight: 800; }
+  .cabeza-izq .hoja-clan-progreso { padding: 0; margin-top: 12px; }
+  .escenario-escudo, .paso-1 .escenario-escudo { flex: 1; height: auto; padding: 0; gap: 16px; }
+  .escenario-escudo .escudo-grande, .paso-1 .escenario-escudo .escudo-grande { width: 220px; height: 220px; }
+  .escenario-escudo .nombre, .paso-1 .escenario-escudo .nombre { display: block; font-size: 22px; letter-spacing: -.02em; }
+  .escenario-escudo .nota, .paso-1 .escenario-escudo .nota { display: none; }
+  .tamanos-escudo { display: flex; justify-content: center; gap: 18px; align-items: flex-end; margin-top: 16px; }
+  .tamanos-escudo > span { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .tamanos-escudo small { font-size: 11px; color: var(--tinta-3); }
+  .tamanos-escudo .ranking .escudo-clan { width: 56px; height: 56px; }
+  .tamanos-escudo .mapa .escudo-clan { width: 32px; height: 32px; }
+  .tamanos-escudo .lista .escudo-clan { width: 20px; height: 20px; }
+  .paso-3 .hoja-clan-izq, .editar .hoja-clan-izq { padding: 0; }
+  .vista-ficha { height: 100%; }
+  .vista-ficha .previa-clan { display: none; }
+  .vista-ficha .ficha-escala { display: flex; }
+
+  .hoja-clan-der, .paso-2 .hoja-clan-der, .paso-3 .hoja-clan-der, .editar .hoja-clan-der { background: var(--papel-2); border-radius: 0; padding: 24px 28px; gap: 16px; overflow: hidden; }
+  .cabeza-der { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex: none; }
+  .cabeza-der .segmentado { width: 360px; }
+  .cabeza-der .boton-capa { display: flex; width: 40px; height: 40px; background: var(--papel); }
+  .cabeza-der .boton-capa .icono { width: 20px; height: 20px; }
+  .crear:not(.paso-2) .titulo-der { display: block; font-size: 18px; font-weight: 800; }
+  .titulo-der .paso { min-width: 0; }
+  .paso-3 .hoja-clan-der > .hoja-clan-progreso { display: grid; padding: 0; margin-top: -2px; }
+  .contenido-der { min-height: 0; overflow-y: auto; gap: 16px; }
+  .pie-der, .paso-2 .pie-der, .editar .pie-der { position: static; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--linea); padding-top: 16px; background: none; flex: none; }
+  .atras-pie { display: block; padding: 0; border: 0; background: none; font-family: inherit; font-size: 15px; font-weight: 600; color: var(--tinta-2); cursor: pointer; }
+  .siguiente-clan, .editar .pie-der .btn { width: auto; height: 48px; min-height: 48px; padding: 0 22px; border-radius: 14px; background: var(--azul-relleno); color: #fff; font-size: 16px; font-weight: 700; }
+  .siguiente-clan .icono { width: 18px; height: 18px; }
+
+  /* Opciones mas grandes: muestras de 40 px, patrones de 48, emblemas de 8 en 8 */
+  .rejilla-colores { display: flex; gap: 12px; }
+  .rejilla-colores .muestra-color { width: 40px; height: 40px; flex: none; }
+  .rejilla-patrones { gap: 8px; }
+  .rejilla-patrones .opcion-escudo { padding: 12px 0 8px; gap: 6px; border-radius: 14px; font-size: 12px; }
+  .rejilla-patrones .escudo-clan { width: 48px; height: 48px; }
+  .rejilla-emblemas { grid-template-columns: repeat(8, 1fr); }
+  .rejilla-temas { gap: 12px; margin-top: -6px; }
+  .opcion-tema .miniatura-mapa { height: 72px; }
+  .opcion-tema .nombre-tema { height: 42px; padding: 0 14px; }
+  .campo-clan .caja, .campo-nombre-clan .caja, .fila-siglas input { background: var(--papel); }
+  .campo-clan .caja { height: 48px; }
+  .editar .opcion-escudo { background: var(--papel); }
+  .editar .chips-clan button { background: var(--papel); }
+  .editar .chips-clan button[aria-selected="true"] { background: var(--tinta); }
+
+  /* La ficha publica a escala, a la izquierda (16k) */
+  .ficha-escala { flex-direction: column; height: 100%; overflow: hidden; }
+  .ficha-clan-cabeza.escala { height: 180px; flex: none; }
+  .chip-previa.izquierda { left: 20px; right: auto; top: 18px; padding: 5px 10px; border-radius: 9px; font-size: 12px; color: var(--tinta-clan); }
+  .ficha-escala .ficha-clan-identidad { position: relative; margin-top: -40px; padding: 0 24px; }
+  .ficha-escala .escudo-clan.enorme { width: 84px; height: 84px; }
+  .ficha-escala .ficha-clan-textos { padding: 12px 24px 0; display: flex; flex-direction: column; gap: 6px; }
+  .ficha-escala .ficha-clan-zona { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tinta-clan-2); }
+  .ficha-escala .ficha-clan-zona .icono { width: 14px; height: 14px; }
+  .ficha-escala .ficha-clan-cifras { margin: 18px 24px 0; border-radius: 16px; }
+  .ficha-escala .ficha-clan-cifras strong { font-size: 24px; }
+  .ficha-escala .cabeza-suman { padding: 16px 24px 0; }
+  .ficha-escala .cabeza-suman span { font-size: 14px; }
+  .ficha-escala .cabeza-suman small { font-size: 12px; color: var(--tinta-clan-2); }
+  .ficha-escala .fila-suman { margin: 4px 24px 0; height: 46px; grid-template-columns: 24px 32px 1fr auto; }
+  .ficha-escala .fila-suman .nombre { font-size: 14px; }
+  .ficha-escala .relleno { flex: 1; }
+  .boton-falso { margin: 0 24px 24px; height: 46px; border-radius: 14px; background: var(--azul-relleno); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; opacity: .55; flex: none; }
+
+  /* Ficha publica: dialogo de 720 px, cabecera 3:1 (16l) */
+  .capa-ficha-clan {
+    inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 720px; max-height: 88vh; border-radius: 28px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 30px 80px rgba(0,0,0,.55);
+  }
+  .capa-ficha-clan .ficha-clan-cabeza { height: 240px; flex: none; }
+  .capa-ficha-clan .barra-ficha { top: 16px; left: 16px; right: 16px; }
+  .capa-ficha-clan .barra-ficha { justify-content: flex-end; gap: 8px; }
+  .capa-ficha-clan .barra-ficha .volver { order: 2; width: 40px; height: 40px; background: var(--chip-clan); }
+  .capa-ficha-clan .barra-ficha .volver .icono { width: 20px; height: 20px; }
+  .capa-ficha-clan .territorio-clan { right: 16px; bottom: 14px; padding: 6px 11px; font-size: 13px; }
+  .capa-ficha-clan .ficha-clan-identidad { flex-wrap: nowrap; margin-top: -50px; padding: 0 32px; column-gap: 18px; }
+  .capa-ficha-clan .escudo-clan.enorme { width: 104px; height: 104px; flex: none; }
+  .capa-ficha-clan .ficha-clan-titulo { order: 0; flex: 1; flex-basis: auto; gap: 4px; padding-bottom: 6px; min-width: 0; }
+  .capa-ficha-clan .ficha-clan-nombre { font-size: 36px; }
+  .capa-ficha-clan .puesto { display: none; }
+  .capa-ficha-clan .boton-identidad { display: block; order: 1; margin-bottom: 6px; }
+  .capa-ficha-clan .boton-identidad .btn { width: auto; height: 48px; min-height: 48px; padding: 0 22px; border-radius: 14px; font-size: 16px; }
+  .capa-ficha-clan .ficha-clan-cuerpo { padding: 22px 32px 28px; display: grid; grid-template-columns: 260px 1fr; gap: 28px; }
+  .capa-ficha-clan .columna-datos { gap: 14px; }
+  .capa-ficha-clan .ficha-clan-presentacion { margin: 0; }
+  .capa-ficha-clan .ficha-clan-cifras { margin: 0; grid-template-columns: 1fr 1fr; gap: 8px; background: none; }
+  .capa-ficha-clan .ficha-clan-cifras > div { border-radius: 14px; background: var(--tarjeta-clan); box-shadow: none; }
+  .capa-ficha-clan .ficha-clan-cifras .cifra-puesto { display: flex; }
+  .capa-ficha-clan .ficha-clan-cifras strong { font-size: 24px; }
+  .capa-ficha-clan .ficha-clan-cifras span { color: var(--tinta-clan-2); }
+  .capa-ficha-clan .columna-plantilla { padding-top: 0; }
+  .capa-ficha-clan .cabeza-suman { padding-bottom: 6px; }
+  .capa-ficha-clan .cabeza-suman small { color: var(--tinta-clan-2); }
+  .capa-ficha-clan .fila-suman { grid-template-columns: 24px 34px 1fr auto; gap: 12px; height: 52px; }
+  .capa-ficha-clan .fila-suman .pos { font-size: 15px; color: var(--tinta-clan-2); }
+  .capa-ficha-clan .fila-suman .inicial { width: 34px; height: 34px; }
+  .capa-ficha-clan .ficha-clan-pie { display: none; }
+}
+
+/* Entre 600 y 900 px: la vista del movil, centrada a 560 px */
+@media (min-width: 600px) and (max-width: 899px) {
+  .hoja-clan, .capa-ficha-clan { left: 50%; right: auto; width: 560px; transform: translateX(-50%); }
+  .velo-clan { display: block; position: fixed; inset: 0; z-index: 59; background: rgba(14,15,16,.8); }
 }
 
 /* Tocar un clan abre su ficha. */

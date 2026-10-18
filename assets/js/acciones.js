@@ -447,7 +447,7 @@ export const MAX_MIEMBROS = 50;
 
 /**
  * El lider cambia la identidad del clan: el escudo (forma, colores, patron,
- * emblema o siglas) y la ficha (lema, barrio, presentacion y banner). Las
+ * emblema o siglas) y la ficha (lema, barrio, presentacion y fondo del mapa). Las
  * reglas validan cada campo (firestore.rules, `clanes`); `identidad` sale de
  * `identidadParaGuardar` (editor-clan.js), ya limpia.
  */
@@ -457,7 +457,7 @@ export async function personalizarClan(clanId, identidad) {
 }
 
 /** Los campos de identidad tal como se guardan, con sus topes. */
-function camposIdentidad({ color, color2 = null, patron = null, forma = 'cuadro', emblema = null, siglas = null, descripcion = '', zona = '', presentacion = '', banner = null }) {
+function camposIdentidad({ color, color2 = null, patron = null, forma = 'cuadro', emblema = null, siglas = null, descripcion = '', zona = '', presentacion = '', tema = 'oscuro' }) {
   return {
     color,
     color2: color2 || null,
@@ -468,7 +468,7 @@ function camposIdentidad({ color, color2 = null, patron = null, forma = 'cuadro'
     descripcion: String(descripcion || '').slice(0, 80),
     zona: String(zona || '').slice(0, 30),
     presentacion: String(presentacion || '').slice(0, 200),
-    banner: banner || null,
+    tema: tema === 'claro' ? 'claro' : 'oscuro',
   };
 }
 

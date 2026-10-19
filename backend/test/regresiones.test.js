@@ -493,6 +493,10 @@ test('el sistema de diseno no admite sombras', () => {
   // Y lo que flota sobre el mapa (05, 8k): controles, hoja y panel.
   const DEL_DISEÑO = ['box-shadow: 0 2px 12px rgba(0, 0, 0, .08);', 'box-shadow: -12px 0 40px rgba(0, 0, 0, .10);',
     'box-shadow: 0 2px 10px rgba(0, 0, 0, .08);', 'box-shadow: 0 -8px 32px rgba(0, 0, 0, .12);', 'box-shadow: 0 8px 32px rgba(0, 0, 0, .12);',
+    // 17 Compartir: la imagen de la vista previa, y el aro de cada fondo (el
+    // elegido, doble: separacion y color).
+    'box-shadow: 0 14px 30px -14px rgba(0,0,0,.35);', 'box-shadow: inset 0 0 0 1px var(--linea);',
+    'box-shadow: 0 0 0 3px var(--papel-2), 0 0 0 5px var(--azul);',
     // 8l: la tarjeta de invitar, flotando junto al panel del mapa.
     'box-shadow: 0 8px 32px rgba(0, 0, 0, .14);',
     // 8b: las dos capturas de la capa de soltar.

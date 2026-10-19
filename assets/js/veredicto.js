@@ -19,7 +19,7 @@ import { estadoDeViaje, motivoDeViaje, impugnable } from '/assets/js/motivos.js'
 import { sinMovimiento, aparecerPorPartes, sonar } from '/assets/js/celebrar.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { impugnarViaje } from '/assets/js/acciones.js';
-import { botonCompartir, tarjetaViaje } from '/assets/js/compartir.js';
+import { botonCompartir } from '/assets/js/compartir.js';
 
 const coma = (n, dec = 1) => Number(n).toFixed(dec).replace('.', ',');
 
@@ -54,32 +54,21 @@ export function filasDesglose(viaje, { racha = null } = {}) {
   return filas;
 }
 
-/** "17 oct 2026" de "2026-10-17". */
-function fechaLarga(dia) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dia || ''))) return '';
-  return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-    .format(new Date(`${dia}T12:00:00Z`)).replace('.', '');
-}
-
-/** La imagen de un trayecto verificado para compartir (assets/js/compartir.js). */
+/** Lo que necesita la hoja de compartir de un trayecto verificado (assets/js/compartir.js). */
 function compartirViaje(viaje) {
   const [a, b] = String(viaje.ruta || '').split('-');
-  const tiempo = formatearTiempo(viaje.tiempoSegundos);
   const origen = nombreEstacion(a) || a;
   const destino = nombreEstacion(b) || b;
   return {
-    svg: tarjetaViaje({
-      piloto: viaje.username,
-      tiempo,
-      origen,
-      destino,
+    tipo: 'ruta',
+    datos: {
+      origen, destino, rutaId: viaje.ruta || '',
+      segundos: Number(viaje.tiempoSegundos) || 0,
       km: (Number(viaje.distanciaMetros) || 0) / 1000,
       kmh: Number(viaje.velocidadKmh) || 0,
       puntos: viaje.fueraDeCupo ? 0 : Number(viaje.puntos) || 0,
-      fecha: fechaLarga(viaje.fechaViaje),
-    }),
-    fichero: `bicifastness-${viaje.ruta || 'trayecto'}`,
-    texto: `${tiempo} de ${origen} a ${destino} en bicifastness. ¿Me lo bajas? https://bicifastness.es`,
+    },
+    piloto: { nombre: viaje.username || '' },
   };
 }
 

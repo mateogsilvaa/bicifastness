@@ -17,6 +17,7 @@ import {
   sendEmailVerification, browserLocalPersistence,
   GoogleAuthProvider, signInWithPopup, browserPopupRedirectResolver,
   getAdditionalUserInfo, verifyPasswordResetCode, confirmPasswordReset, applyActionCode,
+  linkWithCredential,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
@@ -150,6 +151,14 @@ if (RECAPTCHA_SITE_KEY && !RECAPTCHA_SITE_KEY.startsWith('__')) {
  * en index.html), igual que con un alta que se quedo a medias. Asi el nombre
  * publico lo elige la persona, y nunca se publica su nombre real de Google.
  */
+/** La credencial de Google que trae un `account-exists-with-different-credential` (assets/js/vincular-google.js). */
+export function credencialGoogleDeError(error) {
+  try { return GoogleAuthProvider.credentialFromError(error); } catch { return null; }
+}
+
+/** La credencial de Google rehecha con sus tokens, para vincularla. */
+export const credencialGoogle = (idToken, accessToken) => GoogleAuthProvider.credential(idToken || null, accessToken || null);
+
 export function entrarConGoogle() {
   const proveedor = new GoogleAuthProvider();
   // Que pregunte con que cuenta, en vez de entrar sin mas con la ultima usada:
@@ -162,7 +171,7 @@ export function entrarConGoogle() {
 export {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut, sendPasswordResetEmail, sendEmailVerification, getAdditionalUserInfo,
-  verifyPasswordResetCode, confirmPasswordReset, applyActionCode,
+  verifyPasswordResetCode, confirmPasswordReset, applyActionCode, linkWithCredential,
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, orderBy, limit, startAfter, serverTimestamp, increment,
   arrayUnion, arrayRemove, writeBatch, Timestamp,

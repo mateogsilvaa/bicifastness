@@ -15,6 +15,7 @@ import { medir, anotar, volcar } from '/assets/js/metricas.js';
 import { montarBotonGoogle } from '/assets/js/acceso.js';
 import { montarOjo, marcarError } from '/assets/js/campos-acceso.js';
 import { destinoTrasEntrar } from '/assets/js/canje-pendiente.js';
+import { googlePendiente, vincularGooglePendiente } from '/assets/js/vincular-google.js';
 
 // Esta pantalla no usa `iniciarPagina` (no lleva navegacion), y por eso se
 // quedaba fuera de la recogida de errores y de la analitica: justo la pantalla
@@ -41,6 +42,19 @@ let entrando = false;
 onAuthStateChanged(auth, (usuario) => {
   if (usuario && !entrando) window.location.replace(destinoTrasEntrar());
 });
+
+// Viene de pulsar Google con un correo que ya tenia contraseña: se rellena el
+// correo y se explica que pasa.
+function avisoGooglePendiente() {
+  let correo = null;
+  try { correo = sessionStorage.getItem('bf_correo_entrar'); sessionStorage.removeItem('bf_correo_entrar'); } catch { /* sin almacenamiento */ }
+  if (!googlePendiente()) return;
+  if (correo && !campoCorreo.value) campoCorreo.value = correo;
+  mensaje.textContent = 'Ya tienes cuenta con este correo. Entra con tu contraseña y quedará unida a Google.';
+  campoClave.focus();
+}
+document.addEventListener('bf:correo-entrar', avisoGooglePendiente);
+avisoGooglePendiente();
 
 montarBotonGoogle(id('btn-google'), id('mensaje-google'), {
   alEmpezar: () => { entrando = true; },
@@ -91,7 +105,9 @@ form.addEventListener('submit', async (evento) => {
     // cuenta en PocketBase con la contrasena escrita aqui: si el usuario no
     // existia alli, la CREABA con la clave introducida, lo que permitia
     // apropiarse de la cuenta de otro con solo conocer su correo.
-    await signInWithEmailAndPassword(auth, email, clave);
+    const { user } = await signInWithEmailAndPassword(auth, email, clave);
+    // Si venia de "Entrar con Google" con este correo, queda unida a Google.
+    await vincularGooglePendiente(user);
     anotar('login_completado');
     await volcar();
     window.location.replace(destinoTrasEntrar());

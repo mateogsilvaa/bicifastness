@@ -1,245 +1,312 @@
 /**
- * Compartir: una imagen vertical (1080 x 1920, la de una historia de
- * Instagram) con un trayecto, la temporada o tu puesto en una ruta, para
- * mandarla por WhatsApp, subirla a Instagram o guardarla.
+ * Compartir: genera la imagen en el navegador (canvas, sin servidor) y la
+ * comparte con la Web Share API. Referencia visual: 17 Compartir.dc.html.
  *
- * Se pinta como SVG con las mismas piezas que el diseño de la tienda
- * (assets/js/tienda-diseno.js): `linea` mide y encoge cada texto para que no
- * se salga y `limpiar` quita lo que no se puede pintar. Despues se pasa a PNG
- * en un <canvas> y se abre el menu de compartir del movil (Web Share con
- * ficheros). Donde no lo hay (escritorio, navegadores viejos), se descarga.
+ *   import { abrirCompartir } from '/assets/js/compartir.js';
+ *   abrirCompartir({ tipo: 'ruta', datos: {...} });   // abre la hoja (17a)
  *
- * No lee nada de la base de datos: cada pantalla le pasa lo que ya tiene.
+ * O directamente:
+ *   const blob = await generarImagen({ tipo, formato, tema, datos });
+ *   await compartir({ blob, texto, url });
+ *
+ * Sin dependencias. Respeta la CSP (sin inline). Fuente: Archivo autoalojada.
+ *
+ * Diseño: 17 Compartir (Claude Design). La hoja se construye con `el()` y no
+ * con innerHTML, y los avisos van por el toast de la app (`avisar`).
  */
 
-import { linea, limpiar } from './tienda-diseno.js';
-import { el, icono, abrirHoja } from './dom.js';
+import { el, avisar } from './dom.js';
 
-const W = 1080;
-const H = 1920;
-const M = 96;
-const ANCHO = W - M * 2;
-const C = {
-  fondo: '#111110', tinta: '#F2F1EE', tinta2: '#A9A7A1', azul: '#1B80E5', azulClaro: '#5AA8F2', lima: '#E8FF3A',
+export const FORMATOS = {
+  historia: { w: 1080, h: 1920, nombre: 'Historia', para: 'Instagram, estados de WhatsApp, TikTok' },
+  mensaje: { w: 1200, h: 630, nombre: 'Mensaje', para: 'WhatsApp, Telegram, X, vista previa de enlace' },
+  cuadrado: { w: 1080, h: 1080, nombre: 'Cuadrado', para: 'Publicación, Strava, grupos' },
 };
 
-// --- Las piezas comunes ------------------------------------------------------------
+export const TEMAS = {
+  azul: { box: 'rgba(0,0,0,.16)', bg: '#1B80E5', ink: '#FFFFFF', ink2: 'rgba(255,255,255,.82)', big: '#FFFFFF', arc: '#3F95EA', tile: '#FFFFFF', tileInk: '#1B80E5', tagBg: '#FFFFFF', tagInk: '#1466C2', line: 'rgba(255,255,255,.4)' },
+  oscuro: { box: '#1C1D1F', bg: '#111110', ink: '#F2F1EE', ink2: '#B3B2AE', big: '#5AA8F2', arc: '#1A1B1D', tile: '#1B80E5', tileInk: '#FFFFFF', tagBg: '#1B80E5', tagInk: '#FFFFFF', line: '#2D2E31' },
+  claro: { box: '#FFFFFF', bg: '#F3F1EC', ink: '#111110', ink2: '#55534D', big: '#1466C2', arc: '#E9E6DF', tile: '#1B80E5', tileInk: '#FFFFFF', tagBg: '#111110', tagInk: '#FFFFFF', line: '#D6D2C8' },
+};
 
-/** El anillo del logo (la vuelta sin cerrar). */
-function anillo(x, y, tam, color, grosor = 2.6) {
-  const s = tam / 24;
-  return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M12 5 A7 7 0 1 1 5.94 8.5" fill="none" stroke="${color}"`
-    + ` stroke-width="${grosor}" stroke-linecap="round"/><circle cx="5.94" cy="8.5" r="${grosor * 0.8}" fill="${color}"/></g>`;
-}
-
-/**
- * El marco de todas: fondo, el anillo grande de adorno, la marca arriba y el
- * piloto abajo. Lo importante va entre y=250 y y=1670, lo que no tapa
- * Instagram en una historia.
- */
-function marco(rotulo, cuerpo, piloto) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`
-    + `<rect width="${W}" height="${H}" fill="${C.fondo}"/>`
-    + anillo(420, 980, 1100, 'rgba(27,128,229,.16)', 1.1)
-    + anillo(M, 256, 72, C.azul)
-    + linea('bicifastness', { x: M + 92, y: 312, ancho: 520, max: 50, color: C.tinta, peso: 800 })
-    + linea(rotulo, { x: W - M, y: 310, ancho: 360, max: 30, color: C.tinta2, peso: 700, ancla: 'end', mayusculas: true, espaciado: 3 })
-    + cuerpo
-    + `<rect x="${M}" y="1520" width="${ANCHO}" height="3" fill="${C.tinta2}" opacity=".35"/>`
-    + linea(piloto || 'Piloto', { x: M, y: 1600, ancho: 600, max: 52, min: 30, color: C.tinta, peso: 800 })
-    + linea('bicifastness.es', { x: W - M, y: 1600, ancho: 330, max: 34, color: C.azulClaro, peso: 700, ancla: 'end' })
-    + linea('Madrid es el circuito.', { x: M, y: 1650, ancho: 600, max: 30, color: C.tinta2, peso: 500 })
-    + '</svg>';
-}
-
-/** Una cifra pequeña con su etiqueta debajo, para la fila de datos. */
-function dato(valor, etiqueta, x, y, ancho) {
-  return linea(valor, { x, y, ancho, max: 76, min: 40, color: C.tinta, peso: 900 })
-    + linea(etiqueta, { x, y: y + 52, ancho, max: 30, color: C.tinta2, peso: 600 });
-}
-
-const coma = (n, dec = 1) => Number(n).toFixed(dec).replace('.', ',');
-const miles = (n) => Number(n || 0).toLocaleString('es-ES');
-
-// --- Las tres tarjetas -----------------------------------------------------------------
+const fmtMin = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+const n = (x, d = 0) => Number(x).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+const ord = (x) => `${n(x)}.º`;
+const BASE = 'https://bicifastness.es';
 
 /**
- * Un trayecto verificado.
- * @param {object} d  { piloto, tiempo: "12:29", origen, destino, km, kmh, puntos, fecha: "17 oct 2026" }
+ * De los datos de la app al contenido de la tarjeta + texto + enlace.
+ * Cada tipo recibe lo que ya tiene la pantalla desde la que se abre.
  */
-export function tarjetaViaje(d) {
-  const origen = limpiar(d.origen, 34);
-  const destino = limpiar(d.destino, 34);
-  const datos = [
-    Number.isFinite(d.km) && d.km > 0 ? [coma(d.km), 'km'] : null,
-    Number.isFinite(d.kmh) && d.kmh > 0 ? [coma(d.kmh), 'km/h'] : null,
-    Number.isFinite(d.puntos) && d.puntos > 0 ? [`+${miles(d.puntos)}`, 'puntos'] : null,
-  ].filter(Boolean);
-  const col = ANCHO / Math.max(datos.length, 1);
-  const cuerpo = linea('Mi tiempo', { x: M, y: 560, ancho: ANCHO, max: 40, color: C.azulClaro, peso: 800, mayusculas: true, espaciado: 6 })
-    + linea(d.tiempo || '—', { x: M - 10, y: 860, ancho: ANCHO, max: 330, min: 120, color: C.tinta, peso: 900, espaciado: -8 })
-    + (origen ? linea(`${origen} →`, { x: M, y: 990, ancho: ANCHO, max: 58, min: 32, color: C.tinta, peso: 700 }) : '')
-    + (destino ? linea(destino, { x: M, y: 1062, ancho: ANCHO, max: 58, min: 32, color: C.tinta, peso: 700 }) : '')
-    + datos.map(([v, e], i) => dato(v, e, M + i * col, 1250, col - 24)).join('')
-    + (d.fecha ? linea(limpiar(d.fecha, 30), { x: M, y: 1420, ancho: ANCHO, max: 34, color: C.tinta2, peso: 600 }) : '');
-  return marco('Trayecto verificado', cuerpo, limpiar(d.piloto, 22));
+export const TIPOS = {
+  ruta: {
+    nombre: 'Tiempo en ruta',
+    tarjeta: (d) => ({ tag: 'Mi tiempo', eye: `${d.origen} → ${d.destino}`, tit: d.puesto ? `${ord(d.puesto)} de ${n(d.total)} pilotos` : 'Trayecto verificado', big: fmtMin(d.segundos), sub: d.faltaPodio ? `a ${d.faltaPodio} s del podio` : (d.puesto && d.puesto <= 3 ? 'en el podio' : ''), stats: [[`${n(d.km || 0, 1)} km`, 'distancia'], [n(d.kmh || 0, 1), 'km/h de media'], d.record ? [fmtMin(d.record), 'récord'] : [`+${n(d.puntos || 0)}`, 'puntos']] }),
+    texto: (d) => `${fmtMin(d.segundos)} de ${d.origen} a ${d.destino}.${d.puesto ? ` ${ord(d.puesto)} de ${n(d.total)}.` : ''} ¿Quién me baja?`,
+    url: (d) => `${BASE}/clasificacion/?ruta=${d.rutaId}`,
+  },
+  record: {
+    nombre: 'Récord',
+    tarjeta: (d) => ({ tag: 'Récord', eye: 'Nuevo récord de ruta', tit: `${d.origen} → ${d.destino}`, big: fmtMin(d.segundos), sub: d.mejora ? `${d.mejora} s menos que el anterior` : 'primer tiempo de la ruta', stats: [[`${n(d.km, 1)} km`, 'distancia'], [n(d.kmh, 1), 'km/h de media'], [n(d.pilotos), 'pilotos la hacen']] }),
+    texto: (d) => `Récord de ${d.origen} a ${d.destino}: ${fmtMin(d.segundos)}. A ver cuánto dura.`,
+    url: (d) => `${BASE}/clasificacion/?ruta=${d.rutaId}`,
+  },
+  posicion: {
+    nombre: 'Puesto',
+    tarjeta: (d) => ({ tag: 'Ranking', eye: `${d.ambito} · ${d.modo}`, tit: d.cambio > 0 ? `Subo ${d.cambio} puestos esta semana` : 'Mi puesto hoy', big: ord(d.puesto), sub: `de ${n(d.total)} pilotos`, barra: true, stats: [[n(d.rating), 'BiciRating'], [`+${n(d.hoy)}`, 'hoy'], [`Top ${Math.max(1, Math.round(d.puesto / d.total * 100))} %`, `de ${d.ambito}`]] }),
+    texto: (d) => `Voy ${ord(d.puesto)} de ${n(d.total)} en ${d.ambito}. Súbete tú también.`,
+    url: (d) => `${BASE}/p/${d.piloto}`,
+  },
+  temporada: {
+    nombre: 'Temporada',
+    tarjeta: (d) => ({ tag: 'Temporada', eye: `Mi ${d.mes} en BiciMAD`, tit: 'Esta temporada he hecho', big: `${n(d.puntos)} pts`, sub: [`${n(d.km)} km`, `${n(d.trayectos)} trayectos`, d.puesto ? `${ord(d.puesto)} de Madrid` : null].filter(Boolean).join(' · '), escala: 0.78,
+      mejor: d.mejorViaje && { t: 'Mi viaje con más puntos', r: `${d.mejorViaje.origen} → ${d.mejorViaje.destino}`, v: `+${n(d.mejorViaje.puntos)}`, i: `${fmtMin(d.mejorViaje.segundos)} · ${n(d.mejorViaje.km, 1)} km · ${n(d.mejorViaje.kmh, 1)} km/h` },
+      stats: [[`${n(d.km)} km`, 'recorridos'], [`${n(d.racha)} días`, 'mejor racha'], [n(d.records), 'récords']] }),
+    texto: (d) => `Esta temporada he hecho ${n(d.puntos)} puntos y ${n(d.km)} km en BiciMAD.${d.mejorViaje ? ` Mi mejor viaje: ${d.mejorViaje.origen} → ${d.mejorViaje.destino}, +${n(d.mejorViaje.puntos)}.` : ''}`,
+    url: (d) => `${BASE}/p/${d.piloto}`,
+  },
+  liga: {
+    nombre: 'Liga',
+    tarjeta: (d) => ({ tag: 'Liga', eye: `Semana ${d.semana} · grupo ${d.grupo}`, tit: d.sube ? `Subo a ${d.ligaNueva}` : d.baja ? `Bajo a ${d.ligaNueva}` : `Sigo en ${d.liga}`, big: ord(d.puesto), sub: `de 30 en ${d.liga}`, img: `/images/divisiones/${(d.sube || d.baja ? d.ligaNueva : d.liga).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}-oscuro.svg`, stats: [[n(d.puntos), 'pts de la semana'], [`${d.dias}/7`, 'días pedaleados'], [`${n(d.km)} km`, 'en la semana']] }),
+    texto: (d) => d.sube ? `Subo a ${d.ligaNueva} en bicifastness.` : `${ord(d.puesto)} de mi grupo en ${d.liga}.`,
+    url: (d) => `${BASE}/p/${d.piloto}`,
+  },
+  racha: {
+    nombre: 'Racha',
+    tarjeta: (d) => ({ tag: 'Racha', eye: `Cada día en bici desde el ${d.desde}`, tit: 'Sin fallar ni uno', big: `${n(d.dias)} días`, sub: `seguidos · ×${n(d.mult, 2)} en puntos`, stats: [[n(d.escudos), 'escudos'], [n(d.trayectos), 'trayectos'], [n(d.mejor), 'mejor racha']] }),
+    texto: (d) => `${n(d.dias)} días seguidos yendo en BiciMAD.`,
+    url: (d) => `${BASE}/p/${d.piloto}`,
+  },
+};
+
+/* ---------------- Dibujo ---------------- */
+
+const fuente = (px, peso = 800, ancho = 100) => `${ancho === 100 ? '' : `${ancho}% `}${peso} ${px}px Archivo, system-ui, sans-serif`;
+// font-stretch en canvas: ctx.fontStretch ('ultra-condensed'…). Archivo 62 % ≈ 'extra-condensed'.
+const STRETCH = { 62: 'extra-condensed', 68: 'condensed', 86: 'semi-condensed', 100: 'normal', 112: 'semi-expanded' };
+
+function texto(ctx, t, x, y, { px, peso = 800, ancho = 100, color, align = 'left', base = 'alphabetic', max } = {}) {
+  ctx.font = fuente(px, peso);
+  if ('fontStretch' in ctx) ctx.fontStretch = STRETCH[ancho] || 'normal';
+  ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = base;
+  let s = String(t);
+  if (max) while (ctx.measureText(s).width > max && s.length > 1) s = s.slice(0, -2) + '…';
+  ctx.fillText(s, x, y);
+  return ctx.measureText(s).width;
 }
 
-/**
- * La temporada (un mes).
- * @param {object} d  { piloto, mes: "Octubre 2026", puntos, puesto, total, division: "Plata", viajes }
- */
-export function tarjetaTemporada(d) {
-  const [mes, anio] = String(d.mes || '').split(' ');
-  const puesto = Number.isInteger(d.puesto) && d.puesto > 0 ? d.puesto : null;
-  const cuerpo = linea('Mi temporada', { x: M, y: 560, ancho: ANCHO, max: 40, color: C.azulClaro, peso: 800, mayusculas: true, espaciado: 6 })
-    + linea(limpiar(mes, 12) || 'Este mes', { x: M - 6, y: 760, ancho: ANCHO, max: 210, min: 90, color: C.tinta, peso: 900, mayusculas: true, espaciado: -4 })
-    + (anio ? linea(limpiar(anio, 4), { x: M, y: 850, ancho: ANCHO, max: 56, color: C.tinta2, peso: 700 }) : '')
-    + linea(miles(d.puntos), { x: M - 6, y: 1110, ancho: ANCHO * 0.7, max: 240, min: 90, color: C.azul, peso: 900, espaciado: -6 })
-    + linea('puntos', { x: M, y: 1175, ancho: ANCHO, max: 40, color: C.tinta2, peso: 600 })
-    + (puesto ? dato(`${miles(puesto)}.º`, d.total ? `de ${miles(d.total)} en el general` : 'en el general', M, 1330, ANCHO / 2 - 24) : '')
-    + (d.division ? dato(limpiar(d.division, 14), 'división', M + ANCHO / 2, 1330, ANCHO / 2 - 24) : '');
-  return marco('Temporada', cuerpo, limpiar(d.piloto, 22));
-}
-
-/**
- * Tu puesto en una ruta.
- * @param {object} d  { piloto, origen, destino, puesto, total, tiempo: "12:29", km }
- */
-export function tarjetaRuta(d) {
-  const origen = limpiar(d.origen, 34);
-  const destino = limpiar(d.destino, 34);
-  const puesto = Number.isInteger(d.puesto) && d.puesto > 0 ? d.puesto : null;
-  const cuerpo = linea('Mi puesto en la ruta', { x: M, y: 560, ancho: ANCHO, max: 40, color: C.azulClaro, peso: 800, mayusculas: true, espaciado: 6 })
-    + (origen ? linea(`${origen} →`, { x: M, y: 650, ancho: ANCHO, max: 58, min: 32, color: C.tinta, peso: 700 }) : '')
-    + (destino ? linea(destino, { x: M, y: 722, ancho: ANCHO, max: 58, min: 32, color: C.tinta, peso: 700 }) : '')
-    + linea(puesto ? `${miles(puesto)}.º` : '—', { x: M - 10, y: 1040, ancho: ANCHO, max: 320, min: 120, color: C.azul, peso: 900, espaciado: -8 })
-    + linea(d.total ? `de ${miles(d.total)} pilotos` : 'en esta ruta', { x: M, y: 1120, ancho: ANCHO, max: 48, color: C.tinta2, peso: 600 })
-    + (d.tiempo ? dato(d.tiempo, 'mi mejor tiempo', M, 1300, ANCHO / 2 - 24) : '')
-    + (Number.isFinite(d.km) && d.km > 0 ? dato(coma(d.km), 'km', M + ANCHO / 2, 1300, ANCHO / 2 - 24) : '');
-  return marco('Ranking de ruta', cuerpo, limpiar(d.piloto, 22));
-}
-
-// --- De SVG a PNG ------------------------------------------------------------------------
-
-let fuente = null;
-
-/**
- * La letra de la web, metida en el SVG: una imagen SVG no ve las fuentes de
- * la pagina, y sin esto saldria en la de reserva del movil.
- */
-function fuenteEmbebida() {
-  fuente = fuente || fetch('/assets/fonts/archivo-latin.woff2')
-    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('sin fuente'))))
-    .then((buffer) => {
-      let binario = '';
-      const bytes = new Uint8Array(buffer);
-      for (let i = 0; i < bytes.length; i += 0x8000) binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      return `<style>@font-face{font-family:Archivo;src:url(data:font/woff2;base64,${btoa(binario)}) format('woff2');`
-        + 'font-weight:100 900;font-stretch:62% 125%}</style>';
-    })
-    .catch(() => '');
-  return fuente;
-}
-
-/** El SVG como PNG de 1080 x 1920. */
-export async function aPng(svg) {
-  const estilo = await fuenteEmbebida();
-  const conFuente = svg.replace(/^<svg([^>]*)>/, `<svg$1>${estilo}`);
-  const url = URL.createObjectURL(new Blob([conFuente], { type: 'image/svg+xml' }));
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    const lienzo = document.createElement('canvas');
-    lienzo.width = W;
-    lienzo.height = H;
-    lienzo.getContext('2d').drawImage(img, 0, 0, W, H);
-    return await new Promise((ok, mal) => lienzo.toBlob((b) => (b ? ok(b) : mal(new Error('No se ha podido crear la imagen.'))), 'image/png'));
-  } finally {
-    URL.revokeObjectURL(url);
+function ajustar(ctx, t, max, px, peso, ancho) {
+  // baja el tamaño hasta que quepa
+  let p = px;
+  for (; p > px * 0.5; p -= 4) {
+    ctx.font = fuente(p, peso); if ('fontStretch' in ctx) ctx.fontStretch = STRETCH[ancho] || 'normal';
+    if (ctx.measureText(t).width <= max) break;
   }
+  return p;
 }
 
-// --- La hoja de compartir --------------------------------------------------------------
-
-/** ¿El navegador sabe compartir ficheros (el menu del movil)? */
-function puedeCompartir(fichero) {
-  try {
-    return Boolean(navigator.canShare && navigator.share && navigator.canShare({ files: [fichero] }));
-  } catch {
-    return false;
-  }
+function lineas(ctx, t, max, px, peso, ancho) {
+  ctx.font = fuente(px, peso); if ('fontStretch' in ctx) ctx.fontStretch = STRETCH[ancho] || 'normal';
+  const out = []; let l = '';
+  for (const w of t.split(' ')) { const p = l ? `${l} ${w}` : w; if (ctx.measureText(p).width > max && l) { out.push(l); l = w; } else l = p; }
+  if (l) out.push(l); return out.slice(0, 2);
 }
 
-function descargar(blob, nombre) {
-  const url = URL.createObjectURL(blob);
-  const a = el('a', { attrs: { href: url, download: nombre } });
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
+function logo(ctx, x, y, s, c) {
+  const k = s / 24; ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+  ctx.fillStyle = c.tile; ctx.beginPath(); ctx.roundRect(0, 0, 24, 24, 6.5); ctx.fill();
+  ctx.strokeStyle = c.tileInk; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(12, 12, 7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (300 / 360)); ctx.stroke();
+  ctx.fillStyle = c.tileInk; ctx.beginPath(); ctx.arc(5.94, 8.5, 2.1, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
+
+const cargarImg = (src) => new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = src; });
 
 /**
- * Abre la hoja con la vista previa y los botones.
- * @param {object} o
- * @param {string} o.svg       la tarjeta (tarjetaViaje, tarjetaTemporada, tarjetaRuta)
- * @param {string} o.fichero   nombre del PNG, sin extension
- * @param {string} o.texto     lo que acompaña a la imagen al compartir
+ * @returns {Promise<Blob>} PNG
  */
-export async function abrirCompartir({ svg, fichero, texto }) {
-  const vista = el('div', { clase: 'compartir-vista esqueleto' });
-  const compartir = el('button', { clase: 'btn', attrs: { type: 'button', disabled: '' } }, [icono('compartir', 'icono peq'), el('span', { texto: 'Compartir' })]);
-  const guardar = el('button', { clase: 'btn secundario', attrs: { type: 'button', disabled: '' } }, [icono('descargar', 'icono peq'), el('span', { texto: 'Guardar imagen' })]);
-  const nota = el('p', { clase: 'menor apagado', attrs: { 'aria-live': 'polite' } });
-  const { cerrar } = abrirHoja([
-    el('h2', { texto: 'Compartir' }),
-    vista,
-    el('div', { clase: 'compartir-botones' }, [compartir, guardar]),
-    nota,
-  ], { etiqueta: 'Compartir', clase: 'hoja-compartir dialogo-escritorio' });
+export async function generarImagen({ tipo, formato = 'historia', tema = 'azul', datos, piloto }) {
+  await document.fonts.load(fuente(80, 800)); await document.fonts.load(fuente(40, 700));
+  const F = FORMATOS[formato], c = TEMAS[tema], T = TIPOS[tipo].tarjeta(datos);
+  const W = F.w, H = F.h, story = formato === 'historia', wide = formato === 'mensaje';
+  const k = story ? 1 : wide ? 0.62 : 0.82, P = story ? 84 : wide ? 52 : 70;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
 
-  let blob;
-  try {
-    blob = await aPng(svg);
-  } catch (error) {
-    vista.classList.remove('esqueleto');
-    nota.textContent = error.message || 'No se ha podido crear la imagen.';
-    return cerrar;
+  // Fondo + anillo del logo en grande (sangra por el borde)
+  ctx.fillStyle = c.bg; ctx.fillRect(0, 0, W, H);
+  const A = story ? [640, 900, 520, 110, 70] : wide ? [900, 390, 330, 64, 40] : [760, 640, 420, 90, 56];
+  ctx.strokeStyle = c.arc; ctx.lineWidth = A[3]; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(A[0], A[1], A[2], -Math.PI / 2 + 0.24, -Math.PI / 2 + 0.24 + Math.PI * 2 * (300 / 360)); ctx.stroke();
+
+  // Cabecera
+  const lg = Math.round(52 * k); logo(ctx, P, P, lg, c);
+  texto(ctx, 'bicifastness', P + lg + 18 * k, P + lg * 0.72, { px: 40 * k, ancho: 112, color: c.ink });
+  ctx.font = fuente(30 * k, 800); const tw = ctx.measureText(T.tag).width + 40 * k, th = 52 * k;
+  ctx.fillStyle = c.tagBg; ctx.beginPath(); ctx.roundRect(W - P - tw, P + (lg - th) / 2, tw, th, 14 * k); ctx.fill();
+  texto(ctx, T.tag, W - P - tw / 2, P + lg / 2, { px: 30 * k, color: c.tagInk, align: 'center', base: 'middle' });
+
+  // Pie
+  const footY = H - P;
+  ctx.fillStyle = c.line; ctx.fillRect(P, footY - 80 * k, W - 2 * P, Math.max(2, 3 * k));
+  const av = 52 * k; ctx.fillStyle = piloto?.color || '#13A89E'; ctx.beginPath(); ctx.arc(P + av / 2, footY - av / 2, av / 2, 0, Math.PI * 2); ctx.fill();
+  texto(ctx, (piloto?.nombre || '?')[0].toUpperCase(), P + av / 2, footY - av / 2, { px: 26 * k, color: '#fff', align: 'center', base: 'middle' });
+  texto(ctx, piloto?.nombre || '', P + av + 16 * k, footY - av / 2, { px: 32 * k, peso: 700, color: c.ink, base: 'middle' });
+  texto(ctx, `bicifastness.es/p/${piloto?.nombre || ''}`, W - P, footY - av / 2, { px: 32 * k, peso: 700, color: c.ink2, align: 'right', base: 'middle' });
+
+  // Cuerpo
+  const top = P + lg + (story ? 140 : wide ? 40 : 70), colW = wide ? W - 2 * P - 340 : W - 2 * P;
+  let y = top;
+  texto(ctx, T.eye, P, y, { px: 36 * k, peso: 700, color: c.ink2, max: colW }); y += 36 * k + 16 * k;
+  const tp = (story ? 80 : 64) * k;
+  for (const l of lineas(ctx, T.tit, colW, tp, 800, 86)) { y += tp; texto(ctx, l, P, y, { px: tp, ancho: 86, color: c.ink }); y += 4; }
+  if (T.img) { try { const im = await cargarImg(T.img); const s = story ? 230 : wide ? 110 : 150; y += 18 * k; ctx.drawImage(im, P, y, s, s * (84 / 80)); y += s * (84 / 80); } catch { /* sin insignia */ } }
+  const bp = ajustar(ctx, T.big, colW, (T.escala || 1) * (story ? 330 : wide ? 190 : 230), 800, 62);
+  y += bp * 0.86; texto(ctx, T.big, P - bp * 0.03, y, { px: bp, ancho: 62, color: c.big });
+  y += 40 * k + 18 * k; if (T.sub) texto(ctx, T.sub, P, y, { px: 40 * k, peso: 700, color: c.ink });
+
+  if (T.mejor) { // caja "Mi viaje con más puntos"
+    y += 26 * k; const bx = P, bw = colW, pad = (wide ? 18 : 30) * k, bh = pad * 2 + (28 + 46 + 28) * k + 16 * k;
+    ctx.fillStyle = c.box || 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.roundRect(bx, y, bw, bh, 28 * k); ctx.fill();
+    const vp = (story ? 130 : wide ? 70 : 100) * k;
+    texto(ctx, T.mejor.v, bx + bw - pad, y + bh / 2 + vp * 0.36, { px: vp, ancho: 62, color: c.big, align: 'right' });
+    ctx.font = fuente(vp, 800); const vw = ctx.measureText(T.mejor.v).width + 20 * k, mw = bw - pad * 2 - vw;
+    texto(ctx, T.mejor.t, bx + pad, y + pad + 28 * k, { px: 28 * k, peso: 700, color: c.ink2, max: mw });
+    texto(ctx, T.mejor.r, bx + pad, y + pad + 28 * k + 8 * k + 46 * k, { px: (story ? 46 : 40) * k, color: c.ink, max: mw });
+    texto(ctx, T.mejor.i, bx + pad, y + bh - pad, { px: 28 * k, peso: 400, color: c.ink2, max: mw });
+    y += bh;
   }
-  const nombre = `${String(fichero || 'bicifastness').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}.png`;
-  const archivo = new File([blob], nombre, { type: 'image/png' });
-  const url = URL.createObjectURL(blob);
-  vista.classList.remove('esqueleto');
-  vista.append(el('img', { attrs: { src: url, alt: 'La imagen que vas a compartir' } }));
-
-  const conMenu = puedeCompartir(archivo);
-  compartir.classList.toggle('oculto', !conMenu);
-  compartir.disabled = false;
-  guardar.disabled = false;
-  if (!conMenu) {
-    guardar.className = 'btn';
-    nota.textContent = 'Guárdala y súbela a tu historia o mándala por WhatsApp.';
+  if (T.barra) { // tu sitio entre 30
+    y += 30 * k; const bh = 90 * k, gw = (colW - 29 * 4) / 30;
+    for (let i = 0; i < 30; i++) { const me = i === 7, h = me ? bh : bh * (0.7 - i * 0.014); ctx.fillStyle = me ? c.big : c.line; ctx.beginPath(); ctx.roundRect(P + i * (gw + 4), y + bh - h, gw, h, 3); ctx.fill(); }
   }
 
-  compartir.addEventListener('click', async () => {
-    try {
-      await navigator.share({ files: [archivo], text: texto });
-    } catch (error) {
-      // Cerrar el menu sin elegir nada no es un error.
-      if (error?.name !== 'AbortError') nota.textContent = 'No se ha podido abrir el menú de compartir. Guarda la imagen y súbela tú.';
-    }
+  // Historia: tabla de detalle (datos.filas: [{ p, n, v, yo }], hasta 5) encima de las cifras
+  if (story && datos.filas?.length) {
+    const fl = datos.filas.slice(0, 5), rh = 84, bh = 14 + 50 + fl.length * rh + 14;
+    const by = footY - 80 * k - 260 * k - 50 - bh;
+    ctx.fillStyle = c.box; ctx.beginPath(); ctx.roundRect(P, by, W - 2 * P, bh, 32); ctx.fill();
+    texto(ctx, datos.filasTitulo || '', P + 34, by + 14 + 38, { px: 28, peso: 700, color: c.ink2 });
+    fl.forEach((f, i) => {
+      const yy = by + 14 + 50 + i * rh, col = f.yo ? c.big : c.ink;
+      if (i) { ctx.fillStyle = c.line; ctx.fillRect(P + 34, yy, W - 2 * P - 68, 2); }
+      texto(ctx, f.p, P + 34, yy + rh / 2, { px: 36, ancho: 68, color: col, base: 'middle' });
+      texto(ctx, f.yo ? 'Yo' : f.n, P + 34 + 82, yy + rh / 2, { px: 36, peso: f.yo ? 800 : 500, color: col, base: 'middle', max: W - 2 * P - 340 });
+      texto(ctx, f.v, W - P - 34, yy + rh / 2, { px: 36, ancho: 86, color: col, align: 'right', base: 'middle' });
+    });
+  }
+
+  // Cifras: fila de 3 (historia/cuadrado) o columna a la derecha (mensaje)
+  const st = T.stats;
+  if (wide) {
+    const x = W - P - 300, h = (footY - 110 * k - top) / 3;
+    st.forEach(([v, l], i) => { const yy = top + i * h; ctx.fillStyle = c.line; ctx.fillRect(x, yy, 300, 2); texto(ctx, v, x, yy + 20 + 66 * k, { px: 66 * k, ancho: 68, color: c.ink }); texto(ctx, l, x, yy + 20 + 66 * k + 34 * k, { px: 28 * k, peso: 400, color: c.ink2 }); });
+  } else {
+    const yy = footY - 80 * k - (story ? 260 : 190) * k, cw = (W - 2 * P - 2 * 28 * k) / 3, sp = (story ? 84 : 66) * k;
+    st.forEach(([v, l], i) => { const x = P + i * (cw + 28 * k); ctx.fillStyle = c.line; ctx.fillRect(x, yy, cw, Math.max(2, 3 * k)); texto(ctx, v, x, yy + 20 * k + sp, { px: sp, ancho: 68, color: c.ink, max: cw }); texto(ctx, l, x, yy + 20 * k + sp + 38 * k, { px: 28 * k, peso: 400, color: c.ink2, max: cw }); });
+  }
+
+  return new Promise((ok) => cv.toBlob(ok, 'image/png'));
+}
+
+/* ---------------- Compartir ---------------- */
+
+/** Web Share con archivo si se puede; si no, descarga + copia texto. */
+export async function compartir({ blob, texto: t, url, nombre = 'bicifastness.png' }) {
+  const file = new File([blob], nombre, { type: 'image/png' });
+  const conTexto = `${t}\n${url}`;
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], text: conTexto }); return 'compartido'; }
+    catch (e) { if (e.name === 'AbortError') return 'cancelado'; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  try { await navigator.clipboard.writeText(conTexto); } catch { /* sin permiso */ }
+  return 'descargado';
+}
+
+/** Solo texto + enlace a WhatsApp (escritorio, o si no hay Web Share con archivos). */
+export const enlaceWhatsApp = (t, url) => `https://wa.me/?text=${encodeURIComponent(`${t}\n${url}`)}`;
+
+export async function copiarEnlace(url) { await navigator.clipboard.writeText(url); }
+
+/* ---------------- Hoja (17a) ---------------- */
+/**
+ * Abre la hoja de compartir. `tipo` viene elegido según la pantalla; `extra`
+ * permite ofrecer otros tipos en los chips (p. ej. desde Verificado: ruta + racha).
+ * La hoja usa .hoja-compartir de compartir.css. Pinta la vista previa con
+ * generarImagen y un <img> (no un canvas visible) para que pese poco.
+ */
+export function abrirCompartir({ tipo, datos, extra = {}, piloto, alCerrar }) {
+  const disponibles = { [tipo]: datos, ...extra };
+  const leer = (k, def) => { try { return localStorage.getItem(k) || def; } catch { return def; } };
+  const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento: no se recuerda */ } };
+  const estado = { tipo, formato: FORMATOS[leer('compartir.formato')] ? leer('compartir.formato') : 'historia', tema: TEMAS[leer('compartir.tema')] ? leer('compartir.tema') : 'azul' };
+  const destino = (accion, ic, texto) => el('button', { attrs: { type: 'button', 'data-a': accion } }, [el('span', {}, [icono(ic)]), texto]);
+  const hoja = el('div', { clase: 'hoja-compartir', attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Compartir' } }, [
+    el('div', { clase: 'velo' }),
+    el('div', { clase: 'panel' }, [
+      el('span', { clase: 'asa' }),
+      el('div', { clase: 'chips', attrs: { role: 'tablist' } }),
+      el('div', { clase: 'previa' }, [el('img', { attrs: { alt: 'Vista previa' } })]),
+      el('div', { clase: 'segmento formatos', attrs: { role: 'tablist' } }),
+      el('div', { clase: 'temas', attrs: { role: 'radiogroup', 'aria-label': 'Fondo' } }),
+      el('div', { clase: 'destinos' }, [
+        destino('historia', 'imagen', 'Historia'),
+        destino('whatsapp', 'correo', 'WhatsApp'),
+        destino('guardar', 'descargar', 'Guardar'),
+        destino('enlace', 'enlace', 'Copiar enlace'),
+        destino('mas', 'mas-h', 'Más'),
+      ]),
+    ]),
+  ]);
+  const $ = (s) => hoja.querySelector(s);
+  let blob = null;
+
+  const pintar = async () => {
+    $('.chips').replaceChildren(...Object.keys(disponibles).map((k) => boton(TIPOS[k].nombre, k === estado.tipo, () => { estado.tipo = k; pintar(); })));
+    $('.formatos').replaceChildren(...Object.entries(FORMATOS).map(([k, f]) => boton(f.nombre, k === estado.formato, () => { estado.formato = k; guardar('compartir.formato', k); pintar(); })));
+    $('.temas').replaceChildren(...Object.keys(TEMAS).map((k) => { const b = boton('', k === estado.tema, () => { estado.tema = k; guardar('compartir.tema', k); pintar(); }); b.className = `tema ${k}`; b.setAttribute('aria-label', k); return b; }));
+    $('.previa').dataset.formato = estado.formato;
+    blob = await generarImagen({ ...estado, datos: disponibles[estado.tipo], piloto });
+    const img = $('.previa img'); URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(blob);
+  };
+
+  hoja.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('velo')) return cerrar();
+    const a = e.target.closest('[data-a]')?.dataset.a; if (!a || !blob) return;
+    const T = TIPOS[estado.tipo], d = disponibles[estado.tipo], txt = T.texto(d), url = T.url(d);
+    if (a === 'whatsapp' && !navigator.canShare?.({ files: [new File([blob], 'x.png', { type: 'image/png' })] })) return window.open(enlaceWhatsApp(txt, url), '_blank', 'noopener');
+    if (a === 'enlace') { try { await copiarEnlace(url); aviso('Enlace copiado'); } catch { aviso('No se ha podido copiar'); } return; }
+    if (a === 'guardar') { const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = `bicifastness-${estado.tipo}.png`; l.click(); return aviso('Imagen guardada'); }
+    const r = await compartir({ blob, texto: txt, url, nombre: `bicifastness-${estado.tipo}.png` });
+    if (r === 'descargado') aviso('Imagen guardada y texto copiado');
   });
-  guardar.addEventListener('click', () => descargar(blob, nombre));
+
+  const teclas = (e) => { if (e.key === 'Escape') cerrar(); };
+  const cerrar = () => { hoja.remove(); document.removeEventListener('keydown', teclas); alCerrar?.(); };
+  document.addEventListener('keydown', teclas);
+  document.body.append(hoja); pintar().catch(() => aviso('No se ha podido crear la imagen'));
   return cerrar;
 }
 
-/** El boton que abre todo lo anterior. `preparar` devuelve { svg, fichero, texto }. */
-export function botonCompartir(preparar, { clase = 'btn secundario', texto = 'Compartir' } = {}) {
+function boton(t, on, fn) { return el('button', { texto: t, attrs: { type: 'button', 'aria-selected': String(on), 'aria-pressed': String(on) }, on: { click: fn } }); }
+function icono(id) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const s = document.createElementNS(NS, 'svg');
+  s.setAttribute('width', '24'); s.setAttribute('height', '24'); s.setAttribute('aria-hidden', 'true');
+  const u = document.createElementNS(NS, 'use');
+  u.setAttribute('href', `/assets/img/iconos.svg#${id}`);
+  s.append(u);
+  return s;
+}
+function aviso(t) { avisar(t, 'exito'); }
+
+/** Boton "Compartir" de las pantallas. `preparar()` devuelve { tipo, datos, extra, piloto }. */
+export function botonCompartir(preparar, { clase = 'btn secundario', texto: rotulo = 'Compartir' } = {}) {
   return el('button', {
-    clase: `${clase} boton-compartir`,
-    attrs: { type: 'button' },
+    clase: `${clase} boton-compartir`, attrs: { type: 'button' },
     on: { click: () => abrirCompartir(preparar()) },
-  }, [icono('compartir', 'icono peq'), el('span', { texto })]);
+  }, [icono('compartir'), el('span', { texto: rotulo })]);
 }

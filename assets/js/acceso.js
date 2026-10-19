@@ -12,6 +12,7 @@ import { estado } from './dom.js';
 import { anotar, volcar } from './metricas.js';
 import { registrar } from './errores.js';
 import { destinoTrasEntrar } from './canje-pendiente.js';
+import { guardarGooglePendiente } from './vincular-google.js';
 
 /** Lo que hace la persona, no un fallo: no se apunta como error. */
 const DE_LA_PERSONA = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/popup-blocked']);
@@ -42,6 +43,19 @@ export function montarBotonGoogle(boton, mensaje, { alEmpezar, alFallar } = {}) 
     } catch (error) {
       boton.disabled = false;
       alFallar?.();
+      // Ese correo ya tiene cuenta con contraseña: se guarda Google y se le
+      // lleva a entrar con la contraseña, que lo vincula (vincular-google.js).
+      if (error?.code === 'auth/account-exists-with-different-credential') {
+        const correo = guardarGooglePendiente(error);
+        try { if (correo) sessionStorage.setItem('bf_correo_entrar', correo); } catch { /* se escribe a mano */ }
+        if (window.location.pathname.startsWith('/entrar/')) {
+          estado(mensaje, 'Ya tienes cuenta con este correo. Entra una vez con tu contraseña y quedará unida a Google: después podrás entrar con cualquiera de los dos.', 'info');
+          document.dispatchEvent(new CustomEvent('bf:correo-entrar'));
+        } else {
+          window.location.replace('/entrar/');
+        }
+        return;
+      }
       estado(mensaje, traducirErrorAuth(error), 'error');
       // Que llegue al panel de errores con su codigo: "Google no funciona" sin
       // codigo no se puede arreglar. Solo el codigo y el mensaje de Firebase,

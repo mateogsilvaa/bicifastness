@@ -17,7 +17,7 @@ import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
 import { NIVELES, NOMBRES as LIGAS, emblemaLiga, chipDivision, numeroDeGrupo, LANZAMIENTO } from './ligas.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
 import { impugnable } from './motivos.js';
-import { botonCompartir, tarjetaTemporada } from './compartir.js';
+import { botonCompartir } from './compartir.js';
 
 // --- Formato -----------------------------------------------------------------
 
@@ -519,12 +519,14 @@ export function pintarTemporadas(perfil, cerradas, puesto = null) {
       el('span', { estilo: { width: `${Math.round((actual / mejor) * 100)}%` } }),
     ]),
     botonCompartir(() => ({
-      svg: tarjetaTemporada({
-        piloto: perfil.username, mes: nombreMes(diaMadrid().slice(0, 7)), puntos: actual,
-        puesto: puesto?.pos || null, total: puesto?.total || null, division,
-      }),
-      fichero: `bicifastness-temporada-${diaMadrid().slice(0, 7)}`,
-      texto: `Mi temporada de ${nombreMes(diaMadrid().slice(0, 7)).toLowerCase()} en bicifastness: ${numero(actual)} puntos. https://bicifastness.es`,
+      tipo: 'temporada',
+      datos: {
+        mes: nombreMes(diaMadrid().slice(0, 7)).split(' ')[0].toLowerCase(),
+        puntos: actual, puesto: puesto?.pos || null,
+        km: (perfil.metrosTotales || 0) / 1000, trayectos: perfil.viajesVerificados || 0,
+        racha: perfil.mejorRacha || 0, records: 0, piloto: perfil.username,
+      },
+      piloto: { nombre: perfil.username || '' },
     }), { texto: 'Compartir mi temporada' }),
   ]));
 

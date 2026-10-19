@@ -55,7 +55,7 @@ export const TIPOS = {
     nombre: 'Puesto',
     tarjeta: (d) => ({ tag: 'Ranking', eye: `${d.ambito} · ${d.modo}`, tit: d.cambio > 0 ? `Subo ${d.cambio} puestos esta semana` : 'Mi puesto hoy', big: ord(d.puesto), sub: `de ${n(d.total)} pilotos`, barra: true, stats: [[n(d.rating), 'BiciRating'], [`+${n(d.hoy)}`, 'hoy'], [`Top ${Math.max(1, Math.round(d.puesto / d.total * 100))} %`, `de ${d.ambito}`]] }),
     texto: (d) => `Voy ${ord(d.puesto)} de ${n(d.total)} en ${d.ambito}. Súbete tú también.`,
-    url: (d) => `${BASE}/p/${d.piloto}`,
+    url: (d) => `${BASE}/clasificacion/?piloto=${encodeURIComponent(d.piloto || '')}`,
   },
   temporada: {
     nombre: 'Temporada',
@@ -63,19 +63,19 @@ export const TIPOS = {
       mejor: d.mejorViaje && { t: 'Mi viaje con más puntos', r: `${d.mejorViaje.origen} → ${d.mejorViaje.destino}`, v: `+${n(d.mejorViaje.puntos)}`, i: `${fmtMin(d.mejorViaje.segundos)} · ${n(d.mejorViaje.km, 1)} km · ${n(d.mejorViaje.kmh, 1)} km/h` },
       stats: [[`${n(d.km)} km`, 'recorridos'], [`${n(d.racha)} días`, 'mejor racha'], [n(d.records), 'récords']] }),
     texto: (d) => `Esta temporada he hecho ${n(d.puntos)} puntos y ${n(d.km)} km en BiciMAD.${d.mejorViaje ? ` Mi mejor viaje: ${d.mejorViaje.origen} → ${d.mejorViaje.destino}, +${n(d.mejorViaje.puntos)}.` : ''}`,
-    url: (d) => `${BASE}/p/${d.piloto}`,
+    url: (d) => `${BASE}/clasificacion/?piloto=${encodeURIComponent(d.piloto || '')}`,
   },
   liga: {
     nombre: 'Liga',
     tarjeta: (d) => ({ tag: 'Liga', eye: `Semana ${d.semana} · grupo ${d.grupo}`, tit: d.sube ? `Subo a ${d.ligaNueva}` : d.baja ? `Bajo a ${d.ligaNueva}` : `Sigo en ${d.liga}`, big: ord(d.puesto), sub: `de 30 en ${d.liga}`, img: `/images/divisiones/${(d.sube || d.baja ? d.ligaNueva : d.liga).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}-oscuro.svg`, stats: [[n(d.puntos), 'pts de la semana'], [`${d.dias}/7`, 'días pedaleados'], [`${n(d.km)} km`, 'en la semana']] }),
     texto: (d) => d.sube ? `Subo a ${d.ligaNueva} en bicifastness.` : `${ord(d.puesto)} de mi grupo en ${d.liga}.`,
-    url: (d) => `${BASE}/p/${d.piloto}`,
+    url: (d) => `${BASE}/clasificacion/?piloto=${encodeURIComponent(d.piloto || '')}`,
   },
   racha: {
     nombre: 'Racha',
     tarjeta: (d) => ({ tag: 'Racha', eye: `Cada día en bici desde el ${d.desde}`, tit: 'Sin fallar ni uno', big: `${n(d.dias)} días`, sub: `seguidos · ×${n(d.mult, 2)} en puntos`, stats: [[n(d.escudos), 'escudos'], [n(d.trayectos), 'trayectos'], [n(d.mejor), 'mejor racha']] }),
     texto: (d) => `${n(d.dias)} días seguidos yendo en BiciMAD.`,
-    url: (d) => `${BASE}/p/${d.piloto}`,
+    url: (d) => `${BASE}/clasificacion/?piloto=${encodeURIComponent(d.piloto || '')}`,
   },
 };
 
@@ -153,7 +153,7 @@ export async function generarImagen({ tipo, formato = 'historia', tema = 'azul',
   const av = 52 * k; ctx.fillStyle = piloto?.color || '#13A89E'; ctx.beginPath(); ctx.arc(P + av / 2, footY - av / 2, av / 2, 0, Math.PI * 2); ctx.fill();
   texto(ctx, (piloto?.nombre || '?')[0].toUpperCase(), P + av / 2, footY - av / 2, { px: 26 * k, color: '#fff', align: 'center', base: 'middle' });
   texto(ctx, piloto?.nombre || '', P + av + 16 * k, footY - av / 2, { px: 32 * k, peso: 700, color: c.ink, base: 'middle' });
-  texto(ctx, `bicifastness.es/p/${piloto?.nombre || ''}`, W - P, footY - av / 2, { px: 32 * k, peso: 700, color: c.ink2, align: 'right', base: 'middle' });
+  texto(ctx, 'bicifastness.es', W - P, footY - av / 2, { px: 32 * k, peso: 700, color: c.ink2, align: 'right', base: 'middle' });
 
   // Cuerpo
   const top = P + lg + (story ? 140 : wide ? 40 : 70), colW = wide ? W - 2 * P - 340 : W - 2 * P;
@@ -212,18 +212,41 @@ export async function generarImagen({ tipo, formato = 'historia', tema = 'azul',
 
 /* ---------------- Compartir ---------------- */
 
-/** Web Share con archivo si se puede; si no, descarga + copia texto. */
+/** ¿Este navegador puede mandar la imagen al menu del movil? */
+export const puedeCompartirImagen = (blob) => {
+  try { return Boolean(navigator.share && navigator.canShare?.({ files: [new File([blob], 'x.png', { type: 'image/png' })] })); } catch { return false; }
+};
+
+/** Descarga el PNG. El enlace tiene que estar en la pagina: si no, Firefox e iOS lo ignoran. */
+export function descargar(blob, nombre) {
+  const a = el('a', { attrs: { href: URL.createObjectURL(blob), download: nombre } });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+/**
+ * La imagen al menu del movil (Instagram, WhatsApp...). SOLO la imagen: con
+ * imagen + texto, iOS deja fuera a Instagram y WhatsApp se queda a veces con el
+ * texto y sin la foto. El texto se copia antes (sin esperar: el menu tiene que
+ * abrirse dentro del mismo toque) para pegarlo si se quiere.
+ * Sin menu (ordenador), se descarga y se copia el texto.
+ */
 export async function compartir({ blob, texto: t, url, nombre = 'bicifastness.png' }) {
-  const file = new File([blob], nombre, { type: 'image/png' });
   const conTexto = `${t}\n${url}`;
-  if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], text: conTexto }); return 'compartido'; }
-    catch (e) { if (e.name === 'AbortError') return 'cancelado'; }
+  const copiado = navigator.clipboard?.writeText(conTexto).then(() => true, () => false) ?? Promise.resolve(false);
+  if (puedeCompartirImagen(blob)) {
+    try {
+      await navigator.share({ files: [new File([blob], nombre, { type: 'image/png' })] });
+      return (await copiado) ? 'compartido-y-copiado' : 'compartido';
+    } catch (e) {
+      if (e?.name === 'AbortError') return 'cancelado';
+      // Cualquier otro fallo del menu: se descarga, que al menos la tiene.
+    }
   }
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  try { await navigator.clipboard.writeText(conTexto); } catch { /* sin permiso */ }
-  return 'descargado';
+  descargar(blob, nombre);
+  return (await copiado) ? 'descargado-y-copiado' : 'descargado';
 }
 
 /** Solo texto + enlace a WhatsApp (escritorio, o si no hay Web Share con archivos). */
@@ -275,13 +298,22 @@ export function abrirCompartir({ tipo, datos, extra = {}, piloto, alCerrar }) {
 
   hoja.addEventListener('click', async (e) => {
     if (e.target.classList.contains('velo')) return cerrar();
-    const a = e.target.closest('[data-a]')?.dataset.a; if (!a || !blob) return;
+    const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+    if (!blob) { aviso('Un momento, se está preparando la imagen…'); return; }
     const T = TIPOS[estado.tipo], d = disponibles[estado.tipo], txt = T.texto(d), url = T.url(d);
-    if (a === 'whatsapp' && !navigator.canShare?.({ files: [new File([blob], 'x.png', { type: 'image/png' })] })) return window.open(enlaceWhatsApp(txt, url), '_blank', 'noopener');
+    if (a === 'whatsapp' && !puedeCompartirImagen(blob)) return window.open(enlaceWhatsApp(txt, url), '_blank', 'noopener');
     if (a === 'enlace') { try { await copiarEnlace(url); aviso('Enlace copiado'); } catch { aviso('No se ha podido copiar'); } return; }
-    if (a === 'guardar') { const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = `bicifastness-${estado.tipo}.png`; l.click(); return aviso('Imagen guardada'); }
-    const r = await compartir({ blob, texto: txt, url, nombre: `bicifastness-${estado.tipo}.png` });
-    if (r === 'descargado') aviso('Imagen guardada y texto copiado');
+    const nombre = `bicifastness-${estado.tipo}.png`;
+    // En el movil, "Guardar" va por el menu (ahi esta "Guardar imagen"): en una
+    // app instalada de iOS una descarga abre una vista sin salida.
+    if (a === 'guardar' && !puedeCompartirImagen(blob)) { descargar(blob, nombre); aviso('Imagen guardada'); return; }
+    const r = await compartir({ blob, texto: txt, url, nombre });
+    const AVISOS = {
+      'compartido-y-copiado': 'Texto copiado: pégalo si quieres acompañar la imagen',
+      'descargado-y-copiado': 'Imagen guardada y texto copiado',
+      descargado: 'Imagen guardada',
+    };
+    if (AVISOS[r]) aviso(AVISOS[r]);
   });
 
   const teclas = (e) => { if (e.key === 'Escape') cerrar(); };
@@ -304,9 +336,9 @@ function icono(id) {
 function aviso(t) { avisar(t, 'exito'); }
 
 /** Boton "Compartir" de las pantallas. `preparar()` devuelve { tipo, datos, extra, piloto }. */
-export function botonCompartir(preparar, { clase = 'btn secundario', texto: rotulo = 'Compartir' } = {}) {
+export function botonCompartir(preparar, { clase = '', texto: rotulo = 'Compartir' } = {}) {
   return el('button', {
-    clase: `${clase} boton-compartir`, attrs: { type: 'button' },
+    clase: `boton-compartir ${clase}`.trim(), attrs: { type: 'button', 'aria-label': rotulo },
     on: { click: () => abrirCompartir(preparar()) },
-  }, [icono('compartir'), el('span', { texto: rotulo })]);
+  }, [icono('compartir'), el('span', { texto: 'Compartir' })]);
 }

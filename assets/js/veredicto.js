@@ -183,7 +183,7 @@ export function abrirVerificado(viaje, contexto = {}) {
       : null,
     el('div', { clase: 'veredicto-hueco' }),
     el('div', { clase: 'veredicto-botones' }, [
-      botonCompartir(() => compartirViaje(viaje), { clase: contexto.destino ? 'btn secundario' : 'btn grande secundario' }),
+      botonCompartir(() => compartirViaje(viaje), { texto: 'Compartir este trayecto' }),
       contexto.destino ? null : seguir,
     ]),
   ], 'Trayecto verificado', contexto.destino);

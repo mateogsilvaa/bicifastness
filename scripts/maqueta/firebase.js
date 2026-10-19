@@ -360,6 +360,9 @@ export async function verifyPasswordResetCode() { return 'piloto@example.com'; }
 export async function confirmPasswordReset() {}
 export async function applyActionCode() {}
 export function getAdditionalUserInfo() { return { isNewUser: false }; }
+export async function linkWithCredential() { return { user: usuario }; }
+export const credencialGoogleDeError = () => null;
+export const credencialGoogle = () => ({});
 export async function entrarConGoogle() { localStorage.removeItem('maqueta_sesion'); return { user: usuario }; }
 
 export function collection(_db, ...segs) { return { tipo: 'col', path: segs.join('/') }; }

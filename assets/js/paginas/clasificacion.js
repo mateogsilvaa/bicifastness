@@ -22,7 +22,7 @@ import { traerAgregado } from '/assets/js/agregados.js';
 import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 import { diaMadrid, lunesDeLaSemana } from '/assets/js/dia.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
-import { botonCompartir, tarjetaRuta } from '/assets/js/compartir.js';
+import { botonCompartir } from '/assets/js/compartir.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
 import {
   NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
@@ -662,14 +662,23 @@ async function pintarDetalleRuta(ruta, vista = null) {
   const record = filas[0];
   const objetivo = mio?.delante;
   // Tu puesto en esta ruta, como imagen para compartir (assets/js/compartir.js).
-  const compartir = mio ? botonCompartir(() => ({
-    svg: tarjetaRuta({
-      piloto: perfil?.username, origen: nombreDe(ruta, ORIGEN), destino: nombreDe(ruta, DESTINO),
-      puesto: mio.yo.pos, total: mio.total, tiempo: mmss(mio.yo.marca), km,
-    }),
-    fichero: `bicifastness-ruta-${ruta}`,
-    texto: `${ordinal(mio.yo.pos)} de ${mio.total} en ${nombreDe(ruta, ORIGEN)} → ${nombreDe(ruta, DESTINO)} con ${mmss(mio.yo.marca)}. ¿Te atreves? https://bicifastness.es`,
-  }), { clase: 'btn secundario compartir-ruta', texto: 'Compartir' }) : null;
+  const compartir = mio ? botonCompartir(() => {
+    const podio = filas[2]?.marca;
+    return {
+      tipo: 'ruta',
+      datos: {
+        origen: nombreDe(ruta, ORIGEN), destino: nombreDe(ruta, DESTINO), rutaId: ruta,
+        segundos: mio.yo.marca, puesto: mio.yo.pos, total: mio.total,
+        km: km || 0, kmh: km && mio.yo.marca ? km / (mio.yo.marca / 3600) : 0,
+        record: record?.marca || null,
+        faltaPodio: mio.yo.pos > 3 && podio ? Math.max(1, Math.round(mio.yo.marca - podio)) : 0,
+        // En la historia, la tabla de la ruta: los cinco primeros, y tu fila si no estas.
+        filasTitulo: 'Tabla de la ruta',
+        filas: [...filas.slice(0, 5)].map((f) => ({ p: String(f.pos), n: f.nombre, v: mmss(f.marca), yo: f.nombre === perfil?.username })),
+      },
+      piloto: { nombre: perfil?.username || '' },
+    };
+  }, { clase: 'btn secundario compartir-ruta', texto: 'Compartir' }) : null;
 
   reemplazar(destino, [
     el('div', { clase: 'detalle-barra' }, [

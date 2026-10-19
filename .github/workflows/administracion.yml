@@ -14,10 +14,14 @@ on:
       operacion:
         description: 'Que hacer'
         type: choice
-        options: [hacer-admin, quitar-admin, comprobar-datos, reencolar-errores]
+        options: [hacer-admin, quitar-admin, comprobar-datos, reencolar-errores, borrar-viajes-y-clanes]
         required: true
       correo:
         description: 'Correo de la cuenta (solo para hacer-admin / quitar-admin)'
+        type: string
+        required: false
+      confirmar:
+        description: 'Para borrar-viajes-y-clanes: escribe BORRAR (sin eso, solo simula y cuenta)'
         type: string
         required: false
 
@@ -53,6 +57,7 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           OPERACION: ${{ inputs.operacion }}
           CORREO: ${{ inputs.correo }}
+          CONFIRMAR: ${{ inputs.confirmar }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
             echo "::error::Falta el secreto FIREBASE_SERVICE_ACCOUNT."
@@ -94,6 +99,14 @@ jobs:
                 })().catch((e) => { console.error(e.message); process.exit(1); });
               "
               node scripts/migrar-datos.js --comprobar || true
+              ;;
+            borrar-viajes-y-clanes)
+              # NO se puede deshacer. Sin "BORRAR" escrito, solo cuenta.
+              if [ "$CONFIRMAR" = "BORRAR" ]; then
+                node scripts/borrar-viajes-y-clanes.js --de-verdad
+              else
+                node scripts/borrar-viajes-y-clanes.js
+              fi
               ;;
             reencolar-errores)
               # Los viajes que fueron a revision porque el worker fallo (no

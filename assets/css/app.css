@@ -4907,3 +4907,8 @@ html.acceso-pendiente main::before {
 @media (min-width: 900px) { .hoja-compartir .panel { height: auto; } .hoja-compartir .previa { min-height: 520px; } }
 .temporada-actual .boton-compartir { background: rgba(255, 255, 255, .2); color: #fff; }
 .temporada-actual .boton-compartir:hover { background: rgba(255, 255, 255, .3); }
+/* La clase global `.velo` (hojas) es fija y con z-index 70: dentro de la hoja
+   de compartir se ponia ENCIMA del panel y no dejaba pulsar nada. Aqui el velo
+   va debajo y el panel encima. */
+.hoja-compartir .velo { position: absolute; z-index: 0; }
+.hoja-compartir .panel { z-index: 1; }

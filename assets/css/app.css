@@ -4893,9 +4893,10 @@ html.acceso-pendiente main::before {
 }
 /* El boton de compartir de las pantallas: una pastilla pequeña, que no compite
    con lo importante de cada pantalla. */
-.boton-compartir { display: inline-flex; align-items: center; justify-content: center; gap: 6px; align-self: flex-start; width: auto; min-height: 36px; padding: 0 14px 0 11px; border: 1px solid var(--linea-fuerte); border-radius: 999px; background: transparent; color: var(--tinta-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
-.boton-compartir:hover { color: var(--tinta); border-color: var(--tinta-3); }
-.boton-compartir svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.boton-compartir { display: inline-flex; align-items: center; justify-content: center; gap: 7px; align-self: flex-start; width: auto; min-height: 38px; padding: 0 16px 0 13px; border: 0; border-radius: 999px; background: var(--papel-3); color: var(--tinta); font: inherit; font-size: 14px; font-weight: 700; letter-spacing: -.005em; cursor: pointer; transition: background var(--transicion), transform var(--transicion); }
+.boton-compartir:hover { background: var(--linea); }
+.boton-compartir:active { transform: scale(.97); }
+.boton-compartir svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .temporada-actual .boton-compartir { margin-top: var(--e3); }
 .detalle-barra-acciones { display: inline-flex; align-items: center; gap: var(--e2); margin-left: auto; }
 .veredicto-botones .boton-compartir { align-self: center; }
@@ -4904,4 +4905,5 @@ html.acceso-pendiente main::before {
 .hoja-compartir .panel { height: calc(100dvh - 56px); }
 .hoja-compartir .previa { min-height: 0; overflow: hidden; }
 @media (min-width: 900px) { .hoja-compartir .panel { height: auto; } .hoja-compartir .previa { min-height: 520px; } }
-.temporada-actual .boton-compartir { color: #fff; border-color: rgba(255, 255, 255, .55); }
+.temporada-actual .boton-compartir { background: rgba(255, 255, 255, .2); color: #fff; }
+.temporada-actual .boton-compartir:hover { background: rgba(255, 255, 255, .3); }

@@ -4891,12 +4891,17 @@ html.acceso-pendiente main::before {
   .hoja-compartir .destinos { grid-template-columns: repeat(3, 1fr); padding: 0; align-self: end; }
   .hoja-compartir [data-a="historia"] { display: none; } /* en escritorio no hay Instagram: queda Guardar */
 }
-.boton-compartir { display: inline-flex; align-items: center; justify-content: center; gap: var(--e2); }
+/* El boton de compartir de las pantallas: una pastilla pequeña, que no compite
+   con lo importante de cada pantalla. */
+.boton-compartir { display: inline-flex; align-items: center; justify-content: center; gap: 6px; align-self: flex-start; width: auto; min-height: 36px; padding: 0 14px 0 11px; border: 1px solid var(--linea-fuerte); border-radius: 999px; background: transparent; color: var(--tinta-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.boton-compartir:hover { color: var(--tinta); border-color: var(--tinta-3); }
+.boton-compartir svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .temporada-actual .boton-compartir { margin-top: var(--e3); }
 .detalle-barra-acciones { display: inline-flex; align-items: center; gap: var(--e2); margin-left: auto; }
-.compartir-ruta { width: auto; min-height: 40px; padding: 0 var(--e4); }
+.veredicto-botones .boton-compartir { align-self: center; }
 /* La vista previa de "Historia" necesita un alto definido para encajar: el
    panel ocupa la pantalla en el movil y la previa se lleva lo que sobra. */
 .hoja-compartir .panel { height: calc(100dvh - 56px); }
 .hoja-compartir .previa { min-height: 0; overflow: hidden; }
 @media (min-width: 900px) { .hoja-compartir .panel { height: auto; } .hoja-compartir .previa { min-height: 520px; } }
+.temporada-actual .boton-compartir { color: #fff; border-color: rgba(255, 255, 255, .55); }

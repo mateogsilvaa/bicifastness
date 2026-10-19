@@ -678,7 +678,7 @@ async function pintarDetalleRuta(ruta, vista = null) {
       },
       piloto: { nombre: perfil?.username || '' },
     };
-  }, { clase: 'btn secundario compartir-ruta', texto: 'Compartir' }) : null;
+  }, { texto: 'Compartir mi puesto en esta ruta' }) : null;
 
   reemplazar(destino, [
     el('div', { clase: 'detalle-barra' }, [

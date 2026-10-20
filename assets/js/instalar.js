@@ -123,7 +123,7 @@ export function ofrecerInstalacion(contenedor, opciones = {}) {
         anilloLogo(52),
         el('span', {}, [
           el('strong', { texto: 'Tenla a mano' }),
-          el('span', { texto: 'Añádela a la pantalla de inicio: se abre como una app y funciona en el metro.' }),
+          el('span', { texto: 'Añádela a la pantalla de inicio: se abre como una app y casi no ocupa espacio.' }),
         ]),
       ]),
       el('div', { clase: 'dos-botones-hoja' }, [

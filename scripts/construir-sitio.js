@@ -145,6 +145,16 @@ function construir({ destino = path.join(RAIZ, '_site'), abierta = abiertaSegunE
 
 const ORIGEN_FIREBASE = 'https://www.gstatic.com';
 
+/** La clave de reCAPTCHA de App Check, leida de firebase.js (es publica). */
+const CLAVE_RECAPTCHA = (() => {
+  try {
+    const m = fs.readFileSync(path.join(RAIZ, 'assets', 'js', 'firebase.js'), 'utf8').match(/RECAPTCHA_SITE_KEY = '([A-Za-z0-9_-]{20,})'/);
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
+})();
+
 // `from '…'`, `import '…'` e `import('…')`, con rutas propias (absolutas en
 // /assets/ o relativas).
 const IMPORTS_PROPIOS = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])((?:\.{1,2}\/|\/assets\/)[^'"?]+?\.js)\2/g;
@@ -225,6 +235,12 @@ function optimizar(destino, version) {
       if (grafo.externos.length) {
         lineas.push(`<link rel="preconnect" href="${ORIGEN_FIREBASE}" crossorigin>`);
         lineas.push('<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>');
+        // App Check: Firestore no lee nada hasta tener su token, y el token
+        // sale de reCAPTCHA, que la pagina no pedia hasta haber bajado y
+        // ejecutado todos los modulos. Asi se conecta y se descarga ya.
+        lineas.push('<link rel="preconnect" href="https://www.google.com">');
+        lineas.push('<link rel="preconnect" href="https://content-firebaseappcheck.googleapis.com" crossorigin>');
+        if (CLAVE_RECAPTCHA) lineas.push(`<link rel="preload" as="script" href="https://www.google.com/recaptcha/enterprise.js?render=${CLAVE_RECAPTCHA}">`);
       }
       for (const url of grafo.externos) lineas.push(`<link rel="modulepreload" href="${url}">`);
       for (const ruta of grafo.propios) lineas.push(`<link rel="modulepreload" href="${conVersion(ruta)}">`);

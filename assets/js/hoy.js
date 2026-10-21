@@ -758,13 +758,14 @@ export async function pintarHoy(usuario, perfil) {
   const modo = pintarRacha(perfil, { enCola });
   pintarSubir(perfil, modo);
 
-  if (modo === 'riesgo') pintarAyudaRiesgo(perfil);
-  else await pintarMisiones(perfil, { conBarras: !enCola });
+  // Todo a la vez: cada tarjeta tiene su hueco con su esqueleto, asi que no
+  // hace falta esperar a las misiones para pedir lo demas.
+  const misiones = modo === 'riesgo' ? pintarAyudaRiesgo(perfil) : pintarMisiones(perfil, { conBarras: !enCola });
 
   avisarCambioDivision(perfil);
 
-  // Lo secundario, en paralelo: no bloquea lo de arriba.
   await Promise.all([
+    misiones,
     pintarRutaDelDia(perfil),
     pintarDivision(perfil),
     pintarUltimaMarca(usuario.uid),

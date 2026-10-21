@@ -323,18 +323,31 @@ function pintarObras({ mensaje, usuario }) {
   vigilar(capa);
 }
 
+const CLAVE_ABIERTA = 'bf_web_abierta';
+const HORAS_ABIERTA = 12;
+function abiertaHacePoco() {
+  try { return Date.now() - Number(localStorage.getItem(CLAVE_ABIERTA) || 0) < HORAS_ABIERTA * 3600 * 1000; } catch { return false; }
+}
+function recordarAbierta() { try { localStorage.setItem(CLAVE_ABIERTA, String(Date.now())); } catch { /* se tapara la proxima vez */ } }
+function olvidarAbierta() { try { localStorage.removeItem(CLAVE_ABIERTA); } catch { /* nada que olvidar */ } }
+
 /** La llama `iniciarPagina`. No bloquea nada mientras la web este abierta. */
 export async function comprobarAcceso() {
   if (LIBRES.some((r) => r.test(window.location.pathname))) return;
   // Sin saber aun si la web esta en obras (o sabiendo que si), la pagina se
   // tapa YA: si no, se ve un instante antes de que llegue la respuesta. Solo
   // se enseña sin esperar cuando hace poco se ha visto abierta.
-  if (guardado()?.modo !== 'abierta') document.documentElement.classList.add('acceso-pendiente');
+  // Se mira igual (la misma lectura de siempre), pero si en las ultimas horas
+  // se vio abierta no se tapa la pagina mientras tanto: taparla en cada
+  // pestaña nueva era esperar a App Check y a una lectura antes de ver nada.
+  if (guardado()?.modo !== 'abierta' && !abiertaHacePoco()) document.documentElement.classList.add('acceso-pendiente');
   const { modo, mensaje } = await leerModo();
   if (modo !== 'obras') {
+    recordarAbierta();
     document.documentElement.classList.remove('acceso-pendiente');
     return;
   }
+  olvidarAbierta();
   // En obras se tapa la pagina mientras se comprueba, para no enseñarla.
   document.documentElement.classList.add('acceso-pendiente');
   const usuario = await usuarioActual();

@@ -25,21 +25,28 @@ const enMemoria = new Map();
  *
  * Lanza si la lectura falla, para que cada pantalla decida que enseñar.
  */
-export async function traerAgregado(nombre) {
+export function traerAgregado(nombre) {
   if (enMemoria.has(nombre)) return enMemoria.get(nombre);
 
   const guardado = leerCache(nombre);
   if (guardado !== undefined) {
-    enMemoria.set(nombre, guardado);
-    return guardado;
+    enMemoria.set(nombre, Promise.resolve(guardado));
+    return enMemoria.get(nombre);
   }
 
-  const snap = await getDoc(doc(db, 'agregados', nombre));
-  const datos = snap.exists() ? snap.data() : null;
-
-  enMemoria.set(nombre, datos);
-  guardarCache(nombre, datos);
-  return datos;
+  // Se guarda la PROMESA, no el resultado: dos partes de la pantalla que piden
+  // lo mismo a la vez comparten una sola lectura en vez de pagar dos.
+  const lectura = getDoc(doc(db, 'agregados', nombre)).then((snap) => {
+    const datos = snap.exists() ? snap.data() : null;
+    guardarCache(nombre, datos);
+    return datos;
+  }, (error) => {
+    // Que el siguiente intento vuelva a preguntar, en vez de quedarse con el fallo.
+    enMemoria.delete(nombre);
+    throw error;
+  });
+  enMemoria.set(nombre, lectura);
+  return lectura;
 }
 
 /**

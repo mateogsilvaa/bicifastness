@@ -22,7 +22,7 @@ import { traerAgregado } from '/assets/js/agregados.js';
 import { reportarViaje, guardarFavoritas } from '/assets/js/acciones.js';
 import { diaMadrid, lunesDeLaSemana } from '/assets/js/dia.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
-import { botonCompartir } from '/assets/js/compartir.js';
+import { botonCompartir } from '/assets/js/compartir-boton.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
 import {
   NOMBRES as DIVISIONES, SIN_CLASIFICAR, emblemaLiga, cuandoCambia, fechaCorta as diaDeLiga, nombreGrupo,
@@ -83,14 +83,20 @@ const cache = new Map();
  * Trae un agregado. Devuelve null si no existe todavia: el worker los crea la
  * primera vez que aprueba algo, y hasta entonces la pantalla enseña su vacio.
  */
-async function traer(nombre) {
+function traer(nombre) {
   if (cache.has(nombre)) return cache.get(nombre);
   const guardado = leerCache(nombre);
-  if (guardado !== undefined) { cache.set(nombre, guardado); return guardado; }
+  if (guardado !== undefined) { cache.set(nombre, Promise.resolve(guardado)); return cache.get(nombre); }
+  // La promesa, no el resultado: pedir lo mismo a la vez es una sola lectura.
+  const lectura = leerAgregado(nombre);
+  cache.set(nombre, lectura);
+  return lectura;
+}
+
+async function leerAgregado(nombre) {
   try {
     const snap = await getDoc(doc(db, 'agregados', nombre));
     const datos = snap.exists() ? snap.data() : null;
-    cache.set(nombre, datos);
     guardarCache(nombre, datos);
     return datos;
   } catch (error) {
@@ -101,10 +107,16 @@ async function traer(nombre) {
       ? 'Las clasificaciones no están disponibles. Si acabas de desplegar, revisa las reglas de Firestore.'
       : 'No hemos podido cargar la clasificación.';
     console.debug(`No se ha podido leer agregados/${nombre}`, error);
-    cache.set(nombre, null);
     return null;
   }
 }
+
+// Lo que la pantalla va a pedir de todas formas, pedido YA, mientras se
+// comprueba la sesion y se lee el perfil: antes iba despues, en fila. El mapa
+// (colores y nombres de los clanes) lo usan las tres pestañas; los grupos, la
+// de pilotos de quien tiene sesion (se sabe por la copia local, sin leer nada).
+traer('mapa');
+try { if (localStorage.getItem('bf_ultimo_resumen')) traer('grupos'); } catch { /* sin almacenamiento, se pide luego */ }
 
 async function clanesDelMapa() {
   const mapa = await traer('mapa');

@@ -19,7 +19,7 @@ import { estadoDeViaje, motivoDeViaje, impugnable } from '/assets/js/motivos.js'
 import { sinMovimiento, aparecerPorPartes, sonar } from '/assets/js/celebrar.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { impugnarViaje } from '/assets/js/acciones.js';
-import { botonCompartir } from '/assets/js/compartir.js';
+import { botonCompartir } from '/assets/js/compartir-boton.js';
 
 const coma = (n, dec = 1) => Number(n).toFixed(dec).replace('.', ',');
 

@@ -17,7 +17,7 @@ import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
 import { NIVELES, NOMBRES as LIGAS, emblemaLiga, chipDivision, numeroDeGrupo, LANZAMIENTO } from './ligas.js';
 import { diaMadrid, diaMadridHace } from './dia.js';
 import { impugnable } from './motivos.js';
-import { botonCompartir } from './compartir.js';
+import { botonCompartir } from './compartir-boton.js';
 
 // --- Formato -----------------------------------------------------------------
 

@@ -27,6 +27,8 @@
 const ID_RECOMPENSA = /^[a-z0-9-]{1,40}$/;
 const CODIGO = /^[A-Za-z0-9]{16,40}$/;
 
+const huellaCodigo = (codigo) => require('crypto').createHash('sha256').update(String(codigo)).digest('hex');
+
 /** Cuantas peticiones se atienden por pasada. De sobra: son pocas, y una a una. */
 const POR_PASADA = 50;
 
@@ -61,6 +63,9 @@ async function decidir({ db, admin, uid, codigo }) {
       usadoEn: admin.firestore.FieldValue.serverTimestamp(),
     });
     t.update(refUsuario, { recompensas: admin.firestore.FieldValue.arrayUnion(c.recompensa) });
+    // Publico, para que quien llegue despues lo sepa al abrir el enlace, sin
+    // esperar al worker. Por la huella: lo publico no sirve para canjear.
+    t.set(db.doc(`codigos_gastados/${huellaCodigo(codigo)}`), { gastado: true });
     return { estado: 'ok', recompensa: c.recompensa };
   });
 }
@@ -106,4 +111,4 @@ async function procesarCanjes({ db, admin, simular = false, avisar = null }) {
   return resumen;
 }
 
-module.exports = { procesarCanjes, decidir, CODIGO, ID_RECOMPENSA };
+module.exports = { procesarCanjes, decidir, huellaCodigo, CODIGO, ID_RECOMPENSA };

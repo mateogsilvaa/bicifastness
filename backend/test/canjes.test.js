@@ -45,6 +45,8 @@ test('un codigo valido da la recompensa y se queda gastado', async () => {
   const codigo = await leer(db, `recompensas_codigos/${CODIGO}`);
   assert.strictEqual(codigo.usadoPor, 'u1');
   assert.strictEqual(codigo.usadoPorNombre, 'pepa');
+  // Y queda publicado por su huella, para que quien llegue tarde lo sepa ya.
+  assert.deepStrictEqual(await leer(db, `codigos_gastados/${canjes.huellaCodigo(CODIGO)}`), { gastado: true });
   const canje = await leer(db, 'canjes_recompensa/u1');
   assert.strictEqual(canje.estado, 'ok');
   assert.strictEqual(canje.recompensa, 'metro');

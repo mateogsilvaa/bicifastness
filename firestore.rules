@@ -901,6 +901,13 @@ service cloud.firestore {
         && datos().creado == request.time;
     }
 
+    // Enlaces ya gastados, por la huella SHA-256 del codigo: el que llega tarde
+    // lo sabe al abrirlo. Se pide uno a uno; listarlos no.
+    match /codigos_gastados/{huella} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
     match /canjes_recompensa/{uid} {
       allow read: if esYo(uid) || esAdmin();
       allow create: if esYo(uid) && canjeValido() && puedeUsarLaWeb() && cuentaActiva();

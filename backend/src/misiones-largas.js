@@ -172,18 +172,43 @@ const FAMILIAS = {
 const NOMBRES = Object.keys(FAMILIAS);
 
 // --- Periodos -----------------------------------------------------------------
+//
+// Todo con dias 'YYYY-MM-DD' que ya son de Madrid (`util.diaMadrid`): aqui
+// solo hay calendario, sin zonas ni horas. Se cuenta en numero de dia
+// (dias desde 1970-01-01) con la cuenta civil de siempre.
 
-const percha = (dia) => {
-  const [a, m, d] = String(dia).slice(0, 10).split('-').map(Number);
-  return new Date(Date.UTC(a, m - 1, d));
-};
-const aDia = (fecha) => fecha.toISOString().slice(0, 10);
+const dos = (n) => String(n).padStart(2, '0');
 
-/** El lunes de un dia 'YYYY-MM-DD' (sin zonas: el dia ya es de Madrid). */
+/** 'YYYY-MM-DD' → numero de dia. */
+function aNumero(dia) {
+  let [a, m, d] = String(dia).slice(0, 10).split('-').map(Number);
+  a -= m <= 2 ? 1 : 0;
+  const era = Math.floor(a / 400);
+  const ae = a - era * 400;
+  const dda = Math.floor((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1;
+  const dde = ae * 365 + Math.floor(ae / 4) - Math.floor(ae / 100) + dda;
+  return era * 146097 + dde - 719468;
+}
+
+/** Numero de dia → 'YYYY-MM-DD'. */
+function aDia(n) {
+  const z = n + 719468;
+  const era = Math.floor(z / 146097);
+  const dde = z - era * 146097;
+  const ae = Math.floor((dde - Math.floor(dde / 1460) + Math.floor(dde / 36524) - Math.floor(dde / 146096)) / 365);
+  const dda = dde - (365 * ae + Math.floor(ae / 4) - Math.floor(ae / 100));
+  const mp = Math.floor((5 * dda + 2) / 153);
+  const d = dda - Math.floor((153 * mp + 2) / 5) + 1;
+  const m = mp < 10 ? mp + 3 : mp - 9;
+  return `${era * 400 + ae + (m <= 2 ? 1 : 0)}-${dos(m)}-${dos(d)}`;
+}
+
+/** 0 = domingo ... 6 = sabado. El 1970-01-01 fue jueves. */
+const diaDeLaSemana = (dia) => (((aNumero(dia) + 4) % 7) + 7) % 7;
+
+/** El lunes de un dia 'YYYY-MM-DD'. */
 function lunesDeDia(dia) {
-  const f = percha(dia);
-  f.setUTCDate(f.getUTCDate() - ((f.getUTCDay() + 6) % 7));
-  return aDia(f);
+  return aDia(aNumero(dia) - ((diaDeLaSemana(dia) + 6) % 7));
 }
 
 /** La clave del periodo al que pertenece un dia. */
@@ -193,20 +218,15 @@ function periodoDe(tipo, dia) {
 
 /** Cuantos dias le quedan al periodo, contando el de hoy. */
 function diasQuedan(tipo, dia) {
-  const hoy = percha(dia);
-  let fin;
-  if (tipo === 'semana') {
-    fin = percha(lunesDeDia(dia));
-    fin.setUTCDate(fin.getUTCDate() + 6);
-  } else {
-    fin = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() + 1, 0));
-  }
-  return Math.round((fin - hoy) / 864e5) + 1;
+  if (tipo === 'semana') return aNumero(lunesDeDia(dia)) + 7 - aNumero(dia);
+  const [a, m] = String(dia).split('-').map(Number);
+  const primeroSiguiente = m === 12 ? `${a + 1}-01-01` : `${a}-${dos(m + 1)}-01`;
+  return aNumero(primeroSiguiente) - aNumero(dia);
 }
 
 /** El numero de orden del periodo, para recorrer la baraja. */
 function indiceDe(tipo, periodo) {
-  if (tipo === 'semana') return Math.round((percha(periodo) - percha('2024-01-01')) / (7 * 864e5));
+  if (tipo === 'semana') return Math.round((aNumero(periodo) - aNumero('2024-01-01')) / 7);
   const [a, m] = periodo.split('-').map(Number);
   return (a - 2024) * 12 + (m - 1);
 }
@@ -283,7 +303,7 @@ function acumular(totales, periodo, viaje, contexto = {}) {
   const metros = viaje.distanciaMetros || 0;
   const kmh = viaje.velocidadKmh || 0;
   const minuto = minutosDeHora(viaje.horaSalida);
-  const diaSemana = viaje.dia ? percha(viaje.dia).getUTCDay() : null;
+  const diaSemana = viaje.dia ? diaDeLaSemana(viaje.dia) : null;
   const estaciones = String(viaje.ruta || '').split('-').filter(Boolean).map((e) => e.replace(/^0+/, ''));
   const mas = (campo, si) => (base[campo] || 0) + (si ? 1 : 0);
 

@@ -1031,6 +1031,8 @@ test('el borrado de cuenta no se deja ninguna coleccion con uid dentro', () => {
     'acceso_lista',
     // Por donde va el worker leyendo los pagos de Stripe: ids de sesion.
     'tienda_interno',
+    // Enlaces de recompensa gastados: la huella del codigo y nada mas.
+    'codigos_gastados',
     // La analitica es anonima a proposito: `conSesion` es un booleano, no un
     // uid. Si algun dia guardara uno, hay que sacarlo de esta lista.
     'sesiones_web', 'errores_cliente',

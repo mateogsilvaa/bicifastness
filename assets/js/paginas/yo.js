@@ -42,6 +42,7 @@ import { tiendaAbierta } from '/assets/js/tienda.js';
 import { estadoAvisos, guiaAvisos, avisoDePrueba } from '/assets/js/guia-avisos.js';
 import { leerVitrina, guardarVitrina, leerConfigRecompensas } from '/assets/js/vitrina.js';
 import { REDES, limpiarUsuario } from '/assets/js/redes.js';
+import { abrirTutorial } from '/assets/js/tutorial.js';
 import { banner, lema, cabeceraPiloto, colorAvatar } from '/assets/js/perfil-publico.js';
 import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene, comoSeGana, imagenBanner, colaboracionDe } from '/assets/data/recompensas.js';
 
@@ -323,6 +324,8 @@ async function cargarVitrina() {
   pintarVitrina();
   for (const red of Object.keys(REDES)) id(`red-${red}`).value = vitrina.redes?.[red] || '';
 }
+
+id('ver-tutorial').addEventListener('click', () => abrirTutorial({ uid: usuario?.uid }));
 
 id('panel-vitrina-redes').addEventListener('submit', async (evento) => {
   evento.preventDefault();

@@ -887,3 +887,12 @@ test('un token con claims inventados no es administracion', async () => {
   await assertFails(getDocs(collection(falso, 'reportes')));
   await assertFails(getDocs(collection(falso, 'acceso_lista')));
 });
+
+test('el tutorial solo se marca como visto, nunca se desmarca', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura' });
+  });
+  await assertSucceeds(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: true }));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: false }));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: 'si' }));
+});

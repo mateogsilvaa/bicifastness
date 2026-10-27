@@ -19,6 +19,7 @@ import { ofrecerInstalacion, guardarResumenOffline } from '/assets/js/instalar.j
 import { canjePendiente } from '/assets/js/canje-pendiente.js';
 import { traerAgregado } from '/assets/js/agregados.js';
 import { pintarHoy, miGrupo, nombreGrupo } from '/assets/js/hoy.js';
+import { tutorialSiToca } from '/assets/js/tutorial.js';
 import { ofrecerAvisos } from '/assets/js/push.js';
 import { ofrecerApoyo } from '/assets/js/tienda.js';
 import { anotar, volcar } from '/assets/js/metricas.js';
@@ -195,6 +196,8 @@ onAuthStateChanged(auth, async (usuario) => {
     }
 
     await pintarHoy(usuario, datos);
+    // La primera vez dentro, y nunca mas (assets/js/tutorial.js).
+    tutorialSiToca(datos, usuario.uid);
 
     miGrupo(datos.username).then((grupo) => {
       if (grupo?.yo) guardarResumenOffline(datos, { grupo: nombreGrupo(grupo.clave), puestoGrupo: grupo.yo.pos });

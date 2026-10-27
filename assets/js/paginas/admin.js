@@ -11,7 +11,7 @@ import {
 import { iniciarPagina, nombreRuta, nombreEstacion, formatearFecha, formatearTiempo, normalizarEstacion } from '/assets/js/ui.js';
 import { id, el, icono, estado, reemplazar, imagen, confirmar, avisar, esqueleto, pedirTexto } from '/assets/js/dom.js';
 import { MOTIVOS_MANUALES, textoDeMotivo } from '/assets/js/motivos.js';
-import { montarCabeceraAdmin, contadorAdmin, marcarSeccionAdmin } from '/assets/js/admin-cabecera.js';
+import { montarCabeceraAdmin, contadorAdmin, marcarSeccionAdmin, puertaDosPasos } from '/assets/js/admin-cabecera.js';
 import { INSIGNIAS } from '/assets/data/insignias.js';
 import { BANNERS, LEMAS, esLibre } from '/assets/data/recompensas.js';
 import {
@@ -54,6 +54,8 @@ onAuthStateChanged(auth, async (usuario) => {
     setTimeout(() => window.location.replace('/'), 1500);
     return;
   }
+  // El codigo de la app de autenticacion, cada vez que se entra.
+  if (!(await puertaDosPasos(usuario, token))) return;
 
   id('cargando').classList.add('oculto');
   id('panel').classList.remove('oculto');

@@ -34,7 +34,28 @@ service cloud.firestore {
     // que solo puede escribir el Admin SDK. NO en un documento que el propio
     // usuario pueda modificar.
     function esAdmin() {
-      return autenticado() && request.auth.token.admin == true;
+      return autenticado() && request.auth.token.admin == true && segundoFactorAdmin();
+    }
+
+    // Verificacion en dos pasos de la administracion (assets/js/dos-pasos.js).
+    //
+    // Mientras `config/seguridad.adminMfa` no este encendido, el rol basta: es
+    // lo que deja entrar a activarla sin quedarse fuera. Encendido, el token
+    // tiene que llevar el segundo paso (TOTP, firmado por Firebase) y de hace
+    // menos de dos horas: el panel lo vuelve a pedir en cada entrada, y una
+    // sesion robada no sirve de admin pasado ese rato.
+    //
+    // Solo se evalua con el claim `admin` (el `&&` de arriba corta antes), asi
+    // que a nadie mas le cuesta ninguna lectura.
+    function segundoFactorAdmin() {
+      return !exists(/databases/$(database)/documents/config/seguridad)
+        || get(/databases/$(database)/documents/config/seguridad).data.get('adminMfa', false) != true
+        || segundoFactorReciente();
+    }
+
+    function segundoFactorReciente() {
+      return request.auth.token.firebase.get('sign_in_second_factor', '') == 'totp'
+        && request.auth.token.auth_time > request.time.toMillis() / 1000 - 7200;
     }
 
     // --- Web abierta o en construccion (assets/js/puerta.js) ----------------
@@ -970,6 +991,20 @@ service cloud.firestore {
     // Lo que el worker apunta de Stripe (por donde va leyendo). Nadie mas.
     match /tienda_interno/{doc} {
       allow read, write: if false;
+    }
+
+    // Si la administracion exige los dos pasos. La lee quien tiene el rol
+    // aunque aun no los tenga (para saber que le falta); encenderla solo se
+    // puede con el segundo paso ya hecho, y APAGARLA no se puede desde la web:
+    // solo desde la consola de Firebase. Quien robe una sesion no la quita.
+    match /config/seguridad {
+      allow read: if autenticado() && request.auth.token.admin == true;
+      allow write: if autenticado() && request.auth.token.admin == true
+        && segundoFactorReciente()
+        && datos().keys().hasOnly(['adminMfa', 'por', 'actualizado'])
+        && datos().adminMfa == true
+        && datos().por == request.auth.uid
+        && datos().actualizado == request.time;
     }
 
     match /config/{otro} {

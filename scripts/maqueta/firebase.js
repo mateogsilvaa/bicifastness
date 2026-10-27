@@ -363,6 +363,28 @@ export function getAdditionalUserInfo() { return { isNewUser: false }; }
 export async function linkWithCredential() { return { user: usuario }; }
 export const credencialGoogleDeError = () => null;
 export const credencialGoogle = () => ({});
+// Verificacion en dos pasos (assets/js/dos-pasos.js): de mentira, vale cualquier
+// codigo de 6 cifras.
+const factoresMaqueta = [];
+export function multiFactor() {
+  return {
+    enrolledFactors: factoresMaqueta,
+    getSession: async () => ({}),
+    enroll: async () => { factoresMaqueta.push({ factorId: 'totp', uid: 'f1' }); },
+    unenroll: async () => { factoresMaqueta.length = 0; },
+  };
+}
+export const TotpMultiFactorGenerator = {
+  generateSecret: async () => ({ secretKey: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', generateQrCodeUrl: (c, e) => `otpauth://totp/${e}:${c}?secret=JBSWY3DPEHPK3PXP&issuer=${e}` }),
+  assertionForEnrollment: () => ({}),
+  assertionForSignIn: () => ({}),
+};
+export function getMultiFactorResolver() { return { hints: [{ factorId: 'totp', uid: 'f1' }], resolveSignIn: async () => ({ user: usuario }) }; }
+export async function reauthenticateWithCredential() { return { user: usuario }; }
+export async function reauthenticateWithPopup() { return { user: usuario }; }
+export const EmailAuthProvider = { credential: () => ({}) };
+export const proveedorGoogle = () => ({});
+export const browserPopupRedirectResolver = {};
 export async function entrarConGoogle() { localStorage.removeItem('maqueta_sesion'); return { user: usuario }; }
 
 export function collection(_db, ...segs) { return { tipo: 'col', path: segs.join('/') }; }

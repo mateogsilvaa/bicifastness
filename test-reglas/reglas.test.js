@@ -896,3 +896,27 @@ test('el tutorial solo se marca como visto, nunca se desmarca', async () => {
   await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: false }));
   await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: 'si' }));
 });
+
+test('con la verificacion en dos pasos exigida, el admin necesita el segundo paso reciente', async () => {
+  const ahora = Math.floor(Date.now() / 1000);
+  const conTotp = { admin: true, auth_time: ahora - 60, firebase: { sign_in_provider: 'password', sign_in_second_factor: 'totp' } };
+  const viejo = { ...conTotp, auth_time: ahora - 3 * 3600 };
+  const sinTotp = { admin: true, auth_time: ahora - 60, firebase: { sign_in_provider: 'password' } };
+  const reportes = (claims) => getDocs(collection(como('jefa', claims), 'reportes'));
+
+  // Sin exigir: el rol basta, como siempre.
+  await assertSucceeds(reportes(sinTotp));
+  // Encenderla solo con el segundo paso hecho; nadie sin rol.
+  const seguridad = (claims, datos = {}) => setDoc(doc(como('jefa', claims), 'config', 'seguridad'), { adminMfa: true, por: 'jefa', actualizado: serverTimestamp(), ...datos });
+  await assertFails(seguridad(sinTotp));
+  await assertFails(seguridad({ firebase: { sign_in_second_factor: 'totp' }, auth_time: ahora }));
+  await assertSucceeds(seguridad(conTotp));
+  // Exigida: sin segundo paso, o con uno de hace horas, no es admin.
+  await assertFails(reportes(sinTotp));
+  await assertFails(reportes(viejo));
+  await assertSucceeds(reportes(conTotp));
+  // Puede leer la marca para saber que le falta, pero no apagarla.
+  await assertSucceeds(getDoc(doc(como('jefa', sinTotp), 'config', 'seguridad')));
+  await assertFails(seguridad(conTotp, { adminMfa: false }));
+  await assertFails(getDoc(doc(como(UID), 'config', 'seguridad')));
+});

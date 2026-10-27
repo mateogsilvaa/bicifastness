@@ -43,6 +43,7 @@ import { estadoAvisos, guiaAvisos, avisoDePrueba } from '/assets/js/guia-avisos.
 import { leerVitrina, guardarVitrina, leerConfigRecompensas } from '/assets/js/vitrina.js';
 import { REDES, limpiarUsuario } from '/assets/js/redes.js';
 import { abrirTutorial } from '/assets/js/tutorial.js';
+import { tieneDosPasos, activarDosPasos, desactivarDosPasos, mensajeDosPasos } from '/assets/js/dos-pasos.js';
 import { banner, lema, cabeceraPiloto, colorAvatar } from '/assets/js/perfil-publico.js';
 import { BANNERS, LEMAS, BANNER_POR_DEFECTO, laTiene, comoSeGana, imagenBanner, colaboracionDe } from '/assets/data/recompensas.js';
 
@@ -240,6 +241,7 @@ async function cargarPerfil() {
   estadoAvisos().then((s) => marcarAvisos(TEXTO_AVISOS[s])).catch(() => { /* sin estado, la entrada sin detalle */ });
   tiendaAbierta().then(marcarTienda).catch(() => { /* sin tienda, el menu de siempre */ });
   pintarAjustes(perfil);
+  pintarDosPasos();
 
   // Activados salvo que se hayan apagado a proposito: `undefined` significa que
   // nunca se ha tocado la preferencia, no que este desactivada.
@@ -324,6 +326,37 @@ async function cargarVitrina() {
   pintarVitrina();
   for (const red of Object.keys(REDES)) id(`red-${red}`).value = vitrina.redes?.[red] || '';
 }
+
+// --- Verificacion en dos pasos ----------------------------------------------------
+
+function pintarDosPasos() {
+  const activa = tieneDosPasos(auth.currentUser);
+  id('dos-pasos').checked = activa;
+  id('dos-pasos-detalle').textContent = activa
+    ? 'Activada: al entrar te pediremos el código de tu app de autenticación'
+    : 'Al entrar, además de la contraseña, un código de tu app de autenticación';
+}
+
+id('dos-pasos').addEventListener('change', async (evento) => {
+  const casilla = evento.currentTarget;
+  const quiere = casilla.checked;
+  casilla.disabled = true;
+  estado(id('msg-seguridad'), '');
+  try {
+    if (quiere) {
+      const ok = await activarDosPasos(auth.currentUser);
+      if (ok) estado(id('msg-seguridad'), 'Activada. La próxima vez que entres te pediremos el código.', 'exito');
+    } else if (window.confirm('¿Quitar la verificación en dos pasos? Tu cuenta quedará protegida solo por la contraseña.')) {
+      await desactivarDosPasos(auth.currentUser);
+      estado(id('msg-seguridad'), 'Desactivada.', 'info');
+    }
+  } catch (error) {
+    console.debug('Dos pasos', error);
+    estado(id('msg-seguridad'), mensajeDosPasos(error), 'error');
+  }
+  casilla.disabled = false;
+  pintarDosPasos();
+});
 
 id('ver-tutorial').addEventListener('click', () => abrirTutorial({ uid: usuario?.uid }));
 

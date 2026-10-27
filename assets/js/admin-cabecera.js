@@ -6,10 +6,11 @@
  * barra inferior, y solo pensada para escritorio.
  */
 
-import { el, reemplazar, anilloLogo } from '/assets/js/dom.js';
+import { el, reemplazar, anilloLogo, abrirHoja } from '/assets/js/dom.js';
 import {
-  auth, db, onAuthStateChanged, signOut, collection, doc, setDoc, serverTimestamp,
+  auth, db, onAuthStateChanged, signOut, collection, doc, getDoc, setDoc, serverTimestamp,
 } from '/assets/js/firebase.js';
+import { verificarAdmin, activarDosPasos, mensajeDosPasos } from '/assets/js/dos-pasos.js';
 
 const SECCIONES = [
   { clave: 'panel', texto: 'Panel', href: '/admin/panel/' },
@@ -114,6 +115,7 @@ export function exigirAdmin(pagina) {
         token = null;
       }
       if (token?.claims?.admin !== true) { window.location.replace('/'); return; }
+      if (!(await puertaDosPasos(usuario, token))) return;
 
       document.body.classList.remove('adm-bloqueada');
       // El rastro de la entrada. Si falla no se bloquea el panel: el registro
@@ -131,6 +133,106 @@ export function exigirAdmin(pagina) {
       resolver(usuario);
     });
   });
+}
+
+// --- Verificacion en dos pasos (assets/js/dos-pasos.js) ------------------------
+
+/** ¿Esta encendido `config/seguridad.adminMfa`? Con el, las reglas la exigen. */
+async function dosPasosExigidos() {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'seguridad'));
+    return snap.exists() && snap.data().adminMfa === true;
+  } catch {
+    // Sin poder leerlo (sin red, o ya exigida y sin el segundo paso): se trata
+    // como exigida, que es el lado seguro.
+    return true;
+  }
+}
+
+/**
+ * Antes de enseñar nada del panel: el codigo de la app de autenticacion, cada
+ * vez que se entra. Si la cuenta aun no la tiene, se ofrece activarla; si las
+ * reglas ya la exigen, sin ella no se pasa.
+ *
+ * @returns {Promise<boolean>} si se puede seguir
+ */
+export async function puertaDosPasos(usuario, token) {
+  const resultado = await verificarAdmin(usuario, token);
+  if (resultado === 'ok') {
+    ofrecerExigirSiempre(usuario);
+    return true;
+  }
+  if (resultado === 'cancelado') { window.location.replace('/'); return false; }
+
+  const exigidos = await dosPasosExigidos();
+  const activada = await pantallaActivar(usuario, exigidos);
+  if (activada) return puertaDosPasos(usuario, await usuario.getIdTokenResult(true));
+  if (exigidos) { window.location.replace('/'); return false; }
+  return true;
+}
+
+function pantallaActivar(usuario, exigidos) {
+  return new Promise((resolver) => {
+    const msg = el('p', { clase: 'mensaje', attrs: { 'aria-live': 'polite' } });
+    let hecho = false;
+    const activar = el('button', {
+      clase: 'btn', texto: 'Activarla ahora', attrs: { type: 'button' },
+      on: {
+        click: async () => {
+          activar.disabled = true;
+          try {
+            if (await activarDosPasos(usuario)) { hecho = true; cerrar(); resolver(true); return; }
+          } catch (error) {
+            msg.textContent = mensajeDosPasos(error);
+          }
+          activar.disabled = false;
+        },
+      },
+    });
+    const { cerrar } = abrirHoja([
+      el('h2', { texto: 'Protege el panel con dos pasos' }),
+      el('p', {
+        texto: exigidos
+          ? 'El panel exige la verificación en dos pasos y esta cuenta aún no la tiene. Actívala con una app de autenticación para entrar.'
+          : 'Con ella, cada vez que entres al panel te pediremos el código de tu app de autenticación. Aunque alguien tenga tu contraseña, no podrá entrar.',
+      }),
+      msg,
+      el('div', { clase: 'dos-botones-hoja' }, [
+        activar,
+        el('button', {
+          clase: 'btn plano', texto: exigidos ? 'Salir' : 'Más tarde', attrs: { type: 'button' },
+          on: { click: () => cerrar() },
+        }),
+      ]),
+    ], { etiqueta: 'Verificación en dos pasos', alCerrar: () => { if (!hecho) resolver(false); } });
+  });
+}
+
+/**
+ * Con los dos pasos ya funcionando, el boton para que las reglas la EXIJAN.
+ * Encenderla se puede desde aqui; apagarla no (solo desde la consola de
+ * Firebase): quien robe la sesion no puede quitar la proteccion.
+ */
+async function ofrecerExigirSiempre(usuario) {
+  if (await dosPasosExigidos()) return;
+  const aviso = el('div', { clase: 'adm-aviso-mfa' }, [
+    el('span', { texto: 'Tu cuenta ya tiene verificación en dos pasos, pero las reglas todavía aceptan el panel sin ella.' }),
+    el('button', {
+      clase: 'btn', texto: 'Exigirla siempre', attrs: { type: 'button' },
+      on: {
+        click: async () => {
+          try {
+            await setDoc(doc(db, 'config', 'seguridad'), { adminMfa: true, por: usuario.uid, actualizado: serverTimestamp() });
+            aviso.remove();
+          } catch (error) {
+            console.debug('No se ha podido exigir', error);
+            aviso.firstChild.textContent = 'No se ha podido guardar. Recarga la página y vuelve a intentarlo.';
+          }
+        },
+      },
+    }),
+  ]);
+  document.body.append(aviso);
 }
 
 function vigilarInactividad() {

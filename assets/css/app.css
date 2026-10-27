@@ -4958,3 +4958,14 @@ body.con-tutorial { overflow: hidden; }
 .tutorial-botones { width: 100%; max-width: 420px; display: flex; justify-content: space-between; gap: 10px; }
 .tutorial-botones .btn { min-width: 120px; min-height: 48px; }
 @media (prefers-reduced-motion: reduce) { .tutorial-puntos span { transition: none; } }
+
+/* --- Verificacion en dos pasos (assets/js/dos-pasos.js) --------------------- */
+.hoja-dos-pasos h2 { margin: 0; }
+.form-dos-pasos { display: flex; flex-direction: column; gap: 12px; }
+.qr-caja { align-self: center; width: 200px; max-width: 70vw; padding: 8px; border-radius: 12px; background: #fff; }
+.qr-dos-pasos { display: block; width: 100%; height: auto; }
+.clave-manual summary { cursor: pointer; font-size: 14px; color: var(--azul); }
+.clave-manual code { display: block; margin: 6px 0; padding: 10px; border-radius: 10px; background: var(--papel); font-size: 15px; letter-spacing: .05em; overflow-wrap: anywhere; user-select: all; }
+.campo-codigo { font-size: 28px; letter-spacing: .4em; text-align: center; font-variant-numeric: tabular-nums; min-height: 56px; }
+.adm-aviso-mfa { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 50; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: var(--papel-2); box-shadow: 0 6px 24px rgba(0,0,0,.18); font-size: 14px; }
+.adm-aviso-mfa span { flex: 1; min-width: 200px; }

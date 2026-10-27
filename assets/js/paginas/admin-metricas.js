@@ -13,7 +13,7 @@ import {
 } from '/assets/js/firebase.js';
 import { iniciarPagina } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
-import { montarCabeceraAdmin } from '/assets/js/admin-cabecera.js';
+import { montarCabeceraAdmin, puertaDosPasos } from '/assets/js/admin-cabecera.js';
 
 iniciarPagina('admin');
 montarCabeceraAdmin('metricas');
@@ -305,6 +305,9 @@ onAuthStateChanged(auth, async (usuario) => {
     estado(id('mensaje'), 'Necesitas iniciar sesion como administrador.', 'error');
     return;
   }
+  const token = await usuario.getIdTokenResult(true).catch(() => null);
+  if (token?.claims?.admin !== true) { window.location.replace('/'); return; }
+  if (!(await puertaDosPasos(usuario, token))) return;
 
   try {
     const snap = await getDoc(doc(db, 'agregados', 'metricas'));

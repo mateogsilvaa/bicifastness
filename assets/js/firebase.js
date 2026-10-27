@@ -18,6 +18,9 @@ import {
   GoogleAuthProvider, signInWithPopup, browserPopupRedirectResolver,
   getAdditionalUserInfo, verifyPasswordResetCode, confirmPasswordReset, applyActionCode,
   linkWithCredential,
+  // Verificacion en dos pasos (assets/js/dos-pasos.js).
+  multiFactor, TotpMultiFactorGenerator, getMultiFactorResolver,
+  reauthenticateWithCredential, reauthenticateWithPopup, EmailAuthProvider,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
@@ -159,19 +162,26 @@ export function credencialGoogleDeError(error) {
 /** La credencial de Google rehecha con sus tokens, para vincularla. */
 export const credencialGoogle = (idToken, accessToken) => GoogleAuthProvider.credential(idToken || null, accessToken || null);
 
-export function entrarConGoogle() {
+/** El proveedor de Google de siempre (tambien para volver a identificarse en el panel). */
+export function proveedorGoogle() {
   const proveedor = new GoogleAuthProvider();
+  proveedor.setCustomParameters({ prompt: 'select_account' });
+  return proveedor;
+}
+
+export function entrarConGoogle() {
   // Que pregunte con que cuenta, en vez de entrar sin mas con la ultima usada:
   // en un movil compartido, o con cuenta personal y de trabajo, es lo que evita
   // registrarse con la que no era.
-  proveedor.setCustomParameters({ prompt: 'select_account' });
-  return signInWithPopup(auth, proveedor, browserPopupRedirectResolver);
+  return signInWithPopup(auth, proveedorGoogle(), browserPopupRedirectResolver);
 }
 
 export {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut, sendPasswordResetEmail, sendEmailVerification, getAdditionalUserInfo,
   verifyPasswordResetCode, confirmPasswordReset, applyActionCode, linkWithCredential,
+  multiFactor, TotpMultiFactorGenerator, getMultiFactorResolver,
+  reauthenticateWithCredential, reauthenticateWithPopup, EmailAuthProvider, browserPopupRedirectResolver,
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, orderBy, limit, startAfter, serverTimestamp, increment,
   arrayUnion, arrayRemove, writeBatch, Timestamp,

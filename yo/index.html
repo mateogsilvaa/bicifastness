@@ -208,6 +208,16 @@
     </div>
     <p class="mensaje" id="msg-avisos" aria-live="polite"></p>
 
+    <!-- Verificacion en dos pasos (assets/js/dos-pasos.js). Opcional. -->
+    <h2 class="seccion-ajustes" id="sec-seguridad">Seguridad</h2>
+    <div class="lista-ajustes">
+      <label>
+        <span class="texto">Verificación en dos pasos<small id="dos-pasos-detalle">Al entrar, además de la contraseña, un código de tu app de autenticación</small></span>
+        <input type="checkbox" class="interruptor" id="dos-pasos">
+      </label>
+    </div>
+    <p class="mensaje" id="msg-seguridad" aria-live="polite"></p>
+
     <!-- Como funciona: cada parte de /info/, a un toque desde el perfil. -->
     <h2 class="seccion-ajustes" id="sec-como">Cómo funciona</h2>
     <div class="lista-ajustes lista-como">
@@ -246,6 +256,7 @@
     <nav class="indice-ajustes" aria-label="Secciones de ajustes">
       <button type="button" data-ir="sec-apariencia" aria-current="true">Apariencia</button>
       <button type="button" data-ir="sec-avisos">Avisos</button>
+      <button type="button" data-ir="sec-seguridad">Seguridad</button>
       <button type="button" data-ir="sec-como">Cómo funciona</button>
       <button type="button" data-ir="sec-datos">Tus datos</button>
     </nav>

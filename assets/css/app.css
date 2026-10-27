@@ -4928,3 +4928,12 @@ html.acceso-pendiente main::before {
 .aviso-verificados-lista { display: flex; flex-direction: column; gap: 6px; }
 .fila-verificado { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--papel); color: var(--tinta); font: inherit; text-align: left; cursor: pointer; }
 .fila-verificado strong { color: var(--verde); }
+
+/* --- Misiones de la semana y del mes, plegadas bajo las del dia (hoy.js) ---- */
+.misiones-largas { margin-top: 10px; border-radius: 16px; background: var(--papel-2); }
+.misiones-largas > summary { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; cursor: pointer; list-style: none; }
+.misiones-largas > summary::-webkit-details-marker { display: none; }
+.misiones-largas-titulo { font-weight: 700; flex: 1; }
+.misiones-largas > summary .apagado { font-size: 13px; }
+.misiones-largas[open] > summary .chevron { transform: rotate(180deg); }
+.misiones-largas .lista-misiones { padding: 0 8px 10px; }

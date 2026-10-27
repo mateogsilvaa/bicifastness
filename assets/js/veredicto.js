@@ -51,6 +51,7 @@ export function filasDesglose(viaje, { racha = null } = {}) {
   if ((d.multiplicadorRuta || 1) !== 1) filas.push(['Ruta de la semana', mult(d.multiplicadorRuta)]);
   if ((d.multiplicadorTerritorio || 1) !== 1) filas.push(['Estación de tu clan', mult(d.multiplicadorTerritorio)]);
   if (d.misiones) filas.push(['Misiones completadas', `+${d.misiones}`]);
+  if (d.misionesLargas) filas.push(['Misiones de la semana o del mes', `+${d.misionesLargas}`]);
   return filas;
 }
 

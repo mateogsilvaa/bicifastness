@@ -107,14 +107,14 @@ const FAMILIAS = {
   finde: {
     medida: 'finde',
     semana: [2, 3], mes: [5, 7],
-    texto: (n, p) => `${n} trayectos en fin de semana ${p}`,
+    texto: (n, p) => (p === 'esta semana' ? `${n} trayectos este fin de semana` : `${n} trayectos en fin de semana ${p}`),
     ayuda: 'Sábado o domingo.',
     puntos: { semana: 55, mes: 140 },
   },
   rutaSemana: {
     medida: 'rutaSemana',
     semana: [1, 2], mes: [3, 4],
-    texto: (n, p) => (n === 1 ? `Haz la ruta de la semana ${p}` : `Haz la ruta de la semana ${n} veces ${p}`),
+    texto: (n, p) => (p === 'esta semana' ? (n === 1 ? 'Haz la ruta de la semana' : `Haz ${n} veces la ruta de la semana`) : `Haz ${n} veces la ruta de la semana ${p}`),
     ayuda: 'La que va por ×2 en Hoy.',
     puntos: { semana: 50, mes: 130 },
   },

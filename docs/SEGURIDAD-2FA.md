@@ -17,9 +17,11 @@ Código: `assets/js/dos-pasos.js` (activar, entrar, puerta del panel),
 ## Puesta en marcha (una vez)
 
 1. **Identity Platform.** Consola de Firebase → Authentication → Configuración
-   → *Actualizar a Firebase Authentication con Identity Platform*. Es gratis
-   hasta 50.000 usuarios activos al mes (los de correo y Google), y no cambia
-   nada de lo que ya funciona.
+   → *Actualizar a Firebase Authentication con Identity Platform*. No cambia
+   nada de lo que ya funciona. **Compruébalo antes en la página de precios de
+   Firebase:** en el plan Spark tiene un tope de usuarios activos al día, y
+   conviene confirmar que el TOTP está incluido en tu plan (si la consola
+   pidiera pasar a Blaze, la 2FA se queda sin activar y la web sigue igual).
 2. **Encender el TOTP** (la consola no tiene botón; va por la API):
 
    ```bash

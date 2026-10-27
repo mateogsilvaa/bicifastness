@@ -18,8 +18,9 @@
 //     existe, y se dice en la nota de la vista previa.
 
 import {
-  db, doc, getDoc, getDocs, collection, query, orderBy, limit,
+  db, doc, getDoc, getDocs, collection, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
+import { kmPorSemana, variacion, equivalencias, kgCO2 } from '/assets/js/km-comunidad.js';
 import { iniciarPagina, nombreEstacion, formatearTiempo, miles } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { montarCabeceraAdmin, exigirAdmin } from '/assets/js/admin-cabecera.js';
@@ -275,6 +276,13 @@ const PIEZAS = {
     },
   },
 
+  // Story de los lunes: lo que pedaleo la comunidad la semana pasada.
+  kilometros: {
+    titulo: 'Kilómetros de la comunidad', formato: '9:16',
+    nota: 'Story de los lunes: la semana pasada entera (de lunes a domingo), comparada con la anterior y con la media de las cuatro de antes.',
+    laminas: (d) => laminasKm(d),
+  },
+
   resumen: {
     titulo: 'Resumen de temporada', formato: '9 × 3:4',
     nota: 'El carrusel del día 1 de cada mes, 9 láminas de 1080 × 1440.',
@@ -287,6 +295,59 @@ const PIEZAS = {
     laminas: (d) => laminasHorizontales(d),
   },
 };
+
+/** Story 9:16 de los kilometros de la semana pasada. */
+function laminasKm(d) {
+  const sem = d.kmSemanas || [];
+  const ultima = sem[sem.length - 1];
+  if (!ultima || !ultima.trayectos) return [vacia(1080, 1920, 'La semana pasada no hubo trayectos verificados.')];
+  const anterior = sem[sem.length - 2];
+  const previas = sem.slice(-5, -1).filter((s2) => s2.trayectos);
+  const media = previas.length ? previas.reduce((t, s2) => t + s2.km, 0) / previas.length : 0;
+  const vsAnterior = anterior ? variacion(ultima.km, anterior.km) : null;
+  const vsMedia = variacion(ultima.km, media);
+  const mejor = Math.max(...sem.map((s2) => s2.km));
+  const record = ultima.km >= mejor && sem.filter((s2) => s2.trayectos).length > 2;
+  const fc = (f) => `${Number(f.slice(8))} ${MESES_CORTOS[Number(f.slice(5, 7)) - 1]}`;
+  const chip = (v, texto) => (v === null ? '' : `<span style="display:inline-flex; align-items:center; gap:12px; padding:16px 26px; border-radius:999px; background:${v >= 0 ? '#1E6B3E' : '#7A2A22'}; color:#fff; font-size:34px; font-weight:800;">${v >= 0 ? '▲' : '▼'} ${v >= 0 ? '+' : ''}${v} %<span style="font-weight:600; opacity:.85;">${esc(texto)}</span></span>`);
+  const alto = 300;
+  const barras = sem.map((s2, i) => {
+    const h = mejor ? Math.max(6, (s2.km / mejor) * alto) : 6;
+    const es = i === sem.length - 1;
+    return `<div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:12px;">
+      <span style="font-size:24px; font-weight:700; color:${es ? '#fff' : '#8B8A87'};">${esc(miles(Math.round(s2.km)))}</span>
+      <span style="width:100%; height:${h}px; border-radius:12px 12px 4px 4px; background:${es ? '#1B80E5' : '#2C2D30'};"></span>
+      <span style="font-size:22px; color:${es ? '#fff' : '#8B8A87'};">${esc(fc(s2.lunes))}</span>
+    </div>`;
+  }).join('');
+  const eq = equivalencias(ultima.km);
+  const dato = (v, t) => `<div style="display:flex; flex-direction:column; gap:4px;"><span style="font-size:76px; font-weight:800; font-stretch:62%; line-height:.9;">${esc(v)}</span><span style="font-size:26px; color:#B3B2AE;">${esc(t)}</span></div>`;
+  return [{ w: 1080, h: 1920, html: `
+    <div style="width:1080px; height:1920px; background:#111110; color:#F2F1EE; display:flex; flex-direction:column; padding:110px 72px 100px; box-sizing:border-box; gap:44px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <svg width="72" height="72" viewBox="0 0 24 24"><path d="M12 5 A7 7 0 1 1 5.94 8.5" fill="none" stroke="#1B80E5" stroke-width="2.2" stroke-linecap="round"/><circle cx="5.94" cy="8.5" r="1.9" fill="#1B80E5"/></svg>
+        <span style="font-size:32px; font-weight:700; color:#B3B2AE;">Semana del ${esc(fc(ultima.lunes))} al ${esc(fc(sumarDias(ultima.lunes, 6)))}</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:30px;">
+        <span style="font-size:40px; font-weight:700; color:#5AA8F2;">${record ? 'Récord de la comunidad' : 'Entre todos hemos pedaleado'}</span>
+        <span style="font-size:260px; font-weight:800; font-stretch:58%; letter-spacing:-.04em; line-height:.8;">${esc(miles(Math.round(ultima.km)))}<span style="font-size:110px; color:#5AA8F2;"> km</span></span>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:16px;">${chip(vsAnterior, 'que la semana anterior')}${chip(vsMedia, 'que la media del mes')}</div>
+      <div style="display:flex; align-items:flex-end; gap:14px; height:${alto + 90}px;">${barras}</div>
+      ${eq.length ? `<div style="display:flex; flex-direction:column; gap:14px; padding:40px; border-radius:28px; background:#1B80E5;">
+        <span style="font-size:30px; font-weight:700; opacity:.9;">Es como</span>
+        ${eq.map((t) => `<span style="font-size:58px; font-weight:800; font-stretch:70%; line-height:1;">${esc(t)}</span>`).join('')}
+      </div>` : ''}
+      <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:20px;">
+        ${dato(miles(ultima.trayectos), 'trayectos')}
+        ${dato(miles(Math.round(ultima.horas)), 'horas en bici')}
+        ${dato(miles(ultima.pilotos), ultima.pilotos === 1 ? 'piloto' : 'pilotos')}
+        ${dato(`${miles(kgCO2(ultima.km))} kg`, 'de CO₂ ahorrados*')}
+      </div>
+      <div style="flex:1;"></div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; font-size:30px; font-weight:800; border-top:2px solid #2C2D30; padding-top:32px;"><span>bicifastness.es</span><span style="font-size:22px; font-weight:500; color:#8B8A87;">*frente a hacerlo en coche (≈120 g/km)</span></div>
+    </div>` }];
+}
 
 function vacia(w, h, texto) {
   return { w, h, html: `<div style="width:${w}px; height:${h}px; background:#111110; color:#B3B2AE; display:flex; align-items:center; justify-content:center; padding:84px; box-sizing:border-box; font-size:44px; font-weight:700; text-align:center;">${esc(texto)}</div>` };
@@ -488,7 +549,19 @@ async function cargarCrudo() {
   let rutaSemana = null;
   if (general?.rutaDestacada) rutaSemana = { ruta: general.rutaDestacada, ag: await leer(`agregados/ruta-${general.rutaDestacada}`) };
 
-  crudo = { rankings, ligas, general, rutas, viajes, mapa: mapaAg, portada, rutaSemana };
+  // Los verificados de las ultimas nueve semanas, para la story de kilometros.
+  // Una lectura por viaje: con la comunidad de hoy son pocos cientos, y la
+  // pieza se genera una vez por semana.
+  let semanales = [];
+  try {
+    const snap = await getDocs(query(collection(db, 'tiempos_viaje'),
+      where('verificado', '==', true), where('fechaViaje', '>=', sumarDias(lunesDeLaSemana(), -7 * 9))));
+    semanales = snap.docs.map((d) => d.data());
+  } catch (error) {
+    console.debug('Sin viajes de las ultimas semanas', error);
+  }
+
+  crudo = { rankings, ligas, general, rutas, viajes, mapa: mapaAg, portada, rutaSemana, semanales };
 }
 
 /** Lo que pintan las piezas, con los pilotos ocultos ya tachados. */
@@ -608,6 +681,7 @@ function datosDePiezas() {
     clanes, clanMov, coloresMapa, totalEstaciones, numClanes: Object.keys(clanesInfo).length, dominadas, disputadas,
     libres: Math.max(0, totalEstaciones - dominadas),
     rutaSemana,
+    kmSemanas: kmPorSemana(crudo.semanales || [], hoy, 8),
   };
 }
 

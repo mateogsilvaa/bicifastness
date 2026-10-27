@@ -822,3 +822,28 @@ test('el calendario se abre en el dia del viaje, no siempre en hoy', async () =>
   // Sin pistas, hoy.
   assert.strictEqual(diaProbableDelViaje({ ahora }).dia, '2026-07-15');
 });
+
+test('kilometros de la comunidad: por semana, comparados y con equivalencias', async () => {
+  // Importa dia.js: se cargan juntos, sin el import.
+  const codigo = leer('assets/js/dia.js') + leer('assets/js/km-comunidad.js').replace(/^import[\s\S]*?from '[^']+';$/gm, '');
+  const km = await import(`data:text/javascript;base64,${Buffer.from(codigo, 'utf8').toString('base64')}`);
+
+  const viajes = [
+    { fechaViaje: '2026-10-19', distanciaMetros: 3000, tiempoSegundos: 600, uid: 'a' },
+    { fechaViaje: '2026-10-25', distanciaMetros: 2000, tiempoSegundos: 600, uid: 'b' },
+    { fechaViaje: '2026-10-12', distanciaMetros: 4000, tiempoSegundos: 900, uid: 'a' },
+    // La semana en curso no cuenta: no ha terminado.
+    { fechaViaje: '2026-10-27', distanciaMetros: 9000, tiempoSegundos: 900, uid: 'a' },
+  ];
+  const semanas = km.kmPorSemana(viajes, '2026-10-27', 3);
+  assert.deepStrictEqual(semanas.map((s) => s.lunes), ['2026-10-05', '2026-10-12', '2026-10-19']);
+  assert.strictEqual(semanas[2].km, 5);
+  assert.strictEqual(semanas[2].trayectos, 2);
+  assert.strictEqual(semanas[2].pilotos, 2);
+  assert.strictEqual(semanas[1].km, 4);
+  assert.strictEqual(km.variacion(5, 4), 25);
+  assert.strictEqual(km.variacion(5, 0), null);
+  assert.ok(km.equivalencias(80)[0].includes('Toledo'));
+  assert.deepStrictEqual(km.equivalencias(0), []);
+  assert.strictEqual(km.kgCO2(100), 12);
+});

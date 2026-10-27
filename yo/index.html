@@ -155,6 +155,7 @@
     <div class="segmento pestanas-vitrina" role="tablist" aria-label="Qué quieres cambiar">
       <button type="button" role="tab" id="tab-vitrina-banner" aria-controls="panel-vitrina-banner" aria-selected="true">Banner</button>
       <button type="button" role="tab" id="tab-vitrina-lema" aria-controls="panel-vitrina-lema" aria-selected="false">Lema</button>
+      <button type="button" role="tab" id="tab-vitrina-redes" aria-controls="panel-vitrina-redes" aria-selected="false">Redes</button>
     </div>
     <div id="panel-vitrina-banner" role="tabpanel" aria-labelledby="tab-vitrina-banner">
       <div class="vitrina-grupo" id="vitrina-banners" role="radiogroup" aria-label="Banner"><div class="esqueleto" aria-hidden="true" style="height: 76px"></div><div class="esqueleto" aria-hidden="true" style="height: 76px"></div><div class="esqueleto" aria-hidden="true" style="height: 76px"></div></div>
@@ -162,6 +163,15 @@
     <div id="panel-vitrina-lema" role="tabpanel" aria-labelledby="tab-vitrina-lema" class="oculto">
       <div class="vitrina-grupo" id="vitrina-lemas" role="radiogroup" aria-label="Lema"></div>
     </div>
+    <!-- Redes: solo el nombre de usuario. El enlace lo monta assets/js/redes.js. -->
+    <form id="panel-vitrina-redes" role="tabpanel" aria-labelledby="tab-vitrina-redes" class="oculto form-redes" novalidate>
+      <p class="menor apagado">Opcional. Salen en tu ficha para que otros pilotos te encuentren, y para que podamos escribirte si ganas algo.</p>
+      <div class="campo"><label for="red-instagram">Instagram</label><input id="red-instagram" name="instagram" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="80" placeholder="@usuario"></div>
+      <div class="campo"><label for="red-tiktok">TikTok</label><input id="red-tiktok" name="tiktok" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="80" placeholder="@usuario"></div>
+      <div class="campo"><label for="red-strava">Strava</label><input id="red-strava" name="strava" autocomplete="off" inputmode="url" spellcheck="false" maxlength="120" placeholder="Enlace a tu perfil o número de atleta"></div>
+      <div class="campo"><label for="red-x">X</label><input id="red-x" name="x" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="80" placeholder="@usuario"></div>
+      <button class="btn" type="submit">Guardar redes</button>
+    </form>
     <p class="mensaje" id="msg-vitrina" aria-live="polite"></p>
     <a class="btn secundario ver-mi-ficha" id="ver-mi-ficha" href="/clasificacion/">Ver mi ficha en el ranking</a>
   </section>

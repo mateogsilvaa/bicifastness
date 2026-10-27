@@ -502,6 +502,22 @@ test('la vitrina solo lleva banners y lemas libres o ganados', async () => {
   await assertSucceeds(setDoc(ref, vitrina('noche', null)));
 });
 
+test('la vitrina lleva redes (solo nombres de usuario) y la fecha de alta propia', async () => {
+  const alta = Timestamp.fromMillis(Date.UTC(2026, 2, 1));
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura', creado: alta });
+  });
+  const ref = doc(como(UID), 'vitrinas', 'laura');
+  const base = { uid: UID, banner: null, lema: null, actualizado: serverTimestamp() };
+  await assertSucceeds(setDoc(ref, { ...base, redes: { instagram: 'laura.bici', strava: '12345' }, desde: alta }));
+  await assertSucceeds(setDoc(ref, { ...base, redes: {} }));
+  // Ni URLs, ni redes que no conocemos, ni una antiguedad inventada.
+  await assertFails(setDoc(ref, { ...base, redes: { instagram: 'https://malo.example' } }));
+  await assertFails(setDoc(ref, { ...base, redes: { web: 'laura' } }));
+  await assertFails(setDoc(ref, { ...base, redes: { strava: 'laura' } }));
+  await assertFails(setDoc(ref, { ...base, desde: Timestamp.fromMillis(Date.UTC(2020, 0, 1)) }));
+});
+
 test('un banner atado a un logro se puede llevar en cuanto se tiene el logro', async () => {
   await entorno.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'usuarios', UID), {

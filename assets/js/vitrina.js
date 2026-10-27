@@ -13,16 +13,21 @@
 
 import { db, doc, getDoc, setDoc, serverTimestamp } from './firebase.js';
 import { BANNERS, LEMAS } from '../data/recompensas.js';
+import { redesValidas } from './redes.js';
 
 const claveDe = (nombre) => String(nombre || '').toLowerCase();
 const enMemoria = new Map();
 
-/** Lo que lleva puesto un piloto. `{ banner: null, lema: null }` si nada. */
+/**
+ * Lo que lleva puesto un piloto: banner, lema, sus redes y desde cuando esta.
+ * `{ banner: null, lema: null, redes: {}, desde: null }` si nada.
+ */
 export async function leerVitrina(nombre) {
   const clave = claveDe(nombre);
-  if (!clave) return { banner: null, lema: null };
+  const vacia = { banner: null, lema: null, redes: {}, desde: null };
+  if (!clave) return vacia;
   if (enMemoria.has(clave)) return enMemoria.get(clave);
-  let vitrina = { banner: null, lema: null };
+  let vitrina = vacia;
   try {
     const snap = await getDoc(doc(db, 'vitrinas', clave));
     if (snap.exists()) {
@@ -32,6 +37,8 @@ export async function leerVitrina(nombre) {
       vitrina = {
         banner: BANNERS[d.banner] ? d.banner : null,
         lema: LEMAS[d.lema] ? d.lema : null,
+        redes: redesValidas(d.redes),
+        desde: d.desde || null,
       };
     }
   } catch {
@@ -41,12 +48,18 @@ export async function leerVitrina(nombre) {
   return vitrina;
 }
 
-export async function guardarVitrina(perfil, { banner = null, lema = null }) {
+/**
+ * `desde` es la fecha de alta, y las reglas solo dejan copiar la de TU perfil
+ * (`usuarios/{uid}.creado`): nadie puede ponerse mas antiguedad de la que tiene.
+ */
+export async function guardarVitrina(perfil, { banner = null, lema = null, redes = {} }) {
   const clave = claveDe(perfil?.usernameLower || perfil?.username);
+  const desde = perfil?.creado?.toDate ? perfil.creado : null;
+  const limpias = redesValidas(redes);
   await setDoc(doc(db, 'vitrinas', clave), {
-    uid: perfil.uid, banner, lema, actualizado: serverTimestamp(),
+    uid: perfil.uid, banner, lema, redes: limpias, desde, actualizado: serverTimestamp(),
   });
-  enMemoria.set(clave, { banner, lema });
+  enMemoria.set(clave, { banner, lema, redes: limpias, desde });
 }
 
 let configEnMemoria = null;

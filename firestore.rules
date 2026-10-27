@@ -1273,14 +1273,31 @@ service cloud.firestore {
           in get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('logros', []);
     }
 
+    // Las redes de la ficha: solo el nombre de usuario de cada una, nunca una
+    // URL (el enlace lo monta assets/js/redes.js con un dominio fijo). Mismos
+    // patrones que `REDES` alli.
+    function redesValidas(r) {
+      return r is map
+        && r.keys().hasOnly(['instagram', 'tiktok', 'strava', 'x'])
+        && (!('instagram' in r) || (r.instagram is string && r.instagram.matches('^[A-Za-z0-9._]{1,30}$')))
+        && (!('tiktok' in r) || (r.tiktok is string && r.tiktok.matches('^[A-Za-z0-9._]{2,24}$')))
+        && (!('strava' in r) || (r.strava is string && r.strava.matches('^[0-9]{1,12}$')))
+        && (!('x' in r) || (r.x is string && r.x.matches('^[A-Za-z0-9_]{1,15}$')));
+    }
+
     match /vitrinas/{nombre} {
       allow read: if true;
       allow create, update: if autenticado()
         && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.usernameLower == nombre
-        && datos().keys().hasOnly(['uid', 'banner', 'lema', 'actualizado'])
+        && datos().keys().hasOnly(['uid', 'banner', 'lema', 'redes', 'desde', 'actualizado'])
         && datos().uid == request.auth.uid
         && recompensaValida(datos().banner)
         && recompensaValida(datos().lema)
+        && redesValidas(datos().get('redes', {}))
+        // La fecha de alta solo puede ser la de tu perfil: nadie se pone mas
+        // antiguedad de la que tiene.
+        && (datos().get('desde', null) == null
+            || datos().desde == get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('creado', null))
         && datos().actualizado == request.time
         && puedeUsarLaWeb()
         && cuentaActiva();

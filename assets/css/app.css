@@ -4724,6 +4724,13 @@ html.acceso-pendiente main::before {
 .ficha-publica .chip-insignia { background: var(--papel); }
 .chip-clan { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px; background: var(--papel); font-size: 13px; font-weight: 600; color: var(--tinta-2); }
 .ficha-publica-detalle { font-size: 13px; }
+.ficha-publica-desde { font-size: 13px; }
+.redes-piloto { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.red-piloto { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 999px; background: var(--papel); font-size: 13px; font-weight: 600; color: var(--tinta); text-decoration: none; }
+.red-piloto .icono { width: 14px; height: 14px; }
+.red-piloto:hover { background: var(--papel-3, var(--papel)); }
+.form-redes { display: flex; flex-direction: column; }
+.form-redes .btn { align-self: flex-start; }
 .logros-publicos { grid-template-columns: repeat(3, 1fr); }
 .logros-publicos .insignia { background: var(--papel); padding: 10px 6px; }
 .logros-publicos .insignia .disco { width: 38px; height: 38px; }

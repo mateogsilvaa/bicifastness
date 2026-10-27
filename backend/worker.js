@@ -2892,9 +2892,11 @@ async function resolverCanjes() {
 }
 
 /**
- * La tienda: los pagos nuevos de Stripe pasan a pedidos de la imprenta
- * (src/tienda.js). Sin `STRIPE_SECRET_KEY` no hace nada ni lee nada. Nunca
- * lanza: un fallo de Stripe o de la imprenta no puede tumbar la verificacion.
+ * La tienda: los pagos nuevos de Polar pasan a gemas o a pedidos de la
+ * imprenta (src/tienda.js), y se atienden los canjes de gemas. Sin
+ * `POLAR_ACCESS_TOKEN` no se cobra nada, pero las gemas que ya haya se pueden
+ * seguir gastando. Nunca lanza: un fallo de Polar o de la imprenta no puede
+ * tumbar la verificacion.
  */
 async function venderEnLaTienda() {
   try {
@@ -2909,6 +2911,11 @@ async function venderEnLaTienda() {
     });
   } catch (error) {
     console.warn('No se ha podido procesar la tienda:', error.message);
+  }
+  try {
+    await tienda.procesarCanjesGemas({ db, admin, simular: SIMULAR });
+  } catch (error) {
+    console.warn('No se han podido resolver los canjes de gemas:', error.message);
   }
 }
 

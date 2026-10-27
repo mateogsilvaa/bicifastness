@@ -236,8 +236,15 @@ nombres.slice(0, 8).forEach((n, i) => {
 datos['config/tienda'] = {
   visible: true,
   productos: {
-    camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.stripe.com/test_maqueta', variantes: { S: 1, M: 2, L: 3, XL: 4 } },
-    taza: { activo: true, precio: 14.9, enlacePago: 'https://buy.stripe.com/test_maqueta', variantes: { unica: 5 } },
+    camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.polar.sh/polar_cl_maqueta', polarProducto: 'prod_cam', variantes: { S: 1, M: 2, L: 3, XL: 4 } },
+    taza: { activo: true, precio: 14.9, enlacePago: 'https://buy.polar.sh/polar_cl_maqueta', polarProducto: 'prod_taza', variantes: { unica: 5 } },
+  },
+  gemas: {
+    packs: {
+      p1: { activo: true, gemas: 100, precio: 1.99, enlacePago: 'https://buy.polar.sh/polar_cl_gemas1', polarProducto: 'prod_g1' },
+      p2: { activo: true, gemas: 600, precio: 9.99, enlacePago: 'https://buy.polar.sh/polar_cl_gemas2', polarProducto: 'prod_g2' },
+    },
+    precios: { neon: 300, noche: 300, 'mas-rapido-que-el-bus': 200, biciloverrr: 150 },
   },
 };
 // localStorage.maqueta_obras = '1' -> la web en construccion (assets/js/puerta.js).

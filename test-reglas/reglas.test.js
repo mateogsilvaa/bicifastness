@@ -759,8 +759,9 @@ test('un trayecto no se sube con el nombre de otro piloto', async () => {
 
 // --- Tienda ---------------------------------------------------------------------
 
+const ENVIO = { nombre: 'Laura Pérez', direccion: 'Calle Mayor 1', ciudad: 'Madrid', cp: '28013', pais: 'ES' };
 const pedido = (uid, extra = {}) => ({
-  uid, producto: 'camiseta', variante: 'M', viajeId: 'v1', estado: 'borrador', creado: serverTimestamp(), ...extra,
+  uid, producto: 'camiseta', variante: 'M', viajeId: 'v1', envio: ENVIO, estado: 'borrador', creado: serverTimestamp(), ...extra,
 });
 
 test('un pedido de la tienda nace borrador, propio y con su id del dia', async () => {
@@ -774,12 +775,33 @@ test('un pedido de la tienda nace borrador, propio y con su id del dia', async (
   await assertFails(setDoc(doc(db, 'pedidos_tienda', `${UID}_${dia - 1}_0`), pedido(UID)));
   await assertFails(updateDoc(doc(db, 'pedidos_tienda', `${UID}_${dia}_0`), { estado: 'pagado' }));
   await assertFails(getDoc(doc(como(OTRO), 'pedidos_tienda', `${UID}_${dia}_0`)));
+  // Lo fisico, con direccion completa; las gemas, sin ella.
+  await assertFails(setDoc(doc(db, 'pedidos_tienda', `${UID}_${dia}_1`), pedido(UID, { envio: { nombre: 'Laura' } })));
+  await assertFails(setDoc(doc(db, 'pedidos_tienda', `${UID}_${dia}_1`), pedido(UID, { envio: { ...ENVIO, pais: 'España' } })));
+  await assertSucceeds(setDoc(doc(db, 'pedidos_tienda', `${UID}_${dia}_1`), { uid: UID, producto: 'gemas', variante: 'p100', estado: 'borrador', creado: serverTimestamp() }));
+  // La administracion solo marca como enviado lo que ya esta pagado.
+  const admin = como('jefa', { admin: true });
+  await assertFails(updateDoc(doc(admin, 'pedidos_tienda', `${UID}_${dia}_0`), { estado: 'enviado' }));
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), 'pedidos_tienda', `${UID}_${dia}_0`), { estado: 'preparar' });
+  });
+  await assertSucceeds(updateDoc(doc(admin, 'pedidos_tienda', `${UID}_${dia}_0`), { estado: 'enviado', enviadoEn: serverTimestamp() }));
+});
+
+test('las gemas se piden y las decide el worker', async () => {
+  const ref = doc(como(UID), 'canjes_gemas', UID);
+  await assertSucceeds(setDoc(ref, { recompensa: 'neon', estado: 'pendiente', creado: serverTimestamp() }));
+  await assertFails(setDoc(ref, { recompensa: 'noche', estado: 'pendiente', creado: serverTimestamp() }), 'una a la vez');
+  await assertFails(setDoc(doc(como(UID), 'canjes_gemas', OTRO), { recompensa: 'neon', estado: 'pendiente', creado: serverTimestamp() }));
+  await assertFails(setDoc(doc(como(OTRO), 'canjes_gemas', OTRO), { recompensa: 'neon', estado: 'ok', creado: serverTimestamp() }));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { gemas: 9999 }));
 });
 
 test('la tienda la ve cualquiera y solo la cambia la administracion', async () => {
   const config = (por) => ({
     visible: true,
-    productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.stripe.com/test_abc', variantes: { M: 4012 } } },
+    productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.polar.sh/polar_cl_abc123', polarProducto: 'prod_1', variantes: { M: 4012 } } },
+    gemas: { packs: { p100: { activo: true, gemas: 100, precio: 2, enlacePago: 'https://buy.polar.sh/polar_cl_g', polarProducto: 'prod_g' } }, precios: { neon: 80 } },
     por, actualizado: serverTimestamp(),
   });
   await assertSucceeds(setDoc(doc(como('jefa', { admin: true }), 'config', 'tienda'), config('jefa')));
@@ -788,7 +810,7 @@ test('la tienda la ve cualquiera y solo la cambia la administracion', async () =
   const trampa = config('jefa');
   trampa.productos.camiseta.enlacePago = 'https://evil.example/pagar';
   await assertFails(setDoc(doc(como('jefa', { admin: true }), 'config', 'tienda'), trampa));
-  await assertFails(getDoc(doc(como(UID), 'tienda_interno', 'stripe')));
+  await assertFails(getDoc(doc(como(UID), 'tienda_interno', 'polar')));
 });
 
 // --- Endurecimiento (consola del navegador) ---------------------------------------

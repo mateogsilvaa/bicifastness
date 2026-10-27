@@ -156,7 +156,7 @@ async function ejecutar(uid, { simular = false } = {}) {
 
   // --- Pedidos de la tienda: se les quita el uid, el pedido se queda --------
   // Son el rastro de una venta (contabilidad, devoluciones), igual que en
-  // Stripe y en la imprenta. Lo que les ataba a la persona es el uid.
+  // Polar y en la imprenta. Lo que les ataba a la persona es el uid.
   const pedidos = await db().collection('pedidos_tienda').where('uid', '==', uid).get();
   resumen.pedidosTienda = pedidos.size;
   if (!simular) {
@@ -233,6 +233,8 @@ async function ejecutar(uid, { simular = false } = {}) {
     // enlace que canjeo, quien fue. El enlace sigue GASTADO —si no, volveria a
     // valer para otra persona— pero sin nombre ni uid.
     await db().doc(`canjes_recompensa/${uid}`).delete();
+    // Su canje de gemas (lleva su uid como id).
+    await db().doc(`canjes_gemas/${uid}`).delete();
     const canjeados = await db().collection('recompensas_codigos').where('usadoPor', '==', uid).get();
     for (const doc of canjeados.docs) {
       await doc.ref.update({

@@ -4967,5 +4967,30 @@ body.con-tutorial { overflow: hidden; }
 .clave-manual summary { cursor: pointer; font-size: 14px; color: var(--azul); }
 .clave-manual code { display: block; margin: 6px 0; padding: 10px; border-radius: 10px; background: var(--papel); font-size: 15px; letter-spacing: .05em; overflow-wrap: anywhere; user-select: all; }
 .campo-codigo { font-size: 28px; letter-spacing: .4em; text-align: center; font-variant-numeric: tabular-nums; min-height: 56px; }
-.adm-aviso-mfa { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 50; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: var(--papel-2); box-shadow: 0 6px 24px rgba(0,0,0,.18); font-size: 14px; }
+.adm-aviso-mfa { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 50; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: var(--papel-2); box-shadow: 0 8px 32px rgba(0, 0, 0, .12); font-size: 14px; }
 .adm-aviso-mfa span { flex: 1; min-width: 200px; }
+
+/* --- Tienda: direccion de envio y gemas (paginas/tienda.js) ----------------- */
+.form-envio { display: flex; flex-direction: column; }
+.form-envio .dos-campos { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+.form-envio select { width: 100%; min-height: 48px; }
+.gemas { margin-top: 28px; display: flex; flex-direction: column; gap: 12px; }
+.gemas h2 { margin: 0; }
+.gemas-aviso { gap: 6px; }
+.gemas-aviso p { margin: 0; color: var(--tinta-2); line-height: 1.45; }
+.gemas-cabeza { display: flex; align-items: baseline; gap: 8px; }
+.gemas-saldo { font-size: 22px; }
+.gemas-packs { display: flex; flex-wrap: wrap; gap: 8px; }
+.gemas-packs .btn { width: auto; flex: 1 1 140px; }
+.gemas-catalogo { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.gemas-item { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; background: var(--papel-2); }
+.gemas-banner { aspect-ratio: 3 / 1; border-radius: 10px; background-size: cover; background-position: center; }
+.gemas-lema { min-height: 50px; display: flex; align-items: center; font-style: italic; }
+.gemas-nombre { font-size: 13px; color: var(--tinta-2); }
+.gemas-item .btn { min-height: 40px; }
+
+/* --- Admin de la tienda: gemas y direcciones (paginas/admin-tienda.js) ------ */
+.adm-pack { display: grid; grid-template-columns: 90px 90px 80px 1fr 1fr; gap: 6px; align-items: center; margin-bottom: 6px; }
+.adm-precios-gemas { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; margin-top: 10px; max-height: 320px; overflow: auto; }
+.adm-precio-gema { display: grid; grid-template-columns: 1fr 80px; gap: 6px; align-items: center; font-size: 13px; }
+.adm-envio { display: block; color: var(--tinta-2); }

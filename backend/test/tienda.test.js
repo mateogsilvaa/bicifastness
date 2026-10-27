@@ -2,7 +2,7 @@
 
 /**
  * La tienda: el diseño que se imprime y el camino del pago a la imprenta.
- * Nada sale a la red: Stripe, Cloudinary y Printful son un `fetch` de mentira.
+ * Nada sale a la red: Polar, Cloudinary y Printful son un `fetch` de mentira.
  */
 
 const test = require('node:test');
@@ -79,36 +79,41 @@ test('el tiempo se escribe igual que en la web', () => {
 
 // --- Cobro y direccion -----------------------------------------------------------
 
-const sesionBuena = (extra = {}) => ({
-  id: 'cs_1', created: 1000, client_reference_id: 'uid1_20000_0',
-  payment_status: 'paid', currency: 'eur', amount_subtotal: 2490, amount_total: 2980,
-  customer_details: { email: 'pepa@ejemplo.com', name: 'Pepa' },
-  collected_information: {
-    shipping_details: { name: 'Pepa Pérez', address: { line1: 'Calle Mayor 1', city: 'Madrid', postal_code: '28013', country: 'ES' } },
-  },
+const ordenBuena = (extra = {}) => ({
+  id: 'ord_1', created_at: '2026-10-27T10:00:00Z', status: 'paid', paid: true,
+  currency: 'eur', subtotal_amount: 2490, total_amount: 2490, product_id: 'prod_cam',
+  metadata: { pedido: 'uid1_20000_0' },
+  customer: { email: 'pepa@ejemplo.com', external_id: 'uid1' },
   ...extra,
 });
 
+const ENVIO = { nombre: 'Pepa Pérez', direccion: 'Calle Mayor 1', ciudad: 'Madrid', cp: '28013', pais: 'es' };
+
 test('se manda a imprimir solo si lo cobrado cuadra con el precio', () => {
-  const producto = { precio: 24.9 };
-  assert.strictEqual(tienda.comprobarCobro(sesionBuena(), producto), null);
-  assert.match(tienda.comprobarCobro(sesionBuena({ amount_subtotal: 100 }), producto), /centimos/);
-  assert.match(tienda.comprobarCobro(sesionBuena({ payment_status: 'unpaid' }), producto), /unpaid/);
-  assert.match(tienda.comprobarCobro(sesionBuena({ currency: 'usd' }), producto), /moneda/);
-  assert.ok(tienda.comprobarCobro(sesionBuena(), undefined));
+  assert.strictEqual(tienda.comprobarCobro(ordenBuena(), 24.9), null);
+  assert.match(tienda.comprobarCobro(ordenBuena({ subtotal_amount: 100 }), 24.9), /centimos/);
+  assert.match(tienda.comprobarCobro(ordenBuena({ paid: false, status: 'refunded' }), 24.9), /refunded/);
+  assert.match(tienda.comprobarCobro(ordenBuena({ currency: 'usd' }), 24.9), /moneda/);
+  assert.ok(tienda.comprobarCobro(ordenBuena(), undefined));
 });
 
-test('la direccion sale de cualquiera de las dos versiones del API de Stripe', () => {
-  const nueva = tienda.destinatario(sesionBuena());
-  assert.deepStrictEqual(nueva, {
+test('la direccion sale de nuestro formulario, y si esta incompleta no hay envio', () => {
+  assert.deepStrictEqual(tienda.destinatario(ENVIO, 'pepa@ejemplo.com'), {
     name: 'Pepa Pérez', address1: 'Calle Mayor 1', city: 'Madrid', country_code: 'ES', zip: '28013', email: 'pepa@ejemplo.com',
   });
-  const vieja = tienda.destinatario(sesionBuena({
-    collected_information: undefined,
-    shipping_details: { name: 'Pepa', address: { line1: 'C/ Sol 2', line2: '3ºB', city: 'Madrid', postal_code: '28012', country: 'ES' } },
-  }));
-  assert.strictEqual(vieja.address2, '3ºB');
-  assert.strictEqual(tienda.destinatario(sesionBuena({ collected_information: undefined })), null);
+  assert.strictEqual(tienda.destinatario({ ...ENVIO, direccion2: '3ºB' }).address2, '3ºB');
+  assert.strictEqual(tienda.destinatario({ ...ENVIO, cp: '' }), null);
+  assert.strictEqual(tienda.destinatario({ ...ENVIO, pais: 'España' }), null);
+  assert.strictEqual(tienda.destinatario(null), null);
+});
+
+test('el pedido de Polar se casa por su id, o por cliente y producto', () => {
+  assert.strictEqual(tienda.pedidoDeOrden(ordenBuena()), 'uid1_20000_0');
+  assert.strictEqual(tienda.pedidoDeOrden(ordenBuena({ metadata: { pedido: '../malo' } })), null);
+  const config = { productos: { camiseta: { polarProducto: 'prod_cam' } }, gemas: { packs: { p100: { polarProducto: 'prod_g' } } } };
+  assert.strictEqual(tienda.productoDeOrden(config, ordenBuena()).clave, 'camiseta');
+  assert.strictEqual(tienda.productoDeOrden(config, ordenBuena({ product_id: 'prod_g' })).tipo, 'gemas');
+  assert.strictEqual(tienda.productoDeOrden(config, ordenBuena({ product_id: 'otro' })), null);
 });
 
 test('la firma de Cloudinary es la que documentan', () => {
@@ -120,14 +125,18 @@ test('la firma de Cloudinary es la que documentan', () => {
 // --- El flujo entero ---------------------------------------------------------------
 
 const ENV = {
-  STRIPE_SECRET_KEY: 'rk_test', PRINTFUL_TOKEN: 'pf', CLOUDINARY_CLOUD: 'nube', CLOUDINARY_API_KEY: 'k', CLOUDINARY_API_SECRET: 's',
+  POLAR_ACCESS_TOKEN: 'polar_oat', PRINTFUL_TOKEN: 'pf', CLOUDINARY_CLOUD: 'nube', CLOUDINARY_API_KEY: 'k', CLOUDINARY_API_SECRET: 's',
 };
 
-function montar({ sesiones = [sesionBuena()], printfulYaExiste = false, cloudinaryFalla = false } = {}) {
+function montar({ ordenes = [ordenBuena()], printfulYaExiste = false, cloudinaryFalla = false, pedido = {} } = {}) {
   const db = new FirestoreFalso();
-  db.sembrar('config', [{ id: 'tienda', visible: true, productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.stripe.com/x', variantes: { M: 4012 } } } }]);
-  db.sembrar('pedidos_tienda', [{ id: 'uid1_20000_0', uid: 'uid1', producto: 'camiseta', variante: 'M', viajeId: 'v1', estado: 'borrador' }]);
-  db.sembrar('usuarios', [{ id: 'uid1', username: 'pepa', clanId: null }]);
+  db.sembrar('config', [{
+    id: 'tienda', visible: true,
+    productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.polar.sh/polar_cl_x', polarProducto: 'prod_cam', variantes: { M: 4012 } } },
+    gemas: { packs: { p100: { activo: true, gemas: 100, precio: 2, enlacePago: 'https://buy.polar.sh/polar_cl_g', polarProducto: 'prod_g' } }, precios: { neon: 80 } },
+  }]);
+  db.sembrar('pedidos_tienda', [{ id: 'uid1_20000_0', uid: 'uid1', producto: 'camiseta', variante: 'M', viajeId: 'v1', estado: 'borrador', envio: ENVIO, ...pedido }]);
+  db.sembrar('usuarios', [{ id: 'uid1', username: 'pepa', clanId: null, gemas: 0, recompensas: [] }]);
   db.sembrar('tiempos_viaje', [{ id: 'v1', uid: 'uid1', verificado: true, ruta: '002-110', tiempoSegundos: 749 }]);
   db.sembrar('agregados', [{ id: 'ranking-general', filas: [{ nombre: 'pepa', pos: 7 }], total: 50 }]);
 
@@ -135,7 +144,7 @@ function montar({ sesiones = [sesionBuena()], printfulYaExiste = false, cloudina
   const fetchFn = async (url, opciones = {}) => {
     llamadas.push({ url, metodo: opciones.method || 'GET', cuerpo: opciones.body });
     const responder = (status, cuerpo) => ({ ok: status < 300, status, text: async () => JSON.stringify(cuerpo) });
-    if (url.startsWith('https://api.stripe.com/')) return responder(200, { data: sesiones, has_more: false });
+    if (url.startsWith('https://api.polar.sh/v1/orders/')) return responder(200, { items: ordenes, pagination: { max_page: 1 } });
     if (url.startsWith('https://api.cloudinary.com/')) {
       return cloudinaryFalla ? responder(500, { error: { message: 'caido' } }) : responder(200, { secure_url: 'https://res.cloudinary.com/x.png' });
     }
@@ -161,14 +170,14 @@ test('un pago bueno acaba en un pedido de Printful con el diseño y la direccion
   const pedido = db.leer('pedidos_tienda/uid1_20000_0');
   assert.strictEqual(pedido.estado, 'en_proveedor', 'sin TIENDA_CONFIRMAR llega como borrador');
   assert.strictEqual(pedido.printfulId, 99);
-  assert.strictEqual(pedido.imagenUrl, 'https://res.cloudinary.com/x.png');
+  assert.strictEqual(pedido.polarPedido, 'ord_1');
 
   const alta = llamadas.find((l) => l.metodo === 'POST' && l.url.startsWith('https://api.printful.com/orders'));
   const cuerpo = JSON.parse(alta.cuerpo);
   assert.strictEqual(cuerpo.external_id, 'uid1_20000_0');
   assert.strictEqual(cuerpo.items[0].variant_id, 4012);
-  assert.strictEqual(cuerpo.items[0].files[0].url, 'https://res.cloudinary.com/x.png');
   assert.strictEqual(cuerpo.recipient.zip, '28013');
+  assert.strictEqual(cuerpo.recipient.country_code, 'ES');
 
   // El diseño sale de la base de datos: lleva su tiempo y su puesto.
   const subida = llamadas.find((l) => l.url.startsWith('https://api.cloudinary.com/'));
@@ -183,6 +192,39 @@ test('un pago bueno acaba en un pedido de Printful con el diseño y la direccion
   assert.ok(!llamadas.some((l) => l.metodo === 'POST'));
 });
 
+test('sin el id del pedido, se casa por cliente y producto', async () => {
+  const { db, ctx } = montar({ ordenes: [ordenBuena({ metadata: {} })] });
+  assert.strictEqual(await tienda.procesarTienda(ctx), 1);
+  assert.strictEqual(db.leer('pedidos_tienda/uid1_20000_0').polarPedido, 'ord_1');
+});
+
+test('sin imprenta configurada, el pedido queda para enviar a mano con la direccion', async () => {
+  const { db, ctx, llamadas, avisos } = montar();
+  await tienda.procesarTienda({ ...ctx, env: { POLAR_ACCESS_TOKEN: 'x' } });
+  assert.strictEqual(db.leer('pedidos_tienda/uid1_20000_0').estado, 'preparar');
+  assert.ok(!llamadas.some((l) => l.url.includes('printful') || l.url.includes('cloudinary')));
+  assert.ok(avisos.some((a) => /a mano/.test(a) && /Calle Mayor 1/.test(a) && /28013 Madrid/.test(a)));
+});
+
+test('un pack de gemas suma las gemas una sola vez', async () => {
+  const { db, ctx } = montar({
+    ordenes: [ordenBuena({ id: 'ord_g', product_id: 'prod_g', subtotal_amount: 200, metadata: { pedido: 'uid1_20000_1' } })],
+  });
+  db.sembrar('pedidos_tienda', [{ id: 'uid1_20000_1', uid: 'uid1', producto: 'gemas', variante: 'p100', estado: 'borrador' }]);
+  assert.strictEqual(await tienda.procesarTienda(ctx), 1);
+  assert.strictEqual(db.leer('usuarios/uid1').gemas, 100);
+  assert.strictEqual(db.leer('pedidos_tienda/uid1_20000_1').estado, 'entregado');
+  await tienda.procesarTienda(ctx);
+  assert.strictEqual(db.leer('usuarios/uid1').gemas, 100);
+});
+
+test('un pedido aun sin cobrar se vuelve a mirar despues', async () => {
+  const { db, ctx } = montar({ ordenes: [ordenBuena({ status: 'pending', paid: false })] });
+  assert.strictEqual(await tienda.procesarTienda(ctx), 0);
+  assert.strictEqual(db.leer('pedidos_tienda/uid1_20000_0').estado, 'borrador');
+  assert.deepStrictEqual(db.leer('tienda_interno/polar').vistas, []);
+});
+
 test('si el pedido ya estaba en Printful no se duplica', async () => {
   const { db, ctx, llamadas } = montar({ printfulYaExiste: true });
   await tienda.procesarTienda(ctx);
@@ -191,11 +233,17 @@ test('si el pedido ya estaba en Printful no se duplica', async () => {
 });
 
 test('un pago que no cuadra va a revisar y no se imprime', async () => {
-  const { db, ctx, llamadas, avisos } = montar({ sesiones: [sesionBuena({ amount_subtotal: 500 })] });
+  const { db, ctx, llamadas, avisos } = montar({ ordenes: [ordenBuena({ subtotal_amount: 500 })] });
   await tienda.procesarTienda(ctx);
   assert.strictEqual(db.leer('pedidos_tienda/uid1_20000_0').estado, 'revisar');
   assert.ok(!llamadas.some((l) => l.url.startsWith('https://api.printful.com/')));
   assert.ok(avisos.some((a) => /revisar/.test(a)));
+});
+
+test('sin direccion completa va a revisar', async () => {
+  const { db, ctx } = montar({ pedido: { envio: { nombre: 'Pepa' } } });
+  await tienda.procesarTienda(ctx);
+  assert.strictEqual(db.leer('pedidos_tienda/uid1_20000_0').estado, 'revisar');
 });
 
 test('un trayecto ajeno no se imprime: el pedido sale sin tiempo', async () => {
@@ -216,7 +264,7 @@ test('un fallo de un servicio se reintenta, y al tercero avisa', async () => {
   assert.ok(avisos.some((a) => /no ha podido salir/.test(a)));
 });
 
-test('sin claves de Stripe la tienda no lee nada', async () => {
+test('sin el token de Polar la tienda no lee nada', async () => {
   const { db, ctx } = montar();
   db.reiniciarContador();
   assert.strictEqual(await tienda.procesarTienda({ ...ctx, env: {} }), 0);
@@ -224,10 +272,29 @@ test('sin claves de Stripe la tienda no lee nada', async () => {
 });
 
 test('un pago sin pedido de la web avisa y no imprime nada', async () => {
-  const { ctx, llamadas, avisos } = montar({ sesiones: [sesionBuena({ client_reference_id: null })] });
+  const { ctx, llamadas, avisos } = montar({ ordenes: [ordenBuena({ metadata: {}, customer: { external_id: 'nadie' } })] });
   await tienda.procesarTienda(ctx);
   assert.ok(avisos.some((a) => /pago sin pedido/.test(a)));
   assert.ok(!llamadas.some((l) => l.url.startsWith('https://api.printful.com/')));
+});
+
+// --- Gastar gemas ------------------------------------------------------------------
+
+test('las gemas se gastan solo en lo que esta a la venta, y si llegan', async () => {
+  const { db, ctx } = montar();
+  db.sembrar('usuarios', [{ id: 'uid1', username: 'pepa', gemas: 100, recompensas: [] }, { id: 'uid2', username: 'luis', gemas: 10, recompensas: [] }, { id: 'uid3', username: 'ana', gemas: 500, recompensas: [] }]);
+  db.sembrar('canjes_gemas', [
+    { id: 'uid1', recompensa: 'neon', estado: 'pendiente' },
+    { id: 'uid2', recompensa: 'neon', estado: 'pendiente' },
+    { id: 'uid3', recompensa: 'noche', estado: 'pendiente' },
+  ]);
+  const r = await tienda.procesarCanjesGemas(ctx);
+  assert.strictEqual(r.ok, 1);
+  assert.strictEqual(db.leer('usuarios/uid1').gemas, 20);
+  assert.deepStrictEqual(db.leer('usuarios/uid1').recompensas, ['neon']);
+  assert.strictEqual(db.leer('canjes_gemas/uid2').estado, 'sin-gemas');
+  assert.strictEqual(db.leer('usuarios/uid2').gemas, 10);
+  assert.strictEqual(db.leer('canjes_gemas/uid3').estado, 'no-esta');
 });
 
 // --- La invitacion -----------------------------------------------------------------

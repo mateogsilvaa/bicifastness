@@ -15,12 +15,36 @@ import { el, reemplazar } from './dom.js';
 const CLAVE = 'bf_tienda';
 const VIGENCIA = 10 * 60 * 1000;
 
+/** Un enlace de pago de Polar (o de su entorno de pruebas). Lo mismo que las reglas. */
+export const ENLACE_POLAR = /^https:\/\/(buy\.polar\.sh\/polar_cl_[A-Za-z0-9]+|sandbox-api\.polar\.sh\/v1\/checkout-links\/polar_cl_[A-Za-z0-9]+\/redirect)$/;
+
 /** Los productos que se pueden comprar ahora: activos y con enlace de pago. */
 export function productosALaVenta(config) {
   if (!config?.visible) return [];
   return Object.entries(config.productos || {})
-    .filter(([, p]) => p?.activo && typeof p.enlacePago === 'string' && p.enlacePago.startsWith('https://buy.stripe.com/'))
+    .filter(([, p]) => p?.activo && ENLACE_POLAR.test(p.enlacePago || ''))
     .map(([clave, p]) => ({ clave, ...p }));
+}
+
+/** Los paquetes de gemas a la venta, de menos a mas. */
+export function packsALaVenta(config) {
+  if (!config?.visible) return [];
+  return Object.entries(config.gemas?.packs || {})
+    .filter(([, p]) => p?.activo && ENLACE_POLAR.test(p.enlacePago || '') && p.gemas > 0)
+    .map(([clave, p]) => ({ clave, ...p }))
+    .sort((a, b) => a.gemas - b.gemas);
+}
+
+/**
+ * El enlace de pago con lo que nos hace falta para casar el pago con el pedido
+ * (backend/src/tienda.js): quien es (`customer_external_id`) y que pedido.
+ */
+export function enlaceDePago(enlace, uid, pedidoId) {
+  const url = new URL(enlace);
+  url.searchParams.set('customer_external_id', uid);
+  url.searchParams.set('reference_id', pedidoId);
+  url.searchParams.set('metadata', JSON.stringify({ pedido: pedidoId }));
+  return url.toString();
 }
 
 /** `config/tienda`, o null si no existe o no se puede leer. */
@@ -43,7 +67,8 @@ export async function leerTienda({ fresca = false } = {}) {
 
 /** ¿Hay algo que enseñar? Es lo que deciden el acceso de Tu y la invitacion. */
 export async function tiendaAbierta() {
-  return productosALaVenta(await leerTienda()).length > 0;
+  const config = await leerTienda();
+  return productosALaVenta(config).length > 0 || packsALaVenta(config).length > 0;
 }
 
 // --- La invitacion -----------------------------------------------------------

@@ -948,24 +948,44 @@ service cloud.firestore {
     match /config/tienda {
       allow read: if true;
       allow write: if esAdmin()
-        && datos().keys().hasOnly(['visible', 'productos', 'actualizado', 'por'])
+        && datos().keys().hasOnly(['visible', 'productos', 'gemas', 'actualizado', 'por'])
         && datos().visible is bool
         && datos().productos is map
         && datos().productos.keys().hasOnly(['camiseta', 'taza'])
         && (!('camiseta' in datos().productos) || productoTiendaValido(datos().productos.camiseta))
         && (!('taza' in datos().productos) || productoTiendaValido(datos().productos.taza))
+        && (!('gemas' in datos()) || gemasTiendaValidas(datos().gemas))
         && datos().por == request.auth.uid
         && datos().actualizado == request.time;
     }
 
+    // Un enlace de pago de Polar (o del entorno de pruebas), o nada.
+    function enlacePolar(e) {
+      return e is string && e.size() <= 200
+        && (e == '' || e.matches('^https://(buy[.]polar[.]sh/polar_cl_[A-Za-z0-9]+|sandbox-api[.]polar[.]sh/v1/checkout-links/polar_cl_[A-Za-z0-9]+/redirect)$'));
+    }
+
+    function productoPolar(p) {
+      return p.polarProducto is string && p.polarProducto.size() <= 80
+        && enlacePolar(p.enlacePago)
+        && (p.precio is int || p.precio is float) && p.precio >= 0 && p.precio <= 200;
+    }
+
     function productoTiendaValido(p) {
       return p is map
-        && p.keys().hasOnly(['activo', 'precio', 'enlacePago', 'variantes'])
+        && p.keys().hasOnly(['activo', 'precio', 'enlacePago', 'polarProducto', 'variantes'])
         && p.activo is bool
-        && (p.precio is int || p.precio is float) && p.precio >= 0 && p.precio <= 200
-        && p.enlacePago is string && p.enlacePago.size() <= 200
-        && (p.enlacePago == '' || p.enlacePago.matches('^https://buy[.]stripe[.]com/[A-Za-z0-9_]+$'))
+        && productoPolar(p)
         && p.variantes is map && p.variantes.size() <= 12;
+    }
+
+    // Las gemas: hasta cuatro paquetes a la venta en Polar, y lo que cuesta en
+    // gemas cada banner o lema (`precios`, id de recompensa -> gemas).
+    function gemasTiendaValidas(g) {
+      return g is map
+        && g.keys().hasOnly(['packs', 'precios'])
+        && g.packs is map && g.packs.size() <= 4
+        && g.precios is map && g.precios.size() <= 60;
     }
 
     // Un pedido nace como borrador desde el navegador: que producto, que talla
@@ -979,16 +999,55 @@ service cloud.firestore {
         && cuentaActiva()
         && puedeUsarLaWeb()
         && pedidoId.matches(request.auth.uid + '_' + string(diaUTC()) + '_[0-4]')
-        && datos().keys().hasOnly(['uid', 'producto', 'variante', 'viajeId', 'estado', 'creado'])
-        && datos().producto in ['camiseta', 'taza']
+        && datos().keys().hasOnly(['uid', 'producto', 'variante', 'viajeId', 'envio', 'estado', 'creado'])
+        && datos().producto in ['camiseta', 'taza', 'gemas']
         && datos().variante is string && datos().variante.size() <= 12
         && (!('viajeId' in datos()) || (datos().viajeId is string && datos().viajeId.size() <= 80))
+        // Lo fisico lleva la direccion: la recogemos nosotros, Polar no.
+        && (datos().producto == 'gemas' || envioValido(datos().envio))
         && datos().estado == 'borrador'
         && datos().creado == request.time;
-      allow update, delete: if false;
+      // La administracion solo marca lo que ha enviado a mano.
+      allow update: if esAdmin()
+        && cambia().hasOnly(['estado', 'enviadoEn'])
+        && previo().estado in ['preparar', 'pagado', 'en_proveedor', 'en_produccion']
+        && datos().estado == 'enviado';
+      allow delete: if false;
     }
 
-    // Lo que el worker apunta de Stripe (por donde va leyendo). Nadie mas.
+    function envioValido(e) {
+      return e is map
+        && e.keys().hasOnly(['nombre', 'direccion', 'direccion2', 'ciudad', 'provincia', 'cp', 'pais', 'telefono'])
+        && e.keys().hasAll(['nombre', 'direccion', 'ciudad', 'cp', 'pais'])
+        && e.nombre is string && e.nombre.size() >= 2 && e.nombre.size() <= 100
+        && e.direccion is string && e.direccion.size() >= 3 && e.direccion.size() <= 120
+        && e.get('direccion2', '') is string && e.get('direccion2', '').size() <= 120
+        && e.ciudad is string && e.ciudad.size() >= 2 && e.ciudad.size() <= 60
+        && e.get('provincia', '') is string && e.get('provincia', '').size() <= 60
+        && e.cp is string && e.cp.matches('^[A-Za-z0-9 -]{3,12}$')
+        && e.pais is string && e.pais.matches('^[A-Z]{2}$')
+        && e.get('telefono', '') is string && e.get('telefono', '').matches('^[0-9 +()-]{0,20}$');
+    }
+
+    // Gastar gemas en un banner o un lema: el navegador PIDE y el worker decide
+    // (backend/src/tienda.js, `procesarCanjesGemas`), igual que los enlaces de
+    // evento. Una peticion a la vez por persona.
+    function canjeGemasValido() {
+      return datos().keys().hasOnly(['recompensa', 'estado', 'creado'])
+        && datos().recompensa is string && datos().recompensa.matches('^[a-z0-9-]{1,40}$')
+        && datos().estado == 'pendiente'
+        && datos().creado == request.time;
+    }
+
+    match /canjes_gemas/{uid} {
+      allow read: if esYo(uid) || esAdmin();
+      allow create: if esYo(uid) && canjeGemasValido() && puedeUsarLaWeb() && cuentaActiva();
+      allow update: if esYo(uid) && previo().estado != 'pendiente'
+        && canjeGemasValido() && puedeUsarLaWeb() && cuentaActiva();
+      allow delete: if false;
+    }
+
+    // Lo que el worker apunta de Polar (por donde va leyendo). Nadie mas.
     match /tienda_interno/{doc} {
       allow read, write: if false;
     }

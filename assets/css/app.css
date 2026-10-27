@@ -4919,3 +4919,12 @@ html.acceso-pendiente main::before {
    va debajo y el panel encima. */
 .hoja-compartir .velo { position: absolute; z-index: 0; }
 .hoja-compartir .panel { z-index: 1; }
+
+/* --- Aviso de viajes verificados al entrar (assets/js/avisar-verificados.js) */
+.aviso-verificados { gap: 12px; }
+.aviso-verificados h2 { margin: 0; }
+.aviso-verificados-icono { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--verde); color: #fff; }
+.aviso-verificados-icono .icono { width: 26px; height: 26px; }
+.aviso-verificados-lista { display: flex; flex-direction: column; gap: 6px; }
+.fila-verificado { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--papel); color: var(--tinta); font: inherit; text-align: left; cursor: pointer; }
+.fila-verificado strong { color: var(--verde); }

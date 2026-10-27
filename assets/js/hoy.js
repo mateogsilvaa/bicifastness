@@ -26,6 +26,7 @@ import { destacar } from '/assets/js/celebrar.js';
 import { anilloSemana, estadosSemana, activoHoy } from '/assets/js/anillo.js';
 import { seguirViaje, viajeRecordado, olvidarViaje } from '/assets/js/estado-viaje.js';
 import { abrirVerificado, abrirResuelto, tramoDe } from '/assets/js/veredicto.js';
+import { avisarVerificados, marcarVerificadoVisto } from '/assets/js/avisar-verificados.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import {
   NOMBRES as DIVISIONES, NIVELES, SIN_CLASIFICAR, emblemaLiga, chipDivision, cuandoCambia, divisionDeClave,
@@ -459,6 +460,7 @@ async function celebrarAlLlegar(perfil) {
   if (!viajeId) return;
   const snap = await getDoc(doc(db, 'tiempos_viaje', viajeId)).catch(() => null);
   if (snap?.exists() && snap.data().estado === 'aprobado') {
+    marcarVerificadoVisto(viajeId);
     abrirVerificado({ id: viajeId, ...snap.data() }, { racha: perfil.racha || 0 });
   }
 }
@@ -480,6 +482,8 @@ function seguirViajeEnCurso(perfil, alResolver) {
     }
     reemplazar(destino, tarjetaResuelta(viaje, perfil));
     olvidarViaje();
+    // Ya se ve aqui: que no salga otra vez en el aviso de verificados.
+    if (viaje.estado === 'aprobado') marcarVerificadoVisto(viaje.id || viajeId);
     // Llega el veredicto con la app abierta: se celebra en el acto (3e).
     if (!primera && viaje.estado === 'aprobado') abrirVerificado(viaje, { racha: (perfil.racha || 0) + (activoHoy(perfil) ? 0 : 1) });
     if (alResolver) alResolver(viaje);
@@ -763,6 +767,12 @@ export async function pintarHoy(usuario, perfil) {
   const misiones = modo === 'riesgo' ? pintarAyudaRiesgo(perfil) : pintarMisiones(perfil, { conBarras: !enCola });
 
   avisarCambioDivision(perfil);
+  // Los viajes que se verificaron con la app cerrada. Despues de lo demas, y
+  // nunca encima de otro dialogo (el tutorial, el de la division...).
+  setTimeout(() => avisarVerificados(usuario.uid, {
+    racha: perfil.racha || 0,
+    puede: () => !document.querySelector('[role="dialog"], .tutorial'),
+  }), 1200);
 
   await Promise.all([
     misiones,

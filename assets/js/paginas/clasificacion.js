@@ -838,6 +838,7 @@ async function abrirPiloto(nombre, desde = null) {
   reemplazar(cuerpo, [
     cabeceraPiloto({
       nombre, avatar, banner: vitrina.banner, lema: vitrina.lema,
+      redes: vitrina.redes, desde: vitrina.desde,
       clan: clan?.nombre || null,
       // 12 · Chip junto al nombre en el perfil publico.
       division: division || 'sin-clasificar', liga: clave ? nombreGrupo(clave) : null,

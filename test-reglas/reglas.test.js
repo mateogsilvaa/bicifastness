@@ -502,6 +502,22 @@ test('la vitrina solo lleva banners y lemas libres o ganados', async () => {
   await assertSucceeds(setDoc(ref, vitrina('noche', null)));
 });
 
+test('la vitrina lleva redes (solo nombres de usuario) y la fecha de alta propia', async () => {
+  const alta = Timestamp.fromMillis(Date.UTC(2026, 2, 1));
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura', creado: alta });
+  });
+  const ref = doc(como(UID), 'vitrinas', 'laura');
+  const base = { uid: UID, banner: null, lema: null, actualizado: serverTimestamp() };
+  await assertSucceeds(setDoc(ref, { ...base, redes: { instagram: 'laura.bici', strava: '12345' }, desde: alta }));
+  await assertSucceeds(setDoc(ref, { ...base, redes: {} }));
+  // Ni URLs, ni redes que no conocemos, ni una antiguedad inventada.
+  await assertFails(setDoc(ref, { ...base, redes: { instagram: 'https://malo.example' } }));
+  await assertFails(setDoc(ref, { ...base, redes: { web: 'laura' } }));
+  await assertFails(setDoc(ref, { ...base, redes: { strava: 'laura' } }));
+  await assertFails(setDoc(ref, { ...base, desde: Timestamp.fromMillis(Date.UTC(2020, 0, 1)) }));
+});
+
 test('un banner atado a un logro se puede llevar en cuanto se tiene el logro', async () => {
   await entorno.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'usuarios', UID), {
@@ -743,8 +759,9 @@ test('un trayecto no se sube con el nombre de otro piloto', async () => {
 
 // --- Tienda ---------------------------------------------------------------------
 
+const ENVIO = { nombre: 'Laura Pérez', direccion: 'Calle Mayor 1', ciudad: 'Madrid', cp: '28013', pais: 'ES' };
 const pedido = (uid, extra = {}) => ({
-  uid, producto: 'camiseta', variante: 'M', viajeId: 'v1', estado: 'borrador', creado: serverTimestamp(), ...extra,
+  uid, producto: 'camiseta', variante: 'M', viajeId: 'v1', envio: ENVIO, estado: 'borrador', creado: serverTimestamp(), ...extra,
 });
 
 test('un pedido de la tienda nace borrador, propio y con su id del dia', async () => {
@@ -758,12 +775,33 @@ test('un pedido de la tienda nace borrador, propio y con su id del dia', async (
   await assertFails(setDoc(doc(db, 'pedidos_tienda', `${UID}_${dia - 1}_0`), pedido(UID)));
   await assertFails(updateDoc(doc(db, 'pedidos_tienda', `${UID}_${dia}_0`), { estado: 'pagado' }));
   await assertFails(getDoc(doc(como(OTRO), 'pedidos_tienda', `${UID}_${dia}_0`)));
+  // Lo fisico, con direccion completa; las gemas, sin ella.
+  await assertFails(setDoc(doc(db, 'pedidos_tienda', `${UID}_${dia}_1`), pedido(UID, { envio: { nombre: 'Laura' } })));
+  await assertFails(setDoc(doc(db, 'pedidos_tienda', `${UID}_${dia}_1`), pedido(UID, { envio: { ...ENVIO, pais: 'España' } })));
+  await assertSucceeds(setDoc(doc(db, 'pedidos_tienda', `${UID}_${dia}_1`), { uid: UID, producto: 'gemas', variante: 'p100', estado: 'borrador', creado: serverTimestamp() }));
+  // La administracion solo marca como enviado lo que ya esta pagado.
+  const admin = como('jefa', { admin: true });
+  await assertFails(updateDoc(doc(admin, 'pedidos_tienda', `${UID}_${dia}_0`), { estado: 'enviado' }));
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), 'pedidos_tienda', `${UID}_${dia}_0`), { estado: 'preparar' });
+  });
+  await assertSucceeds(updateDoc(doc(admin, 'pedidos_tienda', `${UID}_${dia}_0`), { estado: 'enviado', enviadoEn: serverTimestamp() }));
+});
+
+test('las gemas se piden y las decide el worker', async () => {
+  const ref = doc(como(UID), 'canjes_gemas', UID);
+  await assertSucceeds(setDoc(ref, { recompensa: 'neon', estado: 'pendiente', creado: serverTimestamp() }));
+  await assertFails(setDoc(ref, { recompensa: 'noche', estado: 'pendiente', creado: serverTimestamp() }), 'una a la vez');
+  await assertFails(setDoc(doc(como(UID), 'canjes_gemas', OTRO), { recompensa: 'neon', estado: 'pendiente', creado: serverTimestamp() }));
+  await assertFails(setDoc(doc(como(OTRO), 'canjes_gemas', OTRO), { recompensa: 'neon', estado: 'ok', creado: serverTimestamp() }));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { gemas: 9999 }));
 });
 
 test('la tienda la ve cualquiera y solo la cambia la administracion', async () => {
   const config = (por) => ({
     visible: true,
-    productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.stripe.com/test_abc', variantes: { M: 4012 } } },
+    productos: { camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.polar.sh/polar_cl_abc123', polarProducto: 'prod_1', variantes: { M: 4012 } } },
+    gemas: { packs: { p100: { activo: true, gemas: 100, precio: 2, enlacePago: 'https://buy.polar.sh/polar_cl_g', polarProducto: 'prod_g' } }, precios: { neon: 80 } },
     por, actualizado: serverTimestamp(),
   });
   await assertSucceeds(setDoc(doc(como('jefa', { admin: true }), 'config', 'tienda'), config('jefa')));
@@ -772,7 +810,7 @@ test('la tienda la ve cualquiera y solo la cambia la administracion', async () =
   const trampa = config('jefa');
   trampa.productos.camiseta.enlacePago = 'https://evil.example/pagar';
   await assertFails(setDoc(doc(como('jefa', { admin: true }), 'config', 'tienda'), trampa));
-  await assertFails(getDoc(doc(como(UID), 'tienda_interno', 'stripe')));
+  await assertFails(getDoc(doc(como(UID), 'tienda_interno', 'polar')));
 });
 
 // --- Endurecimiento (consola del navegador) ---------------------------------------
@@ -870,4 +908,37 @@ test('un token con claims inventados no es administracion', async () => {
   await assertFails(getDoc(doc(falso, 'config', 'general_privada')));
   await assertFails(getDocs(collection(falso, 'reportes')));
   await assertFails(getDocs(collection(falso, 'acceso_lista')));
+});
+
+test('el tutorial solo se marca como visto, nunca se desmarca', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura' });
+  });
+  await assertSucceeds(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: true }));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: false }));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: 'si' }));
+});
+
+test('con la verificacion en dos pasos exigida, el admin necesita el segundo paso reciente', async () => {
+  const ahora = Math.floor(Date.now() / 1000);
+  const conTotp = { admin: true, auth_time: ahora - 60, firebase: { sign_in_provider: 'password', sign_in_second_factor: 'totp' } };
+  const viejo = { ...conTotp, auth_time: ahora - 3 * 3600 };
+  const sinTotp = { admin: true, auth_time: ahora - 60, firebase: { sign_in_provider: 'password' } };
+  const reportes = (claims) => getDocs(collection(como('jefa', claims), 'reportes'));
+
+  // Sin exigir: el rol basta, como siempre.
+  await assertSucceeds(reportes(sinTotp));
+  // Encenderla solo con el segundo paso hecho; nadie sin rol.
+  const seguridad = (claims, datos = {}) => setDoc(doc(como('jefa', claims), 'config', 'seguridad'), { adminMfa: true, por: 'jefa', actualizado: serverTimestamp(), ...datos });
+  await assertFails(seguridad(sinTotp));
+  await assertFails(seguridad({ firebase: { sign_in_second_factor: 'totp' }, auth_time: ahora }));
+  await assertSucceeds(seguridad(conTotp));
+  // Exigida: sin segundo paso, o con uno de hace horas, no es admin.
+  await assertFails(reportes(sinTotp));
+  await assertFails(reportes(viejo));
+  await assertSucceeds(reportes(conTotp));
+  // Puede leer la marca para saber que le falta, pero no apagarla.
+  await assertSucceeds(getDoc(doc(como('jefa', sinTotp), 'config', 'seguridad')));
+  await assertFails(seguridad(conTotp, { adminMfa: false }));
+  await assertFails(getDoc(doc(como(UID), 'config', 'seguridad')));
 });

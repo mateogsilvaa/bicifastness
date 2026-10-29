@@ -19,6 +19,16 @@ import { FORMA_CODIGO, guardarCanje, canjePendiente, olvidarCanje } from '/asset
 
 iniciarPagina('yo');
 
+/** Para quien llega a un enlace que ya se ha llevado otra persona. */
+const LLEGASTE_TARDE = [
+  ['¡Oh no, llegaste tarde!', 'Alguien abrió este enlace antes que tú y se llevó el premio.'],
+  ['Alguien pedaleó más rápido que tú', 'El premio de este enlace ya tiene dueño. Esta vez no hubo sprint suficiente.'],
+  ['Se te escapó por un anclaje', 'Otra persona canjeó este enlace justo antes. La próxima, a tope desde la salida.'],
+  ['Te han ganado en la meta', 'Este premio ya se lo ha llevado otro piloto.'],
+  ['La bici buena ya estaba cogida', 'Como en la estación a las 9:00: alguien llegó antes y se la llevó.'],
+  ['Semáforo en rojo', 'Mientras esperabas, otra persona canjeó este enlace.'],
+];
+
 const destino = id('canje');
 const enUrl = new URLSearchParams(window.location.search).get('c') || '';
 const codigo = FORMA_CODIGO.test(enUrl) ? enUrl : canjePendiente();
@@ -90,12 +100,18 @@ const PANTALLAS = {
     el('p', { texto: 'No hemos gastado el enlace: se lo puedes pasar a otra persona.' }),
     boton('Ver mi perfil público', '/yo/#perfil'),
   ]),
-  usado: () => tarjeta([
-    icono('aviso', 'icono'),
-    el('h2', { texto: 'Este enlace ya lo ha usado otra persona' }),
-    el('p', { texto: 'Cada enlace vale una sola vez. Si crees que es un error, escríbenos.' }),
-    boton('Volver', '/yo/'),
-  ]),
+  // Cada enlace se lo lleva UNA persona (backend/src/canjes.js). Al resto, que
+  // al menos le saque una sonrisa.
+  usado: () => {
+    const [titulo, texto] = LLEGASTE_TARDE[Math.floor(Math.random() * LLEGASTE_TARDE.length)];
+    return tarjeta([
+      icono('reloj', 'icono'),
+      el('h2', { texto: titulo }),
+      el('p', { texto }),
+      el('p', { clase: 'menor apagado', texto: 'Cada enlace solo se lo lleva una persona. Síguenos en redes: habrá más.' }),
+      boton('Volver', '/yo/'),
+    ]);
+  },
   invalido: () => tarjeta([
     icono('aviso', 'icono'),
     el('h2', { texto: 'Este enlace no vale' }),
@@ -161,6 +177,23 @@ onAuthStateChanged(auth, async (usuario) => {
     }
   } catch { /* sin permiso o sin red: se deja canjear igualmente */ }
 
+  // Si ya lo ha gastado alguien se sabe al momento, sin esperar al worker.
+  if (await yaGastado(codigo)) { olvidarCanje(); pintar('usado'); return; }
+
   guardarCanje(codigo);
   pintar('listo', () => canjear(usuario));
 });
+
+/**
+ * `codigos_gastados/{sha256 del codigo}` lo escribe el worker al canjear. Va
+ * por la huella y no por el codigo: lo que es publico no sirve para canjear.
+ */
+async function yaGastado(cod) {
+  try {
+    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cod));
+    const huella = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    return (await getDoc(doc(db, 'codigos_gastados', huella))).exists();
+  } catch {
+    return false; // sin red o sin reglas: lo decide el worker, como siempre
+  }
+}

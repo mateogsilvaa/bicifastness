@@ -26,6 +26,7 @@ import { destacar } from '/assets/js/celebrar.js';
 import { anilloSemana, estadosSemana, activoHoy } from '/assets/js/anillo.js';
 import { seguirViaje, viajeRecordado, olvidarViaje } from '/assets/js/estado-viaje.js';
 import { abrirVerificado, abrirResuelto, tramoDe } from '/assets/js/veredicto.js';
+import { avisarVerificados, marcarVerificadoVisto } from '/assets/js/avisar-verificados.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import {
   NOMBRES as DIVISIONES, NIVELES, SIN_CLASIFICAR, emblemaLiga, chipDivision, cuandoCambia, divisionDeClave,
@@ -38,6 +39,10 @@ const PUNTOS_MISION = { distancia: 20, velocidad: 15, trayectos: 15, exploracion
 const ICONO_MISION = {
   distancia: 'ruta', velocidad: 'rayo', exploracion: 'pin', trayectos: 'hoy', largo: 'flecha', minutos: 'reloj',
   estaciones: 'mapa', temprano: 'sol', tarde: 'luna',
+  // Las de la semana y el mes (backend/src/misiones-largas.js).
+  kilometros: 'ruta', dias: 'calendario', rutas: 'ruta', explorador: 'pin', madrugador: 'sol', nocturno: 'luna',
+  finde: 'calendario', rutaSemana: 'medalla', records: 'sube', rapidos: 'rayo', largos: 'flecha', granFondo: 'flecha',
+  puntaVelocidad: 'rayo', diarias: 'check', racha: 'escudo',
 };
 
 const coma = (n, dec = 1) => Number(n).toFixed(dec).replace('.', ',');
@@ -320,14 +325,65 @@ function pintarAyudaRiesgo(perfil) {
 
 // --- Misiones -----------------------------------------------------------------
 
+/** El documento del dia: las tres de hoy y, dentro, las de la semana y el mes. */
 async function misionesDeHoy() {
-  const clave = `misiones-${diaMadrid()}`;
+  const clave = `misiones-v2-${diaMadrid()}`;
   const guardado = leerCache(clave);
   if (guardado !== undefined) return guardado;
   const snap = await getDoc(doc(db, 'config', 'misiones', 'dias', diaMadrid()));
-  const datos = snap.exists() ? snap.data().misiones || [] : [];
-  guardarCache(clave, datos);
-  return datos;
+  const datos = snap.exists() ? snap.data() : {};
+  const todo = { misiones: datos.misiones || [], semana: datos.semana || null, mes: datos.mes || null };
+  guardarCache(clave, todo);
+  return todo;
+}
+
+/** "12,5 de 20 km", "3 de 5"... para las de la semana y el mes. */
+function textoLarga(m, p) {
+  const hecho = p?.hecho || 0;
+  if (m.tipo === 'kilometros') return `${coma(hecho / 1000)} de ${coma(m.objetivo / 1000, 0)} km`;
+  if (m.tipo === 'granFondo') return hecho ? `Tu más largo: ${coma(hecho / 1000)} km` : null;
+  if (m.tipo === 'minutos') return `${Math.floor(hecho / 60)} de ${Math.round(m.objetivo / 60)} min`;
+  if (m.tipo === 'puntaVelocidad') return hecho ? `Tu mejor: ${coma(hecho)} km/h` : null;
+  if (m.tipo === 'racha') return `Tu mejor racha: ${hecho} de ${m.objetivo}`;
+  return `${hecho} de ${m.objetivo}`;
+}
+
+/**
+ * Las de la semana y del mes, plegadas debajo de las del dia: estan ahi para
+ * quien las busque, sin empujar Hoy hacia abajo.
+ */
+function bloqueLargas(titulo, quedan, datos, suyo) {
+  if (!datos?.misiones?.length) return null;
+  const progreso = suyo?.periodo === datos.periodo ? (suyo.progreso || []) : [];
+  const hechas = progreso.filter((p) => p?.completada).length;
+  return el('details', { clase: 'misiones-largas' }, [
+    el('summary', {}, [
+      el('span', { clase: 'misiones-largas-titulo', texto: titulo }),
+      el('span', { clase: 'apagado', texto: `${hechas} de ${datos.misiones.length} · ${quedan === 1 ? 'último día' : `quedan ${quedan} días`}` }),
+      icono('abajo', 'icono chevron'),
+    ]),
+    el('div', { clase: 'lista-misiones' }, datos.misiones.map((m, i) => {
+      const p = progreso[i];
+      const hecha = Boolean(p?.completada);
+      const pct = Math.max(0, Math.min(100, ((p?.hecho || 0) / (m.objetivo || 1)) * 100));
+      return el('div', { clase: `mision ${hecha ? 'hecha' : ''}`, attrs: { title: m.ayuda || '' } }, [
+        el('span', { clase: 'mision-icono' }, [icono(hecha ? 'check' : (ICONO_MISION[m.tipo] || 'ruta'))]),
+        el('span', { clase: 'mision-texto' }, [
+          el('span', { clase: 'mision-titulo', texto: m.texto }),
+          el('span', { clase: 'mision-sub', texto: hecha ? 'Hecha' : textoLarga(m, p) }),
+          hecha ? null : el('span', { clase: 'progreso', attrs: { role: 'progressbar', 'aria-valuenow': String(Math.round(pct)), 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-label': m.texto } }, [
+            el('span', { estilo: { width: `${pct}%` } }),
+          ]),
+        ]),
+        el('span', { clase: 'mision-puntos', texto: `+${m.puntos || 0}` }),
+      ]);
+    })),
+  ]);
+}
+
+function diasQuedanMes() {
+  const [a, m, d] = diaMadrid().split('-').map(Number);
+  return new Date(Date.UTC(a, m, 0)).getUTCDate() - d + 1;
 }
 
 function textoHecha(m, p) {
@@ -349,7 +405,8 @@ function textoProgreso(m, p) {
 async function pintarMisiones(perfil, { conBarras = true } = {}) {
   const destino = $('misiones');
   try {
-    const lista = await misionesDeHoy();
+    const todas = await misionesDeHoy();
+    const lista = todas.misiones;
     if (!lista.length) { reemplazar(destino); return; }
     const progreso = perfil.misiones?.fecha === diaMadrid() ? (perfil.misiones.progreso || []) : [];
     const hechas = progreso.filter((p) => p?.completada).length;
@@ -378,6 +435,8 @@ async function pintarMisiones(perfil, { conBarras = true } = {}) {
           el('span', { clase: 'mision-puntos', texto: `+${puntos}` }),
         ]);
       })),
+      bloqueLargas('Misiones de la semana', diasHastaFinDeSemana(), todas.semana, perfil.misionesSemana),
+      bloqueLargas('Misiones del mes', diasQuedanMes(), todas.mes, perfil.misionesMes),
     ]));
   } catch (error) {
     console.debug('Sin misiones', error);
@@ -459,6 +518,7 @@ async function celebrarAlLlegar(perfil) {
   if (!viajeId) return;
   const snap = await getDoc(doc(db, 'tiempos_viaje', viajeId)).catch(() => null);
   if (snap?.exists() && snap.data().estado === 'aprobado') {
+    marcarVerificadoVisto(viajeId);
     abrirVerificado({ id: viajeId, ...snap.data() }, { racha: perfil.racha || 0 });
   }
 }
@@ -480,6 +540,8 @@ function seguirViajeEnCurso(perfil, alResolver) {
     }
     reemplazar(destino, tarjetaResuelta(viaje, perfil));
     olvidarViaje();
+    // Ya se ve aqui: que no salga otra vez en el aviso de verificados.
+    if (viaje.estado === 'aprobado') marcarVerificadoVisto(viaje.id || viajeId);
     // Llega el veredicto con la app abierta: se celebra en el acto (3e).
     if (!primera && viaje.estado === 'aprobado') abrirVerificado(viaje, { racha: (perfil.racha || 0) + (activoHoy(perfil) ? 0 : 1) });
     if (alResolver) alResolver(viaje);
@@ -763,6 +825,12 @@ export async function pintarHoy(usuario, perfil) {
   const misiones = modo === 'riesgo' ? pintarAyudaRiesgo(perfil) : pintarMisiones(perfil, { conBarras: !enCola });
 
   avisarCambioDivision(perfil);
+  // Los viajes que se verificaron con la app cerrada. Despues de lo demas, y
+  // nunca encima de otro dialogo (el tutorial, el de la division...).
+  setTimeout(() => avisarVerificados(usuario.uid, {
+    racha: perfil.racha || 0,
+    puede: () => !document.querySelector('[role="dialog"], .tutorial'),
+  }), 1200);
 
   await Promise.all([
     misiones,

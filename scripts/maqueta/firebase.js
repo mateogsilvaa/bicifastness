@@ -236,8 +236,15 @@ nombres.slice(0, 8).forEach((n, i) => {
 datos['config/tienda'] = {
   visible: true,
   productos: {
-    camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.stripe.com/test_maqueta', variantes: { S: 1, M: 2, L: 3, XL: 4 } },
-    taza: { activo: true, precio: 14.9, enlacePago: 'https://buy.stripe.com/test_maqueta', variantes: { unica: 5 } },
+    camiseta: { activo: true, precio: 24.9, enlacePago: 'https://buy.polar.sh/polar_cl_maqueta', polarProducto: 'prod_cam', variantes: { S: 1, M: 2, L: 3, XL: 4 } },
+    taza: { activo: true, precio: 14.9, enlacePago: 'https://buy.polar.sh/polar_cl_maqueta', polarProducto: 'prod_taza', variantes: { unica: 5 } },
+  },
+  gemas: {
+    packs: {
+      p1: { activo: true, gemas: 100, precio: 1.99, enlacePago: 'https://buy.polar.sh/polar_cl_gemas1', polarProducto: 'prod_g1' },
+      p2: { activo: true, gemas: 600, precio: 9.99, enlacePago: 'https://buy.polar.sh/polar_cl_gemas2', polarProducto: 'prod_g2' },
+    },
+    precios: { neon: 300, noche: 300, 'mas-rapido-que-el-bus': 200, biciloverrr: 150 },
   },
 };
 // localStorage.maqueta_obras = '1' -> la web en construccion (assets/js/puerta.js).
@@ -363,6 +370,28 @@ export function getAdditionalUserInfo() { return { isNewUser: false }; }
 export async function linkWithCredential() { return { user: usuario }; }
 export const credencialGoogleDeError = () => null;
 export const credencialGoogle = () => ({});
+// Verificacion en dos pasos (assets/js/dos-pasos.js): de mentira, vale cualquier
+// codigo de 6 cifras.
+const factoresMaqueta = [];
+export function multiFactor() {
+  return {
+    enrolledFactors: factoresMaqueta,
+    getSession: async () => ({}),
+    enroll: async () => { factoresMaqueta.push({ factorId: 'totp', uid: 'f1' }); },
+    unenroll: async () => { factoresMaqueta.length = 0; },
+  };
+}
+export const TotpMultiFactorGenerator = {
+  generateSecret: async () => ({ secretKey: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', generateQrCodeUrl: (c, e) => `otpauth://totp/${e}:${c}?secret=JBSWY3DPEHPK3PXP&issuer=${e}` }),
+  assertionForEnrollment: () => ({}),
+  assertionForSignIn: () => ({}),
+};
+export function getMultiFactorResolver() { return { hints: [{ factorId: 'totp', uid: 'f1' }], resolveSignIn: async () => ({ user: usuario }) }; }
+export async function reauthenticateWithCredential() { return { user: usuario }; }
+export async function reauthenticateWithPopup() { return { user: usuario }; }
+export const EmailAuthProvider = { credential: () => ({}) };
+export const proveedorGoogle = () => ({});
+export const browserPopupRedirectResolver = {};
 export async function entrarConGoogle() { localStorage.removeItem('maqueta_sesion'); return { user: usuario }; }
 
 export function collection(_db, ...segs) { return { tipo: 'col', path: segs.join('/') }; }

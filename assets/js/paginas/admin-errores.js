@@ -6,7 +6,7 @@
 import { auth, db, collection, getDocs, deleteDoc, doc, onAuthStateChanged } from '/assets/js/firebase.js';
 import { iniciarPagina, formatearFecha } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar, confirmar } from '/assets/js/dom.js';
-import { montarCabeceraAdmin } from '/assets/js/admin-cabecera.js';
+import { montarCabeceraAdmin, puertaDosPasos } from '/assets/js/admin-cabecera.js';
 
 iniciarPagina('admin');
 montarCabeceraAdmin('errores');
@@ -166,6 +166,9 @@ onAuthStateChanged(auth, async (usuario) => {
     estado(id('mensaje'), 'Necesitas iniciar sesion como administrador.', 'error');
     return;
   }
+  const token = await usuario.getIdTokenResult(true).catch(() => null);
+  if (token?.claims?.admin !== true) { window.location.replace('/'); return; }
+  if (!(await puertaDosPasos(usuario, token))) return;
 
   try {
     const snap = await getDocs(collection(db, 'errores_cliente'));

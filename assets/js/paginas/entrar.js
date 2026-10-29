@@ -8,6 +8,7 @@ import {
   auth, onAuthStateChanged, signInWithEmailAndPassword,
   sendPasswordResetEmail, traducirErrorAuth,
 } from '/assets/js/firebase.js';
+import { resolverSegundoPaso } from '/assets/js/dos-pasos.js';
 import { aplicarTema, montarAvisoCookies } from '/assets/js/ui.js';
 import { id, el, icono } from '/assets/js/dom.js';
 import { vigilarErrores } from '/assets/js/errores.js';
@@ -71,7 +72,10 @@ montarBotonGoogle(id('btn-google'), id('mensaje-google'), {
 function textoDeError(error) {
   if (error?.code === 'auth/invalid-credential' || error?.code === 'auth/wrong-password'
     || error?.code === 'auth/user-not-found') {
-    return 'El correo o la contraseña no son correctos.';
+    // Firebase no dice si la cuenta es de Google (no revela que correos
+    // existen), asi que se cubre ese caso en el mismo mensaje: «He olvidado mi
+    // contraseña» le pone una contraseña a esa MISMA cuenta.
+    return 'El correo o la contraseña no son correctos. Si te registraste con Google, entra con Google, o usa «He olvidado mi contraseña» para crearle una: será la misma cuenta.';
   }
   return traducirErrorAuth(error);
 }
@@ -105,7 +109,11 @@ form.addEventListener('submit', async (evento) => {
     // cuenta en PocketBase con la contrasena escrita aqui: si el usuario no
     // existia alli, la CREABA con la clave introducida, lo que permitia
     // apropiarse de la cuenta de otro con solo conocer su correo.
-    const { user } = await signInWithEmailAndPassword(auth, email, clave);
+    // Con la verificacion en dos pasos activada, Firebase corta aqui y pide el
+    // codigo (assets/js/dos-pasos.js). Cancelarlo deja la pantalla como estaba.
+    const credencial = await signInWithEmailAndPassword(auth, email, clave).catch(resolverSegundoPaso);
+    if (!credencial) throw Object.assign(new Error('cancelado'), { code: 'cancelado' });
+    const { user } = credencial;
     // Si venia de "Entrar con Google" con este correo, queda unida a Google.
     await vincularGooglePendiente(user);
     anotar('login_completado');
@@ -115,6 +123,7 @@ form.addEventListener('submit', async (evento) => {
     entrando = false;
     boton.disabled = false;
     boton.textContent = 'Entrar';
+    if (error?.code === 'cancelado') return;
     marcarError(campoClave, true);
     mensaje.textContent = textoDeError(error);
   }

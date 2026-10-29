@@ -50,6 +50,20 @@ export function registrarServiceWorker() {
   });
 }
 
+/** ¿Se puede lanzar ya el dialogo de instalacion del navegador? (Chrome, Edge...) */
+export function puedeInstalarYa() {
+  return Boolean(eventoInstalacion);
+}
+
+/** Lanza el dialogo de instalacion. Solo desde un gesto del usuario. */
+export async function instalarAhora() {
+  if (!eventoInstalacion) return false;
+  const evento = eventoInstalacion;
+  eventoInstalacion = null;
+  await evento.prompt();
+  return true;
+}
+
 /** ¿Ya se esta ejecutando como app instalada? */
 export function estaInstalada() {
   return window.matchMedia('(display-mode: standalone)').matches

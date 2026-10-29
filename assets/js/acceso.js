@@ -8,6 +8,7 @@
  */
 
 import { entrarConGoogle, getAdditionalUserInfo, traducirErrorAuth } from './firebase.js';
+import { resolverSegundoPaso } from './dos-pasos.js';
 import { estado } from './dom.js';
 import { anotar, volcar } from './metricas.js';
 import { registrar } from './errores.js';
@@ -31,7 +32,9 @@ export function montarBotonGoogle(boton, mensaje, { alEmpezar, alFallar } = {}) 
     alEmpezar?.();
 
     try {
-      const resultado = await entrarConGoogle();
+      // Con dos pasos activados, Google tambien corta y pide el codigo.
+      const resultado = await entrarConGoogle().catch(resolverSegundoPaso);
+      if (!resultado) { boton.disabled = false; alFallar?.(); return; }
 
       // Una cuenta NUEVA no ha completado nada todavia: le falta el nombre de
       // piloto, y el registro se cuenta cuando lo elija (portada). Contarlo

@@ -393,12 +393,12 @@ const WORKER = [
     detalle: 'las consultas de cola, recalculo pendiente, capturas de rechazos caducadas y bajas',
   },
   {
-    nombre: 'venderEnLaTienda (por ejecucion, solo con la clave de Stripe puesta)',
+    nombre: 'venderEnLaTienda (por ejecucion, solo con el token de Polar puesto)',
     // Unas 160 ejecuciones al dia (una cada 9 minutos). Lo de cada pedido
     // pagado (perfil, clan, viaje, ranking) es tan raro que no se cuenta.
     veces: () => 160,
     coste: () => min1(1) + min1(1),
-    detalle: 'la configuracion de la tienda + por donde va leyendo los pagos de Stripe',
+    detalle: 'la configuracion de la tienda + por donde va leyendo los pedidos de Polar',
   },
 ];
 

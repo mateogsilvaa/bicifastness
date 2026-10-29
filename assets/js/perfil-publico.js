@@ -11,6 +11,7 @@ import { el, icono } from './dom.js';
 import { chipDivision, emblemaLiga, NIVELES } from './ligas.js';
 import { INSIGNIAS, TEMPORADA } from '../data/insignias.js';
 import { LEMAS, imagenBanner } from '../data/recompensas.js';
+import { enlacesRedes, textoDesde } from './redes.js';
 
 /** Un color de clan solo entra si es un hex de verdad: llega de la base de datos. */
 const colorSeguro = (c) => (/^#[0-9a-f]{6}$/i.test(String(c || '')) ? c : null);
@@ -45,8 +46,10 @@ export function lema(id) {
  * @param {string|null} p.clan  nombre del clan
  * @param {string|null} p.division
  * @param {string|null} p.liga  "Plata · grupo 4" o null
+ * @param {object} [p.redes]  sus redes (`{ instagram: 'usuario' }`)
+ * @param {*} [p.desde]  fecha de alta
  */
-export function cabeceraPiloto({ nombre, avatar, banner: idBanner, lema: idLema, clan, division, liga, detalle }) {
+export function cabeceraPiloto({ nombre, avatar, banner: idBanner, lema: idLema, clan, division, liga, detalle, redes, desde }) {
   avatar.classList.add('avatar-ficha');
   return el('div', { clase: 'ficha-publica' }, [
     banner(idBanner),
@@ -59,6 +62,8 @@ export function cabeceraPiloto({ nombre, avatar, banner: idBanner, lema: idLema,
         el('span', { clase: 'chip-clan', texto: clan || 'Sin clan' }),
       ]),
       detalle ? el('span', { clase: 'apagado ficha-publica-detalle', texto: detalle }) : null,
+      textoDesde(desde) ? el('span', { clase: 'apagado ficha-publica-desde', texto: textoDesde(desde) }) : null,
+      enlacesRedes(redes),
     ]),
   ]);
 }

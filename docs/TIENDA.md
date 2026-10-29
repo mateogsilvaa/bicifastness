@@ -4,74 +4,65 @@ Merchandising impreso bajo demanda con los datos reales de cada piloto: su
 nombre, el escudo de su clan, su mejor tiempo en un tramo y su puesto en el
 ranking general. El dinero que sale de aquí ayuda a pagar el proyecto.
 
-## Cómo funciona
+## Cómo funciona (Polar)
 
-BiciFastness no tiene servidor propio. La web es estática (GitHub Pages) y el
-único proceso de confianza es el worker, que corre en GitHub Actions. Por eso
-el flujo «normal» (un endpoint que crea la sesión de Stripe y otro que recibe
-el webhook) se ha adaptado así:
+Casi ninguna pasarela deja vender artículos físicos a un proyecto así, así que
+en **Polar se venden artículos digitales** (un pack de apoyo, paquetes de
+gemas) y la pieza impresa es un **regalo** que acompaña al pack. Polar no sabe
+de direcciones ni de tallas y la imprenta no sabe de Polar: el puente es
+nuestro (`backend/src/tienda.js`).
 
 ```
 Navegador ── 1. vista previa (SVG, con tus datos)
-    │
-    ├─ 2. crea pedidos_tienda/{id}  (borrador: producto, talla, qué trayecto)
-    └─ 3. va al Payment Link de Stripe con ?client_reference_id={id}
+    ├─ 2. pide la DIRECCION de envio (la recogemos nosotros)
+    ├─ 3. crea pedidos_tienda/{id} (borrador: producto, talla, trayecto, envio)
+    └─ 4. va al checkout link de Polar con ?customer_external_id={uid}&reference_id={id}
                        │
-                 Stripe cobra y recoge la dirección
+                 Polar cobra el pack digital
                        │
-Worker (cada ejecución) ── 4. pregunta a Stripe por las sesiones completadas
-    │                        (hace de webhook, pero tirando en vez de recibir)
-    ├─ 5. comprueba que lo cobrado es el precio del producto
-    ├─ 6. saca los datos de Firestore (NO del navegador) y pinta el diseño
-    ├─ 7. SVG → PNG con sharp → lo sube a Cloudinary
-    └─ 8. crea el pedido en Printful con la dirección y la URL del PNG
+Worker (cada ejecucion) ── 5. GET /v1/orders/ de Polar desde la ultima vez
+    ├─ 6. casa el pedido: por su id, o por cliente (uid) + producto + borrador mas reciente
+    ├─ 7. comprueba que lo cobrado es el precio
+    ├─ gemas  → las suma al perfil (una sola vez, en transaccion)
+    └─ fisico → Printful (diseño desde Firestore, PNG a Cloudinary)
+                o, sin claves de imprenta, "ENVIAR A MANO" + correo con la direccion
 ```
 
-Piezas:
+Las **gemas** se gastan en banners y lemas desde la tienda: la web deja
+`canjes_gemas/{uid}` y el worker decide (precio en `config/tienda.gemas.precios`,
+saldo suficiente, que no lo tenga ya). La página deja claro que **todo se puede
+conseguir gratis jugando**; comprarlo es solo una forma de apoyar.
 
 | Qué | Dónde |
 |---|---|
 | El diseño (el mismo para vista previa e impresión) | `assets/js/tienda-diseno.js` |
-| La página | `tienda/`, `assets/js/paginas/tienda.js` |
-| Acceso en Tú e invitación en Hoy | `assets/js/tienda.js` |
-| Abrir/cerrar y configurar | `/admin/tienda/` → `config/tienda` |
-| Del pago a la imprenta | `backend/src/tienda.js` (lo llama el worker) |
-| Reglas | `firestore.rules`: `config/tienda`, `pedidos_tienda`, `tienda_interno` |
+| La página (dirección, gemas) | `tienda/`, `assets/js/paginas/tienda.js` |
+| Abrir/cerrar, enlaces, packs, precios en gemas, marcar enviado | `/admin/tienda/` → `config/tienda` |
+| Del pago al envío, y canjes de gemas | `backend/src/tienda.js` (lo llama el worker) |
+| Reglas | `firestore.rules`: `config/tienda`, `pedidos_tienda`, `canjes_gemas`, `tienda_interno` |
 
 ## Puesta en marcha
 
-1. **Printful.** Crea una tienda de tipo «Manual order platform / API». Genera
-   un token privado (Settings → API) con permiso de pedidos. Apunta el id de
-   variante de cada talla: catálogo → producto → «Variants», o
-   `GET https://api.printful.com/products/{id}`. Ejemplos habituales (compruébalos
-   en el catálogo, los ids cambian por color y talla): Bella+Canvas 3001 negra y
-   la taza blanca brillante de 11 oz.
-2. **Cloudinary.** Cuenta gratuita. Necesitas el *cloud name*, la *API key* y el
-   *API secret* (Dashboard). Solo se usa para alojar el PNG que lee Printful.
-3. **Stripe.** Un *Payment Link* por producto (Camiseta, Taza):
-   - Precio fijo en EUR, cantidad no ajustable.
-   - «Recoger direcciones de envío» activado, con los países a los que envíes.
-   - Tras el pago, redirigir a `https://bicifastness.app/tienda/?gracias=1`.
-   - Crea una **clave restringida** con permiso de *lectura* en «Checkout
-     Sessions». Es la única que necesita el worker: no puede cobrar ni
-     devolver nada.
-   - Prueba primero en modo test: los enlaces `buy.stripe.com/test_…` y la
-     clave `rk_test_…` funcionan igual.
-4. **Secretos del repositorio** (Settings → Secrets and variables → Actions):
-   `STRIPE_SECRET_KEY`, `PRINTFUL_TOKEN`, `PRINTFUL_STORE_ID` (si el token es de
-   cuenta y no de tienda), `CLOUDINARY_CLOUD`, `CLOUDINARY_API_KEY`,
-   `CLOUDINARY_API_SECRET`. Sin `STRIPE_SECRET_KEY` el worker no toca la tienda.
-5. **`/admin/tienda/`**: pega los enlaces de pago, el precio (el mismo que en
-   Stripe) y las variantes (`M=4012`, una por línea), marca «A la venta» y
-   pon la tienda «Visible».
-6. Los primeros pedidos llegan a Printful como **borrador**: los confirmas tú
-   desde su panel después de mirar el diseño. Cuando te fíes, crea la variable
-   de repositorio `TIENDA_CONFIRMAR` = `si` y saldrán directos a producción.
+1. **Polar.** Crea los productos digitales (p. ej. «Pack de apoyo · camiseta»,
+   «Pack de apoyo · taza», «100 gemas»…) en EUR, y un *checkout link* de cada
+   uno. Pon como URL de éxito `https://bicifastness.es/tienda/?gracias=1`.
+2. **Token.** Polar → Settings → *Organization Access Token* con permiso de
+   lectura de pedidos (`orders:read`). Secreto del repo `POLAR_ACCESS_TOKEN`;
+   variables `POLAR_ORGANIZATION_ID` y, para probar, `POLAR_SANDBOX=si`.
+3. **`/admin/tienda/`**: pega cada enlace y el **id del producto de Polar** (es
+   lo que permite casar el pago aunque el enlace no devuelva nuestro id), el
+   precio (el mismo que en Polar), las tallas y los packs de gemas.
+4. **Envío.** Sin `PRINTFUL_TOKEN` y las tres de Cloudinary, cada pedido pagado
+   queda como «ENVIAR A MANO» en el panel con su dirección, y te llega un
+   correo; lo marcas como enviado allí. Con ellas, va a Printful como antes
+   (borrador salvo `TIENDA_CONFIRMAR=si`).
 
-Antes de abrirla de verdad: unas condiciones de venta (quién vende, NIF,
-envíos, devoluciones) y, si se factura, el IVA. La página ya explica que, al
-ser personalizado, no hay desistimiento (art. 103.c TRLGDCU), pero eso no
-sustituye a unas condiciones.
+**Comprobar antes de abrir:** que Polar acepte un regalo físico como extra de
+un producto digital en sus condiciones, y que los parámetros
+`customer_external_id`/`reference_id` del checkout link funcionen en tu cuenta
+(si no, el casado por id de producto + uid no funciona y los pagos llegan como
+«pago sin pedido» para resolver a mano). Unas condiciones de venta propias
+siguen haciendo falta.
 
 ## Que no moleste
 

@@ -73,6 +73,7 @@ export const LEMAS = {
   'mi-clan-mi-territorio': { texto: 'Mi clan, mi territorio', como: COMO_SE_GANA },
   'culpa-de-la-bateria': { texto: 'Culpa de la batería', como: COMO_SE_GANA },
   'hoy-no-llego-tarde': { texto: 'Hoy no llego tarde (mentira)', como: COMO_SE_GANA },
+  'estuve-aqui': { texto: 'Yo estuve aquí desde el principio', como: 'Para quien tenía cuenta antes del reinicio.' },
   'desde-el-origen': { texto: 'Desde el origen', como: 'Para quien estuvo desde el primer día.' },
   'acab': { texto: 'ACAB (All Cars Are Bastards)', como: COMO_SE_GANA },
   'biciloverrr': { texto: 'Biciloverrr', como: COMO_SE_GANA },

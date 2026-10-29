@@ -34,7 +34,28 @@ service cloud.firestore {
     // que solo puede escribir el Admin SDK. NO en un documento que el propio
     // usuario pueda modificar.
     function esAdmin() {
-      return autenticado() && request.auth.token.admin == true;
+      return autenticado() && request.auth.token.admin == true && segundoFactorAdmin();
+    }
+
+    // Verificacion en dos pasos de la administracion (assets/js/dos-pasos.js).
+    //
+    // Mientras `config/seguridad.adminMfa` no este encendido, el rol basta: es
+    // lo que deja entrar a activarla sin quedarse fuera. Encendido, el token
+    // tiene que llevar el segundo paso (TOTP, firmado por Firebase) y de hace
+    // menos de dos horas: el panel lo vuelve a pedir en cada entrada, y una
+    // sesion robada no sirve de admin pasado ese rato.
+    //
+    // Solo se evalua con el claim `admin` (el `&&` de arriba corta antes), asi
+    // que a nadie mas le cuesta ninguna lectura.
+    function segundoFactorAdmin() {
+      return !exists(/databases/$(database)/documents/config/seguridad)
+        || get(/databases/$(database)/documents/config/seguridad).data.get('adminMfa', false) != true
+        || segundoFactorReciente();
+    }
+
+    function segundoFactorReciente() {
+      return request.auth.token.firebase.get('sign_in_second_factor', '') == 'totp'
+        && request.auth.token.auth_time > request.time.toMillis() / 1000 - 7200;
     }
 
     // --- Web abierta o en construccion (assets/js/puerta.js) ----------------
@@ -226,8 +247,11 @@ service cloud.firestore {
         // `avisosCorreo` es la preferencia de correo. Es un booleano suyo y
         // solo suyo: darse de baja no puede depender de que un administrador lo
         // haga por ti (RGPD).
-        && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo', 'fotoMini'])
+        && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo', 'fotoMini', 'tutorialVisto'])
         && (!('favoritas' in datos()) || datos().favoritas.size() <= 3)
+        // El tutorial de la primera vez (assets/js/tutorial.js): solo se puede
+        // marcar como visto, nunca desmarcar.
+        && (!('tutorialVisto' in cambia()) || datos().tutorialVisto == true)
         // Solo cuando SE ESCRIBE. Es lo que hay que vigilar —que nadie meta
         // ahi lo que quiera— y ademas no deja fuera a ningun perfil viejo:
         // exigirlo siempre habria dejado sin poder tocar sus preferencias a
@@ -901,6 +925,13 @@ service cloud.firestore {
         && datos().creado == request.time;
     }
 
+    // Enlaces ya gastados, por la huella SHA-256 del codigo: el que llega tarde
+    // lo sabe al abrirlo. Se pide uno a uno; listarlos no.
+    match /codigos_gastados/{huella} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
     match /canjes_recompensa/{uid} {
       allow read: if esYo(uid) || esAdmin();
       allow create: if esYo(uid) && canjeValido() && puedeUsarLaWeb() && cuentaActiva();
@@ -917,24 +948,44 @@ service cloud.firestore {
     match /config/tienda {
       allow read: if true;
       allow write: if esAdmin()
-        && datos().keys().hasOnly(['visible', 'productos', 'actualizado', 'por'])
+        && datos().keys().hasOnly(['visible', 'productos', 'gemas', 'actualizado', 'por'])
         && datos().visible is bool
         && datos().productos is map
         && datos().productos.keys().hasOnly(['camiseta', 'taza'])
         && (!('camiseta' in datos().productos) || productoTiendaValido(datos().productos.camiseta))
         && (!('taza' in datos().productos) || productoTiendaValido(datos().productos.taza))
+        && (!('gemas' in datos()) || gemasTiendaValidas(datos().gemas))
         && datos().por == request.auth.uid
         && datos().actualizado == request.time;
     }
 
+    // Un enlace de pago de Polar (o del entorno de pruebas), o nada.
+    function enlacePolar(e) {
+      return e is string && e.size() <= 200
+        && (e == '' || e.matches('^https://(buy[.]polar[.]sh/polar_cl_[A-Za-z0-9]+|sandbox-api[.]polar[.]sh/v1/checkout-links/polar_cl_[A-Za-z0-9]+/redirect)$'));
+    }
+
+    function productoPolar(p) {
+      return p.polarProducto is string && p.polarProducto.size() <= 80
+        && enlacePolar(p.enlacePago)
+        && (p.precio is int || p.precio is float) && p.precio >= 0 && p.precio <= 200;
+    }
+
     function productoTiendaValido(p) {
       return p is map
-        && p.keys().hasOnly(['activo', 'precio', 'enlacePago', 'variantes'])
+        && p.keys().hasOnly(['activo', 'precio', 'enlacePago', 'polarProducto', 'variantes'])
         && p.activo is bool
-        && (p.precio is int || p.precio is float) && p.precio >= 0 && p.precio <= 200
-        && p.enlacePago is string && p.enlacePago.size() <= 200
-        && (p.enlacePago == '' || p.enlacePago.matches('^https://buy[.]stripe[.]com/[A-Za-z0-9_]+$'))
+        && productoPolar(p)
         && p.variantes is map && p.variantes.size() <= 12;
+    }
+
+    // Las gemas: hasta cuatro paquetes a la venta en Polar, y lo que cuesta en
+    // gemas cada banner o lema (`precios`, id de recompensa -> gemas).
+    function gemasTiendaValidas(g) {
+      return g is map
+        && g.keys().hasOnly(['packs', 'precios'])
+        && g.packs is map && g.packs.size() <= 4
+        && g.precios is map && g.precios.size() <= 60;
     }
 
     // Un pedido nace como borrador desde el navegador: que producto, que talla
@@ -948,18 +999,71 @@ service cloud.firestore {
         && cuentaActiva()
         && puedeUsarLaWeb()
         && pedidoId.matches(request.auth.uid + '_' + string(diaUTC()) + '_[0-4]')
-        && datos().keys().hasOnly(['uid', 'producto', 'variante', 'viajeId', 'estado', 'creado'])
-        && datos().producto in ['camiseta', 'taza']
+        && datos().keys().hasOnly(['uid', 'producto', 'variante', 'viajeId', 'envio', 'estado', 'creado'])
+        && datos().producto in ['camiseta', 'taza', 'gemas']
         && datos().variante is string && datos().variante.size() <= 12
         && (!('viajeId' in datos()) || (datos().viajeId is string && datos().viajeId.size() <= 80))
+        // Lo fisico lleva la direccion: la recogemos nosotros, Polar no.
+        && (datos().producto == 'gemas' || envioValido(datos().envio))
         && datos().estado == 'borrador'
         && datos().creado == request.time;
-      allow update, delete: if false;
+      // La administracion solo marca lo que ha enviado a mano.
+      allow update: if esAdmin()
+        && cambia().hasOnly(['estado', 'enviadoEn'])
+        && previo().estado in ['preparar', 'pagado', 'en_proveedor', 'en_produccion']
+        && datos().estado == 'enviado';
+      allow delete: if false;
     }
 
-    // Lo que el worker apunta de Stripe (por donde va leyendo). Nadie mas.
+    function envioValido(e) {
+      return e is map
+        && e.keys().hasOnly(['nombre', 'direccion', 'direccion2', 'ciudad', 'provincia', 'cp', 'pais', 'telefono'])
+        && e.keys().hasAll(['nombre', 'direccion', 'ciudad', 'cp', 'pais'])
+        && e.nombre is string && e.nombre.size() >= 2 && e.nombre.size() <= 100
+        && e.direccion is string && e.direccion.size() >= 3 && e.direccion.size() <= 120
+        && e.get('direccion2', '') is string && e.get('direccion2', '').size() <= 120
+        && e.ciudad is string && e.ciudad.size() >= 2 && e.ciudad.size() <= 60
+        && e.get('provincia', '') is string && e.get('provincia', '').size() <= 60
+        && e.cp is string && e.cp.matches('^[A-Za-z0-9 -]{3,12}$')
+        && e.pais is string && e.pais.matches('^[A-Z]{2}$')
+        && e.get('telefono', '') is string && e.get('telefono', '').matches('^[0-9 +()-]{0,20}$');
+    }
+
+    // Gastar gemas en un banner o un lema: el navegador PIDE y el worker decide
+    // (backend/src/tienda.js, `procesarCanjesGemas`), igual que los enlaces de
+    // evento. Una peticion a la vez por persona.
+    function canjeGemasValido() {
+      return datos().keys().hasOnly(['recompensa', 'estado', 'creado'])
+        && datos().recompensa is string && datos().recompensa.matches('^[a-z0-9-]{1,40}$')
+        && datos().estado == 'pendiente'
+        && datos().creado == request.time;
+    }
+
+    match /canjes_gemas/{uid} {
+      allow read: if esYo(uid) || esAdmin();
+      allow create: if esYo(uid) && canjeGemasValido() && puedeUsarLaWeb() && cuentaActiva();
+      allow update: if esYo(uid) && previo().estado != 'pendiente'
+        && canjeGemasValido() && puedeUsarLaWeb() && cuentaActiva();
+      allow delete: if false;
+    }
+
+    // Lo que el worker apunta de Polar (por donde va leyendo). Nadie mas.
     match /tienda_interno/{doc} {
       allow read, write: if false;
+    }
+
+    // Si la administracion exige los dos pasos. La lee quien tiene el rol
+    // aunque aun no los tenga (para saber que le falta); encenderla solo se
+    // puede con el segundo paso ya hecho, y APAGARLA no se puede desde la web:
+    // solo desde la consola de Firebase. Quien robe una sesion no la quita.
+    match /config/seguridad {
+      allow read: if autenticado() && request.auth.token.admin == true;
+      allow write: if autenticado() && request.auth.token.admin == true
+        && segundoFactorReciente()
+        && datos().keys().hasOnly(['adminMfa', 'por', 'actualizado'])
+        && datos().adminMfa == true
+        && datos().por == request.auth.uid
+        && datos().actualizado == request.time;
     }
 
     match /config/{otro} {
@@ -1273,14 +1377,31 @@ service cloud.firestore {
           in get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('logros', []);
     }
 
+    // Las redes de la ficha: solo el nombre de usuario de cada una, nunca una
+    // URL (el enlace lo monta assets/js/redes.js con un dominio fijo). Mismos
+    // patrones que `REDES` alli.
+    function redesValidas(r) {
+      return r is map
+        && r.keys().hasOnly(['instagram', 'tiktok', 'strava', 'x'])
+        && (!('instagram' in r) || (r.instagram is string && r.instagram.matches('^[A-Za-z0-9._]{1,30}$')))
+        && (!('tiktok' in r) || (r.tiktok is string && r.tiktok.matches('^[A-Za-z0-9._]{2,24}$')))
+        && (!('strava' in r) || (r.strava is string && r.strava.matches('^[0-9]{1,12}$')))
+        && (!('x' in r) || (r.x is string && r.x.matches('^[A-Za-z0-9_]{1,15}$')));
+    }
+
     match /vitrinas/{nombre} {
       allow read: if true;
       allow create, update: if autenticado()
         && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.usernameLower == nombre
-        && datos().keys().hasOnly(['uid', 'banner', 'lema', 'actualizado'])
+        && datos().keys().hasOnly(['uid', 'banner', 'lema', 'redes', 'desde', 'actualizado'])
         && datos().uid == request.auth.uid
         && recompensaValida(datos().banner)
         && recompensaValida(datos().lema)
+        && redesValidas(datos().get('redes', {}))
+        // La fecha de alta solo puede ser la de tu perfil: nadie se pone mas
+        // antiguedad de la que tiene.
+        && (datos().get('desde', null) == null
+            || datos().desde == get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('creado', null))
         && datos().actualizado == request.time
         && puedeUsarLaWeb()
         && cuentaActiva();

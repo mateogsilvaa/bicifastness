@@ -65,6 +65,7 @@ const almacen = require('./src/db');
 const PROYECTO_DE_LA_WEB = 'bicifastness';
 
 const misiones = require('./src/misiones');
+const misionesLargas = require('./src/misiones-largas');
 const divisiones = require('./src/divisiones');
 const denuncias = require('./src/denuncias');
 const nombres = require('./src/nombres');
@@ -1418,6 +1419,35 @@ async function premiar(doc, viaje) {
       }
     }
 
+    // Misiones de la semana y del mes. Igual que las del dia: del perfil ya
+    // leido, sin lecturas, y los puntos en el propio viaje (se devuelven si se
+    // anula).
+    let progresoLargas = {};
+    if (puntua) {
+      const finalesPrevios = new Set(Object.keys(previo.puntosPorRuta || {}).map((r) => String(r).split('-')[1]).filter(Boolean));
+      const largas = misionesLargas.aplicarViaje(previo, diaDelViaje, {
+        distanciaMetros: metros,
+        velocidadKmh: kmh,
+        tiempoSegundos: viaje.tiempoSegundos || 0,
+        ruta: viaje.ruta,
+        horaSalida: viaje.franja?.salida || null,
+      }, {
+        esEstacionNueva: Boolean(destino) && !finalesPrevios.has(destino),
+        esRecord: Boolean(marcaPrevia && viaje.tiempoSegundos && viaje.tiempoSegundos < marcaPrevia),
+        esRutaSemana: multRuta > 1,
+        racha: racha.racha,
+        diarias: completadasAhora,
+      }, diaMadrid());
+      progresoLargas = largas.campos;
+      if (largas.extra > 0) {
+        puntos = {
+          ...puntos,
+          total: puntos.total + largas.extra,
+          desglose: { ...puntos.desglose, misionesLargas: largas.extra },
+        };
+      }
+    }
+
     const nuevasInsignias = insigniasTrasElViaje();
 
     tx.update(refUsuario, {
@@ -1433,6 +1463,7 @@ async function premiar(doc, viaje) {
       ...(completadasAhora ? { misionesCompletadas: admin.firestore.FieldValue.increment(completadasAhora) } : {}),
       ...(puntua ? {} : { viajesSinPuntos: admin.firestore.FieldValue.increment(1) }),
       ...(progresoMisiones ? { misiones: progresoMisiones } : {}),
+      ...progresoLargas,
       racha: racha.racha,
       mejorRacha: racha.mejorRacha,
       escudos: racha.escudos,
@@ -1581,8 +1612,17 @@ async function prepararDia() {
   const hoy = diaMadrid();
   const refMisiones = db.doc(`config/misiones/dias/${hoy}`);
 
-  if (!(await refMisiones.get()).exists) {
-    if (!SIMULAR) await refMisiones.set(misiones.generar(hoy));
+  // Con las de la semana y el mes dentro: cero lecturas mas en el navegador.
+  // Un documento de antes de que existieran se completa.
+  const yaHay = await refMisiones.get();
+  if (!yaHay.exists || !yaHay.data().semana) {
+    if (!SIMULAR) {
+      await refMisiones.set({
+        ...misiones.generar(hoy),
+        semana: misionesLargas.generar('semana', misionesLargas.periodoDe('semana', hoy)),
+        mes: misionesLargas.generar('mes', misionesLargas.periodoDe('mes', hoy)),
+      });
+    }
     console.log(`Misiones del ${hoy} preparadas.`);
   }
 
@@ -2852,9 +2892,11 @@ async function resolverCanjes() {
 }
 
 /**
- * La tienda: los pagos nuevos de Stripe pasan a pedidos de la imprenta
- * (src/tienda.js). Sin `STRIPE_SECRET_KEY` no hace nada ni lee nada. Nunca
- * lanza: un fallo de Stripe o de la imprenta no puede tumbar la verificacion.
+ * La tienda: los pagos nuevos de Polar pasan a gemas o a pedidos de la
+ * imprenta (src/tienda.js), y se atienden los canjes de gemas. Sin
+ * `POLAR_ACCESS_TOKEN` no se cobra nada, pero las gemas que ya haya se pueden
+ * seguir gastando. Nunca lanza: un fallo de Polar o de la imprenta no puede
+ * tumbar la verificacion.
  */
 async function venderEnLaTienda() {
   try {
@@ -2869,6 +2911,11 @@ async function venderEnLaTienda() {
     });
   } catch (error) {
     console.warn('No se ha podido procesar la tienda:', error.message);
+  }
+  try {
+    await tienda.procesarCanjesGemas({ db, admin, simular: SIMULAR });
+  } catch (error) {
+    console.warn('No se han podido resolver los canjes de gemas:', error.message);
   }
 }
 

@@ -4162,6 +4162,7 @@ body.pagina-admin { font-size: 14px; padding: 0; }
 /* Ajustes · Como funciona: filas que llevan a cada parte de /info/. */
 .lista-como .fila-como { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px; color: var(--tinta); text-decoration: none; }
 .lista-como .fila-como + .fila-como { border-top: 1px solid var(--linea); }
+button.fila-como { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
 .lista-como .fila-como .texto { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: 600; }
 .lista-como .fila-como small { font-size: 13px; font-weight: 400; color: var(--tinta-3); }
 .lista-como .flecha-como { font-size: 22px; color: var(--tinta-3); }
@@ -4724,6 +4725,13 @@ html.acceso-pendiente main::before {
 .ficha-publica .chip-insignia { background: var(--papel); }
 .chip-clan { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px; background: var(--papel); font-size: 13px; font-weight: 600; color: var(--tinta-2); }
 .ficha-publica-detalle { font-size: 13px; }
+.ficha-publica-desde { font-size: 13px; }
+.redes-piloto { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.red-piloto { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 999px; background: var(--papel); font-size: 13px; font-weight: 600; color: var(--tinta); text-decoration: none; }
+.red-piloto .icono { width: 14px; height: 14px; }
+.red-piloto:hover { background: var(--papel-3, var(--papel)); }
+.form-redes { display: flex; flex-direction: column; }
+.form-redes .btn { align-self: flex-start; }
 .logros-publicos { grid-template-columns: repeat(3, 1fr); }
 .logros-publicos .insignia { background: var(--papel); padding: 10px 6px; }
 .logros-publicos .insignia .disco { width: 38px; height: 38px; }
@@ -4912,3 +4920,79 @@ html.acceso-pendiente main::before {
    va debajo y el panel encima. */
 .hoja-compartir .velo { position: absolute; z-index: 0; }
 .hoja-compartir .panel { z-index: 1; }
+
+/* --- Aviso de viajes verificados al entrar (assets/js/avisar-verificados.js) */
+.aviso-verificados { gap: 12px; }
+.aviso-verificados h2 { margin: 0; }
+.aviso-verificados-icono { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--verde); color: #fff; }
+.aviso-verificados-icono .icono { width: 26px; height: 26px; }
+.aviso-verificados-lista { display: flex; flex-direction: column; gap: 6px; }
+.fila-verificado { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--papel); color: var(--tinta); font: inherit; text-align: left; cursor: pointer; }
+.fila-verificado strong { color: var(--verde); }
+
+/* --- Misiones de la semana y del mes, plegadas bajo las del dia (hoy.js) ---- */
+.misiones-largas { margin-top: 10px; border-radius: 16px; background: var(--papel-2); }
+.misiones-largas > summary { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; cursor: pointer; list-style: none; }
+.misiones-largas > summary::-webkit-details-marker { display: none; }
+.misiones-largas-titulo { font-weight: 700; flex: 1; }
+.misiones-largas > summary .apagado { font-size: 13px; }
+.misiones-largas[open] > summary .chevron { transform: rotate(180deg); }
+.misiones-largas .lista-misiones { padding: 0 8px 10px; }
+
+/* --- Tutorial de la primera vez (assets/js/tutorial.js) --------------------- */
+body.con-tutorial { overflow: hidden; }
+.tutorial { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); background: var(--papel-2); color: var(--tinta); outline: none; }
+.tutorial-saltar { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; left: auto; width: auto; margin: 0; }
+.tutorial-cuerpo { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.tutorial-dibujo { width: 112px; height: 112px; border-radius: 32px; display: grid; place-items: center; background: var(--azul-relleno, var(--azul)); color: #fff; margin-bottom: 8px; }
+.tutorial-dibujo .icono { width: 56px; height: 56px; }
+.tutorial-contador { font-size: 13px; color: var(--tinta-2); }
+.tutorial-cuerpo h2 { margin: 0; font-size: 26px; letter-spacing: -.02em; }
+.tutorial-cuerpo p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--tinta-2); }
+.tutorial-pasos { text-align: left; margin: 8px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; }
+.tutorial-pasos .icono { vertical-align: -3px; }
+.tutorial-nota { font-size: 14px !important; }
+.tutorial-puntos { display: flex; gap: 6px; }
+.tutorial-puntos span { width: 7px; height: 7px; border-radius: 50%; background: var(--linea-fuerte); transition: width .2s; }
+.tutorial-puntos span.activo { width: 20px; border-radius: 4px; background: var(--azul); }
+.tutorial-botones { width: 100%; max-width: 420px; display: flex; justify-content: space-between; gap: 10px; }
+.tutorial-botones .btn { min-width: 120px; min-height: 48px; }
+@media (prefers-reduced-motion: reduce) { .tutorial-puntos span { transition: none; } }
+
+/* --- Verificacion en dos pasos (assets/js/dos-pasos.js) --------------------- */
+.hoja-dos-pasos h2 { margin: 0; }
+.form-dos-pasos { display: flex; flex-direction: column; gap: 12px; }
+.qr-caja { align-self: center; width: 200px; max-width: 70vw; padding: 8px; border-radius: 12px; background: #fff; }
+.qr-dos-pasos { display: block; width: 100%; height: auto; }
+.clave-manual summary { cursor: pointer; font-size: 14px; color: var(--azul); }
+.clave-manual code { display: block; margin: 6px 0; padding: 10px; border-radius: 10px; background: var(--papel); font-size: 15px; letter-spacing: .05em; overflow-wrap: anywhere; user-select: all; }
+.campo-codigo { font-size: 28px; letter-spacing: .4em; text-align: center; font-variant-numeric: tabular-nums; min-height: 56px; }
+.adm-aviso-mfa { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 50; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: var(--papel-2); box-shadow: 0 8px 32px rgba(0, 0, 0, .12); font-size: 14px; }
+.adm-aviso-mfa span { flex: 1; min-width: 200px; }
+
+/* --- Tienda: direccion de envio y gemas (paginas/tienda.js) ----------------- */
+.form-envio { display: flex; flex-direction: column; }
+.form-envio .dos-campos { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+.form-envio select { width: 100%; min-height: 48px; }
+.gemas { margin-top: 28px; display: flex; flex-direction: column; gap: 12px; }
+.gemas h2 { margin: 0; }
+.gemas-aviso { gap: 6px; }
+.gemas-aviso p { margin: 0; color: var(--tinta-2); line-height: 1.45; }
+.gemas-cabeza { display: flex; align-items: baseline; gap: 8px; }
+.gemas-saldo { font-size: 22px; }
+.gemas-packs { display: flex; flex-wrap: wrap; gap: 8px; }
+.gemas-packs .btn { width: auto; flex: 1 1 140px; }
+.gemas-catalogo { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.gemas-item { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; background: var(--papel-2); }
+.gemas-banner { aspect-ratio: 3 / 1; border-radius: 10px; background-size: cover; background-position: center; }
+.gemas-lema { min-height: 50px; display: flex; align-items: center; font-style: italic; }
+.gemas-nombre { font-size: 13px; color: var(--tinta-2); }
+.gemas-item .btn { min-height: 40px; }
+
+/* --- Admin de la tienda: gemas y direcciones (paginas/admin-tienda.js) ------ */
+.adm-pack { display: grid; grid-template-columns: 90px 90px 80px 1fr 1fr; gap: 6px; align-items: center; margin-bottom: 6px; }
+.adm-precios-gemas { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; margin-top: 10px; max-height: 320px; overflow: auto; }
+.adm-precio-gema { display: grid; grid-template-columns: 1fr 80px; gap: 6px; align-items: center; font-size: 13px; }
+.adm-envio { display: block; color: var(--tinta-2); }
+
+.regalo-lema { font-size: 20px; font-style: italic; margin: 4px 0 8px; }

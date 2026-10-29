@@ -14,7 +14,15 @@
  * ningun viaje es un dato roto. Nombre, foto, vitrina, banners ganados,
  * ajustes y avisos NO se tocan.
  *
- * NO SE PUEDE DESHACER. Por eso simula por defecto y solo borra con
+ * Los viajes y los clanes no desaparecen del todo: antes de borrarlos se
+ * guarda una copia en `archivo_reinicio` (que nadie lee desde la web), sin la
+ * captura ni el correo de la v1. Asi la web arranca de cero pero lo de antes
+ * se puede recuperar.
+ *
+ * Y a cada cuenta que ya existia se le regala el lema `estuve-aqui`
+ * ("Yo estuve aquí desde el principio"); la web se lo anuncia al entrar.
+ *
+ * Por eso simula por defecto y solo borra con
  * `--de-verdad`. Se lanza desde Actions > Administracion; solo imprime
  * recuentos (el log es publico).
  *
@@ -42,6 +50,11 @@ function contadoresACero() {
     clanId: null, rolClan: borrar,
   };
 }
+
+/** Lo que se archiva antes de borrar, y los campos que NO se copian. */
+const ARCHIVAR = ['tiempos_viaje', 'clanes'];
+const SIN_COPIAR = ['foto_url', 'email_real', 'auditoria'];
+const LEMA_PIONEROS = 'estuve-aqui';
 
 async function enLotes(db, refs, operacion) {
   for (let i = 0; i < refs.length; i += 400) {
@@ -76,10 +89,24 @@ async function main() {
     return;
   }
 
+  // Copia de lo que se oculta, antes de borrar nada.
+  const marca = new Date().toISOString().slice(0, 10);
+  for (const c of ARCHIVAR) {
+    const snap = await db.collection(c).get();
+    await enLotes(db, snap.docs, (lote, d) => {
+      const datos = { ...d.data() };
+      for (const campo of SIN_COPIAR) delete datos[campo];
+      lote.set(db.doc(`archivo_reinicio/${c}__${d.id}`), { ...datos, coleccion: c, idOriginal: d.id, archivadoEl: marca });
+    });
+    console.log(`Archivados ${snap.size} de ${c}.`);
+  }
   for (const c of COLECCIONES) await enLotes(db, refs[c], (lote, ref) => lote.delete(ref));
   await enLotes(db, cache.docs.map((d) => d.ref), (lote, ref) => lote.delete(ref));
-  const cero = contadoresACero();
+  const cero = { ...contadoresACero(), recompensas: admin.firestore.FieldValue.arrayUnion(LEMA_PIONEROS) };
   await enLotes(db, usuarios.docs.map((d) => d.ref), (lote, ref) => lote.update(ref, cero));
+  // Desde cuando cuenta "nueva": la web lo usa para anunciar el lema solo a
+  // quien ya estaba.
+  await db.doc('config/general').set({ reinicioEl: marca }, { merge: true });
   // Que el worker rehaga los agregados en la siguiente pasada, aunque no haya viajes.
   await db.doc('config/pilotos_meta').set({ invalida: true, paginas: 0, total: 0 }, { merge: true });
   console.log('Hecho. El worker rehara los rankings y el mapa (vacios) en su proxima pasada.');

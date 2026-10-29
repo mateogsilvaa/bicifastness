@@ -72,7 +72,10 @@ montarBotonGoogle(id('btn-google'), id('mensaje-google'), {
 function textoDeError(error) {
   if (error?.code === 'auth/invalid-credential' || error?.code === 'auth/wrong-password'
     || error?.code === 'auth/user-not-found') {
-    return 'El correo o la contraseña no son correctos.';
+    // Firebase no dice si la cuenta es de Google (no revela que correos
+    // existen), asi que se cubre ese caso en el mismo mensaje: «He olvidado mi
+    // contraseña» le pone una contraseña a esa MISMA cuenta.
+    return 'El correo o la contraseña no son correctos. Si te registraste con Google, entra con Google, o usa «He olvidado mi contraseña» para crearle una: será la misma cuenta.';
   }
   return traducirErrorAuth(error);
 }

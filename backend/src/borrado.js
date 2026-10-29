@@ -233,6 +233,9 @@ async function ejecutar(uid, { simular = false } = {}) {
     // enlace que canjeo, quien fue. El enlace sigue GASTADO —si no, volveria a
     // valer para otra persona— pero sin nombre ni uid.
     await db().doc(`canjes_recompensa/${uid}`).delete();
+    // Lo que quedo archivado de antes del reinicio (scripts/borrar-viajes-y-clanes.js).
+    const archivados = await db().collection('archivo_reinicio').where('uid', '==', uid).get();
+    for (const doc of archivados.docs) await doc.ref.delete();
     // Su canje de gemas (lleva su uid como id).
     await db().doc(`canjes_gemas/${uid}`).delete();
     const canjeados = await db().collection('recompensas_codigos').where('usadoPor', '==', uid).get();

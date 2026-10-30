@@ -4863,12 +4863,6 @@ html.acceso-pendiente main::before {
 @keyframes nfc-onda { from { transform: scale(.6); opacity: .45; } to { transform: scale(1.15); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .adm-nfc-onda { animation: none; } }
 @media (max-width: 899px) {
-  /* El admin es de escritorio, pero esta pagina se usa con el movil. */
-  .pagina-admin .adm-cabecera { gap: var(--e3); padding: 0 var(--e3); overflow-x: auto; scrollbar-width: none; }
-  .pagina-admin .adm-nav { flex: none; margin-left: 0; }
-  .pagina-admin .adm-nav a { white-space: nowrap; }
-  .adm-nfc.adm-pagina { padding: var(--e4); }
-  .adm-nfc .adm-dos { grid-template-columns: 1fr; }
   .adm-nfc-lista > li { grid-template-columns: 1fr; gap: var(--e2); }
   .adm-nfc-lista .adm-acciones { justify-content: flex-start; }
 }
@@ -5026,3 +5020,55 @@ body.con-tutorial { overflow: hidden; }
 .adm-envio { display: block; color: var(--tinta-2); }
 
 .regalo-lema { font-size: 20px; font-style: italic; margin: 4px 0 8px; }
+
+/* --- Admin en el movil -------------------------------------------------------
+   El admin se diseño para escritorio, pero tambien se usa con el movil en la
+   mano (las pegatinas NFC solo se graban desde Android). Aqui se pliega todo a
+   una columna, sin que nada empuje la pagina de lado. Va al final para ganar
+   a las reglas de escritorio de cada seccion. */
+@media (max-width: 899px) {
+  /* Cabecera en dos pisos: logo arriba y las secciones debajo, deslizables;
+     el buscador, si lo hay, en su propia fila. */
+  .adm-cabecera { height: auto; flex-wrap: wrap; gap: var(--e2) var(--e3); padding: var(--e2) var(--e3); }
+  .adm-nav { order: 3; flex: 1 0 100%; margin: 0 calc(-1 * var(--e3)); padding: 0 var(--e3) 2px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .adm-nav::-webkit-scrollbar { display: none; }
+  .adm-nav a { flex: none; white-space: nowrap; padding: var(--e2) var(--e3); }
+  .adm-hueco { display: none; }
+  .adm-buscar { order: 4; flex: 1 0 100%; width: auto; }
+
+  .adm-pagina { padding: var(--e4) var(--e3); max-width: 100%; box-sizing: border-box; }
+  .adm-pagina .d2 { font-size: 28px; }
+  .adm-dos, .adm-tres { grid-template-columns: minmax(0, 1fr); }
+  .adm-tarjeta { padding: var(--e4); min-width: 0; }
+  .adm-embudo { grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 56px; gap: var(--e2); }
+
+  /* Nada de tablas que rompan el ancho: se deslizan dentro de su tarjeta. */
+  .pagina-admin main table { display: block; max-width: 100%; overflow-x: auto; }
+  .pagina-admin main input, .pagina-admin main select, .pagina-admin main textarea { max-width: 100%; min-width: 0; }
+
+  /* Errores: cada fila pasa a ficha (mensaje arriba, cifras debajo). */
+  .adm-errores { padding: var(--e1) var(--e3); }
+  .adm-errores .fila-error { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px var(--e2); padding: var(--e2) 0; }
+  .adm-errores .fila-error > :first-child { grid-column: 1 / -1; }
+  .adm-errores .fila-error.cabeza { display: none; }
+  .adm-errores .num { text-align: left; }
+
+  /* Redes: el panel encima y la vista previa debajo, que se desliza si no cabe. */
+  .redes-13f { grid-template-columns: minmax(0, 1fr); }
+  .redes-panel { border-right: 0; border-bottom: 1px solid var(--linea); padding: var(--e4); }
+  .redes-vista { padding: var(--e4); }
+  .redes-vista-cabeza { flex-wrap: wrap; gap: var(--e2); }
+  .redes-lienzo { flex-wrap: nowrap; overflow-x: auto; }
+
+  /* Recompensas y tienda. */
+  .adm-recompensas { grid-template-columns: minmax(0, 1fr); }
+  .adm-recompensa-cabeza { grid-template-columns: 80px minmax(0, 1fr); }
+  .adm-recompensa-cabeza select { grid-column: 1 / -1; min-width: 0; }
+  .adm-recompensa .banner-piloto.mini { width: 80px; height: 28px; }
+  .adm-pack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adm-pack > :first-child { grid-column: 1 / -1; }
+  .adm-precios-gemas { grid-template-columns: minmax(0, 1fr); }
+  .acceso-modos { grid-template-columns: minmax(0, 1fr); }
+
+  .adm-aviso-mfa { flex-wrap: wrap; }
+}

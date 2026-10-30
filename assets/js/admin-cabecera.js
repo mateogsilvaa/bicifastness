@@ -61,7 +61,19 @@ export function montarCabeceraAdmin(activa, { alBuscar = null } = {}) {
     el('span', { clase: 'adm-hueco' }),
     buscador,
   ]);
+  centrarSeccionActiva();
   return { buscador };
+}
+
+/**
+ * En el movil las secciones se deslizan de lado: la activa, a la vista. Solo
+ * se mueve la barra (scrollLeft), no la pagina.
+ */
+function centrarSeccionActiva() {
+  const nav = document.querySelector('.adm-nav');
+  const activa = nav?.querySelector('[aria-current="page"]');
+  if (!activa || nav.scrollWidth <= nav.clientWidth) return;
+  nav.scrollLeft = activa.offsetLeft - (nav.clientWidth - activa.offsetWidth) / 2;
 }
 
 /** Pone el numero de una seccion (y lo esconde a cero). */
@@ -78,6 +90,7 @@ export function marcarSeccionAdmin(activa) {
     if (a.dataset.seccion === activa) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   }
+  centrarSeccionActiva();
 }
 
 // --- Acceso controlado ----------------------------------------------------------

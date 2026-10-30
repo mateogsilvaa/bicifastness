@@ -242,6 +242,28 @@
   .adm-decidir .hueco { flex: 1; }
   .adm-decidir .pista { color: var(--tinta-3); font-size: 13px; }
   .adm-seccion-normal { padding: var(--e5) 28px; max-width: 1200px; }
+
+  /* En el movil: la cola arriba (corta y deslizable) y el caso debajo, con la
+     captura encima de los datos. */
+  @media (max-width: 899px) {
+    .adm-rejilla { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+    .adm-cola { border-right: 0; border-bottom: var(--borde); max-height: 40vh; }
+    .adm-filtros { overflow-x: auto; }
+    .adm-filtros button { flex: none; }
+    .adm-detalle, .adm-seccion-normal { padding: var(--e4) var(--e3); }
+    .adm-caso { grid-template-columns: minmax(0, 1fr); }
+    .adm-captura { position: static; }
+    .adm-captura-marco img { max-height: 60vh; object-fit: contain; }
+    .adm-cotejo tbody th { width: auto; }
+    .adm-decidir { flex-wrap: wrap; }
+    .adm-decidir .btn { flex: 1; }
+    .adm-decidir .hueco, .adm-decidir .pista, .adm-motivos kbd, .adm-decidir kbd { display: none; }
+    .rejilla-admin { grid-template-columns: minmax(0, 1fr); }
+    .acciones { flex-wrap: wrap; }
+    .ficha-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ficha-viaje { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .fichap-cabeza { flex-wrap: wrap; }
+  }
 </style>
 </head>
 <body>

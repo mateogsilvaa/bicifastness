@@ -327,6 +327,15 @@ Los enlaces no son listables ni adivinables (20 caracteres al azar, unos 99
 bits), y cada piloto solo puede tener una peticion pendiente: probar codigos
 al azar sale a uno por pasada del worker.
 
+**Pegatinas NFC** (**/admin/nfc/**): son enlaces de canje como los de evento,
+con `nfc: true` y dos datos que solo ve la administracion: `etiqueta` (donde
+esta la pegatina) y `escrito` (cuando se grabo). Desde Chrome en Android la
+pagina graba el enlace en la pegatina con Web NFC (y puede bloquearla), lee una
+pegatina para saber cual es, y enseña cuando y quien canjeo cada una (`usadoEn`,
+`usadoPorNombre`, que pone el worker). Una canjeada se **repone**: enlace nuevo
+con lo mismo, grabado en la misma pegatina. Desde otro navegador se copia el
+enlace y se graba con una app.
+
 Catalogo: `assets/data/recompensas.js`. Cada banner es un SVG de 1200 x 400
 en `assets/img/banners/{id}.svg`; se recorta segun la pantalla (de 2,3:1 a
 6:1), asi que lo importante va en la franja central y la esquina de abajo a la

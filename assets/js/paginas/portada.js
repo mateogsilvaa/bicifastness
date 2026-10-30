@@ -200,7 +200,7 @@ onAuthStateChanged(auth, async (usuario) => {
     // La primera vez dentro, y nunca mas (assets/js/tutorial.js).
     tutorialSiToca(datos, usuario.uid);
     // A quien ya estaba antes del reinicio: su lema de regalo.
-    avisarRegalo(datos);
+    avisarRegalo(datos, usuario.uid);
 
     miGrupo(datos.username).then((grupo) => {
       if (grupo?.yo) guardarResumenOffline(datos, { grupo: nombreGrupo(grupo.clave), puestoGrupo: grupo.yo.pos });

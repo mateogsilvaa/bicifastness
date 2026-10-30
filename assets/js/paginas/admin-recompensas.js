@@ -19,24 +19,15 @@ import { montarCabeceraAdmin, exigirAdmin } from '/assets/js/admin-cabecera.js';
 import { BANNERS, LEMAS, TIPOS_RECOMPENSA, esLibre, tipoDe } from '/assets/data/recompensas.js';
 import { INSIGNIAS } from '/assets/data/insignias.js';
 import { banner, lema } from '/assets/js/perfil-publico.js';
+import { nuevoCodigo, enlaceDe } from '/assets/js/enlaces-canje.js';
 
 iniciarPagina('admin');
 montarCabeceraAdmin('recompensas');
 
 /** Cuantos enlaces se pueden crear de una vez (un lote de Firestore admite 500). */
 const MAX_REPARTO = 200;
-// Sin 0/O/1/l/I: se copian y se escriben a mano alguna vez.
-const ALFABETO = 'abcdefghjkmnpqrstuvwxyz23456789';
 
 let config = { items: {} };
-
-/** Un codigo al azar de 20 caracteres (~99 bits): no se puede adivinar ni listar. */
-function nuevoCodigo() {
-  const bytes = crypto.getRandomValues(new Uint8Array(20));
-  return Array.from(bytes, (b) => ALFABETO[b % ALFABETO.length]).join('');
-}
-
-const enlaceDe = (codigo) => `${window.location.origin}/canjear/?c=${codigo}`;
 
 async function copiar(texto, aviso) {
   try {

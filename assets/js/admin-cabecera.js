@@ -10,7 +10,9 @@ import { el, reemplazar, anilloLogo, abrirHoja } from '/assets/js/dom.js';
 import {
   auth, db, onAuthStateChanged, signOut, collection, doc, getDoc, setDoc, serverTimestamp,
 } from '/assets/js/firebase.js';
-import { verificarAdmin, activarDosPasos, mensajeDosPasos } from '/assets/js/dos-pasos.js';
+import {
+  verificarAdmin, activarDosPasos, mensajeDosPasos, dosPasosDisponible, apuntarSiNoDisponible,
+} from '/assets/js/dos-pasos.js';
 
 const SECCIONES = [
   { clave: 'panel', texto: 'Panel', href: '/admin/panel/' },
@@ -22,6 +24,7 @@ const SECCIONES = [
   { clave: 'errores', texto: 'Errores', href: '/admin/errores/' },
   { clave: 'redes', texto: 'Redes', href: '/admin/redes/' },
   { clave: 'recompensas', texto: 'Recompensas', href: '/admin/recompensas/' },
+  { clave: 'nfc', texto: 'NFC', href: '/admin/nfc/' },
   { clave: 'tienda', texto: 'Tienda', href: '/admin/tienda/' },
 ];
 
@@ -58,7 +61,19 @@ export function montarCabeceraAdmin(activa, { alBuscar = null } = {}) {
     el('span', { clase: 'adm-hueco' }),
     buscador,
   ]);
+  centrarSeccionActiva();
   return { buscador };
+}
+
+/**
+ * En el movil las secciones se deslizan de lado: la activa, a la vista. Solo
+ * se mueve la barra (scrollLeft), no la pagina.
+ */
+function centrarSeccionActiva() {
+  const nav = document.querySelector('.adm-nav');
+  const activa = nav?.querySelector('[aria-current="page"]');
+  if (!activa || nav.scrollWidth <= nav.clientWidth) return;
+  nav.scrollLeft = activa.offsetLeft - (nav.clientWidth - activa.offsetWidth) / 2;
 }
 
 /** Pone el numero de una seccion (y lo esconde a cero). */
@@ -75,6 +90,7 @@ export function marcarSeccionAdmin(activa) {
     if (a.dataset.seccion === activa) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   }
+  centrarSeccionActiva();
 }
 
 // --- Acceso controlado ----------------------------------------------------------
@@ -165,6 +181,9 @@ export async function puertaDosPasos(usuario, token) {
   if (resultado === 'cancelado') { window.location.replace('/'); return false; }
 
   const exigidos = await dosPasosExigidos();
+  // Si en esta cuenta no se puede activar (TOTP sin encender en Firebase, o el
+  // correo sin confirmar) no se ofrece: saldria en cada entrada para nada.
+  if (!exigidos && !(await dosPasosDisponible(usuario))) return true;
   const activada = await pantallaActivar(usuario, exigidos);
   if (activada) return puertaDosPasos(usuario, await usuario.getIdTokenResult(true));
   if (exigidos) { window.location.replace('/'); return false; }
@@ -184,6 +203,8 @@ function pantallaActivar(usuario, exigidos) {
             if (await activarDosPasos(usuario)) { hecho = true; cerrar(); resolver(true); return; }
           } catch (error) {
             msg.textContent = mensajeDosPasos(error);
+            // No se puede: la proxima vez ya no se ofrece (dosPasosDisponible).
+            if (apuntarSiNoDisponible(error)) { activar.remove(); return; }
           }
           activar.disabled = false;
         },

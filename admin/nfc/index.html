@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com https://recaptcha.google.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BiciFastness">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="Grabar los enlaces de canje en pegatinas NFC y ver cuándo se ha canjeado cada una.">
+<meta name="robots" content="noindex">
+<title>Pegatinas NFC · admin | BiciFastness</title>
+<link rel="icon" href="/images/icono/icono.svg?v=2" type="image/svg+xml">
+<link rel="icon" href="/images/icono/icono-48.png?v=2" sizes="48x48" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png?v=2">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<!--
+  Pegatinas NFC (assets/js/paginas/admin-nfc.js): cada pegatina lleva un
+  enlace de canje de un solo uso (/canjear/?c=CODIGO). Se graban desde aqui con
+  el movil (Web NFC: Chrome en Android) y aqui se ve cuando se ha canjeado cada
+  una, para ir a reponerla.
+-->
+<main class="adm-pagina adm-nfc" id="principal">
+  <h1 class="d2" style="margin: 0;">Pegatinas NFC</h1>
+  <p class="menor apagado">
+    Cada pegatina lleva un enlace de un solo uso: quien la acerca al móvil y lo canjea se lleva el banner o el lema.
+    Para grabarlas abre esta página en <strong>Chrome en Android</strong> y acerca la pegatina a la parte de atrás del móvil.
+    Desde otro navegador puedes copiar el enlace y grabarlo con una app (NFC Tools, por ejemplo).
+  </p>
+  <p class="mensaje" id="aviso-nfc" aria-live="polite"></p>
+  <p class="mensaje" id="mensaje" aria-live="polite"></p>
+
+  <div class="adm-dos">
+    <section class="adm-tarjeta" aria-labelledby="t-nueva">
+      <h2 id="t-nueva">Nueva pegatina</h2>
+      <label class="campo">Qué da
+        <select id="nueva-recompensa" aria-label="Recompensa de la pegatina"></select>
+      </label>
+      <label class="campo">Dónde va (solo lo ves tú)
+        <input id="nueva-etiqueta" type="text" maxlength="60" placeholder="Bici 3021 · Puerta del Sol" autocomplete="off">
+      </label>
+      <label class="campo-check"><input id="nueva-bloquear" type="checkbox"> Bloquearla al grabar (no se podrá reescribir nunca)</label>
+      <div class="adm-fila-botones">
+        <button class="btn" type="button" id="btn-crear-grabar">Crear y grabar</button>
+        <button class="btn secundario" type="button" id="btn-crear">Solo crear</button>
+      </div>
+    </section>
+
+    <section class="adm-tarjeta" aria-labelledby="t-resumen">
+      <h2 id="t-resumen">Resumen</h2>
+      <div class="adm-estado-lista" id="resumen"></div>
+      <div class="adm-fila-botones">
+        <button class="btn secundario" type="button" id="btn-leer">Leer una pegatina</button>
+        <button class="btn plano" type="button" id="btn-recargar">Actualizar</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="adm-tarjeta" aria-labelledby="t-lista">
+    <h2 id="t-lista">Enlaces</h2>
+    <div class="adm-fila-botones adm-nfc-filtros">
+      <label class="campo">Mostrar
+        <select id="filtro-tipo" aria-label="Qué enlaces mostrar">
+          <option value="nfc">Pegatinas NFC</option>
+          <option value="todos">Todos los enlaces</option>
+        </select>
+      </label>
+      <label class="campo">Estado
+        <select id="filtro-estado" aria-label="Estado de los enlaces">
+          <option value="todos">Todos</option>
+          <option value="libres">Sin canjear</option>
+          <option value="canjeados">Canjeados</option>
+        </select>
+      </label>
+      <label class="campo">Recompensa
+        <select id="filtro-recompensa" aria-label="Recompensa"></select>
+      </label>
+      <label class="campo">Buscar
+        <input id="filtro-texto" type="search" placeholder="Sitio, código o piloto" autocomplete="off">
+      </label>
+    </div>
+    <div id="lista"><div class="esqueleto" aria-hidden="true" style="height: 120px"></div></div>
+  </section>
+</main>
+<script type="module" src="/assets/js/paginas/admin-nfc.js"></script>
+</body>
+</html>

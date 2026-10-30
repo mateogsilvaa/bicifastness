@@ -902,15 +902,31 @@ service cloud.firestore {
     // al azar) como id. Solo la administracion los ve, los crea y los borra; el
     // worker los marca como usados. Nadie mas puede LISTARLOS ni leerlos: quien
     // tiene el enlace lo canjea (abajo), no lo lee.
+    //
+    // Los de pegatina NFC (/admin/nfc/) son los mismos enlaces con dos datos
+    // mas, solo para la administracion: `etiqueta` (donde esta la pegatina) y
+    // `escrito` (cuando se grabo en ella). Es lo unico que se puede cambiar
+    // desde la web; lo de canjeado lo pone el worker.
+    function etiquetaNfcValida() {
+      return !('etiqueta' in datos())
+        || (datos().etiqueta is string && datos().etiqueta.size() <= 60);
+    }
+
     match /recompensas_codigos/{codigo} {
       allow read, delete: if esAdmin();
       allow create: if esAdmin()
         && codigo.matches('^[A-Za-z0-9]{16,40}$')
-        && datos().keys().hasOnly(['recompensa', 'creado', 'por'])
+        && datos().keys().hasOnly(['recompensa', 'creado', 'por', 'nfc', 'etiqueta'])
         && datos().recompensa is string && datos().recompensa.matches('^[a-z0-9-]{1,40}$')
+        && (!('nfc' in datos()) || datos().nfc == true)
+        && etiquetaNfcValida()
         && datos().por == request.auth.uid
         && datos().creado == request.time;
-      allow update: if false;
+      allow update: if esAdmin()
+        && cambia().hasOnly(['etiqueta', 'escrito', 'nfc'])
+        && etiquetaNfcValida()
+        && (!('nfc' in cambia()) || datos().nfc == true)
+        && (!('escrito' in cambia()) || datos().escrito == request.time);
     }
 
     // "Quiero canjear este enlace": uno por piloto y de uno en uno, con el id

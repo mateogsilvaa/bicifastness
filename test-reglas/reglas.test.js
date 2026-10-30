@@ -556,6 +556,20 @@ test('los enlaces de evento: solo la administracion los ve y los crea', async ()
   await assertFails(setDoc(doc(como(UID), 'recompensas_codigos', 'cdefghjkmnpqrstuvwxy'), { recompensa: 'ecos', por: UID, creado: serverTimestamp() }));
 });
 
+test('las pegatinas NFC: la administracion apunta donde esta y cuando se grabo, nada mas', async () => {
+  const codigo = 'defghjkmnpqrstuvwxyz';
+  const admin = como('jefa', { admin: true });
+  const ref = doc(admin, 'recompensas_codigos', codigo);
+  await assertSucceeds(setDoc(ref, { recompensa: 'ecos', nfc: true, etiqueta: 'Bici 3021 · Sol', por: 'jefa', creado: serverTimestamp() }));
+  await assertFails(setDoc(doc(admin, 'recompensas_codigos', 'efghjkmnpqrstuvwxyza'), { recompensa: 'ecos', etiqueta: 'x'.repeat(61), por: 'jefa', creado: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { etiqueta: 'Bici 3021 · Callao', escrito: serverTimestamp() }));
+  // Ni darlo por canjeado, ni cambiar el premio, ni una fecha inventada.
+  await assertFails(updateDoc(ref, { usadoPor: UID }));
+  await assertFails(updateDoc(ref, { recompensa: 'metro' }));
+  await assertFails(updateDoc(ref, { escrito: new Date(2020, 0, 1) }));
+  await assertFails(updateDoc(doc(como(UID), 'recompensas_codigos', codigo), { etiqueta: 'mia' }));
+});
+
 test('un piloto pide un canje, uno cada vez, y no se da el premio', async () => {
   await entorno.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'usuarios', UID), { uid: UID, username: 'Laura', usernameLower: 'laura', recompensas: [] });

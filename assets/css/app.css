@@ -4843,6 +4843,36 @@ html.acceso-pendiente main::before {
 .adm-enlaces .usado code { text-decoration: line-through; opacity: .55; }
 .adm-enlaces .btn { width: auto; min-height: 32px; padding: 0 var(--e3); font-size: 13px; }
 
+/* --- Admin: pegatinas NFC (assets/js/paginas/admin-nfc.js) -------------------- */
+/* Se usa con el movil en la mano (Web NFC solo esta en Chrome para Android). */
+.adm-nfc .adm-tarjeta select, .adm-nfc .adm-tarjeta input[type='text'], .adm-nfc .adm-tarjeta input[type='search'] { font-weight: 400; }
+.adm-nfc-filtros .campo { min-width: 160px; }
+.adm-nfc-lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.adm-nfc-lista > li { display: grid; grid-template-columns: minmax(180px, 1.2fr) minmax(160px, 1fr) minmax(170px, 1fr) auto; gap: var(--e3); align-items: center; padding: 12px 0; border-bottom: var(--borde); }
+.adm-nfc-lista > li:last-child { border-bottom: 0; }
+.adm-nfc-que { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.adm-nfc-que code { font-size: 11px; color: var(--tinta-3); overflow-wrap: anywhere; }
+.adm-nfc-lista input { min-height: 36px; height: 36px; font-size: 14px; }
+.adm-nfc-estado { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.adm-nfc-estado span { color: var(--tinta-2); }
+.adm-nfc-estado.canjeado strong { color: var(--verde); }
+.adm-nfc-lista .usado .adm-nfc-que code { text-decoration: line-through; }
+.adm-nfc-lista .adm-acciones { justify-content: flex-end; }
+.adm-nfc-lista .btn { min-height: 34px; padding: 0 var(--e3); font-size: 13px; }
+.adm-nfc-onda { width: 96px; height: 96px; margin: var(--e3) auto; border-radius: 50%; background: var(--azul-relleno); opacity: .25; animation: nfc-onda 1.4s ease-out infinite; }
+@keyframes nfc-onda { from { transform: scale(.6); opacity: .45; } to { transform: scale(1.15); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .adm-nfc-onda { animation: none; } }
+@media (max-width: 899px) {
+  /* El admin es de escritorio, pero esta pagina se usa con el movil. */
+  .pagina-admin .adm-cabecera { gap: var(--e3); padding: 0 var(--e3); overflow-x: auto; scrollbar-width: none; }
+  .pagina-admin .adm-nav { flex: none; margin-left: 0; }
+  .pagina-admin .adm-nav a { white-space: nowrap; }
+  .adm-nfc.adm-pagina { padding: var(--e4); }
+  .adm-nfc .adm-dos { grid-template-columns: 1fr; }
+  .adm-nfc-lista > li { grid-template-columns: 1fr; gap: var(--e2); }
+  .adm-nfc-lista .adm-acciones { justify-content: flex-start; }
+}
+
 /* --- Canjear (assets/js/paginas/canjear.js) ----------------------------------- */
 .canje { display: flex; flex-direction: column; align-items: flex-start; gap: var(--e3); padding: var(--e5); }
 .canje h2 { margin: 0; font-size: 22px; letter-spacing: -.02em; }

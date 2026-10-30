@@ -22,6 +22,7 @@ const SECCIONES = [
   { clave: 'errores', texto: 'Errores', href: '/admin/errores/' },
   { clave: 'redes', texto: 'Redes', href: '/admin/redes/' },
   { clave: 'recompensas', texto: 'Recompensas', href: '/admin/recompensas/' },
+  { clave: 'nfc', texto: 'NFC', href: '/admin/nfc/' },
   { clave: 'tienda', texto: 'Tienda', href: '/admin/tienda/' },
 ];
 

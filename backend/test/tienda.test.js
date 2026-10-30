@@ -79,8 +79,10 @@ test('el tiempo se escribe igual que en la web', () => {
 
 // --- Cobro y direccion -----------------------------------------------------------
 
+// Hace una hora: la tienda solo mira los pedidos de los ultimos dias, y con
+// una fecha fija la prueba caducaba sola (pasaba el 29 y fallaba el 30).
 const ordenBuena = (extra = {}) => ({
-  id: 'ord_1', created_at: '2026-10-27T10:00:00Z', status: 'paid', paid: true,
+  id: 'ord_1', created_at: new Date(Date.now() - 3600e3).toISOString(), status: 'paid', paid: true,
   currency: 'eur', subtotal_amount: 2490, total_amount: 2490, product_id: 'prod_cam',
   metadata: { pedido: 'uid1_20000_0' },
   customer: { email: 'pepa@ejemplo.com', external_id: 'uid1' },

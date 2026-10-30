@@ -931,6 +931,9 @@ test('el tutorial solo se marca como visto, nunca se desmarca', async () => {
   await assertSucceeds(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: true }));
   await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: false }));
   await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { tutorialVisto: 'si' }));
+  // El aviso del lema regalado, igual: se marca y no se desmarca.
+  await assertSucceeds(updateDoc(doc(como(UID), 'usuarios', UID), { regaloVisto: true }));
+  await assertFails(updateDoc(doc(como(UID), 'usuarios', UID), { regaloVisto: false }));
 });
 
 test('con la verificacion en dos pasos exigida, el admin necesita el segundo paso reciente', async () => {

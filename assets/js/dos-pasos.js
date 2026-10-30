@@ -44,6 +44,8 @@ function mensaje(error) {
   const c = error?.code || '';
   if (c === 'auth/invalid-verification-code' || c === 'auth/totp-challenge-timeout') return 'Ese código no es válido. Mira el que sale ahora en tu app.';
   if (c === 'auth/operation-not-allowed' || c === 'auth/admin-restricted-operation') return 'La verificación en dos pasos aún no está disponible. Lo estamos preparando.';
+  if (c === 'auth/unverified-email') return 'Antes tienes que confirmar tu correo: abre el enlace que te mandamos al registrarte.';
+  if (c === 'auth/unsupported-first-factor') return 'Esta forma de entrar no admite la verificación en dos pasos.';
   if (c === 'auth/requires-recent-login') return 'Por seguridad, cierra sesión, vuelve a entrar y repite esto.';
   if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') return 'La contraseña no es correcta.';
   if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return 'Has cerrado la ventana antes de terminar.';
@@ -176,6 +178,43 @@ export async function desactivarDosPasos(usuario = auth.currentUser) {
 }
 
 export { mensaje as mensajeDosPasos };
+
+// --- ¿Se puede activar? ----------------------------------------------------------
+
+const CLAVE_NO_DISPONIBLE = 'bf_dos_pasos_no_disponible';
+/** Cuanto se fia uno de un "no se puede" antes de volver a probar. */
+const DIAS_NO_DISPONIBLE = 7;
+
+/** Los errores que dicen que en esta cuenta, hoy, no se puede: no que algo haya fallado. */
+const esNoDisponible = (error) => [
+  'auth/operation-not-allowed', 'auth/admin-restricted-operation',
+  'auth/unverified-email', 'auth/unsupported-first-factor',
+].includes(error?.code);
+
+/** Apunta (en este navegador) que activarla no es posible, si el error lo dice. */
+export function apuntarSiNoDisponible(error) {
+  if (!esNoDisponible(error)) return false;
+  try { localStorage.setItem(CLAVE_NO_DISPONIBLE, String(Date.now())); } catch { /* se volvera a probar */ }
+  return true;
+}
+
+/**
+ * ¿Se puede activar en esta cuenta? Sin TOTP encendido en Firebase (o con el
+ * correo sin confirmar) no hay manera, y ofrecerlo cada vez es solo un
+ * estorbo. Se prueba pidiendo un secreto, que no activa nada, y un "no" se
+ * recuerda una semana. Ante un fallo de otro tipo (sin red) se da por posible.
+ */
+export async function dosPasosDisponible(usuario = auth.currentUser) {
+  try {
+    if (Date.now() - Number(localStorage.getItem(CLAVE_NO_DISPONIBLE) || 0) < DIAS_NO_DISPONIBLE * 86400000) return false;
+  } catch { /* sin almacenamiento: se prueba */ }
+  try {
+    await TotpMultiFactorGenerator.generateSecret(await multiFactor(usuario).getSession());
+    return true;
+  } catch (error) {
+    return !apuntarSiNoDisponible(error);
+  }
+}
 
 // --- Entrar --------------------------------------------------------------------
 

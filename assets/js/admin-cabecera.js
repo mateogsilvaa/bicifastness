@@ -10,7 +10,9 @@ import { el, reemplazar, anilloLogo, abrirHoja } from '/assets/js/dom.js';
 import {
   auth, db, onAuthStateChanged, signOut, collection, doc, getDoc, setDoc, serverTimestamp,
 } from '/assets/js/firebase.js';
-import { verificarAdmin, activarDosPasos, mensajeDosPasos } from '/assets/js/dos-pasos.js';
+import {
+  verificarAdmin, activarDosPasos, mensajeDosPasos, dosPasosDisponible, apuntarSiNoDisponible,
+} from '/assets/js/dos-pasos.js';
 
 const SECCIONES = [
   { clave: 'panel', texto: 'Panel', href: '/admin/panel/' },
@@ -166,6 +168,9 @@ export async function puertaDosPasos(usuario, token) {
   if (resultado === 'cancelado') { window.location.replace('/'); return false; }
 
   const exigidos = await dosPasosExigidos();
+  // Si en esta cuenta no se puede activar (TOTP sin encender en Firebase, o el
+  // correo sin confirmar) no se ofrece: saldria en cada entrada para nada.
+  if (!exigidos && !(await dosPasosDisponible(usuario))) return true;
   const activada = await pantallaActivar(usuario, exigidos);
   if (activada) return puertaDosPasos(usuario, await usuario.getIdTokenResult(true));
   if (exigidos) { window.location.replace('/'); return false; }
@@ -185,6 +190,8 @@ function pantallaActivar(usuario, exigidos) {
             if (await activarDosPasos(usuario)) { hecho = true; cerrar(); resolver(true); return; }
           } catch (error) {
             msg.textContent = mensajeDosPasos(error);
+            // No se puede: la proxima vez ya no se ofrece (dosPasosDisponible).
+            if (apuntarSiNoDisponible(error)) { activar.remove(); return; }
           }
           activar.disabled = false;
         },

@@ -247,11 +247,13 @@ service cloud.firestore {
         // `avisosCorreo` es la preferencia de correo. Es un booleano suyo y
         // solo suyo: darse de baja no puede depender de que un administrador lo
         // haga por ti (RGPD).
-        && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo', 'fotoMini', 'tutorialVisto'])
+        && cambia().hasOnly(['favoritas', 'consentimiento', 'avisosCorreo', 'fotoMini', 'tutorialVisto', 'regaloVisto'])
         && (!('favoritas' in datos()) || datos().favoritas.size() <= 3)
         // El tutorial de la primera vez (assets/js/tutorial.js): solo se puede
         // marcar como visto, nunca desmarcar.
         && (!('tutorialVisto' in cambia()) || datos().tutorialVisto == true)
+        // Lo mismo con el aviso del lema regalado (assets/js/aviso-regalo.js).
+        && (!('regaloVisto' in cambia()) || datos().regaloVisto == true)
         // Solo cuando SE ESCRIBE. Es lo que hay que vigilar —que nadie meta
         // ahi lo que quiera— y ademas no deja fuera a ningun perfil viejo:
         // exigirlo siempre habria dejado sin poder tocar sus preferencias a

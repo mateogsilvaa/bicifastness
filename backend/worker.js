@@ -290,6 +290,10 @@ async function validarBasico(viaje, uid) {
   if (String(viaje.fechaViaje).slice(0, 10) > diaMadrid(subida)) {
     return problema('viaje_futuro', 'No se pueden registrar viajes futuros.');
   }
+  if (String(viaje.fechaViaje).slice(0, 10) < LIMITES.PRIMER_DIA_VIAJES) {
+    return problema('viaje_antes_del_inicio',
+      `Solo cuentan los viajes desde el ${LIMITES.PRIMER_DIA_VIAJES}.`);
+  }
   if (ahora - fecha.getTime() > LIMITES.DIAS_MAX_ANTIGUEDAD * 864e5) {
     return problema('viaje_muy_antiguo',
       `Solo se admiten viajes de los ultimos ${LIMITES.DIAS_MAX_ANTIGUEDAD} dias.`);

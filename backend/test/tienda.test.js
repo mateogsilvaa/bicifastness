@@ -80,7 +80,7 @@ test('el tiempo se escribe igual que en la web', () => {
 // --- Cobro y direccion -----------------------------------------------------------
 
 const ordenBuena = (extra = {}) => ({
-  id: 'ord_1', created_at: '2026-10-27T10:00:00Z', status: 'paid', paid: true,
+  id: 'ord_1', created_at: new Date().toISOString(), status: 'paid', paid: true,
   currency: 'eur', subtotal_amount: 2490, total_amount: 2490, product_id: 'prod_cam',
   metadata: { pedido: 'uid1_20000_0' },
   customer: { email: 'pepa@ejemplo.com', external_id: 'uid1' },

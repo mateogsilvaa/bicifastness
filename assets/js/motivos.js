@@ -258,6 +258,10 @@ const MOTIVOS = {
     texto: 'Solo se pueden reclamar trayectos del ultimo mes.',
     queHacer: 'Si es mas antiguo, ya no entra en la clasificacion.',
   },
+  viaje_antes_del_inicio: {
+    texto: 'La competición empezó de cero con el estreno: los trayectos de antes ya no entran.',
+    queHacer: 'Sube los que hagas a partir del estreno.',
+  },
   cupo_diario: {
     texto: 'Ya has subido seis trayectos hoy: los tres que puntúan y tres más sin puntos. Es el máximo de un día.',
     queHacer: 'Mañana vuelves a tener tres que puntúan.',

@@ -124,7 +124,7 @@ function viaje(uid, extra = {}) {
     ruta: '001-002',
     tiempoSegundos: 600,
     tiempoFormateado: '10m 00s',
-    fechaViaje: hoyISO(),
+    fechaViaje: hoyISO() < '2026-11-01' ? '2026-11-01' : hoyISO(),
     estado: 'pendiente',
     verificado: false,
     capturaId: `${uid}_${diaUTC()}_c1`,
@@ -941,4 +941,11 @@ test('con la verificacion en dos pasos exigida, el admin necesita el segundo pas
   await assertSucceeds(getDoc(doc(como('jefa', sinTotp), 'config', 'seguridad')));
   await assertFails(seguridad(conTotp, { adminMfa: false }));
   await assertFails(getDoc(doc(como(UID), 'config', 'seguridad')));
+});
+
+test('no se pueden subir viajes de antes del estreno (1 de noviembre de 2026)', async () => {
+  const db = como(UID);
+  const lote = writeBatch(db);
+  lote.set(doc(db, 'tiempos_viaje', `${UID}_antiguo`), viaje(UID, { fechaViaje: '2026-10-31' }));
+  await assertFails(lote.commit());
 });

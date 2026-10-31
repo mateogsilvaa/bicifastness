@@ -1225,6 +1225,15 @@ async function escribirViajes(viajes, fechaViaje) {
 
 async function subir(viajes, fechaViaje) {
   if (!viajes.length || !preparada?.dataUrl) return;
+  // El reinicio: lo de antes del primer dia no entra (las reglas tampoco lo dejan).
+  if (viajes.some((v) => String(v.fecha || fechaViaje).slice(0, 10) < LIMITES_CLIENTE.PRIMER_DIA_VIAJES)) {
+    const pista = document.querySelector('.subir-paso:not(.oculto) .subir-enviar .hoy-pista');
+    if (pista) {
+      pista.textContent = 'La competición empezó de cero el 1 de noviembre: solo se pueden subir trayectos desde ese día.';
+      pista.classList.add('error');
+    }
+    return;
+  }
   // Mientras se escribe: el boton dice "Subiendo…" y se avisa de no cerrar.
   const botones = document.querySelectorAll('.subir-paso:not(.oculto) .subir-enviar .btn');
   const pista = document.querySelector('.subir-paso:not(.oculto) .subir-enviar .hoy-pista');

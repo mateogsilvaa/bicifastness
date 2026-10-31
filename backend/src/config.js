@@ -19,6 +19,10 @@ const LIMITES = {
   VIAJES_SIN_PUNTOS_POR_DIA: 3,
   // Antiguedad maxima de un viaje que se puede reclamar.
   DIAS_MAX_ANTIGUEDAD: 30,
+  // El reinicio (scripts/borrar-viajes-y-clanes.js): la competicion empieza
+  // de cero este dia y nada anterior entra. Igual en firestore.rules y en
+  // assets/js/precheck.js; un test los ata.
+  PRIMER_DIA_VIAJES: '2026-11-01',
   // Tamano maximo de la captura ya comprimida por el cliente.
   MAX_BYTES_IMAGEN: 3 * 1024 * 1024,
   MIMES_IMAGEN: ['image/jpeg', 'image/png', 'image/webp'],

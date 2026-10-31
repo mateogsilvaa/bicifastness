@@ -441,6 +441,9 @@ service cloud.firestore {
         && datos().tiempoSegundos <= 7200
         && datos().fechaViaje is string
         && datos().fechaViaje.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        // El reinicio: nada anterior al 1 de noviembre de 2026
+        // (LIMITES.PRIMER_DIA_VIAJES en backend/src/config.js).
+        && datos().fechaViaje >= '2026-11-01'
         && datos().creado == request.time
         // El nombre que viaja con el trayecto es el del perfil. Sin esto se
         // podia subir con el nombre de otro, y el aviso de "te han quitado el

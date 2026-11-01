@@ -580,9 +580,15 @@ test('el reloj del movil no puede marcar antes de la llegada', () => {
 });
 
 test('dos lecturas que no coinciden no aprueban solas', () => {
-  const r = evaluar(contextoBase({ segundaLectura: { ...lecturaLimpia(600), segundosDuracion: 660 } }));
+  // La primera no cuadra con lo declarado y la segunda dice otra cosa: no se sabe leer.
+  const r = evaluar(contextoBase({ lectura: { ...lecturaLimpia(600), segundosDuracion: 700 }, segundaLectura: { ...lecturaLimpia(600), segundosDuracion: 660 } }));
   assert.ok(codigos(r).includes('lectura_sin_consenso'));
-  assert.strictEqual(r.decision, 'revision');
+  assert.notStrictEqual(r.decision, 'aprobado');
+
+  // La primera dice justo lo declarado y la segunda lee peor (un recorte): no es desacuerdo.
+  const recorte = evaluar(contextoBase({ segundaLectura: { ...lecturaLimpia(600), segundosDuracion: 660, origen: '9' }, ancho: 1080, alto: 900 }));
+  assert.ok(!codigos(recorte).includes('lectura_sin_consenso'));
+  assert.strictEqual(recorte.decision, 'aprobado');
 
   // Lo que la segunda no lee no es un desacuerdo.
   const parcial = evaluar(contextoBase({ segundaLectura: { disponible: true, origen: '', destino: '', segundosDuracion: null } }));

@@ -694,21 +694,30 @@ function comprobarReloj({ lectura, subidoEn, fechaViaje }) {
  * segunda lectura no alcanza a leer no cuenta como desacuerdo: solo lo que las
  * dos leen y no coincide.
  */
-function comprobarConsenso({ lectura, segundaLectura }) {
+function comprobarConsenso({ lectura, segundaLectura, ruta, tiempoSegundos }) {
   if (!lectura?.disponible || !segundaLectura?.disponible) return [];
   const sinCeros = (v) => String(v || '').replace(/^0+/, '');
+  const [declOrigen, declDestino] = String(ruta || '').split('-').map(sinCeros);
+  const declarado = { origen: declOrigen, destino: declDestino };
   const discrepan = [];
+  // Lo que la segunda lectura no alcanza a leer bien NO es desacuerdo si la
+  // primera dice exactamente lo que declaro el piloto: la segunda preparacion
+  // de la imagen lee peor los recortes, y castigar eso mandaba a revision
+  // capturas buenas (noviembre de 2026: la mitad de las revisiones). Si la
+  // primera NO coincide con lo declarado, eso ya lo pilla `comprobarCaptura`;
+  // aqui queda lo que de verdad no se sabe leer.
   for (const campo of ['origen', 'destino']) {
     const a = sinCeros(lectura[campo]);
     const b = sinCeros(segundaLectura[campo]);
-    if (a && b && a !== b) discrepan.push(`${campo} ${a}/${b}`);
+    if (a && b && a !== b && a !== declarado[campo]) discrepan.push(campo);
   }
   const d1 = lectura.segundosDuracion;
   const d2 = segundaLectura.segundosDuracion;
-  if (Number.isFinite(d1) && Number.isFinite(d2) && Math.abs(d1 - d2) > 5) discrepan.push(`duracion ${d1}s/${d2}s`);
+  const d1Cuadra = Number.isFinite(tiempoSegundos) && Math.abs(d1 - tiempoSegundos) <= 5;
+  if (Number.isFinite(d1) && Number.isFinite(d2) && Math.abs(d1 - d2) > 5 && !d1Cuadra) discrepan.push('duracion');
   if (!discrepan.length) return [];
   return [señal('lectura_sin_consenso', 40,
-    `Las dos lecturas de la captura no coinciden (${discrepan.join(', ')}).`,
+    `Las dos lecturas de la captura no coinciden en: ${discrepan.join(', ')}.`,
     { discrepan })];
 }
 

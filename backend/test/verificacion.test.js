@@ -658,3 +658,24 @@ test('el primer trayecto no se rechaza solo por señales sumadas: va a revision'
   // Lo decisivo se sigue rechazando aunque sea el primero.
   assert.strictEqual(evaluar(contextoBase({ tiempoSegundos: 120, primerViaje: true })).decision, 'rechazado');
 });
+
+
+test('una captura impecable no va a revision por ruido: recorte, OCR flojo, lecturas que no coinciden', () => {
+  // El caso real del estreno: captura recortada, la segunda lectura falla,
+  // pero lo leido es exactamente lo declarado y las horas cuadran.
+  const lectura = { ...lecturaLimpia(600), confianza: 45 };
+  const r = evaluar(contextoBase({
+    lectura, ancho: 1080, alto: 900,
+    segundaLectura: { ...lecturaLimpia(600), origen: '9', destino: '', segundosDuracion: 540 },
+  }));
+  assert.strictEqual(r.impecable, true);
+  assert.strictEqual(r.decision, 'aprobado');
+  // El ruido sigue anotado para quien revise, sin peso.
+  assert.ok(r.señales.some((s) => s.codigo === 'formato_no_movil' && s.gravedad === 0));
+});
+
+test('impecable no tapa la trampa: lo declarado distinto de lo leido sigue pesando', () => {
+  const r = evaluar(contextoBase({ tiempoSegundos: 540, lectura: lecturaLimpia(600), ancho: 1080, alto: 900 }));
+  assert.strictEqual(r.impecable, false);
+  assert.notStrictEqual(r.decision, 'aprobado');
+});

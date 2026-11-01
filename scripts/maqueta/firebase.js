@@ -184,6 +184,23 @@ const datos = {
   'agregados/mapa': { estaciones, clanes: CLANES, resumen: { dominadas: 22, enDisputa: 5 }, actualizado: hace(4) },
   'agregados/portada': { viajesHoy: 57, pilotos: 412, actualizado: hace(4) },
   'agregados/metricas': {
+    // Desde el estreno, inventado (backend/src/metricas.js, calcularEstreno).
+    estreno: (() => {
+      const dias = Array.from({ length: 21 }, (_, i) => {
+        const d = new Date(Date.UTC(2026, 10, 1 + i)).toISOString().slice(0, 10);
+        const ola = Math.round(20 + 15 * Math.sin(i / 3));
+        return { dia: d, altas: Math.max(0, 30 - i + (i % 4) * 3), activos: ola + i * 2, segundosPorActivo: 300 + (i % 5) * 40, visitas: ola * 3, segundosPorVisita: 120 + (i % 3) * 25, viajes: ola + i, km: Math.round((ola + i) * 3.1 * 10) / 10 };
+      });
+      const agrupar = (f) => Object.values(dias.reduce((g, d) => { const k = f(d.dia); g[k] ||= { periodo: k, viajes: 0, km: 0, altas: 0 }; g[k].viajes += d.viajes; g[k].km += d.km; g[k].altas += d.altas; return g; }, {}));
+      return {
+        desde: '2026-11-01', dias,
+        semanas: agrupar((d) => { const x = new Date(`${d}T12:00:00Z`); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x.toISOString().slice(0, 10); }),
+        meses: agrupar((d) => d.slice(0, 7)),
+        horas: [1, 0, 0, 0, 0, 1, 3, 9, 22, 15, 8, 7, 9, 12, 10, 8, 9, 14, 25, 30, 26, 18, 9, 4],
+        totales: { altas: 420, viajes: 860, km: 2650.4 },
+        adherencia: { dau: 62, dauAyer: 58, wau: 140, mau: 310, stickiness: 20, diasActivosSemana: 2.6, segundosPorUsuarioDia: 410, retencionD1: 38, baseD1: 400, retencionD7: 52, baseD7: 260 },
+      };
+    })(),
     ventanas: Object.fromEntries([['hoy', 1], ['semana', 7], ['mes', 30], ['semestre', 180]].map(([k, f]) => [k, {
       sesiones: 312 * f, paginasVistas: 1400 * f, subidasAbiertas: 137 * f, subidasConFoto: 125 * f, subidasEnviadas: 107 * f,
       subidasFallidas: 3 * f, registrosAbiertos: 20 * f, registrosCompletados: 14 * f, viajesVerificados: 99 * f,

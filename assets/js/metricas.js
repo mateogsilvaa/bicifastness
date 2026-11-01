@@ -83,6 +83,8 @@ function fuente() {
   return 'otros';
 }
 
+const horaMadrid = () => String(Number(new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', hour12: false }).format(new Date())) % 24).padStart(2, '0');
+
 function uso() {
   contarVista();
   const contadores = {};
@@ -97,6 +99,8 @@ function uso() {
     contadores.visitas = 1;
     contadores[window.matchMedia('(min-width: 900px)').matches ? 'd_escritorio' : 'd_movil'] = 1;
     contadores[`f_${fuente()}`] = 1;
+    // La hora (de Madrid) en que empieza: a que horas entra la gente.
+    contadores[`h${horaMadrid()}`] = 1;
     // Un si/no: entra con la sesion abierta. Ni quien, ni nada que lo diga.
     if (auth.currentUser) contadores.con_cuenta = 1;
   }
@@ -146,9 +150,29 @@ async function enviar() {
     for (const [clave, valor] of Object.entries(uso())) datos[clave] = valor;
 
     await setDoc(doc(db, 'sesiones_web', id), datos, { merge: true });
+    await apuntarActividad();
   } catch {
     // Perder una sesion de analitica no es motivo para molestar a nadie.
   }
+}
+
+/**
+ * La actividad de quien tiene sesion: tiempo, visitas y paginas de hoy, en
+ * `actividad/{dia}_{uid}`. Es lo unico de la analitica que va con uid, porque
+ * "tiempo por usuario" y "cuanta gente vuelve" no se pueden contar sin saber
+ * quien es quien. Solo lo lee la administracion y el worker lo resume y lo
+ * borra al dia siguiente.
+ */
+async function apuntarActividad() {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+  const u = uso();
+  await setDoc(doc(db, 'actividad', `${hoy()}_${uid}`), {
+    uid, dia: hoy(),
+    segundos: increment(Math.min(7200, u.segundos || 0)),
+    visitas: increment(u.visitas || 0),
+    paginas: increment(1),
+  }, { merge: true });
 }
 
 /**

@@ -242,6 +242,7 @@ async function cargarPerfil() {
   tiendaAbierta().then(marcarTienda).catch(() => { /* sin tienda, el menu de siempre */ });
   pintarAjustes(perfil);
   pintarDosPasos();
+  comprobarAdmin().then(() => { if (esAdminToken) montarAvisosPush(perfil).catch(() => {}); });
 
   // Activados salvo que se hayan apagado a proposito: `undefined` significa que
   // nunca se ha tocado la preferencia, no que este desactivada.
@@ -325,6 +326,20 @@ async function cargarVitrina() {
   }
   pintarVitrina();
   for (const red of Object.keys(REDES)) id(`red-${red}`).value = vitrina.redes?.[red] || '';
+}
+
+// --- Administracion ----------------------------------------------------------------
+//
+// Con el rol de admin (del token firmado, no del perfil), un acceso al panel
+// desde Ajustes y el aviso de "trayecto para revisar" en la lista de avisos.
+
+let esAdminToken = false;
+async function comprobarAdmin() {
+  try {
+    esAdminToken = (await auth.currentUser?.getIdTokenResult())?.claims?.admin === true;
+  } catch { esAdminToken = false; }
+  id('sec-admin').classList.toggle('oculto', !esAdminToken);
+  id('lista-admin').classList.toggle('oculto', !esAdminToken);
 }
 
 // --- Verificacion en dos pasos ----------------------------------------------------
@@ -843,8 +858,9 @@ async function montarAvisosPush(datos) {
   ];
 
   // 8o: a la derecha, cuando o donde llega cada uno.
-  const NOTAS = { viajeResuelto: 'aceptado o no', rachaEnPeligro: '20:00', recordPerdido: '1.º puesto', adelantado: 'tus tramos', recompensa: 'eventos y logros', cambioDivision: 'lunes, cada dos semanas' };
+  const NOTAS = { revisionPendiente: 'solo admin', viajeResuelto: 'aceptado o no', rachaEnPeligro: '20:00', recordPerdido: '1.º puesto', adelantado: 'tus tramos', recompensa: 'eventos y logros', cambioDivision: 'lunes, cada dos semanas' };
   for (const [tipo, info] of Object.entries(TIPOS_PUSH)) {
+    if (info.soloAdmin && !esAdminToken) continue;
     const fila = interruptor(
       info.etiqueta,
       null,

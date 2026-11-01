@@ -65,6 +65,13 @@ const TIPOS = {
     etiqueta: 'Cuando cambio de división',
     porDefecto: false,
   },
+  // Solo la administracion (la web no lo enseña a nadie mas): un viaje acaba
+  // de ir a la cola de revision y lo tiene que mirar una persona.
+  revisionPendiente: {
+    etiqueta: 'Cuando hay un trayecto para revisar',
+    porDefecto: true,
+    soloAdmin: true,
+  },
 };
 
 let configurado = false;

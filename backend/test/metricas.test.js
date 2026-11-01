@@ -264,3 +264,31 @@ test('acepta la marca tal y como la escribe Firestore', () => {
   assert.strictEqual(metricas.hayQueResumir(timestamp(10), ahora), false);
   assert.strictEqual(metricas.hayQueResumir(timestamp(60 * 24), ahora), true);
 });
+
+test('las series desde el estreno: altas, activos, tiempo, viajes, km y adherencia', () => {
+  const { calcularEstreno } = require('../src/metricas');
+  const porDia = [
+    { dia: '2026-11-01', visitas: 10, segundos: 1200, h09: 4, h20: 6, usuarios: { uids: ['a', 'b'], segundos: 600, visitas: 3, paginas: 9 } },
+    { dia: '2026-11-02', visitas: 4, segundos: 400, h09: 1, usuarios: { uids: ['a'], segundos: 300, visitas: 1, paginas: 2 } },
+  ];
+  const r = calcularEstreno({
+    porDia,
+    hoyActividad: { uids: ['a', 'c'], segundos: 200, visitas: 2, paginas: 4 },
+    altas: [{ uid: 'a', dia: '2026-11-01' }, { uid: 'b', dia: '2026-11-01' }, { uid: 'c', dia: '2026-11-03' }],
+    viajes: [{ dia: '2026-11-01', metros: 3000 }, { dia: '2026-11-03', metros: 1500 }],
+    hoy: '2026-11-03',
+  });
+  assert.deepStrictEqual(r.dias.map((d) => d.altas), [2, 0, 1]);
+  assert.deepStrictEqual(r.dias.map((d) => d.activos), [2, 1, 2]);
+  assert.strictEqual(r.dias[0].segundosPorActivo, 300);
+  assert.strictEqual(r.dias[0].km, 3);
+  assert.strictEqual(r.totales.km, 4.5);
+  assert.strictEqual(r.horas[9], 5);
+  assert.strictEqual(r.horas[20], 6);
+  assert.strictEqual(r.adherencia.dau, 2);
+  assert.strictEqual(r.adherencia.mau, 3);
+  // De los dos del dia 1, vuelve uno el dia 2.
+  assert.strictEqual(r.adherencia.retencionD1, 50);
+  assert.strictEqual(r.semanas.length, 2);
+  assert.strictEqual(r.meses[0].viajes, 2);
+});

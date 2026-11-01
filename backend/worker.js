@@ -829,6 +829,7 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
   // El de aprobado sale despues de `premiar`, con los puntos de verdad (07 ·
   // 7a: "Verificado · +69 pts"). Aqui todavia no se saben.
   if (!aprobado) await avisarPorPush(doc.id, viaje, veredicto.decision);
+  if (veredicto.decision === 'revision') await avisarRevisionAAdmins(viaje);
 
   // El analisis completo NO va dentro del viaje.
   //
@@ -1801,6 +1802,8 @@ async function aplicarDecisionesManuales() {
     // historial. Sale una vez: `recalculoPendiente` se apaga justo debajo.
     if (viaje.estado === 'rechazado' && viaje.premiado !== true
       && viaje.revisadoPor && viaje.revisadoPor !== 'automatico') {
+      // Y al movil, como cuando decide la maquina.
+      await avisarPorPush(doc.id, viaje, 'rechazado');
       await avisarPorCorreo(viaje.uid, 'viaje_rechazado', {
         ruta: viaje.ruta,
         motivo: viaje.motivoRevision || 'Quien lo ha revisado no ha podido darlo por bueno.',
@@ -1995,6 +1998,30 @@ async function avisarPorPush(viajeId, viaje, decision, puntos = null) {
     await push.enviar(viaje.uid, 'viajeResuelto', { ...texto, url: '/yo/' }, { simular: SIMULAR });
   } catch (error) {
     console.warn(`  push no enviado (${viajeId}):`, error.message);
+  }
+}
+
+/**
+ * A la administracion, al movil: hay un trayecto en la cola de revision.
+ * Quien es admin sale de `usuarios.esAdmin` (lo pone scripts/set-admin.js);
+ * se lee una vez por ejecucion. Nunca lanza.
+ */
+let admins = null;
+async function avisarRevisionAAdmins(viaje) {
+  try {
+    if (admins === null) {
+      admins = (await db.collection('usuarios').where('esAdmin', '==', true).select().get()).docs.map((d) => d.id);
+    }
+    const [origen, destino] = String(viaje.ruta || '').split('-');
+    const nombre = (id) => buscarEstacion(id)?.nombre || id;
+    const tramo = origen && destino ? `${nombre(origen)} → ${nombre(destino)}` : 'Un trayecto';
+    for (const uid of admins) {
+      await push.enviar(uid, 'revisionPendiente', {
+        titulo: 'Trayecto para revisar', cuerpo: `${tramo}. Está en la cola de revisión.`, url: '/admin/#revision',
+      }, { simular: SIMULAR });
+    }
+  } catch (error) {
+    console.warn('  aviso de revision a la administracion no enviado:', error.message);
   }
 }
 
@@ -3273,6 +3300,7 @@ async function main() {
   if (!SIMULAR && !degradado) {
     try {
       const sesiones = await metricas.agregarSesiones();
+      await metricas.agregarActividad().catch((error) => console.warn('Actividad no resumida:', error.message));
       console.log(`Metricas: ${sesiones.sesiones || 0} sesiones agregadas, `
         + `${sesiones.podados || 0} podadas.`);
     } catch (error) {

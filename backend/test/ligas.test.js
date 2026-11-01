@@ -124,3 +124,42 @@ test('el cierre de liga solo actua el lunes que toca y no se repite', () => {
   assert.match(codigo, /puntosLiga: 0/, 'los puntos de liga vuelven a cero');
   assert.match(codigo, /divisiones\.cerrarLiga\(/, 'la regla vive en divisiones.cerrarLiga, no en el script');
 });
+
+// --- Entrar a mitad de liga ---------------------------------------------------------
+
+test('quien entra tarde se coloca por su ritmo, no por un total que no pudo alcanzar', () => {
+  const d = require('../src/divisiones');
+  // 100 pilotos de liga entera con 100..199 puntos; uno que entro con 2 dias por
+  // jugar y hizo 60 (ritmo de 420 en la liga entera) sale el mejor.
+  const veteranos = Array.from({ length: 100 }, (_, i) => ({ uid: `v${i}`, division: 'sin-clasificar', puntos: 100 + i, diasEnLiga: 14 }));
+  const tarde = { uid: 'tarde', division: 'sin-clasificar', puntos: 60, diasEnLiga: 2 };
+  const r = d.cerrarLiga([...veteranos, tarde]);
+  const suyo = r.find((x) => x.uid === 'tarde');
+  assert.notStrictEqual(suyo.division, 'cobre', 'con su ritmo tendria que entrar por encima de cobre');
+  // Sin el dato de dias, como siempre: 60 puntos de liga entera, el ultimo.
+  const sinDato = d.cerrarLiga([...veteranos, { ...tarde, diasEnLiga: undefined }]).find((x) => x.uid === 'tarde');
+  assert.strictEqual(sinDato.division, 'cobre');
+});
+
+test('dias jugables: desde el alta o desde el inicio de la liga, hasta su fin', () => {
+  const d = require('../src/divisiones');
+  // Liga del lunes 2026-11-16 al domingo 2026-11-29.
+  assert.strictEqual(d.diasJugables(null, '2026-11-20'), 14);
+  assert.strictEqual(d.diasJugables('2026-10-01', '2026-11-20'), 14);
+  assert.strictEqual(d.diasJugables('2026-11-28', '2026-11-29'), 2);
+});
+
+test('un nuevo con la liga recien empezada entra ya en el cobre con mas sitio', () => {
+  const d = require('../src/divisiones');
+  const nuevo = { division: 'sin-clasificar', divisionMaxima: -1, grupo: null };
+  const tamanos = { 'cobre-1': 20, 'cobre-2': 12, 'cobre-3': 15, 'plata-1': 3 };
+  // Martes de la primera semana de la liga del 16.
+  assert.strictEqual(d.grupoParaRecienLlegado(nuevo, tamanos, '2026-11-17'), 'cobre-2');
+  // Segunda semana: espera al cierre.
+  assert.strictEqual(d.grupoParaRecienLlegado(nuevo, tamanos, '2026-11-24'), null);
+  // La primera liga es de todos: no hay cobre al que entrar.
+  assert.strictEqual(d.grupoParaRecienLlegado(nuevo, tamanos, '2026-11-05'), null);
+  // Quien ya estuvo clasificado vuelve por el cierre, no aqui; y los grupos llenos no cuentan.
+  assert.strictEqual(d.grupoParaRecienLlegado({ ...nuevo, divisionMaxima: 2 }, tamanos, '2026-11-17'), null);
+  assert.strictEqual(d.grupoParaRecienLlegado(nuevo, { 'cobre-1': 20 }, '2026-11-17'), null);
+});

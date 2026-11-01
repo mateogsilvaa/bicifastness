@@ -555,6 +555,9 @@ async function reconstruir({
   }
   await db().doc('agregados/grupos').set({
     porPiloto,
+    // Cuantos hay en cada grupo: el worker mete a los recien llegados en el
+    // cobre con mas sitio (divisiones.grupoParaRecienLlegado).
+    tamanos: Object.fromEntries([...grupos].map(([clave, miembros]) => [clave, miembros.length])),
     posiciones,
     ayer,
     dia: hoyDia,

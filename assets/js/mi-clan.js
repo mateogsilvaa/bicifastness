@@ -337,14 +337,16 @@ function misEstaciones() {
  * (16c): no se pueden elegir, para que en el mapa no se confundan.
  */
 function coloresVecinos() {
-  const mias = misEstaciones().map((n) => ESTACIONES[n]).filter(Boolean);
+  // `misEstaciones` las da sin ceros y el catalogo las guarda con tres cifras.
+  const enCatalogo = (n) => ESTACIONES[n] || ESTACIONES[String(n).padStart(3, '0')] || (/^\d+[A-Z]$/.test(n) ? ESTACIONES[n.padStart(4, '0')] : null);
+  const mias = misEstaciones().map(enCatalogo).filter(Boolean);
   const vecinos = new Map();
   if (!mias.length) return vecinos;
   const metros = (a, b) => Math.hypot((a.lat - b.lat) * 111320, (a.lon - b.lon) * 111320 * Math.cos((a.lat * Math.PI) / 180));
   const clanes = contexto.clanes();
   for (const [n, s] of contexto.estaciones()) {
     const clanVecino = clanes.get(s.clanDominante);
-    const e = ESTACIONES[n];
+    const e = enCatalogo(n);
     if (!clanVecino?.color || !e || vecinos.has(clanVecino.color)) continue;
     if (mias.some((m) => metros(m, e) < 1000)) vecinos.set(clanVecino.color, clanVecino.nombre);
   }

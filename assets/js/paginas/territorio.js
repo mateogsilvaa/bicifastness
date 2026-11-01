@@ -473,7 +473,10 @@ async function cargar() {
     ]);
     rankingClanes = ranking?.filas || [];
     porClan = new Map(Object.entries(agregado?.clanes || {}));
-    porEstacion = new Map(Object.entries(agregado?.estaciones || {}).map(([n, e]) => [n, {
+    // El juego guarda las estaciones con tres cifras ('002') y el GeoJSON de la
+    // EMT sin ceros ('2'): sin quitarlos, las de la 1 a la 99 no se pintaban
+    // aunque contaran en el ranking de clanes.
+    porEstacion = new Map(Object.entries(agregado?.estaciones || {}).map(([n, e]) => [String(n).replace(/^0+(?=\d)/, ''), {
       clanDominante: e.clan || null,
       lider: e.lider || null,
       cuota: e.cuota || {},

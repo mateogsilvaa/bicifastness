@@ -14,7 +14,7 @@ on:
       operacion:
         description: 'Que hacer'
         type: choice
-        options: [hacer-admin, quitar-admin, comprobar-datos, reencolar-errores, borrar-viajes-y-clanes]
+        options: [hacer-admin, quitar-admin, comprobar-datos, reencolar-errores, borrar-viajes-y-clanes, analizar-revisiones]
         required: true
       correo:
         description: 'Correo de la cuenta (solo para hacer-admin / quitar-admin)'
@@ -107,6 +107,10 @@ jobs:
               else
                 node scripts/borrar-viajes-y-clanes.js
               fi
+              ;;
+            analizar-revisiones)
+              # Por que van a revision: solo recuentos de señales y decisiones.
+              node scripts/analizar-revisiones.js 2026-11-01
               ;;
             reencolar-errores)
               # Los viajes que fueron a revision porque el worker fallo (no

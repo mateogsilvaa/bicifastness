@@ -146,6 +146,192 @@ async function agregarSesiones() {
 }
 
 /**
+ * La actividad por usuario de los dias ya cerrados (`actividad/{dia}_{uid}`,
+ * assets/js/metricas.js) pasa a `metricas/{dia}.usuarios`: cuantos entraron,
+ * cuanto tiempo, y la lista de uids (para contar quien vuelve sin releer
+ * nada). El detalle se borra: cada documento se lee una sola vez.
+ */
+async function agregarActividad(hoy = dia(new Date())) {
+  const snap = await db().collection('actividad').where('dia', '<', hoy).limit(MAX_SESIONES_POR_PASADA).get();
+  if (snap.empty) return { dias: 0 };
+  const porDia = new Map();
+  for (const d of snap.docs) {
+    const a = d.data();
+    if (!a.dia || !a.uid) continue;
+    const t = porDia.get(a.dia) || { uids: [], segundos: 0, visitas: 0, paginas: 0 };
+    t.uids.push(a.uid);
+    t.segundos += a.segundos || 0;
+    t.visitas += a.visitas || 0;
+    t.paginas += a.paginas || 0;
+    porDia.set(a.dia, t);
+  }
+  const FV = admin.firestore.FieldValue;
+  for (const [fecha, t] of porDia) {
+    await db().doc(`metricas/${fecha}`).set({
+      usuarios: {
+        uids: FV.arrayUnion(...t.uids),
+        segundos: FV.increment(t.segundos),
+        visitas: FV.increment(t.visitas),
+        paginas: FV.increment(t.paginas),
+      },
+    }, { merge: true });
+  }
+  for (let i = 0; i < snap.docs.length; i += 450) {
+    const lote = db().batch();
+    for (const d of snap.docs.slice(i, i + 450)) lote.delete(d.ref);
+    await lote.commit();
+  }
+  return { dias: porDia.size, documentos: snap.size };
+}
+
+/** El dia de la web nueva: desde aqui cuentan las series del panel. */
+const ESTRENO = '2026-11-01';
+
+const sumarDias = (d, n) => dia(new Date(Date.parse(`${d}T12:00:00Z`) + n * 864e5));
+
+/**
+ * Todo lo que el panel enseña desde el estreno, dia a dia. Funcion pura: entra
+ * lo leido y sale el documento. Se prueba en test/metricas.test.js.
+ *
+ * @param {object} o
+ * @param {Array} o.porDia   documentos `metricas/{dia}` ({ dia, visitas, segundos, h00.., usuarios })
+ * @param {object} o.hoyActividad  la de hoy, sin resumir: { uids, segundos, visitas, paginas }
+ * @param {Array} o.altas    [{ uid, dia }] de los registrados desde el estreno
+ * @param {Array} o.viajes   [{ dia, metros }] verificados desde el estreno
+ * @param {string} o.hoy
+ */
+function calcularEstreno({ porDia, hoyActividad, altas, viajes, hoy }) {
+  const dias = [];
+  for (let d = ESTRENO; d <= hoy; d = sumarDias(d, 1)) dias.push(d);
+  const met = new Map(porDia.map((m) => [m.dia, m]));
+  const usuariosDe = (d) => (d === hoy && hoyActividad ? hoyActividad : met.get(d)?.usuarios || { uids: [], segundos: 0, visitas: 0, paginas: 0 });
+  const altasPorDia = {};
+  for (const a of altas) altasPorDia[a.dia] = (altasPorDia[a.dia] || 0) + 1;
+  const viajesPorDia = {};
+  for (const v of viajes) {
+    const t = (viajesPorDia[v.dia] ||= { viajes: 0, metros: 0 });
+    t.viajes++; t.metros += v.metros || 0;
+  }
+
+  const serie = dias.map((d) => {
+    const u = usuariosDe(d);
+    const activos = (u.uids || []).length;
+    const m = met.get(d) || {};
+    return {
+      dia: d,
+      altas: altasPorDia[d] || 0,
+      activos,
+      segundosPorActivo: activos ? Math.round((u.segundos || 0) / activos) : 0,
+      visitasPorActivo: activos ? Math.round(((u.visitas || 0) / activos) * 10) / 10 : 0,
+      visitas: m.visitas || 0,
+      segundosPorVisita: m.visitas ? Math.round((m.segundos || 0) / m.visitas) : 0,
+      viajes: viajesPorDia[d]?.viajes || 0,
+      km: Math.round((viajesPorDia[d]?.metros || 0) / 100) / 10,
+    };
+  });
+
+  // Por semanas (lunes) y meses.
+  const agrupar = (clave) => {
+    const g = new Map();
+    for (const s of serie) {
+      const k = clave(s.dia);
+      const t = g.get(k) || { periodo: k, viajes: 0, km: 0, altas: 0 };
+      t.viajes += s.viajes; t.km = Math.round((t.km + s.km) * 10) / 10; t.altas += s.altas;
+      g.set(k, t);
+    }
+    return [...g.values()];
+  };
+  const semanas = agrupar((d) => lunesDe(new Date(`${d}T12:00:00Z`)));
+  const meses = agrupar((d) => d.slice(0, 7));
+
+  // A que horas: las visitas de los ultimos 30 dias, por hora de Madrid.
+  const desde30 = sumarDias(hoy, -29);
+  const horas = Array.from({ length: 24 }, (_, h) => porDia
+    .filter((m) => m.dia >= desde30)
+    .reduce((t, m) => t + (m[`h${String(h).padStart(2, '0')}`] || 0), 0));
+
+  // Adherencia: quien vuelve. DAU de hoy, WAU y MAU como union de uids.
+  const unionDesde = (desde) => {
+    const s = new Set();
+    for (const d of dias) if (d >= desde) for (const uid of usuariosDe(d).uids || []) s.add(uid);
+    return s;
+  };
+  const dau = (usuariosDe(hoy).uids || []).length;
+  const ayer = sumarDias(hoy, -1);
+  const dauAyer = (usuariosDe(ayer).uids || []).length;
+  const wau = unionDesde(sumarDias(hoy, -6)).size;
+  const mau = unionDesde(sumarDias(hoy, -29)).size;
+  // Dias activos de media en los ultimos 7 dias, entre quien entro alguno.
+  let diasActivos = 0;
+  for (const d of dias) if (d >= sumarDias(hoy, -6)) diasActivos += (usuariosDe(d).uids || []).length;
+
+  // Retencion de los registrados desde el estreno: vuelven al dia siguiente / en la semana.
+  const activoEl = new Map(dias.map((d) => [d, new Set(usuariosDe(d).uids || [])]));
+  let base1 = 0; let vuelve1 = 0; let base7 = 0; let vuelve7 = 0;
+  for (const a of altas) {
+    if (sumarDias(a.dia, 1) <= ayer) {
+      base1++;
+      if (activoEl.get(sumarDias(a.dia, 1))?.has(a.uid)) vuelve1++;
+    }
+    if (sumarDias(a.dia, 7) <= ayer) {
+      base7++;
+      let ok = false;
+      for (let k = 1; k <= 7; k++) if (activoEl.get(sumarDias(a.dia, k))?.has(a.uid)) ok = true;
+      if (ok) vuelve7++;
+    }
+  }
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : null);
+
+  const totalSeg = dias.reduce((t, d) => t + (usuariosDe(d).segundos || 0), 0);
+  const totalActivosDia = dias.reduce((t, d) => t + (usuariosDe(d).uids || []).length, 0);
+
+  return {
+    desde: ESTRENO,
+    dias: serie,
+    semanas,
+    meses,
+    horas,
+    totales: {
+      altas: altas.length,
+      viajes: viajes.length,
+      km: Math.round(viajes.reduce((t, v) => t + (v.metros || 0), 0) / 100) / 10,
+    },
+    adherencia: {
+      dau, dauAyer, wau, mau,
+      stickiness: pct(dau || dauAyer, mau),
+      diasActivosSemana: wau ? Math.round((diasActivos / wau) * 10) / 10 : null,
+      segundosPorUsuarioDia: totalActivosDia ? Math.round(totalSeg / totalActivosDia) : 0,
+      retencionD1: pct(vuelve1, base1), baseD1: base1,
+      retencionD7: pct(vuelve7, base7), baseD7: base7,
+    },
+  };
+}
+
+/**
+ * Lee lo que hace falta para `calcularEstreno`. Coste: los registrados desde
+ * el estreno y los viajes verificados desde el estreno (solo dos campos), mas
+ * la actividad de hoy, que aun no esta resumida.
+ */
+async function datosEstreno(porDia, hoy) {
+  const [altasSnap, viajesSnap, hoySnap] = await Promise.all([
+    db().collection('usuarios').where('creado', '>=', admin.firestore.Timestamp.fromDate(new Date(`${ESTRENO}T00:00:00+01:00`))).select('creado').get(),
+    db().collection('tiempos_viaje').where('verificado', '==', true).where('fechaViaje', '>=', ESTRENO).select('fechaViaje', 'distanciaMetros').get(),
+    db().collection('actividad').where('dia', '==', hoy).get(),
+  ]);
+  const altas = altasSnap.docs.map((d) => ({ uid: d.id, dia: dia(d.data().creado.toDate()) }));
+  const viajes = viajesSnap.docs.map((d) => ({ dia: String(d.data().fechaViaje).slice(0, 10), metros: d.data().distanciaMetros || 0 }));
+  const hoyActividad = { uids: [], segundos: 0, visitas: 0, paginas: 0 };
+  for (const d of hoySnap.docs) {
+    const a = d.data();
+    hoyActividad.uids.push(a.uid);
+    hoyActividad.segundos += a.segundos || 0;
+    hoyActividad.visitas += a.visitas || 0;
+    hoyActividad.paginas += a.paginas || 0;
+  }
+  return calcularEstreno({ porDia, hoyActividad, altas, viajes, hoy });
+}
+
+/**
  * Retencion por cohortes, calculada sobre los datos que ya existen.
  *
  * Se agrupa por semana de alta y se mira que porcentaje sigue subiendo
@@ -467,7 +653,15 @@ async function resumir() {
     ? await cohortesVivas(previas)
     : await cohortesCompletas();
 
+  // Desde el estreno, dia a dia (el panel lo pinta en graficas). Si falla, el
+  // resto del resumen sale igual.
+  const estreno = await datosEstreno(porDia, hoy).catch((error) => {
+    console.warn('Metricas del estreno no calculadas:', error.message);
+    return antes.estreno || null;
+  });
+
   await db().doc('agregados/metricas').set({
+    estreno,
     ventanas,
     cohortes,
     totales: {
@@ -482,6 +676,9 @@ async function resumir() {
 
 module.exports = {
   agregarSesiones,
+  agregarActividad,
+  calcularEstreno,
+  ESTRENO,
   tocaResumir,
   hayQueResumir,
   MINUTOS_ENTRE_RESUMENES,

@@ -14,6 +14,7 @@ import {
 import { iniciarPagina } from '/assets/js/ui.js';
 import { id, el, estado, reemplazar } from '/assets/js/dom.js';
 import { montarCabeceraAdmin, puertaDosPasos } from '/assets/js/admin-cabecera.js';
+import { barras } from '/assets/js/graficas.js';
 
 iniciarPagina('admin');
 montarCabeceraAdmin('metricas');
@@ -91,6 +92,75 @@ function pintarUso(ventanas, elegida) {
   reemplazar(id('fuentes-uso'), fuentes.length
     ? fuentes.map(([f, n]) => barra(NOMBRE_FUENTE[f] || f, n, maxF, `${numero(n)} · ${pct(n, visitas)}`))
     : [el('p', { clase: 'menor apagado', texto: 'Sin datos todavía en este periodo.' })]);
+}
+
+// --- Desde el estreno -------------------------------------------------------
+
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const diaCorto = (d) => `${Number(d.slice(8))} ${MESES_CORTOS[Number(d.slice(5, 7)) - 1]}`;
+const etiquetaPeriodo = (p) => (p.length === 7 ? `${MESES_CORTOS[Number(p.slice(5)) - 1]} ${p.slice(0, 4)}` : `sem. ${diaCorto(p)}`);
+const km = (n) => `${Number(n || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })} km`;
+const minutos = (s) => duracion(s);
+
+/** Una grafica con su titulo y, si hace falta, un selector dia/semana/mes. */
+function tarjetaGrafica(titulo, pintar, conPeriodo = false) {
+  const cuerpo = el('div');
+  let periodo = 'dia';
+  const selector = conPeriodo ? el('div', { clase: 'adm-ventanas', attrs: { role: 'radiogroup', 'aria-label': `Periodo de ${titulo}` } }) : null;
+  const repintar = () => {
+    if (selector) {
+      reemplazar(selector, [['dia', 'Día'], ['semana', 'Semana'], ['mes', 'Mes']].map(([k, t]) => el('button', {
+        clase: `btn ${k === periodo ? '' : 'secundario'}`, texto: t,
+        attrs: { type: 'button', role: 'radio', 'aria-checked': String(k === periodo) },
+        on: { click: () => { periodo = k; repintar(); } },
+      })));
+    }
+    reemplazar(cuerpo, pintar(periodo));
+  };
+  repintar();
+  return el('div', { clase: 'adm-grafica' }, [
+    el('div', { clase: 'adm-cabeza-tarjeta' }, [el('h3', { clase: 'menor', texto: titulo }), selector]),
+    cuerpo,
+  ]);
+}
+
+function pintarEstreno(e) {
+  if (!e) {
+    reemplazar(id('kpis-estreno'), [el('p', { clase: 'menor apagado', texto: 'Aún sin datos: los calcula el worker cada seis horas.' })]);
+    return;
+  }
+  const a = e.adherencia || {};
+  const pctTxt = (n) => (n === null || n === undefined ? '—' : `${n} %`);
+  reemplazar(id('kpis-estreno'), [
+    ['Altas desde el estreno', numero(e.totales?.altas)],
+    ['Activos hoy', numero(a.dau)],
+    ['Activos 7 días / 30 días', `${numero(a.wau)} / ${numero(a.mau)}`],
+    ['Adherencia (activos hoy / 30 días)', pctTxt(a.stickiness)],
+    ['Días que entra cada uno (últ. 7)', a.diasActivosSemana === null || a.diasActivosSemana === undefined ? '—' : String(a.diasActivosSemana).replace('.', ',')],
+    ['Tiempo en pantalla por usuario y día', minutos(a.segundosPorUsuarioDia)],
+    ['Vuelven al día siguiente', `${pctTxt(a.retencionD1)} de ${numero(a.baseD1)}`],
+    ['Vuelven en su primera semana', `${pctTxt(a.retencionD7)} de ${numero(a.baseD7)}`],
+    ['Viajes verificados', numero(e.totales?.viajes)],
+    ['Km de la comunidad', km(e.totales?.km)],
+  ].map(([etiqueta, valor]) => el('div', { clase: 'adm-kpi' }, [el('span', { texto: etiqueta }), el('strong', { texto: String(valor) })])));
+
+  const dias = e.dias || [];
+  const porDia = (campo, formato, titulo) => barras(dias.map((d) => ({ etiqueta: diaCorto(d.dia), valor: d[campo], detalle: diaCorto(d.dia) })), { formato, titulo });
+  const porPeriodo = (campo, formato, titulo) => (periodo) => {
+    const lista = periodo === 'dia' ? dias.map((d) => ({ p: d.dia, v: d[campo] }))
+      : (periodo === 'semana' ? e.semanas : e.meses).map((s) => ({ p: s.periodo, v: s[campo] }));
+    return barras(lista.map(({ p, v }) => ({ etiqueta: periodo === 'dia' ? diaCorto(p) : etiquetaPeriodo(p), valor: v })), { formato, titulo });
+  };
+  reemplazar(id('graficas-estreno'), [
+    tarjetaGrafica('Usuarios nuevos', porPeriodo('altas', numero, 'Usuarios nuevos'), true),
+    tarjetaGrafica('Gente que entra con su cuenta, por día', () => porDia('activos', numero, 'Usuarios activos por día')),
+    tarjetaGrafica('Tiempo en pantalla por usuario, por día', () => porDia('segundosPorActivo', minutos, 'Tiempo por usuario y día')),
+    tarjetaGrafica('Visitas por día (con y sin cuenta)', () => porDia('visitas', numero, 'Visitas por día')),
+    tarjetaGrafica('Duración media de la visita, por día', () => porDia('segundosPorVisita', minutos, 'Duración media de la visita')),
+    tarjetaGrafica('A qué horas entran (últimos 30 días)', () => barras((e.horas || []).map((v, h) => ({ etiqueta: `${h}h`, valor: v, detalle: `De ${h}:00 a ${h}:59` })), { formato: numero, titulo: 'Visitas por hora' })),
+    tarjetaGrafica('Viajes verificados', porPeriodo('viajes', numero, 'Viajes verificados'), true),
+    tarjetaGrafica('Km de la comunidad', porPeriodo('km', km, 'Kilómetros'), true),
+  ]);
 }
 
 /**
@@ -325,6 +395,7 @@ onAuthStateChanged(auth, async (usuario) => {
       id('actualizado').textContent = `Actualizado ${marca.toLocaleString('es-ES')}`;
     }
 
+    pintarEstreno(resumen.estreno);
     pintarKpis(resumen.ventanas || {});
     pintarUso(resumen.ventanas || {}, 'semana');
     pintarVentanas(resumen.ventanas || {});

@@ -3300,6 +3300,7 @@ async function main() {
   if (!SIMULAR && !degradado) {
     try {
       const sesiones = await metricas.agregarSesiones();
+      await metricas.agregarActividad().catch((error) => console.warn('Actividad no resumida:', error.message));
       console.log(`Metricas: ${sesiones.sesiones || 0} sesiones agregadas, `
         + `${sesiones.podados || 0} podadas.`);
     } catch (error) {

@@ -976,3 +976,13 @@ test('el banco de casos revisados solo lo ve y lo escribe la administracion', as
   await assertFails(getDoc(doc(como(UID), 'banco_capturas', 'v1')));
   await assertFails(setDoc(doc(como(UID), 'banco_revision', 'v3'), { humana: { decision: 'aprobado' } }));
 });
+
+test('la actividad por usuario: cada uno la suya, con topes, y solo la lee la administracion', async () => {
+  const dia = '2026-11-01';
+  const ref = doc(como(UID), 'actividad', `${dia}_${UID}`);
+  await assertSucceeds(setDoc(ref, { uid: UID, dia, segundos: 120, visitas: 1, paginas: 3 }));
+  await assertFails(setDoc(doc(como(UID), 'actividad', `${dia}_${OTRO}`), { uid: OTRO, dia, segundos: 1, visitas: 1, paginas: 1 }));
+  await assertFails(setDoc(ref, { uid: UID, dia, segundos: 999999, visitas: 1, paginas: 3 }));
+  await assertFails(getDoc(ref));
+  await assertSucceeds(getDoc(doc(como('jefa', { admin: true }), 'actividad', `${dia}_${UID}`)));
+});

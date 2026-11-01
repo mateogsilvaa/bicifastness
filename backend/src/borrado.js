@@ -236,6 +236,12 @@ async function ejecutar(uid, { simular = false } = {}) {
     // Lo que quedo archivado de antes del reinicio (scripts/borrar-viajes-y-clanes.js).
     const archivados = await db().collection('archivo_reinicio').where('uid', '==', uid).get();
     for (const doc of archivados.docs) await doc.ref.delete();
+    // Su actividad en la web (metricas por usuario): el detalle del dia y su
+    // uid en los resumenes diarios.
+    const actividad = await db().collection('actividad').where('uid', '==', uid).get();
+    for (const doc of actividad.docs) await doc.ref.delete();
+    const resumenes = await db().collection('metricas').where('usuarios.uids', 'array-contains', uid).get();
+    for (const doc of resumenes.docs) await doc.ref.update({ 'usuarios.uids': admin.firestore.FieldValue.arrayRemove(uid) });
     // Su canje de gemas (lleva su uid como id).
     await db().doc(`canjes_gemas/${uid}`).delete();
     const canjeados = await db().collection('recompensas_codigos').where('usadoPor', '==', uid).get();

@@ -5087,3 +5087,9 @@ body.con-tutorial { overflow: hidden; }
 .grafica-guia { stroke: var(--linea); stroke-width: 1; stroke-dasharray: 3 4; }
 .grafica-eje { fill: var(--tinta-3); font-size: 11px; }
 .grafica-consejo { position: absolute; top: -6px; transform: translateX(-50%); padding: 6px 10px; border-radius: 8px; background: var(--tinta); color: var(--papel-2); font-size: 13px; white-space: nowrap; pointer-events: none; }
+
+/* --- Viaje inventado para redes (paginas/admin-redes.js) --------------------- */
+.viaje-inventado { margin-top: 24px; }
+.form-inventado { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 0 14px; align-items: end; }
+.form-inventado .btn { width: auto; }
+.form-inventado .mensaje { grid-column: 1 / -1; }

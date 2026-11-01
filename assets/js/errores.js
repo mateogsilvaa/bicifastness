@@ -78,13 +78,27 @@ function navegador() {
 }
 
 /**
+ * Lo que no es un fallo nuestro y solo ensucia el panel (/admin/errores/):
+ * - scripts que mete el navegador de otras apps: el de Instagram en iPhone
+ *   inyecta el de Meta, nuestra CSP lo bloquea (bien) y saltaba como error;
+ * - Safari avisando de que la persona ha borrado los datos de la web;
+ * - App Check arrancando dos veces en algunos navegadores integrados.
+ */
+const NO_ES_NUESTRO = [
+  /connect\.facebook\.net|facebook\.com\/tr|fbevents/i,
+  /Database deleted by request of the user/i,
+  /reCAPTCHA has already been rendered/i,
+];
+export const esRuido = (texto) => NO_ES_NUESTRO.some((r) => r.test(String(texto || '')));
+
+/**
  * Registra un error. Nunca lanza: un fallo aqui dentro no puede provocar otro
  * error, o se entra en un bucle que se come la cuota.
  */
 export async function registrar(mensaje, pila = '', extra = {}) {
   try {
     const texto = String(mensaje || '').slice(0, 300);
-    if (!texto) return;
+    if (!texto || esRuido(texto)) return;
 
     const id = huella(texto, pila);
 

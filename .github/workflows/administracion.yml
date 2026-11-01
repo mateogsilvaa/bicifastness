@@ -14,7 +14,7 @@ on:
       operacion:
         description: 'Que hacer'
         type: choice
-        options: [hacer-admin, quitar-admin, comprobar-datos, reencolar-errores, borrar-viajes-y-clanes, analizar-revisiones]
+        options: [hacer-admin, quitar-admin, comprobar-datos, reencolar-errores, borrar-viajes-y-clanes, analizar-revisiones, diagnosticar-banco]
         required: true
       correo:
         description: 'Correo de la cuenta (solo para hacer-admin / quitar-admin)'
@@ -111,6 +111,10 @@ jobs:
             analizar-revisiones)
               # Por que van a revision: solo recuentos de señales y decisiones.
               node scripts/analizar-revisiones.js 2026-11-01
+              ;;
+            diagnosticar-banco)
+              # El OCR de ahora sobre los casos revisados a mano: solo si/no por campo.
+              node scripts/diagnosticar-banco.js
               ;;
             reencolar-errores)
               # Los viajes que fueron a revision porque el worker fallo (no

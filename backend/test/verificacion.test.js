@@ -67,9 +67,13 @@ test('un tiempo fisicamente imposible se rechaza solo', () => {
 test('una velocidad alta pero posible va a revision, no a la basura', () => {
   // Ajustamos el tiempo para caer entre 21 y 25 km/h.
   const segundos = Math.round((METROS / 1000) / 23 * 3600);
-  const r = evaluar(contextoBase({ tiempoSegundos: segundos }));
+  // Sin captura que lo respalde del todo (no se leen las horas): a revision.
+  const sinHoras = { ...lecturaLimpia(segundos), horaSalida: null, horaLlegada: null };
+  const r = evaluar(contextoBase({ tiempoSegundos: segundos, lectura: sinHoras }));
   assert.strictEqual(r.decision, 'revision');
   assert.ok(r.señales.some((s) => s.codigo === 'velocidad_sospechosa'));
+  // Con una captura impecable el tiempo es el de BiciMAD: pasa.
+  assert.strictEqual(evaluar(contextoBase({ tiempoSegundos: segundos })).decision, 'aprobado');
 });
 
 test('descuadre entre las horas y el recuadro de duracion = manipulacion', () => {
@@ -647,7 +651,8 @@ test('el primer trayecto no se rechaza solo por señales sumadas: va a revision'
   // decisiva, pero sumadas pasan del umbral de rechazo.
   const segundos = Math.round((METROS / 1000) / 23 * 3600);
   const salida = 3 * 3600;
-  const lectura = { ...lecturaLimpia(segundos), horaSalida: '03:00:00', horaLlegada: new Date((salida + segundos) * 1000).toISOString().slice(11, 19) };
+  // La captura no cuadra del todo con lo declarado (unos segundos): no es impecable.
+  const lectura = { ...lecturaLimpia(segundos), segundosDuracion: segundos + 20, horaSalida: '03:00:00', horaLlegada: new Date((salida + segundos + 20) * 1000).toISOString().slice(11, 19) };
   const ctx = contextoBase({ tiempoSegundos: segundos, lectura, mejorTiempoPropio: Math.round(segundos * 1.6), velocidadesPrevias: [10, 10, 10, 10, 10] });
 
   assert.strictEqual(evaluar(ctx).decision, 'rechazado', 'con historial, se rechaza como siempre');
@@ -678,4 +683,20 @@ test('impecable no tapa la trampa: lo declarado distinto de lo leido sigue pesan
   const r = evaluar(contextoBase({ tiempoSegundos: 540, lectura: lecturaLimpia(600), ancho: 1080, alto: 900 }));
   assert.strictEqual(r.impecable, false);
   assert.notStrictEqual(r.decision, 'aprobado');
+});
+
+
+test('una captura impecable rapida pero posible no va a revision; una imposible si se rechaza', () => {
+  const [o, d] = ['1', '2'];
+  const base = contextoBase();
+  const ruta = base.ruta;
+  // El mismo contexto de siempre con un tiempo que da ~22 km/h estimados.
+  const { velocidadKmh, distanciaCalleMetros } = require('../src/verificacion');
+  const [a, b] = ruta.split('-');
+  const metros = distanciaCalleMetros(a, b);
+  const t = Math.round((metros / 22) * 3.6);
+  const r = evaluar(contextoBase({ tiempoSegundos: t, lectura: lecturaLimpia(t) }));
+  assert.ok(r.señales.some((s) => s.codigo === 'velocidad_sospechosa' && s.gravedad === 0));
+  assert.strictEqual(r.decision, 'aprobado');
+  assert.ok(velocidadKmh(metros, t) > 21 && o && d);
 });

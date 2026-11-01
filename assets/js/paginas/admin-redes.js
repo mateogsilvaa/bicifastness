@@ -27,6 +27,8 @@ import { montarCabeceraAdmin, exigirAdmin } from '/assets/js/admin-cabecera.js';
 import { NIVELES, NOMBRES as DIVISIONES, fechaCorta } from '/assets/js/ligas.js';
 import { diaMadrid, lunesDeLaSemana, sumarDias } from '/assets/js/dia.js';
 import { ESTACIONES } from '/assets/data/estaciones.js';
+import { abrirCompartir } from '/assets/js/compartir.js';
+import { kmEstimados } from '/assets/js/ui.js';
 
 iniciarPagina('admin');
 montarCabeceraAdmin('redes');
@@ -866,6 +868,46 @@ async function descargar() {
     boton.textContent = texto;
   }
 }
+
+// --- Viaje inventado ------------------------------------------------------------------
+//
+// La hoja de compartir de la app (assets/js/compartir.js) con datos escritos a
+// mano, para contenido. Solo genera la imagen: no escribe nada en ningun sitio.
+
+function montarViajeInventado() {
+  reemplazar(id('inv-estaciones'), Object.entries(ESTACIONES).map(([cod, e]) => el('option', { attrs: { value: `${Number(cod)} · ${e.nombre}` } })));
+  const codigo = (texto) => {
+    const t = String(texto || '').trim();
+    const num = t.match(/^0*(\d{1,4})/);
+    if (num && (ESTACIONES[num[1]] || ESTACIONES[num[1].padStart(3, '0')])) return ESTACIONES[num[1]] ? num[1] : num[1].padStart(3, '0');
+    const hallada = Object.entries(ESTACIONES).find(([, e]) => e.nombre.toLowerCase() === t.toLowerCase());
+    return hallada ? hallada[0] : null;
+  };
+  id('form-inventado').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const msg = id('msg-inventado');
+    const o = codigo(id('inv-origen').value);
+    const d = codigo(id('inv-destino').value);
+    const m = id('inv-tiempo').value.trim().match(/^(\d{1,3}):([0-5]\d)$/);
+    if (!o || !d) { estado(msg, 'Elige las dos estaciones de la lista.', 'error'); return; }
+    if (!m) { estado(msg, 'El tiempo va como 12:29.', 'error'); return; }
+    estado(msg, '');
+    const segundos = Number(m[1]) * 60 + Number(m[2]);
+    const km = kmEstimados(o, d) || 0;
+    const num = (idCampo) => (id(idCampo).value === '' ? null : Number(id(idCampo).value));
+    const tipo = id('inv-tipo').value;
+    const datos = {
+      origen: nombreDe(o), destino: nombreDe(d), rutaId: `${o}-${d}`, segundos, km,
+      kmh: segundos ? Math.round((km / (segundos / 3600)) * 10) / 10 : 0,
+      puesto: num('inv-puesto'), total: num('inv-total') || num('inv-puesto') || null,
+      puntos: tipo === 'ruta' ? num('inv-puntos') || 0 : 0,
+      mejora: tipo === 'record' ? num('inv-puntos') : null,
+      pilotos: num('inv-total') || 0,
+    };
+    abrirCompartir({ tipo, datos, piloto: { nombre: id('inv-piloto').value.trim() || 'bicifastness' } });
+  });
+}
+montarViajeInventado();
 
 id('btn-descargar').addEventListener('click', descargar);
 window.addEventListener('resize', () => { if (crudo) pintar(); });

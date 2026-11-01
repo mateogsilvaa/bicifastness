@@ -203,20 +203,27 @@ async function actualizarDivisiones() {
 
   console.log(`\n${escribir.length} perfiles escritos, ${cambios.length} con division nueva.`);
 
-  // El aviso (07 · 7a: "Subes a Oro"). Desactivado por defecto: solo a quien lo
-  // ha pedido. Un fallo aqui no deshace nada de lo anterior.
+  // El aviso (07 · 7a: "Subes a Oro"), a quien ha jugado esta liga: sube,
+  // baja, entra o se queda. A quien no ha pedaleado no se le escribe. Un fallo
+  // aqui no deshace nada de lo anterior.
   let avisados = 0;
-  for (const c of cambios.filter((x) => x.division !== divisiones.SIN_CLASIFICAR)) {
+  const avisar = resultado.filter((x) => x.division !== divisiones.SIN_CLASIFICAR && (x.cambia || (x.puntos || 0) > 0));
+  for (const c of avisar) {
     const entra = c.desde === divisiones.SIN_CLASIFICAR;
     const sube = entra || divisiones.nivelDe(c.division) > divisiones.nivelDe(c.desde);
+    const puesto = c.puesto ? `Acabaste ${c.puesto}.º de ${c.total}. ` : '';
     try {
-      const r = await push.enviar(c.uid, 'cambioDivision', {
+      const r = await push.enviar(c.uid, 'cambioDivision', !c.cambia ? {
+        titulo: `Sigues en ${nombre(c.division)}`,
+        cuerpo: `${puesto}Liga nueva: todos desde 0 y grupo nuevo.`,
+        url: '/clasificacion/',
+      } : {
         titulo: entra ? `Entras en ${nombre(c.division)}` : sube ? `Subes a ${nombre(c.division)}` : `Bajas a ${nombre(c.division)}`,
         cuerpo: entra
-          ? 'Ya compites en un grupo de 20. Dos semanas para subir.'
+          ? 'Ya compites en un grupo. Dos semanas para subir.'
           : sube
-            ? `Acabaste ${c.puesto}.º de tu grupo. Dos semanas nuevas, rivales nuevos.`
-            : `Tienes dos semanas para recuperar ${nombre(c.desde)}.`,
+            ? `${puesto}Dos semanas nuevas, rivales nuevos.`
+            : `${puesto}Tienes dos semanas para recuperar ${nombre(c.desde)}.`,
         url: '/clasificacion/',
       });
       avisados += r.enviados || 0;

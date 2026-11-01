@@ -56,7 +56,8 @@ test('no haber tocado la preferencia no es haberla desactivado', () => {
   const usuario = conSuscripcion();
 
   assert.strictEqual(push.quiere(usuario, 'viajeResuelto'), true, 'por defecto si');
-  assert.strictEqual(push.quiere(usuario, 'cambioDivision'), false, 'por defecto no');
+  assert.strictEqual(push.quiere(usuario, 'cambioDivision'), true, 'el cierre de liga, por defecto si');
+  assert.strictEqual(push.quiere(usuario, 'tipoQueNoExiste'), false, 'lo que no se conoce, no');
 });
 
 test('apagar un tipo lo apaga de verdad', () => {

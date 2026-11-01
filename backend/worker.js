@@ -41,6 +41,7 @@ const {
 } = require('./src/util');
 const imagen = require('./src/imagen');
 const tienda = require('./src/tienda');
+const premiosQr = require('./src/premios-qr');
 const canjes = require('./src/canjes');
 const rutasDestacadas = require('./src/rutas-destacadas');
 const {
@@ -2963,6 +2964,16 @@ function avisarAdmin(asunto, cuerpo, enlace = null) {
  * activado), que es como se entera quien ya cerro la pagina. Nunca lanza.
  */
 async function resolverCanjes() {
+  try {
+    await premiosQr.procesarPremiosQr({
+      db, admin, simular: SIMULAR,
+      avisar: (uid) => push.enviar(uid, 'recompensa', {
+        titulo: '¡Premio de la pegatina!', cuerpo: 'Ya puedes ponértelo en tu perfil público.', url: '/yo/#perfil',
+      }, { simular: SIMULAR }),
+    });
+  } catch (error) {
+    console.warn('No se han podido sortear los premios de pegatina:', error.message);
+  }
   try {
     await canjes.procesarCanjes({
       db,

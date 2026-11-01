@@ -211,6 +211,12 @@ const WORKER = [
     detalle: 'TODOS los usuarios + los viajes sin decidir, para cerrar las rachas que se han roto',
   },
   {
+    nombre: 'caducarBancoRevision (UNA vez al dia, en el trabajo diario)',
+    veces: () => 1,
+    coste: () => 1,
+    detalle: 'una consulta de los casos revisados de hace mas de 24 meses, casi siempre vacia',
+  },
+  {
     nombre: 'clanes.limpiarDoblesMembresias y clanes.rescatarSinLider (UNA vez al dia)',
     veces: () => 1,
     // `limpiarDoblesMembresias` y `rescatarSinLider`, que hacen la misma pareja

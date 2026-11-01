@@ -2449,6 +2449,22 @@ async function avisarRevisionesLentas() {
  * pasada lo reintenta entero: las dos operaciones son idempotentes, asi que a
  * quien ya se proceso no le vuelve a pasar nada.
  */
+/**
+ * El banco de casos revisados a mano se guarda 24 meses (politica de
+ * privacidad, apartado 4). Una consulta al dia, casi siempre vacia.
+ */
+async function caducarBancoRevision() {
+  if (SIMULAR) return 0;
+  const caducados = await db.collection('banco_revision')
+    .where('creado', '<', admin.firestore.Timestamp.fromMillis(Date.now() - 730 * 864e5)).limit(100).get();
+  for (const d of caducados.docs) {
+    await db.doc(`banco_capturas/${d.id}`).delete();
+    await d.ref.delete();
+  }
+  if (caducados.size) console.log(`Banco de revisiones: ${caducados.size} caso(s) de hace mas de 24 meses borrados.`);
+  return caducados.size;
+}
+
 async function trabajoDiario() {
   const hoy = diaMadrid();
   // Un documento suelto bajo `config`, como `config/agregados_pendientes`. Solo
@@ -2475,6 +2491,8 @@ async function trabajoDiario() {
 
     const rescatados = await clanes.rescatarSinLider({ simular: SIMULAR });
     if (rescatados) console.log(`Clanes: ${rescatados} rescatado(s) de un lider inactivo.`);
+
+    await caducarBancoRevision();
 
     if (!SIMULAR) await ref.set({ ultimoDia: hoy }, { merge: true });
     return true;

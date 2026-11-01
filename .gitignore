@@ -107,3 +107,4 @@ ui-debug.log*
 
 # Lo que monta scripts/construir-sitio.js para GitHub Pages.
 _site/
+banco-revision/

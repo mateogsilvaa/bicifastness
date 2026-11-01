@@ -966,3 +966,13 @@ test('no se pueden subir viajes de antes del estreno (1 de noviembre de 2026)', 
   lote.set(doc(db, 'tiempos_viaje', `${UID}_antiguo`), viaje(UID, { fechaViaje: '2026-10-31' }));
   await assertFails(lote.commit());
 });
+
+test('el banco de casos revisados solo lo ve y lo escribe la administracion', async () => {
+  const admin = como('jefa', { admin: true });
+  await assertSucceeds(setDoc(doc(admin, 'banco_revision', 'v1'), { humana: { decision: 'aprobado' } }));
+  await assertSucceeds(setDoc(doc(admin, 'banco_capturas', 'v1'), { datos: 'data:image/png;base64,AAAA', creado: serverTimestamp() }));
+  await assertFails(setDoc(doc(admin, 'banco_capturas', 'v2'), { datos: 'x', uid: 'u' }));
+  await assertFails(getDoc(doc(como(UID), 'banco_revision', 'v1')));
+  await assertFails(getDoc(doc(como(UID), 'banco_capturas', 'v1')));
+  await assertFails(setDoc(doc(como(UID), 'banco_revision', 'v3'), { humana: { decision: 'aprobado' } }));
+});

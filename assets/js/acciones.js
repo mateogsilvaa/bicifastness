@@ -264,9 +264,28 @@ export async function solicitarBorradoCuenta(confirmacion) {
  * `recalculoPendiente` avisa al worker de que rehaga la clasificacion: hacerlo
  * desde el navegador costaria cientos de lecturas de la cuota diaria gratuita.
  */
-export async function resolverViaje(viajeId, accion, motivo = null) {
+export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje = null) {
   const aprobar = accion === 'aprobar';
   const lote = writeBatch(db);
+
+  // El banco de casos revisados: la captura y lo que decidio una persona, para
+  // poder afinar el verificador con casos reales (scripts/exportar-banco-revision.js).
+  // Sin uid ni nombre: para aprender basta con la imagen, lo declarado, lo que
+  // vio la maquina y lo que decidio la persona.
+  if (aprendizaje?.viaje) {
+    const v = aprendizaje.viaje;
+    const a = aprendizaje.auditoria || {};
+    lote.set(doc(db, 'banco_revision', viajeId), {
+      declarado: { ruta: v.ruta || null, tiempoSegundos: v.tiempoSegundos ?? null, fechaViaje: v.fechaViaje || null },
+      variante: v.varianteCaptura || a.varianteCaptura || null,
+      automatica: { decision: a.decision || null, riesgo: a.riesgo ?? null, señales: (a.señales || []).map((s) => ({ codigo: s.codigo, gravedad: s.gravedad })) },
+      lectura: a.lectura || null,
+      humana: { decision: aprobar ? 'aprobado' : 'rechazado', motivo: motivo || null },
+      conCaptura: Boolean(aprendizaje.captura),
+      creado: serverTimestamp(),
+    });
+    if (aprendizaje.captura) lote.set(doc(db, 'banco_capturas', viajeId), { datos: aprendizaje.captura, creado: serverTimestamp() });
+  }
 
   lote.update(doc(db, 'tiempos_viaje', viajeId), {
     estado: aprobar ? 'aprobado' : 'rechazado',

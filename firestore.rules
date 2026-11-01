@@ -501,6 +501,19 @@ service cloud.firestore {
     // En el plan Spark no hay Cloud Storage, asi que la imagen viaja aqui. Vive
     // en su propia coleccion, separada del viaje, para que el ranking no arrastre
     // megas de fotos en cada lectura y para poder cerrarla del todo.
+    // El banco de casos revisados a mano: la captura, lo que vio el verificador
+    // y lo que decidio una persona, para afinarlo con casos reales. Sin uid.
+    // Solo la administracion, que es quien decide.
+    match /banco_revision/{viajeId} {
+      allow read, create, update, delete: if esAdmin();
+    }
+    match /banco_capturas/{viajeId} {
+      allow read, delete: if esAdmin();
+      allow create, update: if esAdmin()
+        && datos().keys().hasOnly(['datos', 'creado'])
+        && datos().datos is string && datos().datos.size() < 750000;
+    }
+
     match /capturas/{viajeId} {
       // Ni siquiera su autor la relee: no le hace falta y asi no se puede raspar
       // la coleccion. La administracion la ve desde el panel.

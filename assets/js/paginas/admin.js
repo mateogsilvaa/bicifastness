@@ -237,11 +237,15 @@ function porQue(auditoria = {}) {
  * El cotejo y las señales viven en `auditorias/{viajeId}`, que solo lee la
  * administracion. Una lectura por caso revisado, y solo aqui.
  */
+/** Lo del caso abierto que se guarda para aprender al decidir (acciones.resolverViaje). */
+let aprendizaje = null;
+
 async function pintarAnalisis(viajeId, viaje, destino, etiquetas) {
   let auditoria = null;
   try {
     const snap = await getDoc(doc(db, 'auditorias', viajeId));
     auditoria = snap.exists() ? snap.data() : null;
+    if (aprendizaje?.viajeId === viajeId) aprendizaje.auditoria = auditoria || viaje.auditoria || null;
   } catch (error) {
     reemplazar(destino, el('p', { clase: 'meta', texto: `Sin análisis: ${error.message}` }));
     return;
@@ -350,9 +354,11 @@ function pintarCaso() {
     ]),
   ]));
 
+  aprendizaje = { viajeId, viaje, auditoria: null, captura: null };
   pintarAnalisis(viajeId, viaje, analisis, etiquetas);
   pintarHistorial(viaje.uid, historial);
   verCaptura(viajeId, viaje)
+    .then((datos) => { if (aprendizaje?.viajeId === viajeId) aprendizaje.captura = datos; return datos; })
     .then((datos) => reemplazar(marco, imagen(datos, {
       attrs: { alt: 'Captura del viaje' },
       titulo: 'Pulsa para verla a pantalla completa',
@@ -412,7 +418,7 @@ async function decidir(accion) {
   }
 
   try {
-    await resolverViaje(viajeId, accion, motivo);
+    await resolverViaje(viajeId, accion, motivo, aprendizaje?.viajeId === viajeId ? aprendizaje : null);
     cola = cola.filter((c) => c.id !== viajeId);
     pintarCola();
   } catch (error) {

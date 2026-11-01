@@ -447,9 +447,34 @@ test('un clan nuevo o con altas y bajas se recalcula sin esperar a un trayecto',
   const { clanesPorRecalcular } = require('../src/puntuacion');
   const r = clanesPorRecalcular([
     { id: 'nuevo', miembros: ['a'] },
-    { id: 'al-dia', miembros: ['a', 'b'], biciRating: 40, numMiembros: 2 },
-    { id: 'entro-uno', miembros: ['a', 'b', 'c'], biciRating: 40, numMiembros: 2 },
-    { id: 'repetido', miembros: ['a', 'a'], biciRating: 10, numMiembros: 1 },
+    { id: 'al-dia', miembros: ['a', 'b'], biciRating: 40, numMiembros: 2, plantillaPublicada: 'a,b|' },
+    { id: 'entro-uno', miembros: ['a', 'b', 'c'], biciRating: 40, numMiembros: 2, plantillaPublicada: 'a,b|' },
+    { id: 'repetido', miembros: ['a', 'a'], biciRating: 10, numMiembros: 1, plantillaPublicada: 'a|' },
+    // La web ya subio numMiembros al aceptar: el numero cuadra pero la ficha
+    // publica no tiene a 'c' (salia "Piloto").
+    { id: 'aceptado-en-web', miembros: ['a', 'c'], biciRating: 40, numMiembros: 2, plantillaPublicada: 'a|c' },
+    { id: 'sin-firma', miembros: ['a'], biciRating: 40, numMiembros: 1 },
   ]);
-  assert.deepStrictEqual(r, ['nuevo', 'entro-uno']);
+  assert.deepStrictEqual(r, ['nuevo', 'entro-uno', 'aceptado-en-web', 'sin-firma']);
+});
+
+test('quien entra en un clan recupera los viajes que no sumaron a nadie, una vez', () => {
+  const { miembrosNuevos, reclamable, firmaPlantilla } = require('../src/puntuacion');
+  assert.strictEqual(firmaPlantilla({ miembros: ['b', 'a', 'a'], solicitudes: ['c'] }), 'a,b|c');
+
+  // Con firma: solo los que no estaban, sin tope de fecha.
+  assert.deepStrictEqual(miembrosNuevos({ miembros: ['a', 'b', 'c'], plantillaPublicada: 'a,b|c' }), { uids: ['c'], hasta: null });
+  // Sin firma (la primera vez): todos, pero solo lo aprobado antes de fundarse.
+  const creado = { toMillis: () => 1000 };
+  assert.deepStrictEqual(miembrosNuevos({ miembros: ['a'], creado }), { uids: ['a'], hasta: 1000 });
+  assert.deepStrictEqual(miembrosNuevos({ miembros: ['a'] }), { uids: [], hasta: null });
+
+  const t = (ms) => ({ toMillis: () => ms });
+  const r = { desde: 100, hasta: null };
+  assert.strictEqual(reclamable({ revisadoEn: t(500) }, r), true);
+  assert.strictEqual(reclamable({ revisadoEn: t(500), territorioSumado: true }, r), false, 'ya sumo');
+  assert.strictEqual(reclamable({ revisadoEn: t(50) }, r), false, 'demasiado viejo');
+  assert.strictEqual(reclamable({}, r), false, 'sin fecha de aprobacion');
+  assert.strictEqual(reclamable({ revisadoEn: t(500) }, { desde: 100, hasta: 400 }), false, 'aprobado con el clan ya fundado');
+  assert.strictEqual(reclamable({ revisadoEn: t(300) }, { desde: 100, hasta: 400 }), true);
 });

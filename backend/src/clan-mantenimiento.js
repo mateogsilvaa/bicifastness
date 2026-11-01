@@ -198,6 +198,8 @@ async function aplicarInvitacion(codigo, uid, { simular = false, ahora = new Dat
     miembros: admin.firestore.FieldValue.arrayUnion(uid),
     solicitudes: admin.firestore.FieldValue.arrayRemove(uid),
     numMiembros: miembros.length + 1,
+    // La ficha publica del clan (nombres) se rehace en la siguiente pasada.
+    plantillaPendiente: true,
   });
   lote.update(refInvitacion, { usos: admin.firestore.FieldValue.increment(1) });
   lote.update(db().doc(`usuarios/${uid}`), { clanId });

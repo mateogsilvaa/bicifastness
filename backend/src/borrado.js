@@ -285,6 +285,7 @@ async function ejecutar(uid, { simular = false } = {}) {
         // acabaria buscando a alguien que ya no existe.
         oficiales: admin.firestore.FieldValue.arrayRemove(uid),
         numMiembros: admin.firestore.FieldValue.increment(-1),
+        plantillaPendiente: true,
       }).catch(() => {});   // el clan puede haberse disuelto
     }
 

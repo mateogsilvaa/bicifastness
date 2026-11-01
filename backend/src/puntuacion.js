@@ -235,7 +235,7 @@ async function recalcularClan(clanId) {
   // ponia cincuenta veces multiplicaba por cincuenta la nota del clan.
   const miembros = [...new Set((datosClan.miembros || []).filter((u) => typeof u === 'string' && u))];
   if (!miembros.length) {
-    await db().doc(`clanes/${clanId}`).set({ biciRating: 0, numMiembros: 0 }, { merge: true });
+    await db().doc(`clanes/${clanId}`).set({ biciRating: 0, numMiembros: 0, plantillaPublicada: firmaPlantilla(datosClan), plantillaPendiente: false }, { merge: true });
     await db().doc(`agregados/clan-${clanId}`).set(plantillaClanVacio(clanId, datosClan));
     return;
   }
@@ -255,7 +255,7 @@ async function recalcularClan(clanId) {
   }, 0);
 
   await db().doc(`clanes/${clanId}`).set(
-    { biciRating: total, numMiembros: miembros.length },
+    { biciRating: total, numMiembros: miembros.length, plantillaPublicada: firmaPlantilla(datosClan), plantillaPendiente: false },
     { merge: true }
   );
 
@@ -489,6 +489,14 @@ async function cargarViajesNuevos(viajeIds) {
   for (const clan of clanesSnap.docs) {
     for (const uid of clan.data().miembros || []) usuarios.push({ uid, clanId: clan.id });
   }
+  // Los que suman a un clan quedan marcados: asi el que entra en un clan
+  // despues recupera solo los que no contaron para nadie (`viajesSinTerritorio`).
+  const conClan = new Set(usuarios.map((u) => u.uid));
+  for (const v of viajes) {
+    if (!conClan.has(v.uid) || v.territorioSumado === true) continue;
+    await db().doc(`tiempos_viaje/${v.viajeId}`).update({ territorioSumado: true })
+      .catch((error) => console.warn(`  ${v.viajeId}: no se ha podido marcar el territorio:`, error.message));
+  }
   return { viajes, usuarios };
 }
 
@@ -644,14 +652,98 @@ async function estacionesParaElMapa(tocadas) {
 function clanesPorRecalcular(clanes) {
   return clanes.filter((c) => {
     const miembros = new Set((c.miembros || []).filter((u) => typeof u === 'string' && u)).size;
-    return typeof c.biciRating !== 'number' || (c.numMiembros ?? 0) !== miembros;
+    return typeof c.biciRating !== 'number' || (c.numMiembros ?? 0) !== miembros
+      // La web actualiza `numMiembros` al aceptar a alguien, asi que contar no
+      // basta: la ficha publica se quedaba sin el nuevo y salia "Piloto". Se
+      // compara la plantilla con la que se publico la ultima vez.
+      || firmaPlantilla(c) !== (typeof c.plantillaPublicada === 'string' ? c.plantillaPublicada : null)
+      || c.plantillaPendiente === true;
   }).map((c) => c.id);
 }
 
+/** Miembros y candidatos, ordenados: si cambia, hay que rehacer la ficha. */
+function firmaPlantilla(clan) {
+  const lista = (v) => [...new Set((v || []).filter((u) => typeof u === 'string' && u))].sort().join(',');
+  return `${lista(clan.miembros)}|${lista((clan.solicitudes || []).slice(0, 50))}`;
+}
+
+/**
+ * Los miembros que no estaban la ultima vez que se publico la plantilla, y
+ * hasta cuando valen sus viajes.
+ *
+ * Un clan que aun no tiene plantilla publicada (todos, la primera vez que corre
+ * esto) no sabe quien es nuevo: sus viajes de despues de fundarse ya sumaron
+ * al aprobarse, y contarlos otra vez seria doblarlos. Ahi solo valen los
+ * aprobados ANTES de que existiera el clan, que seguro que no sumaron para el.
+ *
+ * @returns {{ uids: string[], hasta: number|null }}  `hasta` en ms, o null sin tope
+ */
+function miembrosNuevos(clan) {
+  const miembros = [...new Set((clan.miembros || []).filter((u) => typeof u === 'string' && u))];
+  if (typeof clan.plantillaPublicada !== 'string') {
+    const creado = clan.creado?.toMillis?.() ?? Date.parse(clan.creado || '');
+    return Number.isFinite(creado) ? { uids: miembros, hasta: creado } : { uids: [], hasta: null };
+  }
+  const antes = new Set(clan.plantillaPublicada.split('|')[0].split(',').filter(Boolean));
+  return { uids: miembros.filter((u) => !antes.has(u)), hasta: null };
+}
+
+/**
+ * Los viajes de quien acaba de entrar en un clan que aun no sumaron al
+ * territorio de ninguno.
+ *
+ * Un viaje suma al dominio de sus estaciones UNA vez, al aprobarse, y para el
+ * clan que tenia el piloto en ese momento. Los que hizo antes de tener clan no
+ * contaban para nadie, y crear el clan despues no los recuperaba: "he estado
+ * en tres estaciones y mi clan tiene dos". Ahora cuentan una vez para el clan
+ * en el que entra. Solo los de los ultimos dias: la influencia decae, y lo
+ * viejo apenas pintaria.
+ */
+const DIAS_RECLAMABLES = 30;
+
+async function viajesSinTerritorio(uids, { hasta = null, ahora = Date.now() } = {}) {
+  const desde = ahora - DIAS_RECLAMABLES * 86400000;
+  const ids = [];
+  for (const uid of uids) {
+    const snap = await db().collection('tiempos_viaje')
+      .where('uid', '==', uid)
+      .where('verificado', '==', true)
+      .limit(200)
+      .get();
+    for (const d of snap.docs) {
+      if (reclamable(d.data(), { desde, hasta })) ids.push(d.id);
+    }
+  }
+  return ids;
+}
+
+/** Pura: ¿este viaje puede sumar ahora al clan nuevo? */
+function reclamable(v, { desde, hasta }) {
+  if (v.territorioSumado === true) return false;
+  const cuando = v.revisadoEn?.toMillis?.() ?? Date.parse(v.revisadoEn || '');
+  if (!Number.isFinite(cuando)) return false;
+  if (cuando < desde) return false;
+  if (hasta !== null && cuando >= hasta) return false;
+  return true;
+}
+
+/**
+ * ¿Ha marcado la web algun clan con la plantilla cambiada? Una lectura (una
+ * consulta vacia cuesta una). Es lo que hace que entrar en un clan se vea en
+ * su ficha aunque nadie suba un viaje.
+ */
+async function hayClanesPendientes() {
+  const snap = await db().collection('clanes').where('plantillaPendiente', '==', true).limit(1).get();
+  return !snap.empty;
+}
+
 /** Rehace esos clanes y deja el dato fresco en la lista para el ranking. */
-async function ponerAlDiaClanes(clanes) {
+async function ponerAlDiaClanes(clanes, estacionesTocadas = null) {
+  const nuevos = [];
   for (const id of clanesPorRecalcular(clanes)) {
     try {
+      const previo = clanes.find((c) => c.id === id);
+      if (previo) nuevos.push(miembrosNuevos(previo));
       await recalcularClan(id);
       const fresco = await db().doc(`clanes/${id}`).get();
       const i = clanes.findIndex((c) => c.id === id);
@@ -659,6 +751,21 @@ async function ponerAlDiaClanes(clanes) {
     } catch (error) {
       console.warn(`  clan ${id} no recalculado:`, error.message);
     }
+  }
+
+  // Lo que hicieron antes de entrar, al territorio del clan (una vez).
+  if (!nuevos.some((n) => n.uids.length)) return;
+  try {
+    const ids = [];
+    for (const { uids, hasta } of nuevos) ids.push(...await viajesSinTerritorio(uids, { hasta }));
+    if (!ids.length) return;
+    const { viajes, usuarios } = await cargarViajesNuevos(ids);
+    const estaciones = new Set(viajes.flatMap((v) => estacionesDe(v.ruta)));
+    await recalcularEstaciones(estaciones, { viajes, usuarios });
+    if (estacionesTocadas instanceof Set) for (const e of estaciones) estacionesTocadas.add(e);
+    console.log(`  territorio: ${ids.length} viaje(s) de miembros nuevos en ${estaciones.size} estacion(es).`);
+  } catch (error) {
+    console.warn('  territorio de miembros nuevos no sumado:', error.message);
   }
 }
 
@@ -671,7 +778,10 @@ async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas
 
   const clanesSnap = await db().collection('clanes').get();
   const clanes = clanesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  await ponerAlDiaClanes(clanes);
+  // Las estaciones que mueva (territorio de miembros nuevos) entran en el mapa.
+  const tocadas = estacionesTocadas ? new Set([...estacionesTocadas].map(String)) : null;
+  await ponerAlDiaClanes(clanes, tocadas);
+  estacionesTocadas = tocadas;
 
   if (!parcial) {
     const [{ viajes, usuarios }, estacionesSnap] = await Promise.all([
@@ -742,6 +852,10 @@ module.exports = {
   recalcularRuta,
   recalcularClan,
   clanesPorRecalcular,
+  firmaPlantilla,
+  hayClanesPendientes,
+  miembrosNuevos,
+  reclamable,
   recalcularEstacion,
   recalcularTrasCambio,
   recalcularEstaciones,

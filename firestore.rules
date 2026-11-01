@@ -99,6 +99,14 @@ service cloud.firestore {
       return datos().diff(previo()).affectedKeys();
     }
 
+    // Aviso al worker de que la plantilla de un clan ha cambiado (entra o sale
+    // alguien) y hay que rehacer su ficha publica: solo se puede ENCENDER. Lo
+    // apaga el worker, que no pasa por las reglas. Sin esto, la ficha se
+    // quedaba sin el nuevo (salia "Piloto") hasta que alguien subia un viaje.
+    function marcaPlantillaValida() {
+      return !('plantillaPendiente' in cambia()) || datos().plantillaPendiente == true;
+    }
+
     // --- Freno de escritura (#62) -------------------------------------------
     //
     // EL PROBLEMA. El cupo de tres viajes al dia lo comprueba el worker, o sea
@@ -712,10 +720,11 @@ service cloud.firestore {
       // identidad del clan.
       allow update: if esLider()
         && cambia().hasOnly([
-          'miembros', 'solicitudes', 'numMiembros',
+          'miembros', 'solicitudes', 'numMiembros', 'plantillaPendiente',
           'oficiales', 'lider', 'descripcion', 'color', 'emblema', 'siglas',
           'color2', 'patron', 'forma', 'zona', 'presentacion', 'tema', 'entrada',
         ])
+        && marcaPlantillaValida()
         && cabeAlguienMas()
         && soloEntraQuienLoPide()
         // La identidad (assets/js/escudo-clan.js). Este documento es publico:
@@ -729,7 +738,8 @@ service cloud.firestore {
 
       // --- Lo que puede un oficial ------------------------------------------
       allow update: if esOficial()
-        && cambia().hasOnly(['miembros', 'solicitudes', 'numMiembros'])
+        && cambia().hasOnly(['miembros', 'solicitudes', 'numMiembros', 'plantillaPendiente'])
+        && marcaPlantillaValida()
         && cabeAlguienMas()
         && soloEntraQuienLoPide()
         // No puede echar al lider, ni echarse a si mismo del cargo por esta via.
@@ -768,7 +778,8 @@ service cloud.firestore {
         && puedeUsarLaWeb()
         && cuentaActiva()
         && entradaDe(previo()) == 'libre'
-        && cambia().hasOnly(['miembros', 'numMiembros', 'solicitudes'])
+        && cambia().hasOnly(['miembros', 'numMiembros', 'solicitudes', 'plantillaPendiente'])
+        && marcaPlantillaValida()
         && !previo().miembros.hasAny([request.auth.uid])
         && datos().miembros == previo().miembros.concat([request.auth.uid])
         && cabeAlguienMas()
@@ -780,7 +791,8 @@ service cloud.firestore {
       // Irse del clan. Cualquiera puede, menos el lider: dejaria el clan sin
       // quien lo gestione. Antes tiene que ceder el mando o disolverlo.
       allow update: if autenticado()
-        && cambia().hasOnly(['miembros', 'numMiembros', 'oficiales'])
+        && cambia().hasOnly(['miembros', 'numMiembros', 'oficiales', 'plantillaPendiente'])
+        && marcaPlantillaValida()
         && previo().lider != request.auth.uid
         && previo().miembros.hasAny([request.auth.uid])
         && !datos().miembros.hasAny([request.auth.uid])

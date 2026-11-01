@@ -2370,7 +2370,7 @@ test('los tres papeles del clan pueden cosas distintas', () => {
 
 test('el lider no puede irse dejando el clan sin nadie al mando', () => {
   const clanes = bloque('clanes');
-  const salida = clanes.match(/allow update: if autenticado\(\)\s*&& cambia\(\)\.hasOnly\(\['miembros', 'numMiembros', 'oficiales'\]\)[\s\S]*?;/)[0];
+  const salida = clanes.match(/allow update: if autenticado\(\)\s*&& cambia\(\)\.hasOnly\(\['miembros', 'numMiembros', 'oficiales', 'plantillaPendiente'\]\)[\s\S]*?;/)[0];
 
   assert.match(salida, /previo\(\)\.lider != request\.auth\.uid/);
   // Y al irse solo se saca a si mismo.

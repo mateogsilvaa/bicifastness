@@ -336,6 +336,18 @@ async function leerPendientes() {
 }
 
 /**
+ * ¿Queda algo apuntado de una ejecucion anterior? Una lectura.
+ *
+ * Sin esto, lo que el limitador aplazaba solo se reconstruia cuando alguien
+ * movia otra cosa: con poco movimiento, la clasificacion se quedaba horas sin
+ * el viaje que ya se habia notificado.
+ */
+async function hayPendientes() {
+  const p = await leerPendientes();
+  return p.rutas.length > 0 || p.estaciones.length > 0 || p.pilotos.length > 0 || p.viajes.length > 0;
+}
+
+/**
  * Vacia la lista. Se llama DESPUES de reconstruir, no antes: si la
  * reconstruccion falla, lo apuntado sigue apuntado para el proximo intento.
  */
@@ -879,6 +891,7 @@ module.exports = {
   deEntradaDeMapa,
   PENDIENTES,
   tocaReconstruir,
+  hayPendientes,
   hayQueReconstruir,
   minutosEntreReconstrucciones,
   MINUTOS_ENTRE_RECONSTRUCCIONES,

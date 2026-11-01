@@ -176,7 +176,9 @@ test('una pasada sin rutas movidas sigue refrescando pilotos y clanes', async ()
   bd.reiniciarContador();
   await puntuacion.reconstruirAgregados(null, new Set());
 
-  assert.strictEqual(bd.leer('agregados/ranking-clanes').filas[0].nombre, 'Rojos renombrados');
+  // El nombre nuevo sale en el ranking. (El puesto no: los clanes sin la
+  // plantilla al dia se recalculan con los puntos reales de sus miembros.)
+  assert.ok(bd.leer('agregados/ranking-clanes').filas.some((f) => f.nombre === 'Rojos renombrados'));
   assert.ok(bd.coste.lecturas < 100, `${bd.coste.lecturas} lecturas para no mover ninguna ruta`);
   assert.strictEqual(bd.leer('agregados/rutas').rutas.length, RUTAS.length);
 });

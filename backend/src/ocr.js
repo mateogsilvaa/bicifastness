@@ -230,6 +230,44 @@ function extraerHoras(texto) {
  * Numeros de estacion. En la app el formato es "Numero - Nombre (Numero)", que
  * ya venia contemplado en el prompt de la IA y sigue siendo cierto.
  */
+// El catalogo de estaciones, para corregir un numero mal leido con el nombre
+// que lo acompaña. Opcional: sin el, se devuelve lo leido tal cual.
+let CATALOGO = null;
+function catalogo() {
+  if (CATALOGO === null) {
+    try { CATALOGO = require('../lib/estaciones.json'); } catch { CATALOGO = {}; }
+  }
+  return CATALOGO;
+}
+const plano = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ]+/g, ' ').trim();
+const nombreDeEstacion = (n) => {
+  const c = catalogo();
+  return (c[n] || c[String(n).padStart(3, '0')] || c[String(n).replace(/^0+/, '')] || {}).nombre || '';
+};
+/** ¿Lo leido junto al numero ("Metro Arganzuela -") es el nombre de esa estacion? */
+function nombreEncaja(leido, nombre) {
+  const palabras = plano(leido).split(' ').filter((p) => p.length >= 4);
+  if (!palabras.length || !nombre) return null;
+  const completo = plano(nombre);
+  return palabras.every((p) => completo.includes(p));
+}
+
+/**
+ * El OCR confunde a veces una cifra (un 8 leido como 3: "263" por "268"). Si el
+ * nombre que acompaña al numero NO es el de esa estacion pero si el de otra
+ * cuyo numero solo cambia en una cifra, el numero bueno es ese. Si el nombre
+ * no se lee o encaja con lo leido, no se toca nada.
+ */
+function corregirConNombre(numero, nombreLeido) {
+  if (nombreEncaja(nombreLeido, nombreDeEstacion(numero)) !== false) return numero;
+  const n = String(numero).replace(/^0+/, '');
+  const candidatas = Object.keys(catalogo())
+    .map((k) => k.replace(/^0+/, ''))
+    .filter((k) => k.length === n.length && [...k].filter((c, i) => c !== n[i]).length === 1)
+    .filter((k) => nombreEncaja(nombreLeido, nombreDeEstacion(k)));
+  return candidatas.length === 1 ? candidatas[0] : numero;
+}
+
 function extraerEstaciones(texto) {
   texto = corregirCifras(texto);
   // Solo el "(124)" que cierra "124 - Nombre (124)": un parentesis suelto (el
@@ -240,7 +278,8 @@ function extraerEstaciones(texto) {
   // Respaldo: numero al principio de linea seguido de guion.
   // El punto azul de delante sale como "9", "O", "Q" o "€" ("9 110 - Moncloa"),
   // y una fecha "17-04-2026" no es la estacion 17.
-  const alPrincipio = [...texto.matchAll(/^\s*(?:[^\w\s]\s*|[A-Za-z0-9]\s+)?(\d{1,3})\s*[-–]\s*(?!\d{1,2}\s*[-–/.]\s*\d)\S/gm)].map((m) => m[1]);
+  const alPrincipio = [...texto.matchAll(/^\s*(?:[^\w\s]\s*|[A-Za-z0-9]\s+)?(\d{1,3})\s*[-–]\s*(?!\d{1,2}\s*[-–/.]\s*\d)(\S[^\n]*)/gm)]
+    .map((m) => corregirConNombre(m[1], m[2]));
   // Una linea sola con su "(124)": la lectura por lineas de extraerTrayectos.
   if (alPrincipio.length) return alPrincipio;
   if (conParentesis.length) return conParentesis;
@@ -620,7 +659,18 @@ function elegirTrayecto(lectura, ruta, { tiempoSegundos = null, fecha = '' } = {
   const coste = (t) => (fecha && t.fecha && t.fecha !== fecha ? 1e6 : 0)
     + (Number.isFinite(tiempoSegundos) && Number.isFinite(t.segundosDuracion) ? Math.abs(t.segundosDuracion - tiempoSegundos) : 0);
   const encaja = deLaRuta.sort((x, y) => coste(x) - coste(y))[0];
-  return { ...lectura, ...(encaja || trayectos[0]) };
+  if (encaja) return { ...lectura, ...encaja };
+  // Ninguno es exactamente la ruta: el que MAS se le parece (una estacion
+  // bien, la otra con una cifra mal leida, la misma duracion), no el primero.
+  // Antes se cogia el primero, y un 8 leido como 3 en el viaje bueno hacia que
+  // se comparara lo declarado con OTRO viaje de la captura.
+  const unaCifra = (a, b) => a.length === b.length && [...a].filter((c, i) => c !== b[i]).length <= 1;
+  const parecido = (t) => {
+    const o = sinCeros(t.origen); const d = sinCeros(t.destino);
+    const estaciones = (o === origen ? 0 : unaCifra(o, origen) ? 200 : 2000) + (d === destino ? 0 : unaCifra(d, destino) ? 200 : 2000);
+    return estaciones + coste(t);
+  };
+  return { ...lectura, ...[...trayectos].sort((x, y) => parecido(x) - parecido(y))[0] };
 }
 
 /**

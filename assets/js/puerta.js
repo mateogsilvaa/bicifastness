@@ -323,31 +323,38 @@ function pintarObras({ mensaje, usuario }) {
   vigilar(capa);
 }
 
-const CLAVE_ABIERTA = 'bf_web_abierta';
-const HORAS_ABIERTA = 12;
-function abiertaHacePoco() {
-  try { return Date.now() - Number(localStorage.getItem(CLAVE_ABIERTA) || 0) < HORAS_ABIERTA * 3600 * 1000; } catch { return false; }
+// La ultima vez que este navegador miro, ¿estaba la web en obras? Solo
+// entonces se tapa la pagina mientras se comprueba.
+const CLAVE_OBRAS = 'bf_web_en_obras';
+function vistaEnObras() {
+  try { return localStorage.getItem(CLAVE_OBRAS) === '1'; } catch { return false; }
 }
-function recordarAbierta() { try { localStorage.setItem(CLAVE_ABIERTA, String(Date.now())); } catch { /* se tapara la proxima vez */ } }
-function olvidarAbierta() { try { localStorage.removeItem(CLAVE_ABIERTA); } catch { /* nada que olvidar */ } }
+function recordarObras(si) {
+  try {
+    if (si) localStorage.setItem(CLAVE_OBRAS, '1');
+    else localStorage.removeItem(CLAVE_OBRAS);
+  } catch { /* sin almacenamiento: no se tapa, y la comprobacion sigue */ }
+}
 
 /** La llama `iniciarPagina`. No bloquea nada mientras la web este abierta. */
 export async function comprobarAcceso() {
   if (LIBRES.some((r) => r.test(window.location.pathname))) return;
-  // Sin saber aun si la web esta en obras (o sabiendo que si), la pagina se
-  // tapa YA: si no, se ve un instante antes de que llegue la respuesta. Solo
-  // se enseña sin esperar cuando hace poco se ha visto abierta.
-  // Se mira igual (la misma lectura de siempre), pero si en las ultimas horas
-  // se vio abierta no se tapa la pagina mientras tanto: taparla en cada
-  // pestaña nueva era esperar a App Check y a una lectura antes de ver nada.
-  if (guardado()?.modo !== 'abierta' && !abiertaHacePoco()) document.documentElement.classList.add('acceso-pendiente');
+  // La pagina solo se tapa mientras se comprueba si la ultima vez se vio en
+  // obras. Antes se tapaba siempre que no se hubiera visto abierta en las
+  // ultimas 12 horas, o sea en TODA primera visita: nadie veia nada hasta
+  // cargar reCAPTCHA, sacar el token de App Check y leer `config/acceso`,
+  // varios segundos en un movil. Con la web abierta eso era pura espera.
+  // Lo que se pierde: si se cierra la web, quien no la haya visto cerrada
+  // puede ver la pagina un instante antes de las obras. Lo que protege de
+  // verdad (subir, registrarse, clanes) son las reglas, no esta pantalla.
+  if (guardado()?.modo === 'obras' || vistaEnObras()) document.documentElement.classList.add('acceso-pendiente');
   const { modo, mensaje } = await leerModo();
   if (modo !== 'obras') {
-    recordarAbierta();
+    recordarObras(false);
     document.documentElement.classList.remove('acceso-pendiente');
     return;
   }
-  olvidarAbierta();
+  recordarObras(true);
   // En obras se tapa la pagina mientras se comprueba, para no enseñarla.
   document.documentElement.classList.add('acceso-pendiente');
   const usuario = await usuarioActual();

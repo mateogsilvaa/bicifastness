@@ -5093,3 +5093,5 @@ body.con-tutorial { overflow: hidden; }
 .form-inventado { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 0 14px; align-items: end; }
 .form-inventado .btn { width: auto; }
 .form-inventado .mensaje { grid-column: 1 / -1; }
+
+.pasos-integrado { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }

@@ -56,7 +56,7 @@ export function abrirHojaSubir() {
 
   const selector = el('input', {
     clase: 'solo-lectores',
-    attrs: { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/*', multiple: '', tabindex: '-1', 'aria-hidden': 'true' },
+    attrs: { type: 'file', accept: 'image/*', multiple: '', tabindex: '-1', 'aria-hidden': 'true' },
   });
   selector.addEventListener('change', () => { if (selector.files?.length) irASubirCon([...selector.files]); });
 

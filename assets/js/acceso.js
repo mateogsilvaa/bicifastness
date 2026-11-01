@@ -14,6 +14,7 @@ import { anotar, volcar } from './metricas.js';
 import { registrar } from './errores.js';
 import { destinoTrasEntrar } from './canje-pendiente.js';
 import { guardarGooglePendiente } from './vincular-google.js';
+import { esNavegadorIntegrado, explicarNavegadorIntegrado } from './navegador-integrado.js';
 
 /** Lo que hace la persona, no un fallo: no se apunta como error. */
 const DE_LA_PERSONA = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/popup-blocked']);
@@ -27,6 +28,9 @@ const DE_LA_PERSONA = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popu
  */
 export function montarBotonGoogle(boton, mensaje, { alEmpezar, alFallar } = {}) {
   boton.addEventListener('click', async () => {
+    // Dentro de Instagram y similares Google no deja entrar: se explica que
+    // hacer en vez de dejar que falle con un error de ventanas emergentes.
+    if (esNavegadorIntegrado()) { explicarNavegadorIntegrado(); return; }
     boton.disabled = true;
     estado(mensaje, '');
     alEmpezar?.();
@@ -59,6 +63,9 @@ export function montarBotonGoogle(boton, mensaje, { alEmpezar, alFallar } = {}) 
         }
         return;
       }
+      // La ventana de Google no se ha podido abrir: casi siempre es un
+      // navegador integrado que no reconocemos. Se explica igual, sin asustar.
+      if (error?.code === 'auth/popup-blocked') { explicarNavegadorIntegrado(); return; }
       estado(mensaje, traducirErrorAuth(error), 'error');
       // Que llegue al panel de errores con su codigo: "Google no funciona" sin
       // codigo no se puede arreglar. Solo el codigo y el mensaje de Firebase,

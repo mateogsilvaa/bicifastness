@@ -35,6 +35,11 @@ function distanciaCalleMetros(idOrigen, idDestino) {
   const a = buscarEstacion(idOrigen);
   const b = buscarEstacion(idDestino);
   if (!a || !b) return null;
+  // La distancia ciclable real, si esta en la tabla (scripts/build-distancias.js):
+  // la estimacion se pasa en los tramos directos y daba velocidades
+  // "sospechosas" a viajes normales.
+  const real = require('./distancias').resolver(idOrigen, idDestino);
+  if (real && !real.estimada) return real.metros;
   return distanciaMetros(a, b) * FISICA.FACTOR_CALLEJERO;
 }
 
@@ -72,7 +77,7 @@ function comprobarFisica({ ruta, tiempoSegundos }) {
   // estimacion por calle (recta x 1,35) es una suposicion, y un rechazo
   // automatico no puede apoyarse en una suposicion. Para "sospechosa" (que va
   // a una persona) si vale la estimacion.
-  const recta = metros / FISICA.FACTOR_CALLEJERO;
+  const recta = distanciaMetros(buscarEstacion(origen), buscarEstacion(destino));
   const kmhMinimo = velocidadKmh(Math.max(0, recta - FISICA.MARGEN_POSICION_METROS), tiempoSegundos);
 
   if (kmhMinimo !== null && kmhMinimo > FISICA.VELOCIDAD_IMPOSIBLE_KMH) {

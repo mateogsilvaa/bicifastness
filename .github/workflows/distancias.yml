@@ -1,0 +1,62 @@
+name: Distancias reales
+
+# Calcula la distancia ciclable real (OSRM) de los pares de estaciones que la
+# gente recorre y la deja en backend/lib/distancias.json, que usan los puntos y
+# el verificador (backend/src/distancias.js). Reanudable: lo ya calculado no se
+# vuelve a pedir, asi que cada vez solo pregunta por los pares nuevos.
+#
+# Sube el fichero directamente a main: es un dato generado, no codigo, y el
+# worker lo lee en su siguiente ejecucion. Un push con GITHUB_TOKEN no dispara
+# otros workflows, asi que no redespliega la web (no le hace falta).
+
+on:
+  workflow_dispatch:
+  schedule:
+    # El dia 2 de cada mes, de madrugada en Madrid.
+    - cron: '20 3 2 * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: distancias
+  cancel-in-progress: false
+
+jobs:
+  calcular:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del worker (firebase-admin)
+        working-directory: backend
+        run: npm ci
+
+      - name: Regenerar estaciones
+        run: node scripts/build-estaciones.js
+
+      - name: Calcular
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/build-distancias.js --firestore
+
+      - name: Subir la tabla si ha cambiado
+        run: |
+          git add backend/lib/distancias.json
+          if git diff --cached --quiet; then
+            echo "Sin pares nuevos."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Distancias reales: $(node -e "console.log(Object.keys(require('./backend/lib/distancias.json')).length)") pares"
+          git push origin HEAD:main

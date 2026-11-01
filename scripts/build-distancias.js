@@ -81,15 +81,31 @@ function firestore() {
   return admin.firestore();
 }
 
-/** Los pares que ya se han recorrido de verdad. Requiere credenciales. */
+/**
+ * Los pares que ya se han recorrido de verdad, en los dos sentidos (la vuelta
+ * es la ruta mas probable despues de la ida). Requiere credenciales.
+ *
+ * Tambien los de antes del reinicio (`archivo_reinicio`): son las rutas que la
+ * gente hace de verdad, aunque esos viajes ya no cuenten.
+ */
 async function rutasDeFirestore() {
-  const snapshot = await firestore().collection('tiempos_viaje').select('ruta').get();
+  const db = firestore();
+  const [actuales, archivados] = await Promise.all([
+    db.collection('tiempos_viaje').select('ruta').get(),
+    db.collection('archivo_reinicio').where('coleccion', '==', 'tiempos_viaje').select('ruta').get()
+      .catch(() => ({ docs: [] })),
+  ]);
 
   const rutas = new Set();
-  for (const doc of snapshot.docs) {
+  for (const doc of [...actuales.docs, ...archivados.docs]) {
     const ruta = doc.data().ruta;
-    if (typeof ruta === 'string' && ruta.includes('-')) rutas.add(ruta);
+    if (typeof ruta !== 'string' || !ruta.includes('-')) continue;
+    const [a, b] = ruta.split('-').map(normalizar);
+    if (!ESTACIONES[a] || !ESTACIONES[b] || a === b) continue;
+    rutas.add(`${a}-${b}`);
+    rutas.add(`${b}-${a}`);
   }
+  console.log(`${actuales.docs.length} viajes y ${archivados.docs.length} archivados: ${rutas.size} pares (ida y vuelta).`);
   return [...rutas];
 }
 

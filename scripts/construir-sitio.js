@@ -27,6 +27,7 @@
  *   node scripts/construir-sitio.js --cerrada    # forzar obras (pruebas)
  */
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -137,11 +138,16 @@ function construir({ destino = path.join(RAIZ, '_site'), abierta = abiertaSegunE
 //
 //   1. Cada pagina declara en <head> TODOS los modulos que va a necesitar
 //      (`modulepreload`), asi que se piden a la vez desde el principio.
-//   2. Cada modulo y el CSS llevan la version en la URL (`?v=<commit>`). Una
+//   2. Cada modulo y el CSS llevan una version en la URL (`?v=<huella>`). Una
 //      URL con version nunca cambia de contenido, y el service worker la sirve
-//      de su cache sin preguntar: volver a abrir la app no espera a la red. Al
-//      publicar otra version cambian todas las URLs a la vez, asi que nunca se
-//      mezclan modulos de dos despliegues.
+//      de su cache sin preguntar: volver a abrir la app no espera a la red.
+//
+//      La huella sale del CONTENIDO del modulo y de todo lo que importa, no
+//      del commit. Con el commit, cada despliegue cambiaba todas las URLs a la
+//      vez y quien volvia se bajaba la web entera como la primera vez; con diez
+//      despliegues al dia, la web siempre iba como recien abierta. Ahora solo
+//      cambia lo tocado y lo que lo importa. Y como la huella de un modulo
+//      incluye la de sus imports, sigue sin mezclarse codigo de dos versiones.
 
 const ORIGEN_FIREBASE = 'https://www.gstatic.com';
 
@@ -203,8 +209,58 @@ function ficheros(dir, extension, lista = []) {
   return lista;
 }
 
+/**
+ * La huella de cada modulo y de cada CSS publicados: su contenido mas el de
+ * todo lo que importa (estatico o dinamico), recorrido entero. Con ciclos
+ * tambien vale: el conjunto alcanzable es el mismo empiece donde empiece.
+ */
+const VERSION_JS = '/assets/data/version.js';
+
+function huellas(destino) {
+  const raiz = path.join(destino, 'assets');
+  const contenido = new Map();
+  const deps = new Map();
+  for (const js of ficheros(raiz, '.js')) {
+    if (js.includes(`${path.sep}vendor${path.sep}`)) continue;
+    const ruta = `/${path.relative(destino, js).split(path.sep).join('/')}`;
+    const codigo = fs.readFileSync(js, 'utf8');
+    contenido.set(ruta, crypto.createHash('sha1').update(codigo).digest('hex'));
+    const lista = [];
+    for (const [, , , especificador] of codigo.matchAll(IMPORTS_PROPIOS)) {
+      lista.push(especificador.startsWith('/')
+        ? especificador
+        : path.posix.normalize(path.posix.join(path.posix.dirname(ruta), especificador)));
+    }
+    deps.set(ruta, lista);
+  }
+  const resultado = new Map();
+  for (const ruta of contenido.keys()) {
+    const vistos = new Set();
+    const pila = [ruta];
+    while (pila.length) {
+      const r = pila.pop();
+      if (vistos.has(r) || !contenido.has(r)) continue;
+      vistos.add(r);
+      // version.js cambia en CADA despliegue (scripts/build-version.js) y lo
+      // importan errores.js y metricas.js, que van en todas las paginas: si
+      // contara, volveriamos a cambiar todas las URLs cada vez. Es solo una
+      // etiqueta para los errores; que vaya una version atrasada no rompe nada.
+      pila.push(...deps.get(r).filter((d) => d !== VERSION_JS));
+    }
+    const h = crypto.createHash('sha1');
+    for (const r of [...vistos].sort()) h.update(`${r}:${contenido.get(r)}\n`);
+    resultado.set(ruta, h.digest('hex').slice(0, 10));
+  }
+  for (const css of ficheros(raiz, '.css')) {
+    const ruta = `/${path.relative(destino, css).split(path.sep).join('/')}`;
+    resultado.set(ruta, crypto.createHash('sha1').update(fs.readFileSync(css)).digest('hex').slice(0, 10));
+  }
+  return resultado;
+}
+
 function optimizar(destino, version) {
-  const conVersion = (ruta) => `${ruta}?v=${version}`;
+  const mapa = huellas(destino);
+  const conVersion = (ruta) => `${ruta}?v=${mapa.get(ruta) || version}`;
 
   // 1. Las precargas, calculadas sobre el codigo tal cual (antes de versionar).
   const precargas = new Map();
@@ -255,6 +311,9 @@ function optimizar(destino, version) {
   if (fs.existsSync(sw)) {
     const codigo = fs.readFileSync(sw, 'utf8')
       .replace(/const CACHE = '([^']+)';/, (_, nombre) => `const CACHE = '${nombre}-${version}';`)
+      // Las URLs con version de este despliegue: al activarse, el service
+      // worker borra de su cache estable las que ya no se usan.
+      .replace(/const VIGENTES = \[\];/, `const VIGENTES = ${JSON.stringify([...mapa].map(([r]) => conVersion(r)))};`)
       .replace(/'(\/assets\/[^'?]+\.(?:js|css))'/g, (_, ruta) => `'${conVersion(ruta)}'`);
     fs.writeFileSync(sw, codigo);
   }

@@ -13,6 +13,23 @@
 
 const CACHE = 'bicifastness-v9';
 
+/**
+ * Los recursos (modulos, CSS, imagenes, fuente), en una cache que NO se tira
+ * con cada despliegue. Antes iban en `CACHE`, que cambia de nombre con cada
+ * version y se borra entera al activarse: tras cada despliegue, quien volvia
+ * se bajaba la web completa como la primera vez. Los modulos llevan la huella
+ * de su contenido en la URL (scripts/construir-sitio.js), asi que lo que no ha
+ * cambiado se sigue sirviendo de aqui.
+ */
+const ESTABLE = 'bicifastness-recursos';
+
+/**
+ * Las URLs con version del despliegue actual (las rellena
+ * scripts/construir-sitio.js). Al activarse se borran de `ESTABLE` las que ya
+ * no estan, para que la cache no crezca sin fin. Vacia en local: no se poda.
+ */
+const VIGENTES = [];
+
 // Pagina que se sirve cuando no hay red y la ruta pedida no esta cacheada.
 const OFFLINE = '/offline/';
 
@@ -53,7 +70,12 @@ self.addEventListener('install', (evento) => {
     caches.open(CACHE)
       // addAll falla entero si un solo recurso falla; con allSettled la
       // instalacion no se cae porque un fichero no este todavia publicado.
-      .then((cache) => Promise.allSettled(ESTATICOS.map((url) => cache.add(url))))
+      // Lo que lleva version y ya esta en la cache estable no se vuelve a bajar.
+      .then((cache) => Promise.allSettled(ESTATICOS.map(async (url) => {
+        if (!url.includes('?v=')) return cache.add(url);
+        if (await caches.match(url)) return undefined;
+        return (await caches.open(ESTABLE)).add(url);
+      })))
       .then(() => self.skipWaiting())
   );
 });
@@ -62,8 +84,9 @@ self.addEventListener('activate', (evento) => {
   evento.waitUntil(
     caches.keys()
       .then((nombres) => Promise.all(
-        nombres.filter((n) => n !== CACHE).map((n) => caches.delete(n))
+        nombres.filter((n) => n !== CACHE && n !== ESTABLE).map((n) => caches.delete(n))
       ))
+      .then(podarEstable)
       .then(() => self.clients.claim())
   );
 });
@@ -139,7 +162,19 @@ self.addEventListener('fetch', (evento) => {
 async function cachePrimero(peticion) {
   const cacheada = await caches.match(peticion);
   if (cacheada) return cacheada;
-  return guardar(peticion, await fetch(peticion));
+  return guardar(peticion, await fetch(peticion), ESTABLE);
+}
+
+/** Quita de la cache estable las URLs con version que ya no usa nadie. */
+async function podarEstable() {
+  if (!VIGENTES.length) return;
+  const vigentes = new Set(VIGENTES);
+  const cache = await caches.open(ESTABLE);
+  for (const peticion of await cache.keys()) {
+    const url = new URL(peticion.url);
+    const codigo = /\.(?:js|css)$/i.test(url.pathname);
+    if (codigo && url.searchParams.has('v') && !vigentes.has(url.pathname + url.search)) await cache.delete(peticion);
+  }
 }
 
 /**
@@ -176,10 +211,10 @@ async function recibirCompartida(peticion) {
 }
 
 /** Guarda una respuesta si vale la pena. */
-function guardar(peticion, respuesta) {
+function guardar(peticion, respuesta, nombre = CACHE) {
   if (!respuesta.ok || respuesta.type !== 'basic') return respuesta;
   const copia = respuesta.clone();
-  caches.open(CACHE).then((cache) => cache.put(peticion, copia));
+  caches.open(nombre).then((cache) => cache.put(peticion, copia));
   return respuesta;
 }
 
@@ -205,7 +240,7 @@ async function redPrimero(peticion) {
 function cacheRapido(peticion) {
   return caches.match(peticion).then((cacheada) => {
     const red = fetch(peticion)
-      .then((respuesta) => guardar(peticion, respuesta))
+      .then((respuesta) => guardar(peticion, respuesta, ESTABLE))
       .catch(() => cacheada);
 
     return cacheada || red;

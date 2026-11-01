@@ -216,12 +216,17 @@ function ficheros(dir, extension, lista = []) {
  */
 const VERSION_JS = '/assets/data/version.js';
 
+// Se cambia si alguna vez se publica un modulo mal construido con una huella
+// que ya esta en las caches: cambia todas las URLs de golpe. La 2 es por el
+// despliegue que dejo imports relativos con la version del commit.
+const SAL_HUELLAS = 'huellas-2';
+
 function huellas(destino) {
   const raiz = path.join(destino, 'assets');
   const contenido = new Map();
   const deps = new Map();
+  // Tambien vendor: su codigo no se reescribe, pero se importa con huella.
   for (const js of ficheros(raiz, '.js')) {
-    if (js.includes(`${path.sep}vendor${path.sep}`)) continue;
     const ruta = `/${path.relative(destino, js).split(path.sep).join('/')}`;
     const codigo = fs.readFileSync(js, 'utf8');
     contenido.set(ruta, crypto.createHash('sha1').update(codigo).digest('hex'));
@@ -247,20 +252,28 @@ function huellas(destino) {
       // etiqueta para los errores; que vaya una version atrasada no rompe nada.
       pila.push(...deps.get(r).filter((d) => d !== VERSION_JS));
     }
-    const h = crypto.createHash('sha1');
+    const h = crypto.createHash('sha1').update(SAL_HUELLAS);
     for (const r of [...vistos].sort()) h.update(`${r}:${contenido.get(r)}\n`);
     resultado.set(ruta, h.digest('hex').slice(0, 10));
   }
   for (const css of ficheros(raiz, '.css')) {
     const ruta = `/${path.relative(destino, css).split(path.sep).join('/')}`;
-    resultado.set(ruta, crypto.createHash('sha1').update(fs.readFileSync(css)).digest('hex').slice(0, 10));
+    resultado.set(ruta, crypto.createHash('sha1').update(SAL_HUELLAS).update(fs.readFileSync(css)).digest('hex').slice(0, 10));
   }
   return resultado;
 }
 
 function optimizar(destino, version) {
   const mapa = huellas(destino);
-  const conVersion = (ruta) => `${ruta}?v=${mapa.get(ruta) || version}`;
+  // `ruta` es absoluta (/assets/...). Un modulo SIN huella es un error de
+  // construccion, no algo que arreglar con otra version: si el mismo fichero
+  // se pidiera con dos versiones distintas, el navegador lo ejecutaria dos
+  // veces (dos Firebase, dos caches de Firestore peleando por IndexedDB) y la
+  // web se quedaria colgada. Ya paso con los imports relativos.
+  const conVersion = (ruta) => {
+    if (!mapa.has(ruta)) throw new Error(`Sin huella: ${ruta}`);
+    return `${ruta}?v=${mapa.get(ruta)}`;
+  };
 
   // 1. Las precargas, calculadas sobre el codigo tal cual (antes de versionar).
   const precargas = new Map();
@@ -274,7 +287,14 @@ function optimizar(destino, version) {
   for (const js of ficheros(path.join(destino, 'assets'), '.js')) {
     if (js.includes(`${path.sep}vendor${path.sep}`)) continue;
     const codigo = fs.readFileSync(js, 'utf8');
-    const nuevo = codigo.replace(IMPORTS_PROPIOS, (_, antes, comilla, ruta) => `${antes}${comilla}${conVersion(ruta)}${comilla}`);
+    const propia = `/${path.relative(destino, js).split(path.sep).join('/')}`;
+    // El especificador se deja como esta (relativo o absoluto); la huella se
+    // busca por la ruta absoluta, que es la misma que usan el HTML y las
+    // precargas. Asi cada modulo tiene UNA sola URL en todo el sitio.
+    const nuevo = codigo.replace(IMPORTS_PROPIOS, (_, antes, comilla, ruta) => {
+      const absoluta = ruta.startsWith('/') ? ruta : path.posix.normalize(path.posix.join(path.posix.dirname(propia), ruta));
+      return `${antes}${comilla}${ruta}?v=${conVersion(absoluta).split('?v=')[1]}${comilla}`;
+    });
     if (nuevo !== codigo) fs.writeFileSync(js, nuevo);
   }
 

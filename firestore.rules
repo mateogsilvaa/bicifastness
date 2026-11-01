@@ -1073,6 +1073,18 @@ service cloud.firestore {
         && datos().creado == request.time;
     }
 
+    // Premio de las pegatinas (assets/js/premio-qr.js): una peticion por cuenta,
+    // para siempre. El sorteo lo hace el worker (backend/src/premios-qr.js).
+    match /premios_qr/{uid} {
+      allow read: if esYo(uid) || esAdmin();
+      allow create: if esYo(uid)
+        && datos().keys().hasOnly(['estado', 'creado'])
+        && datos().estado == 'pendiente'
+        && datos().creado == request.time
+        && puedeUsarLaWeb() && cuentaActiva();
+      allow update, delete: if false;
+    }
+
     match /canjes_gemas/{uid} {
       allow read: if esYo(uid) || esAdmin();
       allow create: if esYo(uid) && canjeGemasValido() && puedeUsarLaWeb() && cuentaActiva();

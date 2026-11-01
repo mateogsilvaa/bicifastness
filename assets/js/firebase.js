@@ -234,7 +234,7 @@ export function traducirErrorAuth(error) {
     // Los del popup de Google.
     'auth/popup-closed-by-user': 'Has cerrado la ventana de Google antes de terminar.',
     'auth/cancelled-popup-request': 'Has cerrado la ventana de Google antes de terminar.',
-    'auth/popup-blocked': 'El navegador ha bloqueado la ventana de Google. Permite las ventanas emergentes para esta web y vuelve a pulsar.',
+    'auth/popup-blocked': 'No se ha podido abrir Google desde aquí. Abre la web en Safari o Chrome, o entra con tu correo.',
     'auth/account-exists-with-different-credential': 'Ese correo ya tiene cuenta con contrasena. Entra con tu correo y tu contrasena.',
     // Estos dos son de configuracion, no de la persona: Google sin activar en
     // la consola, o el dominio sin autorizar. Ver docs/PUESTA-EN-MARCHA.md.

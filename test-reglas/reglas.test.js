@@ -986,3 +986,11 @@ test('la actividad por usuario: cada uno la suya, con topes, y solo la lee la ad
   await assertFails(getDoc(ref));
   await assertSucceeds(getDoc(doc(como('jefa', { admin: true }), 'actividad', `${dia}_${UID}`)));
 });
+
+test('el premio de pegatina se pide una vez y lo decide el worker', async () => {
+  const ref = doc(como(UID), 'premios_qr', UID);
+  await assertSucceeds(setDoc(ref, { estado: 'pendiente', creado: serverTimestamp() }));
+  await assertFails(setDoc(ref, { estado: 'pendiente', creado: serverTimestamp() }), 'solo una vez');
+  await assertFails(setDoc(doc(como(OTRO), 'premios_qr', OTRO), { estado: 'resuelto', creado: serverTimestamp() }));
+  await assertFails(setDoc(doc(como(UID), 'premios_qr', OTRO), { estado: 'pendiente', creado: serverTimestamp() }));
+});

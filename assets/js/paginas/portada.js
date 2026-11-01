@@ -21,6 +21,10 @@ import { traerAgregado } from '/assets/js/agregados.js';
 import { pintarHoy, miGrupo, nombreGrupo } from '/assets/js/hoy.js';
 import { tutorialSiToca } from '/assets/js/tutorial.js';
 import { avisarRegalo } from '/assets/js/aviso-regalo.js';
+import { apuntarSiVieneDelQr, pedirPremioQr } from '/assets/js/premio-qr.js';
+
+// Las pegatinas de las bicis llevan a esta pagina: se apunta antes de nada.
+apuntarSiVieneDelQr();
 import { ofrecerAvisos } from '/assets/js/push.js';
 import { ofrecerApoyo } from '/assets/js/tienda.js';
 import { anotar, volcar } from '/assets/js/metricas.js';
@@ -201,6 +205,8 @@ onAuthStateChanged(auth, async (usuario) => {
     tutorialSiToca(datos, usuario.uid);
     // A quien ya estaba antes del reinicio: su lema de regalo.
     avisarRegalo(datos, usuario.uid);
+    // Quien ha llegado escaneando una pegatina: su sorteo.
+    pedirPremioQr(usuario.uid);
 
     miGrupo(datos.username).then((grupo) => {
       if (grupo?.yo) guardarResumenOffline(datos, { grupo: nombreGrupo(grupo.clave), puestoGrupo: grupo.yo.pos });

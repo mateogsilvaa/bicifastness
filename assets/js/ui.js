@@ -348,15 +348,12 @@ function montarAtajosDeSubida(enSubir) {
     // En escritorio el boton lleva SIEMPRE a /subir/ (8f: la captura a la
     // izquierda y el billete a la derecha); nada de saltarse la pagina.
     if (window.matchMedia('(min-width: 900px)').matches) return;
-    // 3a: las dos primeras veces, en el movil, la hoja de subida sobre esta
-    // misma pantalla.
-    if (vecesSubidaAbierta() < 2) {
-      evento.preventDefault();
-      anotarSubidaAbierta();
-      import('./hoja-subir.js').then((m) => m.abrirHojaSubir());
-      return;
-    }
+    // El + abre la galeria al momento, como las apps de mensajeria: sin hoja
+    // intermedia. `accept` a secas con imagenes es lo que hace que Android
+    // enseñe su selector de fotos (la galeria en media pantalla) en vez del
+    // explorador de archivos; en iPhone sale Fotos / Camara / Archivos.
     evento.preventDefault();
+    anotarSubidaAbierta();
     const selector = document.createElement('input');
     selector.type = 'file';
     selector.accept = 'image/*';

@@ -242,6 +242,8 @@ async function ejecutar(uid, { simular = false } = {}) {
     for (const doc of actividad.docs) await doc.ref.delete();
     const resumenes = await db().collection('metricas').where('usuarios.uids', 'array-contains', uid).get();
     for (const doc of resumenes.docs) await doc.ref.update({ 'usuarios.uids': admin.firestore.FieldValue.arrayRemove(uid) });
+    // Su peticion del premio de pegatina.
+    await db().doc(`premios_qr/${uid}`).delete();
     // Su canje de gemas (lleva su uid como id).
     await db().doc(`canjes_gemas/${uid}`).delete();
     const canjeados = await db().collection('recompensas_codigos').where('usadoPor', '==', uid).get();

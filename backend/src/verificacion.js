@@ -785,6 +785,10 @@ const DE_LECTURA = new Set([
  * la auditoria, con gravedad 0, para quien revise.
  */
 const RUIDO = new Set([
+  // El tiempo de una captura impecable lo ha puesto BiciMAD, no el piloto: si
+  // sale rapido es porque fue rapido (o porque la distancia estimada, recta x
+  // 1,35, se pasa en un tramo directo). Lo IMPOSIBLE sigue rechazandose solo.
+  'velocidad_sospechosa',
   'formato_no_movil', 'lectura_poco_segura', 'horario_inusual', 'velocidad_muy_baja',
   'geo_desconocida', 'captura_desviada', 'lectura_sin_consenso', 'horas_ilegibles',
 ]);

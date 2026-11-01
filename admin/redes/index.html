@@ -47,6 +47,26 @@
       <span class="redes-nota" id="vista-nota"></span>
     </div>
   </div>
+  <!-- Viaje inventado: la hoja de compartir de la app con los datos que pongas.
+       No se guarda nada (paginas/admin-redes.js, montarViajeInventado). -->
+  <section class="adm-tarjeta viaje-inventado" aria-labelledby="t-inventado">
+    <h2 id="t-inventado">Compartir un viaje inventado</h2>
+    <p class="menor apagado">Para contenido: la misma imagen que comparte un piloto, con los datos que tú pongas. No se guarda nada ni sale en ningún ranking.</p>
+    <form id="form-inventado" class="form-inventado" novalidate>
+      <div class="campo"><label for="inv-tipo">Tipo</label>
+        <select id="inv-tipo"><option value="ruta">Tiempo en ruta</option><option value="record">Récord de ruta</option></select></div>
+      <div class="campo"><label for="inv-origen">Estación de salida</label><input id="inv-origen" list="inv-estaciones" placeholder="Número o nombre" autocomplete="off" required></div>
+      <div class="campo"><label for="inv-destino">Estación de llegada</label><input id="inv-destino" list="inv-estaciones" placeholder="Número o nombre" autocomplete="off" required></div>
+      <datalist id="inv-estaciones"></datalist>
+      <div class="campo"><label for="inv-tiempo">Tiempo (mm:ss)</label><input id="inv-tiempo" inputmode="numeric" placeholder="12:29" required></div>
+      <div class="campo"><label for="inv-piloto">Piloto</label><input id="inv-piloto" placeholder="bicifastness" maxlength="24"></div>
+      <div class="campo"><label for="inv-puesto">Puesto (opcional)</label><input id="inv-puesto" type="number" min="1" placeholder="3"></div>
+      <div class="campo"><label for="inv-total">De cuántos pilotos</label><input id="inv-total" type="number" min="1" placeholder="48"></div>
+      <div class="campo"><label for="inv-puntos">Puntos (o mejora en s si es récord)</label><input id="inv-puntos" type="number" min="0" placeholder="69"></div>
+      <p class="mensaje" id="msg-inventado" aria-live="polite"></p>
+      <button class="btn" type="submit">Generar y compartir</button>
+    </form>
+  </section>
 </main>
 
 <script type="module" src="/assets/js/paginas/admin-redes.js"></script>

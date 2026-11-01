@@ -847,3 +847,15 @@ test('kilometros de la comunidad: por semana, comparados y con equivalencias', a
   assert.deepStrictEqual(km.equivalencias(0), []);
   assert.strictEqual(km.kgCO2(100), 12);
 });
+
+test('el registro de errores ignora lo que no es nuestro', async () => {
+  const codigo = leer('assets/js/errores.js');
+  const inicio = codigo.indexOf('const NO_ES_NUESTRO');
+  const fin = codigo.indexOf('\n', codigo.indexOf('export const esRuido'));
+  const { esRuido } = await import(`data:text/javascript;base64,${Buffer.from(codigo.slice(inicio, fin)).toString('base64')}`);
+  assert.ok(esRuido('No se ha podido cargar https://connect.facebook.net/en_US/pcm.js'));
+  assert.ok(esRuido('Database deleted by request of the user'));
+  assert.ok(esRuido('reCAPTCHA has already been rendered in this element'));
+  assert.ok(!esRuido('No se ha podido cargar https://bicifastness.es/assets/js/hoy.js'));
+  assert.ok(!esRuido('TypeError: x is undefined'));
+});

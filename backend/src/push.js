@@ -61,9 +61,11 @@ const TIPOS = {
     etiqueta: 'Cuando consigo un banner o un lema',
     porDefecto: true,
   },
+  // El cierre de la liga, cada dos semanas: subes, bajas o sigues. Es de lo
+  // poco que pasa sin que entres, asi que por defecto si.
   cambioDivision: {
-    etiqueta: 'Cuando cambio de división',
-    porDefecto: false,
+    etiqueta: 'Cuando se cierra la liga',
+    porDefecto: true,
   },
   // Solo la administracion (la web no lo enseña a nadie mas): un viaje acaba
   // de ir a la cola de revision y lo tiene que mirar una persona.

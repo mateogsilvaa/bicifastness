@@ -2027,6 +2027,11 @@ async function colocarRecienLlegado(uid) {
       });
     }
     indiceGrupos.tamanos = { ...tamanos, [clave]: (tamanos[clave] || 0) + 1 };
+    await push.enviar(uid, 'cambioDivision', {
+      titulo: 'Ya compites en Cobre',
+      cuerpo: 'Has llegado con la liga empezada: entras ya en un grupo con lo que llevas.',
+      url: '/clasificacion/',
+    }, { simular: SIMULAR }).catch(() => { /* sin aviso: ya esta en su grupo igual */ });
     console.log(`  entra ya en ${clave} (liga recien empezada)`);
     return clave;
   } catch (error) {

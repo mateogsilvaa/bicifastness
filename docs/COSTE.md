@@ -307,10 +307,10 @@ y cuanto se sube, no de cuanto lleva el proyecto abierto.
 <!-- tabla:escenarios -->
 | Escenario | Activos/dia | Viajes acumulados | Lecturas/dia | % de la cuota |
 |---|---:|---:|---:|---:|
-| hoy | 6 | 1022 | 8308 | 17% |
-| u50 | 50 | 3000 | 15.295 | 31% |
-| u200 | 200 | 15.000 | 46.832 | 94% |
-| u1000 | 1000 | 90.000 | 377.649 | 755% **se agota** |
+| hoy | 6 | 1022 | 8309 | 17% |
+| u50 | 50 | 3000 | 15.296 | 31% |
+| u200 | 200 | 15.000 | 46.833 | 94% |
+| u1000 | 1000 | 90.000 | 377.650 | 755% **se agota** |
 <!-- fin:escenarios -->
 
 
@@ -367,6 +367,7 @@ _Con 200 usuarios activos y 15.000 viajes acumulados._
 | prepararDia (por pasada) | 2 | mision del dia + config; corta en seco si la ruta del dia ya esta elegida |
 | venderEnLaTienda (por ejecucion, solo con el token de Polar puesto) | 2 | la configuracion de la tienda + por donde va leyendo los pedidos de Polar |
 | metricas.agregarSesiones (por pasada) | 1 | las sesiones llegadas desde la pasada anterior |
+| caducarBancoRevision (UNA vez al dia, en el trabajo diario) | 1 | una consulta de los casos revisados de hace mas de 24 meses, casi siempre vacia |
 | reenviarCorreos (por pasada) | 1 | la cola de correos pendientes, acotada a 50 y ordenada por cuando toca |
 | metricas.tocaResumir (por pasada) | 1 | la marca del agregado, para saber si toca el resumen caro |
 | la transaccion de puntos e insignias (por viaje APROBADO) | 1 | el perfil del piloto, una vez, dentro de la transaccion |

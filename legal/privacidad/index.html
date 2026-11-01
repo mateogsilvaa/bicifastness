@@ -32,7 +32,7 @@
     </svg>
     <span class="logo-palabra">bicifastness</span>
   </a>
-  <p class="version">Versión 1.4.0 &middot; En vigor desde el 28 de septiembre de 2026</p>
+  <p class="version">Versión 1.5.0 &middot; En vigor desde el 1 de noviembre de 2026</p>
   <h1>Política de privacidad</h1>
   <div class="resumen-legal">
     <strong>En resumen</strong>
@@ -107,6 +107,21 @@
           <td data-etiqueta="Categoria">Datos de verificacion antifraude</td>
           <td data-etiqueta="Datos concretos">Huellas digitales (hash) de las capturas, resultado del analisis automatico y sus motivos, marcas de tiempo de las subidas, y el dia (solo el dia) en que se guardo el fichero de la captura en tu movil, para comprobar que corresponde a la fecha del trayecto.</td>
           <td data-etiqueta="Origen">Los genera el sistema.</td>
+        </tr>
+        <tr>
+          <td data-etiqueta="Categoria">Perfil publico (solo si lo rellenas)</td>
+          <td data-etiqueta="Datos concretos">Tus nombres de usuario en Instagram, TikTok, Strava o X, y el mes y ano en que te diste de alta. <strong>Son publicos</strong>: salen en tu ficha para quien la abra. Los quitas cuando quieras desde Perfil publico.</td>
+          <td data-etiqueta="Origen">Los escribes tu; la fecha de alta, de tu cuenta.</td>
+        </tr>
+        <tr>
+          <td data-etiqueta="Categoria">Uso de la web con tu cuenta</td>
+          <td data-etiqueta="Datos concretos">Cada dia que entras con la sesion iniciada: cuanto tiempo has tenido la web a la vista, cuantas visitas y cuantas paginas. Nada de lo que haces dentro, ni desde donde.</td>
+          <td data-etiqueta="Origen">Lo mide tu navegador mientras usas la web.</td>
+        </tr>
+        <tr>
+          <td data-etiqueta="Categoria">Compras en la tienda (solo si compras)</td>
+          <td data-etiqueta="Datos concretos">Lo que compras, la talla, el trayecto que se imprime, tu direccion de envio (nombre, direccion, codigo postal, ciudad, pais y, si lo das, telefono) y tu saldo de gemas. El pago lo gestiona Polar: <strong>no vemos ni guardamos tu tarjeta</strong>.</td>
+          <td data-etiqueta="Origen">Los facilitas tu al comprar; el pago, Polar.</td>
         </tr>
         <tr>
           <td data-etiqueta="Categoria">Registro de consentimiento</td>
@@ -192,12 +207,29 @@
   </p>
   <p>
     Cada sesion escribe <strong>un unico documento con contadores</strong>, con
-    el dia, la version de la app y un identificador aleatorio que se genera al
-    abrir la pestaña y desaparece al cerrarla. <strong>No hay cookie, ni
-    almacenamiento persistente, ni huella del navegador.</strong> Dos visitas
-    tuyas en dias distintos son, para esta medicion, dos desconocidos. El
-    detalle se agrega en contadores diarios y se borra en cuanto esta contado,
-    normalmente en menos de quince minutos.
+    el dia, la hora en que empieza la visita, la version de la app y un
+    identificador aleatorio que se genera al abrir la pestaña y desaparece al
+    cerrarla. <strong>No hay cookie, ni almacenamiento persistente, ni huella
+    del navegador.</strong> Dos visitas tuyas en dias distintos son, para esta
+    medicion, dos desconocidos. El detalle se agrega en contadores diarios y se
+    borra en cuanto esta contado, normalmente en menos de quince minutos.
+  </p>
+
+  <h3>Uso de la web con tu cuenta</h3>
+  <p>
+    Si entras con la sesion iniciada, apuntamos ademas, <strong>por cada dia</strong>,
+    cuanto tiempo has tenido la web a la vista, cuantas veces has entrado y
+    cuantas paginas has visto. Con eso sabemos cuanta gente usa la web cada
+    dia, cuanto tiempo de media y si vuelve. No se guarda que paginas, ni que
+    haces en ellas, ni desde donde, ni con que dispositivo.
+  </p>
+  <p>
+    Lo ve solo la administracion. El detalle de cada dia se resume al dia
+    siguiente en <strong>totales diarios</strong> (cuanta gente, cuanto tiempo)
+    y se borra; lo unico que queda de ti en ese resumen es tu identificador
+    interno en la lista de quien entro ese dia, para poder contar quien vuelve,
+    y se borra si eliminas tu cuenta. No se elabora ningun perfil ni se toma
+    ninguna decision sobre ti a partir de ello.
   </p>
 
   <h3>Errores de la aplicacion</h3>
@@ -217,15 +249,13 @@
 
   <h3>Si la gente vuelve</h3>
   <p>
-    Esta pregunta <strong>no se responde rastreando</strong>. Se calcula
-    cruzando datos que ya tenemos por otro motivo: la fecha de alta de las
-    cuentas y las fechas de los trayectos verificados. El resultado son
-    <strong>porcentajes agregados</strong> por grupos de alta; no se elabora ni
-    se guarda ningun perfil individual, y no se toma ninguna decision sobre ti a
-    partir de ello.
+    Se calcula cruzando la fecha de alta de las cuentas con las fechas de los
+    trayectos verificados y con los dias de uso de la web con tu cuenta
+    (apartado anterior). El resultado son <strong>porcentajes agregados</strong>;
+    no se toma ninguna decision sobre ti a partir de ello.
   </p>
   <p>
-    La base legal de las tres es el <strong>interes legitimo</strong>
+    La base legal de todas ellas es el <strong>interes legitimo</strong>
     (art. 6.1.f RGPD) en mantener el servicio en pie y arreglar lo que se rompe.
     Al no usar cookies ni identificadores persistentes, no entra en el
     art. 22.2 de la LSSI y por eso no hay banner: lo explicamos en la
@@ -260,6 +290,9 @@
     <li><strong>Huellas de capturas:</strong> 24 meses. Son la unica forma de impedir que una imagen ya usada vuelva a colarse.</li>
     <li><strong>Registro de consentimiento:</strong> mientras dure la relacion y 3 anos mas, como plazo de prescripcion de las infracciones graves en materia de proteccion de datos (art. 30 LOPDGDD).</li>
     <li><strong>Medicion de uso:</strong> el detalle por sesion se agrega en contadores diarios y <strong>se borra en cuanto esta contado</strong>, normalmente en menos de quince minutos. Los contadores diarios, que ya no permiten distinguir sesiones, se conservan como historico del producto.</li>
+    <li><strong>Uso de la web con tu cuenta:</strong> el detalle de cada dia se resume y <strong>se borra al dia siguiente</strong>. Los totales diarios se conservan como historico; tu identificador en ellos, mientras tengas la cuenta.</li>
+    <li><strong>Casos revisados a mano:</strong> cuando una persona revisa un trayecto, guardamos una copia de la captura y de la decision, <strong>sin tu identificador</strong>, durante un maximo de 24 meses, para mejorar la verificacion automatica.</li>
+    <li><strong>Compras:</strong> el pedido y la direccion de envio, el tiempo que exige la normativa fiscal y de consumo (en general, 6 anos). El saldo de gemas, mientras tengas la cuenta.</li>
     <li><strong>Errores de la aplicacion:</strong> 90 dias desde la ultima vez que se produjo cada uno.</li>
     <li><strong>Suscripcion a los avisos:</strong> mientras los tengas activados. Se borra al apagarlos, y tambien sola cuando tu navegador deja de reconocerla (al desinstalar la app o limpiar los datos del sitio).</li>
     <li><strong>Registros tecnicos:</strong> segun los plazos de retencion de Google Firebase, en general no superiores a 12 meses.</li>
@@ -290,6 +323,16 @@
           <td data-etiqueta="Proveedor">Resend (Plus Five Five, Inc.)</td>
           <td data-etiqueta="Servicio">Envio de los avisos por correo sobre tus trayectos.</td>
           <td data-etiqueta="Ubicacion">EE. UU.</td>
+        </tr>
+        <tr>
+          <td data-etiqueta="Proveedor">Polar Software, Inc. (solo si compras)</td>
+          <td data-etiqueta="Servicio">Cobro de las compras de la tienda. Recibe los datos de pago que le das directamente y tu identificador interno para asociar el pago al pedido.</td>
+          <td data-etiqueta="Ubicacion">EE. UU.</td>
+        </tr>
+        <tr>
+          <td data-etiqueta="Proveedor">Printful y Cloudinary (solo si compras algo fisico)</td>
+          <td data-etiqueta="Servicio">Impresion y envio del regalo fisico (tu nombre, direccion de envio y el diseño) y alojamiento temporal de la imagen que se imprime.</td>
+          <td data-etiqueta="Ubicacion">EE. UU. y Union Europea.</td>
         </tr>
         <tr>
           <td data-etiqueta="Proveedor">GitHub, Inc.</td>

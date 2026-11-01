@@ -189,7 +189,7 @@ const RACHA = {
  * hash del documento, que es lo que exige el RGPD para poder demostrarlo.
  */
 const LEGAL = {
-  VERSION_TERMINOS: '1.4.0',
+  VERSION_TERMINOS: '1.5.0',
   VERSION_PRIVACIDAD: '1.4.0',
 };
 

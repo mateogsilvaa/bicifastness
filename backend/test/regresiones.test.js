@@ -819,6 +819,41 @@ test('lo publicado precarga sus modulos y los lleva con version', () => {
   fs.rmSync(sitio, { recursive: true, force: true });
 });
 
+test('cada modulo publicado tiene UNA sola URL en todo el sitio', () => {
+  // Con dos versiones del mismo fichero el navegador lo ejecuta dos veces:
+  // dos Firebase y dos caches de Firestore peleando por IndexedDB, y la web se
+  // queda cargando minutos. Paso con los imports relativos (./firebase.js), que
+  // se quedaban con la version del commit mientras el resto llevaba la huella.
+  const sitio = montarSitio(true);
+  const versiones = new Map();
+  const apuntar = (ruta, v, donde) => {
+    if (!versiones.has(ruta)) versiones.set(ruta, new Map());
+    versiones.get(ruta).set(v, donde);
+  };
+  (function recorrer(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const completo = path.join(dir, e.name);
+      if (e.isDirectory()) { if (e.name !== 'vendor') recorrer(completo); continue; }
+      const rel = `/${path.relative(sitio, completo).split(path.sep).join('/')}`;
+      const texto = fs.readFileSync(completo, 'utf8');
+      if (e.name.endsWith('.js')) {
+        for (const m of texto.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]((?:\.{1,2}\/|\/assets\/)[^'"?]+\.js)\?v=([^'"]+)['"]/g)) {
+          const abs = m[1].startsWith('/') ? m[1] : path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
+          apuntar(abs, m[2], rel);
+        }
+      }
+      if (e.name.endsWith('.html')) {
+        for (const m of texto.matchAll(/(?:src|href)="(\/assets\/[^"?]+\.(?:js|css))\?v=([^"]+)"/g)) apuntar(m[1], m[2], rel);
+      }
+    }
+  })(sitio);
+  const dobles = [...versiones].filter(([, vs]) => vs.size > 1)
+    .map(([ruta, vs]) => `${ruta}: ${[...vs].map(([v, d]) => `${v} (${d})`).join(', ')}`);
+  assert.deepStrictEqual(dobles, []);
+  assert.ok(versiones.get('/assets/js/firebase.js'), 'firebase.js deberia salir versionado');
+  fs.rmSync(sitio, { recursive: true, force: true });
+});
+
 test('el service worker y el codigo no se quedan cacheados', () => {
   // GitHub Pages sirve todo con diez minutos de cache y no deja cambiarlo.
   // Sin esto, la primera carga tras un despliegue mezclaria HTML nuevo con
@@ -2335,7 +2370,7 @@ test('los tres papeles del clan pueden cosas distintas', () => {
 
 test('el lider no puede irse dejando el clan sin nadie al mando', () => {
   const clanes = bloque('clanes');
-  const salida = clanes.match(/allow update: if autenticado\(\)\s*&& cambia\(\)\.hasOnly\(\['miembros', 'numMiembros', 'oficiales'\]\)[\s\S]*?;/)[0];
+  const salida = clanes.match(/allow update: if autenticado\(\)\s*&& cambia\(\)\.hasOnly\(\['miembros', 'numMiembros', 'oficiales', 'plantillaPendiente'\]\)[\s\S]*?;/)[0];
 
   assert.match(salida, /previo\(\)\.lider != request\.auth\.uid/);
   // Y al irse solo se saca a si mismo.

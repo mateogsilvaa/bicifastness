@@ -655,7 +655,9 @@ test('la entrada del clan: libre se entra solo, con permiso se pide, con invitac
   await assertFails(updateDoc(libre, { miembros: [UID, OTRO, TERCERO], numMiembros: 3 }));
   await assertFails(updateDoc(libre, { miembros: [UID, OTRO], numMiembros: 2, lider: OTRO }));
   await assertFails(updateDoc(libre, { miembros: [UID, OTRO], numMiembros: 7 }));
-  await assertSucceeds(updateDoc(libre, { miembros: [UID, OTRO], numMiembros: 2, solicitudes: [] }));
+  // El aviso al worker (`plantillaPendiente`) solo se puede encender.
+  await assertFails(updateDoc(libre, { miembros: [UID, OTRO], numMiembros: 2, plantillaPendiente: false }));
+  await assertSucceeds(updateDoc(libre, { miembros: [UID, OTRO], numMiembros: 2, solicitudes: [], plantillaPendiente: true }));
   await assertSucceeds(updateDoc(doc(como(OTRO), 'usuarios', OTRO), { clanId: 'libre' }));
   // Quien ya tiene clan no se apunta a otro.
   await assertFails(updateDoc(doc(como(TERCERO), 'clanes', 'libre'), { miembros: [UID, OTRO, TERCERO], numMiembros: 3 }));

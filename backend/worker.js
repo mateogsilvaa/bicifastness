@@ -3252,7 +3252,11 @@ async function ponerAlDiaAgregadosSinCapturar({ cuenta, cuotaAlEmpezar, degradad
   const aprieta = minutosAgregados > agregados.MINUTOS_ENTRE_RECONSTRUCCIONES;
   // Las decisiones del panel no pasan por `cuenta`, pero mueven rutas: cuentan
   // como aprobados para esto.
-  const urgente = aprobadosNuevos > 0 || rutasTocadas.size > 0;
+  // Alguien ha entrado o salido de un clan: su ficha (nombres) y el territorio
+  // que trae se rehacen ya, aunque nadie suba un viaje. Una lectura.
+  const clanesCambiados = !SIMULAR && !degradado
+    && await puntuacion.hayClanesPendientes().catch(() => false);
+  const urgente = aprobadosNuevos > 0 || rutasTocadas.size > 0 || clanesCambiados;
   const minutos = urgente
     ? (aprieta ? agregados.MINUTOS_ENTRE_RECONSTRUCCIONES : 0)
     : minutosAgregados;
@@ -3262,7 +3266,7 @@ async function ponerAlDiaAgregadosSinCapturar({ cuenta, cuotaAlEmpezar, degradad
   const quedaPendiente = !huboMovimiento && !SIMULAR && !degradado
     && await agregados.hayPendientes().catch(() => false);
 
-  const rehacerAgregados = (huboMovimiento || quedaPendiente)
+  const rehacerAgregados = (huboMovimiento || quedaPendiente || clanesCambiados)
     && !SIMULAR
     && (minutos === 0 || await agregados.tocaReconstruir(Date.now(), minutos).catch(() => true));
 

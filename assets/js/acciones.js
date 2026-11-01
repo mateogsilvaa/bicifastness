@@ -574,6 +574,8 @@ export async function unirseClan(clanId) {
     // El numero exacto y no un incremento: un clan viejo puede no tener el campo.
     numMiembros: (datos.miembros || []).length + 1,
     solicitudes: arrayRemove(uid),
+    // El worker rehace la ficha publica del clan (nombres) al verla.
+    plantillaPendiente: true,
   });
   await updateDoc(doc(db, 'usuarios', uid), { clanId });
 }
@@ -609,6 +611,7 @@ export async function responderSolicitud(clanId, candidatoUid, aceptar) {
     solicitudes: arrayRemove(candidatoUid),
     miembros: arrayUnion(candidatoUid),
     numMiembros: clan.miembros.length + 1,
+    plantillaPendiente: true,
   });
 }
 
@@ -633,6 +636,7 @@ export async function expulsarMiembro(clanId, miembroUid) {
     // que nadie lo hubiera decidido.
     oficiales: arrayRemove(miembroUid),
     numMiembros: Math.max(0, (clan.miembros || []).length - 1),
+    plantillaPendiente: true,
   });
 }
 
@@ -696,6 +700,7 @@ export async function abandonarClan(clanId) {
       miembros: arrayRemove(uid),
       oficiales: arrayRemove(uid),
       numMiembros: Math.max(0, (clan.miembros || []).length - 1),
+      plantillaPendiente: true,
     });
   }
 

@@ -21,7 +21,7 @@ const CACHE = 'bicifastness-v9';
  * de su contenido en la URL (scripts/construir-sitio.js), asi que lo que no ha
  * cambiado se sigue sirviendo de aqui.
  */
-const ESTABLE = 'bicifastness-recursos';
+const ESTABLE = 'bicifastness-recursos-2';
 
 /**
  * Las URLs con version del despliegue actual (las rellena

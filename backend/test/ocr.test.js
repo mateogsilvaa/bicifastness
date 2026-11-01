@@ -442,3 +442,24 @@ test('ninguna bici empieza por 0', () => {
   assert.strictEqual(ocr.biciDeNumero('0087'), '');
   assert.strictEqual(ocr.biciDeNumero('10087'), '10087');
 });
+
+test('un numero de estacion con una cifra mal leida se corrige con su nombre', () => {
+  // Caso real del estreno: un 8 leido como 3 ("263" por "268").
+  assert.deepStrictEqual(ocr.extraerEstaciones('e 263 - Metro Arganzuela -'), ['268']);
+  // Si el nombre encaja con lo leido, o no se lee, no se toca.
+  assert.deepStrictEqual(ocr.extraerEstaciones('164 - Paseo de las Delicias -'), ['164']);
+  assert.deepStrictEqual(ocr.extraerEstaciones('263 - Gran Vía de San Francisco'), ['263']);
+});
+
+test('si ningun viaje es exactamente la ruta, se elige el que mas se parece, no el primero', () => {
+  const lectura = {
+    disponible: true,
+    trayectos: [
+      { origen: '172', destino: '268', segundosDuracion: 288, fecha: '2026-11-01' },
+      { origen: '263', destino: '164', segundosDuracion: 159, fecha: '2026-11-01' },
+    ],
+  };
+  const e = ocr.elegirTrayecto(lectura, '268-164', { tiempoSegundos: 159, fecha: '2026-11-01' });
+  assert.strictEqual(e.destino, '164');
+  assert.strictEqual(e.segundosDuracion, 159);
+});

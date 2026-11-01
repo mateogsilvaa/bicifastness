@@ -3189,58 +3189,39 @@ async function procesarCola(cuenta) {
   return cola.size;
 }
 
-async function main() {
-  console.log(SIMULAR ? '=== SIMULACION: no se escribe nada ===' : '=== Worker de verificacion ===');
-
-  const cuenta = { aprobado: 0, rechazado: 0, revision: 0, error: 0 };
-
-  // Lo gastado hoy antes de empezar. Decide si esta pasada va en modo degradado.
-  const cuotaAlEmpezar = SIMULAR ? { lecturas: 0, escrituras: 0 } : await leerCuota();
-  const degradado = cuota.nivel(cuotaAlEmpezar).nivel === 'degradado';
-
-  // En simulacion NO se dan mas pasadas: como no se escribe el veredicto, los
-  // viajes siguen pendientes y la siguiente pasada volveria a analizar los
-  // mismos, en bucle, hasta agotar la ventana.
-  // En degradado tampoco: vigilar la cola en vacio cada 30 s gastaria justo lo
-  // que queda de cuota, y la siguiente ejecucion ya mira una vez.
-  const daVueltas = VENTANA_MS > 0 && !SIMULAR && !SOLO_UNO && !degradado;
-  const hasta = Date.now() + VENTANA_MS;
-  let pasadas = 0;
-
-  for (;;) {
-    pasadas++;
-    const habia = await procesarCola(cuenta);
-
-    if (!daVueltas || Date.now() >= hasta) break;
-
-    // Si la cola venia llena pueden quedar viajes por encima del tope de la
-    // tanda: se sigue sin esperar. Si venia a medias, se duerme hasta la
-    // siguiente pasada.
-    if (habia >= MAX_POR_TANDA) continue;
-    await esperar(Math.min(ESPERA_MS, Math.max(0, hasta - Date.now())));
+/**
+ * Pone al dia las clasificaciones, el mapa y la portada (los agregados).
+ *
+ * Se llama al acabar la ejecucion y TAMBIEN en mitad, en cuanto una pasada
+ * aprueba algo: la ejecucion dura unos nueve minutos dando vueltas a la cola,
+ * y esperar al final era que el push de "te han adelantado" llegase y la
+ * clasificacion siguiera sin el piloto nuevo hasta un cuarto de hora despues.
+ *
+ * Tres reglas:
+ * - Con aprobados nuevos no se espera el cuarto de hora: un tiempo que entra
+ *   en la clasificacion se tiene que ver ya (el push dice "ya cuenta"). Solo
+ *   si la cuota aprieta se respeta el limitador, y entonces con quince minutos.
+ * - Sin movimiento en esta ejecucion, se mira igualmente si quedo algo
+ *   apuntado de una anterior. Antes solo se reconstruia si ESTA ejecucion
+ *   habia movido algo, asi que lo que el limitador aplazaba se quedaba
+ *   esperando a que alguien subiera otro viaje: con poco movimiento, horas.
+ * - En degradado o simulacion, nada: se apunta para la proxima.
+ *
+ * Nunca lanza: los agregados no pueden tumbar la verificacion.
+ */
+async function ponerAlDiaAgregados({ cuenta, cuotaAlEmpezar, degradado, aprobadosAntes = 0, rechazadosAntes = 0 }) {
+  try {
+    await ponerAlDiaAgregadosSinCapturar({ cuenta, cuotaAlEmpezar, degradado, aprobadosAntes, rechazadosAntes });
+  } catch (error) {
+    console.warn('No se han podido poner al dia los agregados:', error.message);
+    // Que no se pierda al morir el proceso: la siguiente ejecucion lo recoge.
+    await agregados.apuntarPendientes(rutasTocadas, estacionesTocadas, pilotosTocados, viajesTerritorio)
+      .catch((e) => console.warn('No se ha podido apuntar lo pendiente:', e.message));
   }
+}
 
-  if (pasadas > 1) console.log(`\n${pasadas} pasadas a la cola en esta ejecucion.`);
-
-  await prepararDia();
-  await aplicarDecisionesManuales();
-  await caducarCapturasRechazadas();
-  await procesarBajas();
-  await procesarBorrados();
-  await mantenerClanes();
-  await procesarInvitaciones();
-  await resolverDenuncias();
-  await darBienvenidas();
-  await enviarCorreosPedidos();
-  await procesarValoraciones();
-  await venderEnLaTienda();
-  await resolverCanjes();
-  // Despues de las bienvenidas a proposito: si una acaba de fallar y se ha
-  // encolado, el primer reintento es dentro de un minuto, o sea en la pasada
-  // siguiente. Ponerlo antes no adelantaria nada y haria una lectura de mas.
-  await reenviarCorreos();
-  await trabajoDiario();
-
+async function ponerAlDiaAgregadosSinCapturar({ cuenta, cuotaAlEmpezar, degradado, aprobadosAntes, rechazadosAntes }) {
+  const aprobadosNuevos = cuenta.aprobado - aprobadosAntes;
   // Los agregados se reconstruyen UNA VEZ al final, no por viaje: es la
   // operacion mas cara que hace el worker (#36).
   //
@@ -3251,7 +3232,7 @@ async function main() {
   // Las decisiones manuales tambien mueven rutas y estaciones sin pasar por la
   // cola: sin contarlas aqui, una pasada que solo aplicara decisiones del panel
   // no las rehacia ni las apuntaba, y se perdian al morir el proceso.
-  const huboMovimiento = cuenta.aprobado > 0 || cuenta.rechazado > 0
+  const huboMovimiento = aprobadosNuevos > 0 || cuenta.rechazado - rechazadosAntes > 0
     || rutasTocadas.size > 0 || estacionesTocadas.size > 0;
 
   // Reconstruir los agregados lee las CUATRO colecciones enteras: es la
@@ -3268,26 +3249,24 @@ async function main() {
   const minutosAgregados = agregados.minutosEntreReconstrucciones(
     cuota.nivel(cuotaAlEmpezar), cuota.estimar(cuotaAlEmpezar), cuota.LIMITES.LECTURAS,
     cuota.UMBRALES.ATENCION);
-  const rehacerAgregados = huboMovimiento
+  const aprieta = minutosAgregados > agregados.MINUTOS_ENTRE_RECONSTRUCCIONES;
+  // Las decisiones del panel no pasan por `cuenta`, pero mueven rutas: cuentan
+  // como aprobados para esto.
+  const urgente = aprobadosNuevos > 0 || rutasTocadas.size > 0;
+  const minutos = urgente
+    ? (aprieta ? agregados.MINUTOS_ENTRE_RECONSTRUCCIONES : 0)
+    : minutosAgregados;
+
+  // Sin movimiento propio, lo apuntado por ejecuciones anteriores. Una lectura,
+  // y solo cuando no hay nada que hacer de todos modos.
+  const quedaPendiente = !huboMovimiento && !SIMULAR && !degradado
+    && await agregados.hayPendientes().catch(() => false);
+
+  const rehacerAgregados = (huboMovimiento || quedaPendiente)
     && !SIMULAR
-    && await agregados.tocaReconstruir(Date.now(), minutosAgregados).catch(() => true);
+    && (minutos === 0 || await agregados.tocaReconstruir(Date.now(), minutos).catch(() => true));
 
-  // Modo degradado (#38): por encima del 95% de la cuota se deja de hacer lo
-  // que mas lee. La clasificacion se queda con los datos de la ultima
-  // reconstruccion — unos minutos vieja — en vez de que la web deje de
-  // funcionar entera hasta medianoche. Los viajes se siguen verificando: eso es
-  // lo que la gente esta esperando.
-  if (degradado) {
-    console.log('::warning::Cuota por encima del 95%: se omiten agregados, metricas y dominio.');
-  }
-
-  const resumirMetricas = !SIMULAR && !degradado && await metricas.tocaResumir().catch(() => false);
   const rehacerPesado = !SIMULAR && !degradado;
-
-  // Ninguna de las tres cosas de abajo lee ya una coleccion entera: el dominio
-  // pide los viajes de las rutas que tocan sus estaciones, los agregados los de
-  // las rutas movidas, y el resumen de metricas no pide viajes en absoluto. Por
-  // eso ya no hay una carga compartida que repartir entre ellas (#34).
 
   if (rehacerPesado && rehacerAgregados) {
     // Lo de esta pasada MAS lo que quedo apuntado de las pasadas que el
@@ -3341,6 +3320,81 @@ async function main() {
     pilotosTocados.clear();
     viajesTerritorio.clear();
   }
+}
+
+async function main() {
+  console.log(SIMULAR ? '=== SIMULACION: no se escribe nada ===' : '=== Worker de verificacion ===');
+
+  const cuenta = { aprobado: 0, rechazado: 0, revision: 0, error: 0 };
+
+  // Lo gastado hoy antes de empezar. Decide si esta pasada va en modo degradado.
+  const cuotaAlEmpezar = SIMULAR ? { lecturas: 0, escrituras: 0 } : await leerCuota();
+  const degradado = cuota.nivel(cuotaAlEmpezar).nivel === 'degradado';
+
+  // En simulacion NO se dan mas pasadas: como no se escribe el veredicto, los
+  // viajes siguen pendientes y la siguiente pasada volveria a analizar los
+  // mismos, en bucle, hasta agotar la ventana.
+  // En degradado tampoco: vigilar la cola en vacio cada 30 s gastaria justo lo
+  // que queda de cuota, y la siguiente ejecucion ya mira una vez.
+  const daVueltas = VENTANA_MS > 0 && !SIMULAR && !SOLO_UNO && !degradado;
+  const hasta = Date.now() + VENTANA_MS;
+  let pasadas = 0;
+  let aprobadosAntes = 0;
+  let rechazadosAntes = 0;
+
+  for (;;) {
+    pasadas++;
+    const habia = await procesarCola(cuenta);
+
+    // Lo aprobado en esta pasada entra en la clasificacion ya, no al acabar
+    // la ejecucion (`ponerAlDiaAgregados`).
+    if (cuenta.aprobado > aprobadosAntes && !degradado) {
+      await ponerAlDiaAgregados({ cuenta, cuotaAlEmpezar, degradado, aprobadosAntes, rechazadosAntes });
+      aprobadosAntes = cuenta.aprobado;
+      rechazadosAntes = cuenta.rechazado;
+    }
+
+    if (!daVueltas || Date.now() >= hasta) break;
+
+    // Si la cola venia llena pueden quedar viajes por encima del tope de la
+    // tanda: se sigue sin esperar. Si venia a medias, se duerme hasta la
+    // siguiente pasada.
+    if (habia >= MAX_POR_TANDA) continue;
+    await esperar(Math.min(ESPERA_MS, Math.max(0, hasta - Date.now())));
+  }
+
+  if (pasadas > 1) console.log(`\n${pasadas} pasadas a la cola en esta ejecucion.`);
+
+  await prepararDia();
+  await aplicarDecisionesManuales();
+  await caducarCapturasRechazadas();
+  await procesarBajas();
+  await procesarBorrados();
+  await mantenerClanes();
+  await procesarInvitaciones();
+  await resolverDenuncias();
+  await darBienvenidas();
+  await enviarCorreosPedidos();
+  await procesarValoraciones();
+  await venderEnLaTienda();
+  await resolverCanjes();
+  // Despues de las bienvenidas a proposito: si una acaba de fallar y se ha
+  // encolado, el primer reintento es dentro de un minuto, o sea en la pasada
+  // siguiente. Ponerlo antes no adelantaria nada y haria una lectura de mas.
+  await reenviarCorreos();
+  await trabajoDiario();
+
+  // Modo degradado (#38): por encima del 95% de la cuota se deja de hacer lo
+  // que mas lee. La clasificacion se queda con los datos de la ultima
+  // reconstruccion — unos minutos vieja — en vez de que la web deje de
+  // funcionar entera hasta medianoche. Los viajes se siguen verificando: eso es
+  // lo que la gente esta esperando.
+  if (degradado) {
+    console.log('::warning::Cuota por encima del 95%: se omiten agregados, metricas y dominio.');
+  }
+
+  const resumirMetricas = !SIMULAR && !degradado && await metricas.tocaResumir().catch(() => false);
+  await ponerAlDiaAgregados({ cuenta, cuotaAlEmpezar, degradado, aprobadosAntes, rechazadosAntes });
 
   // Metricas, en dos mitades con coste MUY distinto.
   //

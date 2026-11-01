@@ -634,6 +634,34 @@ async function estacionesParaElMapa(tocadas) {
  * en la mano, hacer la reconstruccion parcial no ahorra nada y pierde la
  * limpieza de las rutas vacias.
  */
+/**
+ * Los clanes cuyos puntos hay que rehacer aunque no se haya movido ninguna
+ * ruta: los recien creados (aun sin `biciRating`) y aquellos en los que alguien
+ * ha entrado o salido (`numMiembros` no cuadra con la plantilla). Sin esto, un
+ * clan nuevo salia con 0 puntos y su ficha vacia hasta el siguiente trayecto
+ * verificado de alguno de sus miembros. Pura: sale de los clanes ya leidos.
+ */
+function clanesPorRecalcular(clanes) {
+  return clanes.filter((c) => {
+    const miembros = new Set((c.miembros || []).filter((u) => typeof u === 'string' && u)).size;
+    return typeof c.biciRating !== 'number' || (c.numMiembros ?? 0) !== miembros;
+  }).map((c) => c.id);
+}
+
+/** Rehace esos clanes y deja el dato fresco en la lista para el ranking. */
+async function ponerAlDiaClanes(clanes) {
+  for (const id of clanesPorRecalcular(clanes)) {
+    try {
+      await recalcularClan(id);
+      const fresco = await db().doc(`clanes/${id}`).get();
+      const i = clanes.findIndex((c) => c.id === id);
+      if (fresco.exists && i >= 0) clanes[i] = { id, ...fresco.data() };
+    } catch (error) {
+      console.warn(`  clan ${id} no recalculado:`, error.message);
+    }
+  }
+}
+
 async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas = null, pilotosTocados = null) {
   // Basta con que quien llama diga QUE rutas se han movido, aunque sean cero:
   // una pasada que solo ha rechazado viajes, o en la que solo ha cambiado un
@@ -643,6 +671,7 @@ async function reconstruirAgregados(base = null, rutas = null, estacionesTocadas
 
   const clanesSnap = await db().collection('clanes').get();
   const clanes = clanesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  await ponerAlDiaClanes(clanes);
 
   if (!parcial) {
     const [{ viajes, usuarios }, estacionesSnap] = await Promise.all([
@@ -712,6 +741,7 @@ module.exports = {
   calcularPuntosViaje,
   recalcularRuta,
   recalcularClan,
+  clanesPorRecalcular,
   recalcularEstacion,
   recalcularTrasCambio,
   recalcularEstaciones,

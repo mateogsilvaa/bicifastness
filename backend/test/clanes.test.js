@@ -442,3 +442,14 @@ test('solo se publica un avatar en data:, nunca una URL ajena', () => {
   assert.strictEqual(avatarSeguro('data:image/svg+xml,%3Csvg%3E'), 'data:image/svg+xml,%3Csvg%3E');
   assert.strictEqual(avatarSeguro('data:image/webp;base64,AAAA'), 'data:image/webp;base64,AAAA');
 });
+
+test('un clan nuevo o con altas y bajas se recalcula sin esperar a un trayecto', () => {
+  const { clanesPorRecalcular } = require('../src/puntuacion');
+  const r = clanesPorRecalcular([
+    { id: 'nuevo', miembros: ['a'] },
+    { id: 'al-dia', miembros: ['a', 'b'], biciRating: 40, numMiembros: 2 },
+    { id: 'entro-uno', miembros: ['a', 'b', 'c'], biciRating: 40, numMiembros: 2 },
+    { id: 'repetido', miembros: ['a', 'a'], biciRating: 10, numMiembros: 1 },
+  ]);
+  assert.deepStrictEqual(r, ['nuevo', 'entro-uno']);
+});

@@ -779,13 +779,48 @@ const DE_LECTURA = new Set([
 ]);
 
 /**
+ * Señales que solo dicen "no estoy seguro de haber leido bien" o "esto es un
+ * poco raro", sin indicio de trampa. Con una captura IMPECABLE (ver abajo) no
+ * aportan nada: lo que importa ya se ha leido y cuadra. Siguen apareciendo en
+ * la auditoria, con gravedad 0, para quien revise.
+ */
+const RUIDO = new Set([
+  'formato_no_movil', 'lectura_poco_segura', 'horario_inusual', 'velocidad_muy_baja',
+  'geo_desconocida', 'captura_desviada', 'lectura_sin_consenso', 'horas_ilegibles',
+]);
+
+/**
+ * ¿La captura dice exactamente lo declarado? Es de BiciMAD, se leen las dos
+ * estaciones y son las declaradas, la duracion leida es la declarada (±5 s) y
+ * las horas de salida y llegada cuadran con esa duracion. Quien retoca una
+ * captura para que diga otra cosa no pasa esto: la resta de horas lo delata
+ * (`captura_incoherente`).
+ */
+function capturaImpecable({ lectura, ruta, tiempoSegundos }) {
+  if (!lectura?.disponible || !lectura.esBicimad) return false;
+  const sinCeros = (v) => String(v || '').replace(/^0+/, '');
+  const [o, d] = String(ruta || '').split('-').map(sinCeros);
+  if (!o || sinCeros(lectura.origen) !== o || sinCeros(lectura.destino) !== d) return false;
+  const dur = lectura.segundosDuracion;
+  if (!Number.isFinite(dur) || !Number.isFinite(tiempoSegundos) || Math.abs(dur - tiempoSegundos) > 5) return false;
+  const salida = horaASegundos(lectura.horaSalida);
+  const llegada = horaASegundos(lectura.horaLlegada);
+  if (salida === null || llegada === null) return false;
+  let entre = llegada - salida;
+  if (entre < 0) entre += 24 * 3600;
+  const margen = /:\d{2}:\d{2}/.test(`${lectura.horaSalida}${lectura.horaLlegada}`) ? 5 : 65;
+  return Math.abs(entre - dur) <= margen;
+}
+
+/**
  * Ejecuta todas las comprobaciones y decide.
  * Devuelve siempre un objeto serializable, listo para guardar en el viaje: el
  * admin ve exactamente por que se ha tomado la decision.
  */
 function evaluar(contexto) {
   const fisica = comprobarFisica(contexto);
-  const señales = [
+  const impecable = capturaImpecable(contexto);
+  const todas = [
     ...fisica.señales,
     ...comprobarCaptura(contexto),
     ...comprobarDuplicado(contexto),
@@ -800,6 +835,13 @@ function evaluar(contexto) {
     ...comprobarFormato(contexto),
     ...comprobarBici(contexto),
   ];
+  // Con la captura impecable, el ruido se anota pero no pesa.
+  const señales = impecable
+    ? todas.map((s) => (RUIDO.has(s.codigo) && !s.decisiva
+      // Con el OCR casi a ciegas no: que todo coincida podria ser suerte.
+      && !(s.codigo === 'lectura_poco_segura' && (contexto.lectura?.confianza ?? 0) < 35)
+      ? { ...s, gravedad: 0, anotada: true } : s))
+    : todas;
 
   const decisiva = señales.find((s) => s.decisiva);
   const riesgo = señales.reduce((total, s) => total + s.gravedad, 0);
@@ -838,6 +880,7 @@ function evaluar(contexto) {
     resumen,
     riesgo,
     señales: señales.map(({ decisiva: _omitida, ...resto }) => resto),
+    impecable,
     metros: fisica.metros,
     kmh: fisica.kmh,
     evaluadoEn: new Date().toISOString(),
@@ -846,5 +889,6 @@ function evaluar(contexto) {
 }
 
 module.exports = {
+  capturaImpecable, RUIDO,
   evaluar, distribucion, distanciaCalleMetros, velocidadKmh, DE_LECTURA, firmaDeLectura, compararFirmas,
 };

@@ -5,23 +5,26 @@
  *
  * Una peticion por cuenta (`premios_qr/{uid}`, que las reglas no dejan repetir
  * ni cambiar). Aqui se decide, en una transaccion con el contador global
- * `config/premios_qr`:
- *   - los 30 primeros se llevan el banner `estaciones`;
- *   - cada uno, un 2% de llevarse el lema `desde-el-origen`, hasta 30 en total.
- * Lo que ya tenga no se le vuelve a dar ni gasta cupo.
+ * `config/premios_qr`, con UNA tirada por persona:
+ *   - un 3% se lleva el banner `estaciones`;
+ *   - otro 3% se lleva el lema `desde-el-origen`;
+ *   - nunca los dos, y como mucho 30 de cada uno.
+ * Lo que ya tenga no se le vuelve a dar ni gasta cupo. Hacia fuera (web,
+ * redes) no se dan porcentajes: solo que algunas pegatinas tienen premio.
  */
 
 const BANNER = 'estaciones';
 const LEMA = 'desde-el-origen';
 const CUPO_BANNERS = 30;
 const CUPO_LEMAS = 30;
-const PROB_LEMA = 0.02;
+const PROB_BANNER = 0.03;
+const PROB_LEMA = 0.03;
 
-/** Pura: que le toca a uno, dado lo que queda y su tirada. */
+/** Pura: que le toca a uno, dado lo que queda y su tirada (0..1). Uno o nada. */
 function sortear({ banners, lemas, tiene = [], azar = Math.random() }) {
-  const banner = banners < CUPO_BANNERS && !tiene.includes(BANNER);
-  const lema = lemas < CUPO_LEMAS && !tiene.includes(LEMA) && azar < PROB_LEMA;
-  return { banner, lema };
+  if (azar < PROB_BANNER) return { banner: banners < CUPO_BANNERS && !tiene.includes(BANNER), lema: false };
+  if (azar < PROB_BANNER + PROB_LEMA) return { banner: false, lema: lemas < CUPO_LEMAS && !tiene.includes(LEMA) };
+  return { banner: false, lema: false };
 }
 
 async function procesarPremiosQr({ db, admin, simular = false, avisar = null, azar = Math.random }) {
@@ -61,4 +64,4 @@ async function procesarPremiosQr({ db, admin, simular = false, avisar = null, az
   return { resueltos };
 }
 
-module.exports = { procesarPremiosQr, sortear, BANNER, LEMA, CUPO_BANNERS, CUPO_LEMAS, PROB_LEMA };
+module.exports = { procesarPremiosQr, sortear, BANNER, LEMA, CUPO_BANNERS, CUPO_LEMAS, PROB_BANNER, PROB_LEMA };

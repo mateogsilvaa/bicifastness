@@ -647,7 +647,7 @@ async function pintarDivision(perfil) {
     const sinClasificar = grupo.clave === SIN_CLASIFICAR;
     // Sin clasificar no se sube ni se baja: se entra en la escalera al cerrar.
     const detalle = sinClasificar
-      ? 'entras en la escalera al cerrar la liga'
+      ? 'entras en tu división al cerrar la liga: cuenta tu media por día, así que llegar tarde no te penaliza'
       : yo.pos <= mueven
         ? 'en zona de subida'
         : umbral ? `a ${Math.max(1, umbral.puntos - yo.puntos + 1)} pts de subir` : '';
@@ -779,7 +779,9 @@ function avisarCambioDivision(perfil) {
       ]),
       el('h2', { texto: titulo }),
       el('p', {
-        texto: entra
+        texto: entra && cambio.aMitad
+          ? `Has llegado con la liga empezada, así que no esperas: ya compites en un grupo de ${hasta} con lo que llevas. Al cerrar la liga se decide quién sube.`
+          : entra
           ? `Ya estás en la escalera. Compites en un grupo de 20 de ${hasta}, todos desde 0, y en dos semanas se decide quién sube.`
           : sube
             ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Estas dos semanas compites con pilotos nuevos, todos desde 0.`

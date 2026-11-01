@@ -325,7 +325,7 @@ function nivelDeEntrada({ puntos = 0, divisionMaxima = -1 }, todos) {
  * Cierra una liga. Funcion pura: recibe a todos y devuelve donde queda cada
  * uno. `periodicas.js` solo escribe lo que sale de aqui.
  *
- * @param {Array<{uid, division, grupo, puntos, ligasInactivas, divisionMaxima, ligasJugadas}>} pilotos
+ * @param {Array<{uid, division, grupo, puntos, ligasInactivas, divisionMaxima, ligasJugadas, diasEnLiga}>} pilotos
  *   `puntos` son los de la liga que se cierra; `divisionMaxima` es un indice de
  *   NIVELES (o -1).
  * @returns {Array<{uid, division, grupo, desde, grupoDesde, puesto, total, puntos,
@@ -333,7 +333,14 @@ function nivelDeEntrada({ puntos = 0, divisionMaxima = -1 }, todos) {
  */
 function cerrarLiga(pilotos) {
   const activo = (p) => (p.puntos || 0) > 0;
-  const todosLosPuntos = pilotos.filter(activo).map((p) => p.puntos);
+  // Quien entro con la liga a medias no ha podido sumar lo mismo: para
+  // colocarle se mira su ritmo, los puntos llevados a la liga entera segun los
+  // dias que ha podido jugar (`diasEnLiga`). Sin el dato, la liga entera.
+  const ritmo = (p) => {
+    const dias = Math.min(DIAS_POR_LIGA, Math.max(1, p.diasEnLiga || DIAS_POR_LIGA));
+    return ((p.puntos || 0) * DIAS_POR_LIGA) / dias;
+  };
+  const todosLosPuntos = pilotos.filter(activo).map(ritmo);
 
   // 1. Quien lleva dos ligas sin pedalear sale de la escalera.
   const estado = pilotos.map((p) => {
@@ -363,7 +370,7 @@ function cerrarLiga(pilotos) {
 
   // 3. Los sin clasificar que han pedaleado esta liga entran en la escalera.
   const entran = estado.filter((p) => !p.clasificado && activo(p))
-    .map((p) => ({ p, nivel: nivelDeEntrada({ puntos: p.puntos, divisionMaxima: p.divisionMaxima ?? -1 }, todosLosPuntos) }))
+    .map((p) => ({ p, nivel: nivelDeEntrada({ puntos: ritmo(p), divisionMaxima: p.divisionMaxima ?? -1 }, todosLosPuntos) }))
     .sort((a, b) => b.nivel - a.nivel || (b.p.puntos || 0) - (a.p.puntos || 0));
   // Al menos el 80% a cobre, y platino casi nunca: se quedan los de mas nivel y
   // mas puntos; los demas, a cobre (o a oro, si iban a platino sin cupo).
@@ -424,7 +431,48 @@ function cerrarLiga(pilotos) {
   });
 }
 
+// --- Entrar a mitad de liga -------------------------------------------------------
+
+/** Hasta que dia de la liga (0 = el lunes) se entra en un grupo en vez de esperar. */
+const DIAS_PARA_ENTRAR = 7;
+
+/**
+ * Dias de la liga que estan en juego el dia dado que ha podido jugar alguien
+ * que se dio de alta en `alta` (los dos, 'YYYY-MM-DD'). Para colocar justo a
+ * quien llega tarde (`cerrarLiga`, `diasEnLiga`).
+ */
+function diasJugables(alta, diaDeLaLiga) {
+  const inicio = inicioLiga(diaDeLaLiga);
+  const fin = finLiga(diaDeLaLiga);
+  const desde = alta && alta > inicio ? alta : inicio;
+  return Math.max(1, Math.min(DIAS_POR_LIGA, diasEntre(desde, fin) + 1));
+}
+
+/**
+ * Un piloto NUEVO (nunca clasificado) que verifica su primer trayecto con la
+ * liga recien empezada no espera dos semanas mirando una tabla de sin
+ * clasificar: entra ya en el grupo de cobre con menos gente, si cabe. En la
+ * primera liga no (es la de todos: no hay cobre todavia), ni en la segunda
+ * semana (para eso ya casi se cierra y se le coloca bien al cerrar).
+ *
+ * @param {object} p  { division, divisionMaxima, grupo }
+ * @param {Object<string, number>} tamanos  clave de grupo -> cuantos hay
+ * @param {string} dia
+ * @returns {string|null} la clave del grupo, o null si espera al cierre
+ */
+function grupoParaRecienLlegado(p, tamanos, dia) {
+  if (esClasificado(p.division) || (p.divisionMaxima ?? -1) >= 0 || p.grupo) return null;
+  if (enPrimeraLiga(dia) || diasEntre(inicioLiga(dia), dia) >= DIAS_PARA_ENTRAR) return null;
+  const cobres = Object.entries(tamanos || {})
+    .filter(([clave, n]) => divisionDeClave(clave) === 'cobre' && n < POR_GRUPO)
+    .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
+  return cobres[0]?.[0] || null;
+}
+
 module.exports = {
+  DIAS_PARA_ENTRAR,
+  diasJugables,
+  grupoParaRecienLlegado,
   NIVELES,
   SIN_CLASIFICAR,
   POR_GRUPO,

@@ -138,6 +138,9 @@ async function actualizarDivisiones() {
       ligasInactivas: u.ligasInactivas || 0,
       divisionMaxima: maxima,
       ligasJugadas: u.ligasJugadas || 0,
+      // Los dias de esta liga que ha podido jugar: quien entro a mitad se
+      // coloca por su ritmo, no por un total que no pudo alcanzar.
+      diasEnLiga: divisiones.diasJugables(u.creado?.toDate ? diaMadrid(u.creado.toDate()) : null, cerrada),
     };
   }));
 

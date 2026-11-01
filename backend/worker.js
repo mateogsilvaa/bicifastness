@@ -879,6 +879,7 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
         : undefined),
     });
     await avisarPorPush(doc.id, viaje, 'aprobado', sumados);
+    await colocarRecienLlegado(viaje.uid);
     await apuntarBiciVista(veredicto.lectura?.numeroBici, viaje);
     // Los puntos de la ruta SI se rehacen viaje a viaje: cambian la
     // clasificacion y el siguiente viaje de la tanda tiene que verla al dia.
@@ -1783,6 +1784,7 @@ async function aplicarDecisionesManuales() {
       if (!SIMULAR) {
         const sumados = await premiar(doc, viaje);
         await avisarPorPush(doc.id, viaje, 'aprobado', sumados);
+        await colocarRecienLlegado(viaje.uid);
       } else console.log(`  [${doc.id}] se premiaria el viaje aprobado a mano`);
       aprobadosAMano.push(doc);
     }
@@ -1998,6 +2000,38 @@ async function avisarPorPush(viajeId, viaje, decision, puntos = null) {
     await push.enviar(viaje.uid, 'viajeResuelto', { ...texto, url: '/yo/' }, { simular: SIMULAR });
   } catch (error) {
     console.warn(`  push no enviado (${viajeId}):`, error.message);
+  }
+}
+
+/**
+ * Un piloto nuevo con la liga recien empezada entra ya en un grupo de cobre
+ * (divisiones.grupoParaRecienLlegado) en vez de esperar al cierre. Dos
+ * lecturas como mucho (su perfil y el indice de grupos, este una vez por
+ * ejecucion), y solo despues de un trayecto aprobado. Nunca lanza.
+ */
+let indiceGrupos = null;
+async function colocarRecienLlegado(uid) {
+  try {
+    const ref = db.doc(`usuarios/${uid}`);
+    const u = (await ref.get()).data() || {};
+    if (divisiones.esClasificado(u.division) || u.grupoLiga || (u.divisionMaxima ?? -1) >= 0) return null;
+    if (indiceGrupos === null) indiceGrupos = (await db.doc('agregados/grupos').get()).data() || {};
+    const tamanos = { ...(indiceGrupos.tamanos || {}) };
+    const clave = divisiones.grupoParaRecienLlegado({ division: u.division, divisionMaxima: u.divisionMaxima, grupo: u.grupoLiga }, tamanos, diaMadrid());
+    if (!clave) return null;
+    if (!SIMULAR) {
+      await ref.update({
+        division: 'cobre', grupoLiga: clave, divisionMaxima: 0,
+        // Hoy lo enseña una vez: ya compites, no esperas a la tabla de sin clasificar.
+        ultimoCambioDivision: { desde: divisiones.SIN_CLASIFICAR, hasta: 'cobre', puesto: null, total: null, puntos: u.puntosLiga || 0, fecha: diaMadrid(), aMitad: true },
+      });
+    }
+    indiceGrupos.tamanos = { ...tamanos, [clave]: (tamanos[clave] || 0) + 1 };
+    console.log(`  entra ya en ${clave} (liga recien empezada)`);
+    return clave;
+  } catch (error) {
+    console.warn('  no se ha podido colocar al recien llegado:', error.message);
+    return null;
   }
 }
 

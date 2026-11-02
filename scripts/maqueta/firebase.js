@@ -410,6 +410,8 @@ export const EmailAuthProvider = { credential: () => ({}) };
 export const proveedorGoogle = () => ({});
 export const browserPopupRedirectResolver = {};
 export async function entrarConGoogle() { localStorage.removeItem('maqueta_sesion'); return { user: usuario }; }
+export async function entrarConGoogleRedirigiendo() { localStorage.removeItem('maqueta_sesion'); window.location.reload(); }
+export async function volverDeGoogle() { return { user: usuario }; }
 
 export function collection(_db, ...segs) { return { tipo: 'col', path: segs.join('/') }; }
 export function doc(base, ...segs) {

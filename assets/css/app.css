@@ -1681,8 +1681,10 @@ input.interruptor:focus-visible { outline: 2px solid var(--azul); outline-offset
 .perfil-cabecera .etiquetas { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* Con foto (assets/js/foto-perfil.js): la imagen tapa la inicial. */
-.mini-foto { display: none; }
-.mini-foto.con-foto { display: inline-block; width: 22px; height: 22px; border-radius: 50%; margin-right: 8px; vertical-align: -5px; background-size: cover; background-position: center; }
+/* Sin foto, un circulo con la inicial; con foto, la foto (y la letra se esconde). */
+.nota-columnas { margin: 10px 4px 0; font-size: 13px; color: var(--tinta-3); line-height: 1.45; }
+.mini-foto { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; margin-right: 8px; vertical-align: -5px; background: var(--linea); color: var(--tinta-2); font-size: 11px; font-weight: 700; line-height: 1; flex: none; }
+.mini-foto.con-foto { background-size: cover; background-position: center; color: transparent; }
 .avatar-inicial.con-foto { background-size: cover; background-position: center; color: transparent; }
 .avatar-editable { position: relative; border: 0; cursor: pointer; padding: 0; font-family: inherit; }
 .avatar-editable::after { content: ''; position: absolute; right: -2px; bottom: -2px; width: 24px; height: 24px; border-radius: 50%; background: var(--azul-relleno) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h3l2-3h6l2 3h3v11H4z'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E") center / 14px no-repeat; border: 2px solid var(--papel); }
@@ -4692,24 +4694,47 @@ html.acceso-pendiente main::before {
 @media (orientation: landscape) and (max-height: 500px) and (hover: none) and (pointer: coarse) {
   html, body { overflow: hidden; }
   body::before {
-    content: 'Pon el móvil en vertical';
+    content: 'Ups. Se me ha caído todo.';
     position: fixed; inset: 0; z-index: 2147483600;
     display: flex; align-items: center; justify-content: center;
     padding-bottom: 8px;
     background: var(--papel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%23111110' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='20' y='6' width='24' height='42' rx='5'/%3E%3Cpath d='M29 41h6'/%3E%3Cpath d='M8 30a24 24 0 0 0 10 22'/%3E%3Cpath d='M12 53l6-1-1-6'/%3E%3C/svg%3E") center calc(50% - 64px) / 64px no-repeat;
     color: var(--tinta);
     font-size: 22px; font-weight: 800; letter-spacing: -.02em;
+    animation: aparece-giro .35s .8s both;
   }
   [data-theme='dark'] body::before {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%23F2F1EE' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='20' y='6' width='24' height='42' rx='5'/%3E%3Cpath d='M29 41h6'/%3E%3Cpath d='M8 30a24 24 0 0 0 10 22'/%3E%3Cpath d='M12 53l6-1-1-6'/%3E%3C/svg%3E");
   }
   body::after {
-    content: 'BiciFastness está hecha para verse en vertical. Ponlo recto y seguimos.';
+    content: 'BiciFastness va en vertical. Ponme recto y lo vuelvo a montar.';
     position: fixed; z-index: 2147483601; left: 50%; top: calc(50% + 24px);
     width: min(420px, 80vw); transform: translateX(-50%);
     text-align: center; font-size: 15px; line-height: 1.45; color: var(--tinta-2);
+    animation: aparece-giro .35s .95s both;
   }
+  /* La gracia: la pagina se desmonta pieza a pieza y se cae por la pantalla
+     antes de que salga el aviso. */
+  main > *, #nav-principal, #nav-inferior, .cabecera-app {
+    animation: desmonte .9s cubic-bezier(.55, 0, .85, .35) both;
+    transform-origin: 30% 0;
+  }
+  main > *:nth-child(3n + 1) { --giro: 9deg; animation-delay: .05s; }
+  main > *:nth-child(3n + 2) { --giro: -12deg; animation-delay: .14s; transform-origin: 80% 0; }
+  main > *:nth-child(3n) { --giro: 16deg; animation-delay: .22s; }
+  #nav-principal, #nav-inferior { --giro: -6deg; animation-delay: .3s; }
+  .aviso-flotante { animation: desmonte .9s cubic-bezier(.55, 0, .85, .35) .18s both; --giro: 7deg; }
 }
+@keyframes desmonte {
+  0% { transform: none; }
+  18% { transform: rotate(var(--giro, 10deg)) translateY(-6px); }
+  100% { transform: translateY(115vh) rotate(calc(var(--giro, 10deg) * 3)); }
+}
+@keyframes aparece-giro { from { opacity: 0; } to { opacity: 1; } }
+@media (orientation: landscape) and (max-height: 500px) and (hover: none) and (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  main > *, #nav-principal, #nav-inferior, .cabecera-app, .aviso-flotante, body::before, body::after { animation: none; }
+}
+
 /* El avatar antes de saber de quien es. */
 .avatar-inicial:empty:not(.con-foto):not([style*="background"]) { background-color: var(--papel-3); background-image: linear-gradient(90deg, transparent, var(--brillo), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: brillo 1.4s ease-in-out infinite; }
 

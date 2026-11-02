@@ -62,6 +62,9 @@ let cola = [];
 let preparada = null;
 /** Lo que se va a subir, con lo que haya corregido la persona. */
 let borrador = null;
+// Lo que se leyo de la ultima captura: para subir despues otro trayecto de ella.
+let ultimaLectura = null;
+let subidosDeLaCaptura = [];
 
 const coma = (n, dec = 1) => Number(n).toFixed(dec).replace('.', ',');
 const ordinal = (n) => `${n}.º`;
@@ -97,6 +100,8 @@ function barra(titulo, { atras = false, miniatura = true } = {}) {
 
 function cancelar() {
   cola = [];
+  ultimaLectura = null;
+  subidosDeLaCaptura = [];
   preparada = null;
   borrador = null;
   entradaFoto.value = '';
@@ -610,6 +615,7 @@ function esCircular(t) {
 }
 
 async function decidirPaso(lectura) {
+  if (Array.isArray(lectura?.trayectos) && lectura.trayectos.length) { ultimaLectura = lectura; subidosDeLaCaptura = []; }
   const candidatos = (lectura.trayectos || []).map(aViaje).filter(Boolean);
   if (candidatos.length > 1) { await irAElegir(candidatos); return; }
 
@@ -1242,6 +1248,7 @@ async function subir(viajes, fechaViaje) {
 
   try {
     const ids = await escribirViajes(viajes, fechaViaje);
+    subidosDeLaCaptura.push(...viajes);
     anotar('subida_enviada');
     marcarPrimerViaje();
     pintarSubido(ids, viajes);
@@ -1254,6 +1261,24 @@ async function subir(viajes, fechaViaje) {
       pista.classList.add('error');
     }
   }
+}
+
+// --- Otro trayecto de la misma captura ------------------------------------------------------
+
+/** Los trayectos leidos en la captura que aun no se han subido. */
+function otrosDeLaCaptura(subidos = []) {
+  const ya = new Set(subidos.map((v) => `${v.horaSalida || ''}|${v.tiempoSegundos}`));
+  return (ultimaLectura?.trayectos || []).filter((t) => !ya.has(`${t.horaSalida || ''}|${t.segundosDuracion}`)
+    && !subidos.some((v) => v.ruta === `${normalizarEstacion(t.origen)}-${normalizarEstacion(t.destino)}` && v.tiempoSegundos === t.segundosDuracion));
+}
+
+function subirOtroDeLaCaptura(subidos) {
+  const [t] = otrosDeLaCaptura(subidos);
+  // Con uno leido, ese (confirmar o completar a mano); sin ninguno, a mano.
+  const lectura = t
+    ? { ...ultimaLectura, ...t, trayectos: [], disponible: true, esBicimad: true }
+    : { disponible: false, trayectos: [] };
+  decidirPaso(lectura);
 }
 
 // --- 3d · Subido, en cola ---------------------------------------------------------------------
@@ -1332,6 +1357,16 @@ function pintarSubido(ids, viajes = []) {
         hayMas
           ? el('button', { clase: 'btn grande', texto: `Leer la siguiente captura (${hayMas})`, attrs: { type: 'button' }, on: { click: siguienteCaptura } })
           : el('a', { clase: 'btn grande', texto: 'Volver a Hoy', attrs: { href: '/' } }),
+        // El historial trae varios y se ha subido uno: el siguiente con la
+        // MISMA captura, con lo que se leyo ya puesto. Si la web no vio mas
+        // trayectos, se rellena a mano (el verificador busca en la captura el
+        // que se declare).
+        preparada ? el('button', {
+          clase: 'btn secundario',
+          texto: otrosDeLaCaptura(subidosDeLaCaptura).length ? 'Subir el otro viaje de esta captura' : 'Hay otro viaje en esta captura',
+          attrs: { type: 'button' },
+          on: { click: () => subirOtroDeLaCaptura(subidosDeLaCaptura) },
+        }) : null,
         el('button', { clase: 'btn plano', texto: 'Subir otro trayecto', attrs: { type: 'button' }, on: { click: () => { cancelar(); entradaFoto.click(); } } }),
       ]),
     ]),

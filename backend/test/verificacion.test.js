@@ -700,3 +700,50 @@ test('una captura impecable rapida pero posible no va a revision; una imposible 
   assert.strictEqual(r.decision, 'aprobado');
   assert.ok(velocidadKmh(metros, t) > 21 && o && d);
 });
+
+test('de varias lecturas de la misma captura, se queda la que dice lo declarado', () => {
+  const { mejorLectura } = require('../src/verificacion');
+  const buena = lecturaLimpia(600);
+  const ocho = { ...buena, destino: '113' };               // un digito mal leido
+  const nada = { disponible: false };
+  assert.strictEqual(mejorLectura([ocho, nada, buena], RUTA, 600), buena);
+  assert.strictEqual(mejorLectura([ocho], RUTA, 600), ocho, 'sin otra mejor, la que hay');
+  assert.strictEqual(mejorLectura([buena, { ...buena }], RUTA, 600), buena, 'empate: la primera');
+  // Que una lectura acierte la ruta pero no la duracion no gana a la impecable.
+  assert.strictEqual(mejorLectura([{ ...buena, segundosDuracion: 900 }, buena], RUTA, 600), buena);
+});
+
+test('una captura impecable de otro dia cercano no va a revision; una vieja si', () => {
+  const lectura = { ...lecturaLimpia(600), fecha: '2026-11-02' };
+  const r = evaluar(contextoBase({ lectura, fechaViaje: '2026-11-03' }));
+  const s = r.señales.find((x) => x.codigo === 'fecha_captura_distinta');
+  assert.strictEqual(s.gravedad, 10);
+  assert.strictEqual(r.decision, 'aprobado');
+
+  // Antes del estreno, o de mas de una semana, o posterior a lo declarado: igual que antes.
+  for (const fecha of ['2026-10-30', '2026-11-01']) {
+    const vieja = evaluar(contextoBase({ lectura: { ...lecturaLimpia(600), fecha }, fechaViaje: '2026-11-20' }));
+    assert.strictEqual(vieja.señales.find((x) => x.codigo === 'fecha_captura_distinta').gravedad, 50, fecha);
+  }
+  const despues = evaluar(contextoBase({ lectura: { ...lecturaLimpia(600), fecha: '2026-11-05' }, fechaViaje: '2026-11-03' }));
+  assert.strictEqual(despues.señales.find((x) => x.codigo === 'fecha_captura_distinta').gravedad, 50);
+
+  // Sin captura impecable, el peso de siempre.
+  const turbia = evaluar(contextoBase({ lectura: { ...lecturaLimpia(600), fecha: '2026-11-02', destino: '9' }, fechaViaje: '2026-11-03' }));
+  assert.strictEqual(turbia.señales.find((x) => x.codigo === 'fecha_captura_distinta').gravedad, 50);
+});
+
+test('la misma persona puede subir otro trayecto de una captura que ya subio', () => {
+  const sha = 'a'.repeat(64);
+  const previoMio = { sha, tripId: 't1', uid: 'yo', capturaId: 'c1', firma: { salida: '08:00:00', llegada: '08:10:00' } };
+  const otro = { ...lecturaLimpia(600) }; // sale a las 10:00: otro trayecto
+  const ok = evaluar(contextoBase({ uid: 'yo', capturaId: 'c2', hashSha: sha, shaPrevios: [previoMio], lectura: otro }));
+  assert.ok(!ok.señales.some((s) => s.codigo === 'captura_reutilizada'), 'otro trayecto de mi captura no es reutilizarla');
+
+  // De otra persona, o el mismo trayecto: igual que antes.
+  const ajena = evaluar(contextoBase({ uid: 'otro', capturaId: 'c2', hashSha: sha, shaPrevios: [previoMio], lectura: otro }));
+  assert.ok(ajena.señales.some((s) => s.codigo === 'captura_reutilizada'));
+  const mismo = { ...previoMio, firma: { salida: '10:00:00', llegada: '10:10:00' } };
+  const repetida = evaluar(contextoBase({ uid: 'yo', capturaId: 'c2', hashSha: sha, shaPrevios: [mismo], lectura: otro }));
+  assert.ok(repetida.señales.some((s) => s.codigo === 'captura_reutilizada'));
+});

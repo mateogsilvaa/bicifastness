@@ -38,7 +38,10 @@ traerAgregado('fotos-mini')
   .catch(() => { /* sin miniaturas, las filas se quedan como estaban */ });
 
 function miniFoto(nombre) {
-  const nodo = el('span', { clase: 'mini-foto', attrs: { 'data-piloto': String(nombre || '').toLowerCase(), 'aria-hidden': 'true' } });
+  // Sin foto, un circulo con su inicial: todas las filas alineadas y cada
+  // piloto con cara, aunque no haya subido foto.
+  const inicial = [...String(nombre || '').trim()][0]?.toLocaleUpperCase('es') || '·';
+  const nodo = el('span', { clase: 'mini-foto', texto: inicial, attrs: { 'data-piloto': String(nombre || '').toLowerCase(), 'aria-hidden': 'true' } });
   ponerFoto(nodo, fotosMini[String(nombre || '').toLowerCase()] || null);
   return nodo;
 }
@@ -286,7 +289,10 @@ async function pintarPilotos() {
             el('span', { clase: 'col-cab', texto: 'Piloto' }),
             el('span', { clase: 'col-cab', texto: 'Clan' }),
             ...['Sprint', 'Fondo', 'Constancia'].map((t) => el('span', { clase: 'col-cab num', texto: t })),
-            el('span', { clase: 'col-cab num', texto: 'Total ↓' }),
+            // No es la suma de las otras tres: son los puntos de liga de la
+            // semana, los que deciden quien sube. Llamarlo "Total" hacia
+            // pensar que Sprint + Fondo + Constancia tenia que dar esto.
+            el('span', { clase: 'col-cab num', texto: 'Liga ↓', attrs: { title: 'Puntos de liga de esta semana: deciden quién sube el lunes' } }),
           ]
           : [
             el('span', { clase: 'sube', texto: mueven ? `Suben ${cuandoCambia()}` : '' }),
@@ -301,6 +307,7 @@ async function pintarPilotos() {
           flecha: !escritorio,
         })),
       ]),
+      escritorio ? el('p', { clase: 'nota-columnas' , texto: 'Liga: lo que sumas con cada trayecto desde el lunes (decide quién sube). Sprint: tus puntos de podio en las rutas ahora mismo (bajan si te adelantan). Fondo: kilómetros. Constancia: tu mejor racha. Son tablas distintas, no se suman.' }) : null,
       pieActualizado(grupo),
     ]);
     filaFija(grupo.filas, (f) => numero(f.puntos), 'pts');

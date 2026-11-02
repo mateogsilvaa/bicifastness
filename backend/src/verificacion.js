@@ -12,7 +12,7 @@
  * El resto suman puntos de riesgo y deciden por umbral.
  */
 
-const { FISICA, RIESGO, IMAGEN, HORARIO } = require('./config');
+const { FISICA, RIESGO, IMAGEN, HORARIO, LIMITES } = require('./config');
 const {
   buscarEstacion, distanciaMetros, horaASegundos, diaMadrid, minutosDelDiaEnZona,
 } = require('./util');
@@ -342,7 +342,17 @@ function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios
   // sea. Eso es lo que hace un duplicado de verdad.
   const deOtraCaptura = (previo) => !capturaId || !previo.capturaId || previo.capturaId !== capturaId;
 
-  const duplicadoExacto = (shaPrevios || []).filter(deOtraCaptura).find((p) => p.sha === hashSha);
+  // Y la MISMA persona subiendo otra vez su captura para OTRO trayecto de los
+  // que salen en ella (el historial trae dos y la web solo vio uno, o los sube
+  // de uno en uno). Si es el mismo trayecto, eso ya lo para `viaje_repetido`.
+  const firmaActual = firmaDeLectura(lectura);
+  const otroTrayectoMio = (previo) => Boolean(uid) && previo.uid === uid && previo.firma && firmaActual
+    && horaASegundos(firmaActual.salida) !== null && horaASegundos(previo.firma.salida) !== null
+    && Math.abs(horaASegundos(firmaActual.salida) - horaASegundos(previo.firma.salida)) > 90;
+
+  const duplicadoExacto = (shaPrevios || []).filter(deOtraCaptura)
+    .filter((p) => !otroTrayectoMio(p))
+    .find((p) => p.sha === hashSha);
   if (duplicadoExacto && !esReintento(duplicadoExacto, uid)) {
     if (duplicadoExacto.estado === 'rechazado') {
       // De otra persona y rechazado: no cuenta dos veces, pero que una cuenta
@@ -363,9 +373,9 @@ function comprobarDuplicado({ hashSha, hashPerceptual, shaPrevios, hashesPrevios
 
   if (!hashPerceptual) return señales;
 
-  const firma = firmaDeLectura(lectura);
+  const firma = firmaActual;
   const candidatos = (hashesPrevios || [])
-    .filter((previo) => previo.dhash && deOtraCaptura(previo))
+    .filter((previo) => previo.dhash && deOtraCaptura(previo) && !otroTrayectoMio(previo))
     .map((previo) => ({ ...previo, distancia: distanciaHamming(hashPerceptual, previo.dhash) }))
     .filter((previo) => previo.distancia <= IMAGEN.MAX_DISTANCIA_PERCEPTUAL)
     .sort((a, b) => a.distancia - b.distancia);
@@ -821,6 +831,43 @@ function capturaImpecable({ lectura, ruta, tiempoSegundos }) {
   return Math.abs(entre - dur) <= margen;
 }
 
+/** ¿El dia que marca la captura es uno en el que se podia subir el viaje? */
+function fechaDentroDePlazo(fechaCaptura, fechaViaje) {
+  const leida = String(fechaCaptura || '');
+  const declarada = String(fechaViaje || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(leida) || !/^\d{4}-\d{2}-\d{2}$/.test(declarada)) return false;
+  if (leida < LIMITES.PRIMER_DIA_VIAJES) return false;
+  // A lo sumo una semana de diferencia con lo declarado, y nunca posterior.
+  const dias = (Date.parse(declarada) - Date.parse(leida)) / 864e5;
+  return Math.abs(dias) <= 7 && leida <= declarada;
+}
+
+/**
+ * La lectura que mejor dice lo declarado, de varias de la MISMA captura.
+ *
+ * Cada preparacion de la imagen falla en sitios distintos (un 8 por un 3, una
+ * fila de Android cortada). Si una de ellas lee exactamente las estaciones y
+ * la duracion declaradas, la captura dice eso: que una lectura equivocada
+ * acierte por casualidad las dos estaciones Y la duracion al segundo no pasa.
+ * Lo que sigue protegiendo de un retoque es lo de siempre: las horas tienen
+ * que cuadrar con la duracion en la lectura elegida (`captura_incoherente`).
+ *
+ * Pura. Devuelve la primera si ninguna mejora.
+ */
+function mejorLectura(lecturas, ruta, tiempoSegundos) {
+  const validas = (lecturas || []).filter((l) => l?.disponible);
+  if (!validas.length) return lecturas?.[0] || null;
+  const sinCeros = (v) => String(v || '').replace(/^0+/, '');
+  const [o, d] = String(ruta || '').split('-').map(sinCeros);
+  const nota = (l) => (sinCeros(l.origen) === o ? 1 : 0)
+    + (sinCeros(l.destino) === d ? 1 : 0)
+    + (Number.isFinite(l.segundosDuracion) && Math.abs(l.segundosDuracion - tiempoSegundos) <= 5 ? 1 : 0)
+    + (l.horaSalida && l.horaLlegada ? 0.5 : 0)
+    + (l.esBicimad ? 0.25 : 0)
+    + (capturaImpecable({ lectura: l, ruta, tiempoSegundos }) ? 2 : 0);
+  return validas.reduce((mejor, l) => (nota(l) > nota(mejor) ? l : mejor), validas[0]);
+}
+
 /**
  * Ejecuta todas las comprobaciones y decide.
  * Devuelve siempre un objeto serializable, listo para guardar en el viaje: el
@@ -850,6 +897,14 @@ function evaluar(contexto) {
       // Con el OCR casi a ciegas no: que todo coincida podria ser suerte.
       && !(s.codigo === 'lectura_poco_segura' && (contexto.lectura?.confianza ?? 0) < 35)
       ? { ...s, gravedad: 0, anotada: true } : s))
+      // La captura dice otro dia, pero todo lo demas es exactamente lo
+      // declarado: es alguien que sube hoy un viaje de ayer y se equivoco de
+      // dia (los 7 casos del estreno que fueron a revision por esto, buenos).
+      // Si ese dia es valido —desde el estreno, sin pasar de hoy— se anota
+      // con poco peso. Una captura vieja de verdad (fuera de plazo) sigue
+      // yendo a revision.
+      .map((s) => (s.codigo === 'fecha_captura_distinta' && fechaDentroDePlazo(s.fechaCaptura, contexto.fechaViaje)
+        ? { ...s, gravedad: 10, anotada: true } : s))
     : todas;
 
   const decisiva = señales.find((s) => s.decisiva);
@@ -898,6 +953,6 @@ function evaluar(contexto) {
 }
 
 module.exports = {
-  capturaImpecable, RUIDO,
+  capturaImpecable, RUIDO, mejorLectura, fechaDentroDePlazo,
   evaluar, distribucion, distanciaCalleMetros, velocidadKmh, DE_LECTURA, firmaDeLectura, compararFirmas,
 };

@@ -866,6 +866,24 @@ async function leerCaptura({ buffer }) {
  * simplemente no opina.
  */
 async function releerCaptura({ buffer }) {
+  return releerCon({ buffer });
+}
+
+/**
+ * Preparaciones extra para cuando la lectura no cuadra con lo declarado
+ * (`verificacion.mejorLectura`). Cada una trocea los caracteres de otra forma:
+ * mas grande sin umbral (digitos finos de Android), umbral mas bajo y mas alto
+ * (texto gris claro, fondos con brillo) y en negativo (modo oscuro).
+ */
+const PREPARACIONES_EXTRA = [
+  { escala: 2, umbral: null },
+  { escala: 1.5, umbral: 115 },
+  { escala: 1.5, umbral: 185 },
+  { escala: 1.5, umbral: 150, invertir: true },
+];
+
+/** La misma captura con otra preparacion. Nunca lanza. */
+async function releerCon({ buffer, escala = 1.5, umbral = 150, invertir = false }) {
   if (!Tesseract) return { disponible: false };
   let sharp = null;
   try {
@@ -879,12 +897,12 @@ async function releerCaptura({ buffer }) {
     const preparada = await normalizar.preparar(buffer);
     if (!preparada) return { disponible: false };
     const meta = await sharp(preparada.buffer).metadata();
-    const otra = await sharp(preparada.buffer)
-      .resize({ width: Math.round((meta.width || 1000) * 1.5) })
-      .greyscale()
-      .threshold(150)
-      .png()
-      .toBuffer();
+    let tuberia = sharp(preparada.buffer)
+      .resize({ width: Math.round((meta.width || 1000) * escala) })
+      .greyscale();
+    if (invertir) tuberia = tuberia.negate({ alpha: false });
+    tuberia = umbral === null ? tuberia.normalise().sharpen() : tuberia.threshold(umbral);
+    const otra = await tuberia.png().toBuffer();
 
     const lector = await obtenerWorker();
     fallo = null;
@@ -921,6 +939,8 @@ async function releerCaptura({ buffer }) {
 
 module.exports = {
   leerCaptura,
+  releerCon,
+  PREPARACIONES_EXTRA,
   extraerTrayectos,
   elegirTrayecto,
   // Hay que llamarlo al terminar la tanda: el worker de tesseract se comparte y

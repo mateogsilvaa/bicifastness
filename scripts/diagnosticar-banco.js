@@ -15,8 +15,10 @@ const path = require('path');
 const admin = require('./lib/firebase-admin');
 
 const B = path.join(__dirname, '..', 'backend', 'src');
-const { leerCaptura, releerCaptura, elegirTrayecto, cerrar } = require(path.join(B, 'ocr'));
-const { evaluar } = require(path.join(B, 'verificacion'));
+const {
+  leerCaptura, releerCaptura, releerCon, PREPARACIONES_EXTRA, elegirTrayecto, cerrar,
+} = require(path.join(B, 'ocr'));
+const { evaluar, capturaImpecable, mejorLectura } = require(path.join(B, 'verificacion'));
 const imagen = require(path.join(B, 'imagen'));
 
 const sinCeros = (v) => String(v || '').replace(/^0+/, '');
@@ -37,8 +39,21 @@ async function main() {
     const ruta = d.declarado?.ruta || '';
     const tiempo = d.declarado?.tiempoSegundos;
     const cual = { tiempoSegundos: tiempo, fecha: String(d.declarado?.fechaViaje || '').slice(0, 10) };
-    const lectura = elegirTrayecto(await leerCaptura({ buffer }), ruta, cual);
-    const segunda = lectura.disponible && lectura.esBicimad ? elegirTrayecto(await releerCaptura({ buffer }), ruta, cual) : null;
+    // Lo mismo que el worker: primera, segunda y, si ninguna cuadra, las extra.
+    const primera = elegirTrayecto(await leerCaptura({ buffer }), ruta, cual);
+    const segunda = primera.disponible && primera.esBicimad ? elegirTrayecto(await releerCaptura({ buffer }), ruta, cual) : null;
+    const lecturas = [primera, segunda].filter(Boolean);
+    const cuadra = (l) => capturaImpecable({ lectura: l, ruta, tiempoSegundos: tiempo });
+    const extra = [];
+    if (primera.disponible && primera.esBicimad) {
+      // En el diagnostico se prueban TODAS, para saber cual sirve.
+      for (const prep of PREPARACIONES_EXTRA) {
+        const otra = elegirTrayecto(await releerCon({ buffer, ...prep }), ruta, cual);
+        lecturas.push(otra);
+        extra.push(cuadra(otra) ? 'si' : 'NO');
+      }
+    }
+    const lectura = mejorLectura(lecturas, ruta, tiempo) || primera;
     const insp = await imagen.inspeccionar(buffer);
     const [o, de] = ruta.split('-').map(sinCeros);
     const v = evaluar({
@@ -55,6 +70,8 @@ async function main() {
       + ` duracion ${si(Number.isFinite(lectura.segundosDuracion) && Math.abs(lectura.segundosDuracion - tiempo) <= 5)},`
       + ` horas ${si(lectura.horaSalida && lectura.horaLlegada)}, confianza ${lectura.confianza ?? '-'}`
       + ` | 2.a lectura: ${segunda ? `origen ${si(sinCeros(segunda.origen) === o)}, duracion ${si(Math.abs((segunda.segundosDuracion ?? -999) - tiempo) <= 5)}` : 'no'}`);
+    console.log(`   cuadra: 1.a ${cuadra(primera) ? 'si' : 'NO'}, 2.a ${segunda && cuadra(segunda) ? 'si' : 'NO'}, extra [${extra.join(' ')}]`
+      + ` -> elegida la ${lecturas.indexOf(lectura) + 1}.a`);
     console.log(`   señales: ${v.señales.map((s) => `${s.codigo}(${s.gravedad})`).join(' ') || 'ninguna'}`);
     const k = `${variante}:${v.decision}`;
     resumen[k] = (resumen[k] || 0) + 1;

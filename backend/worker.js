@@ -45,9 +45,11 @@ const premiosQr = require('./src/premios-qr');
 const canjes = require('./src/canjes');
 const rutasDestacadas = require('./src/rutas-destacadas');
 const {
-  leerCaptura, releerCaptura, elegirTrayecto, cerrar: cerrarOcr,
+  leerCaptura, releerCaptura, releerCon, PREPARACIONES_EXTRA, elegirTrayecto, cerrar: cerrarOcr,
 } = require('./src/ocr');
-const { evaluar, distanciaCalleMetros, firmaDeLectura } = require('./src/verificacion');
+const {
+  evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura,
+} = require('./src/verificacion');
 const puntuacion = require('./src/puntuacion');
 const distancias = require('./src/distancias');
 const rachas = require('./src/rachas');
@@ -667,14 +669,29 @@ async function procesar(doc) {
   // rechazados por `ruta_no_coincide`.
   // Con que trayecto de la captura se compara: el de su ruta, su dia y su tiempo.
   const cual = { tiempoSegundos: viaje.tiempoSegundos, fecha: String(viaje.fechaViaje || '').slice(0, 10) };
-  const lectura = elegirTrayecto(await leerCaptura({ buffer, mime }), viaje.ruta, cual);
+  const primera = elegirTrayecto(await leerCaptura({ buffer, mime }), viaje.ruta, cual);
 
   // Y otra vez, con otra preparacion de la imagen: lo que decide el viaje
   // (estaciones y duracion) tiene que salir igual en las dos (consenso). Solo
   // si la primera ha leido una captura de BiciMAD; si no, ya va a revision.
-  const segundaLectura = lectura.disponible && lectura.esBicimad
+  const segundaLectura = primera.disponible && primera.esBicimad
     ? elegirTrayecto(await releerCaptura({ buffer }), viaje.ruta, cual)
     : null;
+
+  // Si ninguna de las dos dice exactamente lo declarado, mas preparaciones,
+  // hasta que una lo diga (`verificacion.mejorLectura`). Casi todo lo que iba
+  // a revision era esto: una captura buena con un digito mal leido en una de
+  // las preparaciones. Solo cuesta tiempo en las que no cuadran a la primera.
+  const lecturas = [primera, segundaLectura].filter(Boolean);
+  const cuadra = (l) => capturaImpecable({ lectura: l, ruta: viaje.ruta, tiempoSegundos: viaje.tiempoSegundos });
+  if (primera.disponible && primera.esBicimad && !lecturas.some(cuadra)) {
+    for (const prep of PREPARACIONES_EXTRA) {
+      const otra = elegirTrayecto(await releerCon({ buffer, ...prep }), viaje.ruta, cual);
+      lecturas.push(otra);
+      if (cuadra(otra)) break;
+    }
+  }
+  const lectura = mejorLectura(lecturas, viaje.ruta, viaje.tiempoSegundos) || primera;
 
   // Quien mas ha llevado esa bici ese dia, para ver si coincide en la hora.
   const usosBici = await usosDeLaBici(lectura, viaje);

@@ -15,7 +15,7 @@ import {
   initializeAuth, onAuthStateChanged, signInWithEmailAndPassword,
   createUserWithEmailAndPassword, signOut, sendPasswordResetEmail,
   sendEmailVerification, browserLocalPersistence,
-  GoogleAuthProvider, signInWithPopup, browserPopupRedirectResolver,
+  GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, browserPopupRedirectResolver,
   getAdditionalUserInfo, verifyPasswordResetCode, confirmPasswordReset, applyActionCode,
   linkWithCredential,
   // Verificacion en dos pasos (assets/js/dos-pasos.js).
@@ -174,6 +174,23 @@ export function entrarConGoogle() {
   // en un movil compartido, o con cuenta personal y de trabajo, es lo que evita
   // registrarse con la que no era.
   return signInWithPopup(auth, proveedorGoogle(), browserPopupRedirectResolver);
+}
+
+/**
+ * Lo mismo, yendo a Google en la MISMA pestaña y volviendo.
+ *
+ * En la app instalada (pantalla de inicio) la ventana de Google se abre fuera
+ * de la app: se elige la cuenta y la respuesta no vuelve nunca, asi que "no
+ * pasa nada". Con la redireccion no hay segunda ventana. La vuelta se recoge
+ * con `volverDeGoogle` al cargar la pagina.
+ */
+export function entrarConGoogleRedirigiendo() {
+  return signInWithRedirect(auth, proveedorGoogle(), browserPopupRedirectResolver);
+}
+
+/** El resultado al volver de Google (null si no se venia de alli). */
+export function volverDeGoogle() {
+  return getRedirectResult(auth, browserPopupRedirectResolver);
 }
 
 export {

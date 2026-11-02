@@ -3209,6 +3209,9 @@ async function procesarCola(cuenta) {
  *
  * Nunca lanza: los agregados no pueden tumbar la verificacion.
  */
+/** Horas sin reconstruir tras las que se reconstruye aunque no pase nada. */
+const MINUTOS_GUARDIA = 180;
+
 async function ponerAlDiaAgregados({ cuenta, cuotaAlEmpezar, degradado, aprobadosAntes = 0, rechazadosAntes = 0 }) {
   try {
     await ponerAlDiaAgregadosSinCapturar({ cuenta, cuotaAlEmpezar, degradado, aprobadosAntes, rechazadosAntes });
@@ -3266,9 +3269,15 @@ async function ponerAlDiaAgregadosSinCapturar({ cuenta, cuotaAlEmpezar, degradad
   const quedaPendiente = !huboMovimiento && !SIMULAR && !degradado
     && await agregados.hayPendientes().catch(() => false);
 
-  const rehacerAgregados = (huboMovimiento || quedaPendiente || clanesCambiados)
+  // Guardia: si en tres horas no se ha reconstruido nada, se reconstruye igual.
+  // Lo que cambia sin pasar por un viaje (un clan de antes de las marcas, un
+  // nombre, la ficha de un clan) no se queda viejo toda la noche. Una lectura,
+  // y como mucho ocho reconstrucciones al dia sin movimiento.
+  const deGuardia = !huboMovimiento && !quedaPendiente && !clanesCambiados && !SIMULAR && !degradado
+    && await agregados.tocaReconstruir(Date.now(), MINUTOS_GUARDIA).catch(() => false);
+  const rehacerAgregados = (huboMovimiento || quedaPendiente || clanesCambiados || deGuardia)
     && !SIMULAR
-    && (minutos === 0 || await agregados.tocaReconstruir(Date.now(), minutos).catch(() => true));
+    && (minutos === 0 || deGuardia || await agregados.tocaReconstruir(Date.now(), minutos).catch(() => true));
 
   const rehacerPesado = !SIMULAR && !degradado;
 

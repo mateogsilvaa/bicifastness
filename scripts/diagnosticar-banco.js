@@ -41,14 +41,17 @@ async function main() {
     const cual = { tiempoSegundos: tiempo, fecha: String(d.declarado?.fechaViaje || '').slice(0, 10) };
     // Lo mismo que el worker: primera, segunda y, si ninguna cuadra, las extra.
     const primera = elegirTrayecto(await leerCaptura({ buffer }), ruta, cual);
-    const segunda = primera.disponible && primera.esBicimad ? elegirTrayecto(await releerCaptura({ buffer }), ruta, cual) : null;
+    const heredar = (l) => (l?.disponible ? {
+      ...l, esBicimad: primera.esBicimad, confianza: l.confianza ?? primera.confianza, variante: primera.variante,
+    } : l);
+    const segunda = primera.disponible && primera.esBicimad ? heredar(elegirTrayecto(await releerCaptura({ buffer }), ruta, cual)) : null;
     const lecturas = [primera, segunda].filter(Boolean);
     const cuadra = (l) => capturaImpecable({ lectura: l, ruta, tiempoSegundos: tiempo });
     const extra = [];
     if (primera.disponible && primera.esBicimad) {
       // En el diagnostico se prueban TODAS, para saber cual sirve.
       for (const prep of PREPARACIONES_EXTRA) {
-        const otra = elegirTrayecto(await releerCon({ buffer, ...prep }), ruta, cual);
+        const otra = heredar(elegirTrayecto(await releerCon({ buffer, ...prep }), ruta, cual));
         lecturas.push(otra);
         extra.push(cuadra(otra) ? 'si' : 'NO');
       }

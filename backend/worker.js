@@ -674,8 +674,14 @@ async function procesar(doc) {
   // Y otra vez, con otra preparacion de la imagen: lo que decide el viaje
   // (estaciones y duracion) tiene que salir igual en las dos (consenso). Solo
   // si la primera ha leido una captura de BiciMAD; si no, ya va a revision.
+  // Las relecturas solo leen numeros: que es de BiciMAD (y la variante) ya lo
+  // ha dicho la primera, y sin heredarlo una relectura perfecta salia como
+  // "no parece BiciMAD" y mandaba el viaje a revision.
+  const heredar = (l) => (l?.disponible ? {
+    ...l, esBicimad: primera.esBicimad, confianza: l.confianza ?? primera.confianza, variante: primera.variante,
+  } : l);
   const segundaLectura = primera.disponible && primera.esBicimad
-    ? elegirTrayecto(await releerCaptura({ buffer }), viaje.ruta, cual)
+    ? heredar(elegirTrayecto(await releerCaptura({ buffer }), viaje.ruta, cual))
     : null;
 
   // Si ninguna de las dos dice exactamente lo declarado, mas preparaciones,
@@ -686,7 +692,7 @@ async function procesar(doc) {
   const cuadra = (l) => capturaImpecable({ lectura: l, ruta: viaje.ruta, tiempoSegundos: viaje.tiempoSegundos });
   if (primera.disponible && primera.esBicimad && !lecturas.some(cuadra)) {
     for (const prep of PREPARACIONES_EXTRA) {
-      const otra = elegirTrayecto(await releerCon({ buffer, ...prep }), viaje.ruta, cual);
+      const otra = heredar(elegirTrayecto(await releerCon({ buffer, ...prep }), viaje.ruta, cual));
       lecturas.push(otra);
       if (cuadra(otra)) break;
     }

@@ -357,9 +357,11 @@ test('el workflow del worker no puede solaparse consigo mismo', () => {
   const flujo = leer('.github/workflows/verificar-viajes.yml');
   assert.match(flujo, /concurrency:/, 'dos workers a la vez procesarian los mismos viajes');
   assert.match(flujo, /FIREBASE_SERVICE_ACCOUNT: \$\{\{ secrets\./);
-  // Ya no hay claves de IA: la captura se lee con OCR local. El unico secreto
-  // del worker es la cuenta de servicio.
-  assert.ok(!/GEMINI|OPENAI|ANTHROPIC/i.test(flujo), 'el worker no debe depender de ninguna IA');
+  // La IA es solo un lector de ultimo recurso (src/lector-ia.js): sus claves
+  // son opcionales y sin ellas todo funciona igual. Ninguna otra.
+  assert.ok(!/OPENAI|ANTHROPIC/i.test(flujo), 'el worker no debe depender de otra IA');
+  const lector = leer('backend/src/lector-ia.js');
+  assert.match(lector, /Nunca rechaza nada/, 'la IA solo puede leer, no decidir rechazos');
 });
 
 // --- Legal ----------------------------------------------------------------------

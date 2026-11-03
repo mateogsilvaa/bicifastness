@@ -62,8 +62,6 @@ jobs:
     permissions:
       contents: read
       actions: write
-      # El lector con IA (backend/src/lector-ia.js): GitHub Models, nivel gratuito.
-      models: read
     # La ejecucion se queda dando pasadas a la cola (VENTANA_MINUTOS en
     # worker.js), asi que el limite tiene que dejar sitio a la ventana mas el
     # trabajo periodico del final y el arranque.
@@ -113,8 +111,11 @@ jobs:
         working-directory: backend
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          # El lector con IA para lo que el OCR no sabe leer (GitHub Models).
-          GITHUB_TOKEN: ${{ github.token }}
+          # El lector con IA para lo que el OCR no sabe leer (Gemini, nivel
+          # gratuito). Tres claves que se turnan cuando una se queda sin cupo.
+          GEMINI_API_1: ${{ secrets.GEMINI_API_1 }}
+          GEMINI_API_2: ${{ secrets.GEMINI_API_2 }}
+          GEMINI_API_3: ${{ secrets.GEMINI_API_3 }}
           # Correo por Gmail (la cuenta del proyecto) con una contraseña de
           # aplicacion. Si faltan, Resend; si falta todo, no se envia correo.
           GMAIL_USUARIO: ${{ secrets.GMAIL_USUARIO }}

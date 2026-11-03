@@ -21,3 +21,34 @@ test('una respuesta rota o sin trayectos no es una lectura', () => {
   assert.strictEqual(l.horaSalida, '09:05');
   assert.strictEqual(l.segundosDuracion, 900);
 });
+
+test('las claves de Gemini se turnan: si una se queda sin cupo, la siguiente', async () => {
+  const antes = { ...process.env };
+  const fetchAntes = global.fetch;
+  process.env.GEMINI_API_1 = 'k1';
+  process.env.GEMINI_API_2 = 'k2';
+  process.env.GEMINI_API_3 = '';
+  const usadas = [];
+  global.fetch = async (_url, opciones) => {
+    const clave = opciones.headers['x-goog-api-key'];
+    usadas.push(clave);
+    if (clave === 'k1') return new Response('{"error":"quota"}', { status: 429 });
+    const texto = JSON.stringify({ esBicimad: true, trayectos: [{ origen: '1', destino: '2', duracion: '00:10:00' }] });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: texto }] } }] }), { status: 200 });
+  };
+  try {
+    delete require.cache[require.resolve('../src/lector-ia')];
+    const { leerConIA } = require('../src/lector-ia');
+    const png = await require('sharp')({ create: { width: 20, height: 40, channels: 3, background: '#fff' } }).png().toBuffer();
+    const l = await leerConIA({ buffer: png });
+    assert.strictEqual(l.disponible, true);
+    assert.strictEqual(l.segundosDuracion, 600);
+    // La 1 sin cupo no se vuelve a probar en esta ejecucion.
+    await leerConIA({ buffer: png });
+    assert.deepStrictEqual(usadas, ['k1', 'k2', 'k2']);
+  } finally {
+    global.fetch = fetchAntes;
+    process.env = antes;
+    delete require.cache[require.resolve('../src/lector-ia')];
+  }
+});

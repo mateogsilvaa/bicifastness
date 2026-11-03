@@ -14,7 +14,7 @@
 
 const { FISICA, RIESGO, IMAGEN, HORARIO, LIMITES } = require('./config');
 const {
-  buscarEstacion, distanciaMetros, horaASegundos, diaMadrid, minutosDelDiaEnZona,
+  buscarEstacion, construirRuta, distanciaMetros, horaASegundos, diaMadrid, minutosDelDiaEnZona,
 } = require('./util');
 const { distanciaHamming } = require('./imagen');
 
@@ -881,6 +881,49 @@ function mejorLectura(lecturas, ruta, tiempoSegundos) {
 }
 
 /**
+ * La ruta que dice la captura, cuando NO es la declarada pero la captura es
+ * clara: para corregir las estaciones sin mandar el viaje a revision.
+ *
+ * Solo devuelve algo si:
+ *   - un trayecto de la captura tiene dos estaciones que existen y distintas,
+ *     la MISMA duracion declarada (±5 s) y horas que cuadran con ella;
+ *   - al menos DOS lecturas distintas (Tesseract, PaddleOCR, relecturas)
+ *     coinciden en esa ruta;
+ *   - y no hay otra ruta que tambien lo cumpla (sin ambigüedad).
+ *
+ * La duracion es lo que decide los puntos y sale de la captura; equivocarse de
+ * estaciones al declarar (la ruta al reves que rellenaba la web, un numero mal
+ * tecleado) no es trampa. Pura.
+ *
+ * @returns {{ ruta: string, lectura: object }|null}
+ */
+function rutaDeLaCaptura(lecturas, tiempoSegundos) {
+  const apoyos = new Map();
+  for (const [i, l] of (lecturas || []).entries()) {
+    if (!l?.disponible) continue;
+    const candidatos = Array.isArray(l.trayectos) && l.trayectos.length ? l.trayectos : [l];
+    for (const t of candidatos) {
+      let ruta;
+      try { ruta = construirRuta(t.origen, t.destino).ruta; } catch { continue; }
+      if (!Number.isFinite(t.segundosDuracion) || Math.abs(t.segundosDuracion - tiempoSegundos) > 5) continue;
+      const sa = horaASegundos(t.horaSalida);
+      const ll = horaASegundos(t.horaLlegada);
+      if (sa === null || ll === null) continue;
+      let entre = ll - sa;
+      if (entre < 0) entre += 24 * 3600;
+      const margen = /:\d{2}:\d{2}/.test(`${t.horaSalida}${t.horaLlegada}`) ? 5 : 65;
+      if (Math.abs(entre - t.segundosDuracion) > margen) continue;
+      if (!apoyos.has(ruta)) apoyos.set(ruta, { lecturas: new Set(), lectura: { ...l, ...t } });
+      apoyos.get(ruta).lecturas.add(i);
+    }
+  }
+  const firmes = [...apoyos].filter(([, a]) => a.lecturas.size >= 2);
+  if (firmes.length !== 1) return null;
+  const [ruta, { lectura }] = firmes[0];
+  return { ruta, lectura: { ...lectura, trayectos: [] } };
+}
+
+/**
  * Ejecuta todas las comprobaciones y decide.
  * Devuelve siempre un objeto serializable, listo para guardar en el viaje: el
  * admin ve exactamente por que se ha tomado la decision.
@@ -965,6 +1008,6 @@ function evaluar(contexto) {
 }
 
 module.exports = {
-  capturaImpecable, RUIDO, mejorLectura, fechaDentroDePlazo,
+  capturaImpecable, RUIDO, mejorLectura, fechaDentroDePlazo, rutaDeLaCaptura,
   evaluar, distribucion, distanciaCalleMetros, velocidadKmh, DE_LECTURA, firmaDeLectura, compararFirmas,
 };

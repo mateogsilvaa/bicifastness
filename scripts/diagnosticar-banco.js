@@ -18,7 +18,9 @@ const B = path.join(__dirname, '..', 'backend', 'src');
 const {
   leerCaptura, releerCaptura, releerCon, PREPARACIONES_EXTRA, elegirTrayecto, cerrar,
 } = require(path.join(B, 'ocr'));
-const { evaluar, capturaImpecable, mejorLectura } = require(path.join(B, 'verificacion'));
+const {
+  evaluar, capturaImpecable, mejorLectura, rutaDeLaCaptura, DE_LECTURA, RUIDO,
+} = require(path.join(B, 'verificacion'));
 const imagen = require(path.join(B, 'imagen'));
 const { leerConPaddle } = require(path.join(B, 'lector-paddle'));
 
@@ -82,6 +84,11 @@ async function main() {
       + ` | 2.a lectura: ${segunda ? `origen ${si(sinCeros(segunda.origen) === o)}, duracion ${si(Math.abs((segunda.segundosDuracion ?? -999) - tiempo) <= 5)}` : 'no'}`);
     console.log(`   cuadra: 1.a ${cuadra(primera) ? 'si' : 'NO'}, 2.a ${segunda && cuadra(segunda) ? 'si' : 'NO'}, paddle ${paddle}, extra [${extra.join(' ')}]`
       + ` -> elegida la ${lecturas.indexOf(lectura) + 1}.a`);
+    // Como el paso 5c del worker: ¿se habria corregido la ruta con la captura?
+    const soloRuta = v.decision === 'revision'
+      && v.señales.some((x) => x.codigo === 'ruta_no_coincide' && x.gravedad)
+      && v.señales.every((x) => !x.gravedad || DE_LECTURA.has(x.codigo) || RUIDO.has(x.codigo));
+    if (soloRuta) console.log(`   ruta corregible con la captura: ${rutaDeLaCaptura(lecturas, tiempo) ? 'si' : 'NO'}`);
     console.log(`   señales: ${v.señales.map((s) => `${s.codigo}(${s.gravedad})`).join(' ') || 'ninguna'}`);
     const k = `${variante}:${v.decision}`;
     resumen[k] = (resumen[k] || 0) + 1;

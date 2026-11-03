@@ -270,7 +270,7 @@ export async function solicitarBorradoCuenta(confirmacion) {
  *   (la ruta al reves, un segundo mal tecleado). Queda el antes en el propio
  *   viaje y en `auditoria_admin`.
  */
-export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje = null, correccion = null) {
+export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje = null, correccion = null, { deIA = false } = {}) {
   const aprobar = accion === 'aprobar';
   const lote = writeBatch(db);
 
@@ -300,6 +300,7 @@ export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje 
     revisadoEn: serverTimestamp(),
     motivoRevision: motivo,
     recalculoPendiente: true,
+    ...(deIA ? { iaRevisada: true } : {}),
     ...(aprobar && correccion ? {
       ruta: correccion.ruta,
       tiempoSegundos: correccion.tiempoSegundos,
@@ -315,7 +316,7 @@ export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje 
   // luego (ni por quien lo escribio).
   lote.set(doc(collection(db, 'auditoria_admin')), {
     adminUid: uidActual(),
-    accion: `viaje:${aprobar ? (correccion ? 'corregido' : 'aprobado') : 'rechazado'}`,
+    accion: `viaje:${deIA ? 'ia-' : ''}${aprobar ? (correccion ? 'corregido' : 'aprobado') : 'rechazado'}`,
     detalle: {
       viajeId, motivo: motivo || null,
       ...(aprobar && correccion ? { antes: correccion.antes, ahora: { ruta: correccion.ruta, tiempoSegundos: correccion.tiempoSegundos, fechaViaje: correccion.fechaViaje } } : {}),
@@ -323,6 +324,16 @@ export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje 
     creado: serverTimestamp(),
   });
 
+  await lote.commit();
+}
+
+/** Lo que aprobo el lector con IA, repasado y dado por bueno. */
+export async function confirmarAprobadoIA(viajeId) {
+  const lote = writeBatch(db);
+  lote.update(doc(db, 'tiempos_viaje', viajeId), { iaRevisada: true });
+  lote.set(doc(collection(db, 'auditoria_admin')), {
+    adminUid: uidActual(), accion: 'viaje:ia-confirmado', detalle: { viajeId }, creado: serverTimestamp(),
+  });
   await lote.commit();
 }
 

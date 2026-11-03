@@ -499,10 +499,13 @@ service cloud.firestore {
         && cambia().hasOnly([
           'estado', 'verificado', 'revisadoPor', 'revisadoEn',
           'motivoRevision', 'recalculoPendiente',
+          // Repaso de lo que aprobo el lector con IA.
+          'iaRevisada',
           // Corregir y aprobar: lo que dice de verdad la captura.
           'ruta', 'tiempoSegundos', 'tiempoFormateado', 'fechaViaje', 'correccionAdmin'
         ])
         && datos().estado in ['aprobado', 'rechazado', 'revision']
+        && (!('iaRevisada' in cambia()) || datos().iaRevisada == true)
         && (!cambia().hasAny(['ruta', 'tiempoSegundos', 'tiempoFormateado', 'fechaViaje', 'correccionAdmin'])
           || (datos().estado == 'aprobado'
             && datos().correccionAdmin is map

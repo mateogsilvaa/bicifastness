@@ -1016,3 +1016,16 @@ test('la administracion puede aprobar un viaje corregido, con el antes apuntado 
   await assertFails(updateDoc(doc(como(UID), 'tiempos_viaje', 'v-corr'), { ...base, ...corr }));
   await assertSucceeds(updateDoc(admin, { ...base, ...corr }));
 });
+
+test('lo aprobado por la IA: la administracion lo da por bueno (solo encender la marca)', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'tiempos_viaje', 'v-ia'), {
+      uid: UID, ruta: '053-393', tiempoSegundos: 820, fechaViaje: '2026-11-03',
+      estado: 'aprobado', verificado: true, aprobadoPorIA: true, iaRevisada: false,
+    });
+  });
+  const admin = doc(como('jefa', { admin: true }), 'tiempos_viaje', 'v-ia');
+  await assertFails(updateDoc(admin, { iaRevisada: 'si' }));
+  await assertFails(updateDoc(doc(como(UID), 'tiempos_viaje', 'v-ia'), { iaRevisada: true }));
+  await assertSucceeds(updateDoc(admin, { iaRevisada: true }));
+});

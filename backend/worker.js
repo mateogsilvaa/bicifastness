@@ -912,6 +912,9 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
       : {}),
     revisadoPor: 'automatico',
     revisadoEn: AHORA(),
+    // Aprobado gracias al lector con IA: la administracion lo repasa en su
+    // pestaña del panel ("Aprobados por IA") y puede anularlo.
+    ...(veredicto.lectorIA && aprobado ? { aprobadoPorIA: true, iaRevisada: false } : {}),
     // Marca para el aviso de revision lenta. En `false` y no ausente: un campo
     // que falta no lo devuelve ninguna consulta de Firestore, y sin poder
     // filtrar habria que traer la cola entera y descartar en memoria — que es
@@ -1852,7 +1855,9 @@ async function aplicarDecisionesManuales() {
     // llegaba por correo era el automatico, y el que decide una persona —que
     // es el que mas explicacion merece— se quedaba en un cambio de color en el
     // historial. Sale una vez: `recalculoPendiente` se apaga justo debajo.
-    if (viaje.estado === 'rechazado' && viaje.premiado !== true
+    // Tambien si lo aprobo el lector con IA y la administracion lo anula: ahi
+    // ya habia sumado, y quitarle los puntos sin decirle nada no se entiende.
+    if (viaje.estado === 'rechazado' && (viaje.premiado !== true || viaje.aprobadoPorIA === true)
       && viaje.revisadoPor && viaje.revisadoPor !== 'automatico') {
       // Y al movil, como cuando decide la maquina.
       await avisarPorPush(doc.id, viaje, 'rechazado');

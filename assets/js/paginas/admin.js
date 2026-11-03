@@ -15,7 +15,7 @@ import { montarCabeceraAdmin, contadorAdmin, marcarSeccionAdmin, puertaDosPasos 
 import { INSIGNIAS } from '/assets/data/insignias.js';
 import { BANNERS, LEMAS, esLibre } from '/assets/data/recompensas.js';
 import {
-  resolverViaje, resolverReporte, verCaptura,
+  resolverViaje, resolverReporte, verCaptura, confirmarAprobadoIA,
   gestionarInsignia, gestionarRecompensa, destacarRuta, suspenderUsuario, escribirAPiloto,
 } from '/assets/js/acciones.js';
 
@@ -109,10 +109,15 @@ function hace(fecha) {
 const tramoCorto = (ruta) => String(ruta || '').split('-').map((c) => nombreEstacion(c) || c).join(' → ');
 
 function visibles() {
-  if (filtro === 'records') return cola.filter(({ viaje }) => ES_RECORD(viaje));
-  if (filtro === 'impugnados') return cola.filter(({ viaje }) => viaje.impugnado);
-  return cola;
+  // Lo aprobado por el lector con IA va aparte: ya cuenta, solo se repasa.
+  if (filtro === 'ia') return cola.filter(({ deIA }) => deIA);
+  const pendientes = cola.filter(({ deIA }) => !deIA);
+  if (filtro === 'records') return pendientes.filter(({ viaje }) => ES_RECORD(viaje));
+  if (filtro === 'impugnados') return pendientes.filter(({ viaje }) => viaje.impugnado);
+  return pendientes;
 }
+
+const enRevision = () => cola.filter(({ deIA }) => !deIA);
 
 async function cargarRevision() {
   reemplazar(id('caso'), esqueleto(1, 320));
@@ -123,6 +128,20 @@ async function cargarRevision() {
       orderBy('creado', 'desc')
     ));
     cola = snapshot.docs.map((d) => ({ id: d.id, viaje: d.data() }));
+    // Y lo que aprobo el lector con IA sin que nadie lo haya repasado aun.
+    // Solo igualdades: no necesita indice compuesto.
+    try {
+      const ia = await getDocs(query(
+        collection(db, 'tiempos_viaje'),
+        where('aprobadoPorIA', '==', true),
+        where('iaRevisada', '==', false),
+        limit(100),
+      ));
+      cola.push(...ia.docs.map((d) => ({ id: d.id, viaje: d.data(), deIA: true }))
+        .sort((a, b) => (b.viaje.creado?.toMillis?.() || 0) - (a.viaje.creado?.toMillis?.() || 0)));
+    } catch (error) {
+      console.debug('Sin la lista de aprobados por IA', error);
+    }
     indice = 0;
     pintarCola();
   } catch (error) {
@@ -131,21 +150,24 @@ async function cargarRevision() {
 }
 
 function actualizarContador() {
-  id('cuenta-revision').textContent = String(cola.length);
-  contadorAdmin('adm-cuenta-revision', cola.length);
+  const n = enRevision().length;
+  id('cuenta-revision').textContent = String(n);
+  contadorAdmin('adm-cuenta-revision', n);
   const aviso = id('aviso-cola');
-  aviso.classList.toggle('oculto', cola.length <= COLA_PREOCUPANTE);
-  aviso.textContent = `Hay ${cola.length} viajes esperando. Cada día que uno pasa en la cola `
+  aviso.classList.toggle('oculto', n <= COLA_PREOCUPANTE);
+  aviso.textContent = `Hay ${n} viajes esperando. Cada día que uno pasa en la cola `
     + 'es un día que alguien no sabe si su trayecto cuenta.';
 }
 
 function pintarFiltros() {
-  const impugnados = cola.filter(({ viaje }) => viaje.impugnado).length;
-  const records = cola.filter(({ viaje }) => ES_RECORD(viaje)).length;
+  const impugnados = enRevision().filter(({ viaje }) => viaje.impugnado).length;
+  const records = enRevision().filter(({ viaje }) => ES_RECORD(viaje)).length;
+  const deIA = cola.filter((c) => c.deIA).length;
   reemplazar(id('filtros-cola'), [
     ['todos', 'Todos'],
     ['records', `Récords${records ? ` · ${records}` : ''}`],
     ['impugnados', `Impugnados${impugnados ? ` · ${impugnados}` : ''}`],
+    ['ia', `Aprobados por IA${deIA ? ` · ${deIA}` : ''}`],
   ].map(([clave, texto]) => el('button', {
     attrs: { type: 'button', 'aria-pressed': String(filtro === clave) }, texto,
     on: { click: () => { filtro = clave; indice = 0; pintarCola(); } },
@@ -305,13 +327,20 @@ function pintarCaso() {
   const destino = id('caso');
   const lista = visibles();
   if (!lista.length) {
+    if (filtro === 'ia') {
+      reemplazar(destino, el('div', { clase: 'vacio' }, [
+        el('h3', { texto: 'Nada que repasar' }),
+        el('p', { texto: 'Aquí salen los viajes que aprobó el lector con IA, hasta que los des por buenos o los anules.' }),
+      ]));
+      return;
+    }
     reemplazar(destino, el('div', { clase: 'vacio' }, [
       el('h3', { texto: cola.length ? 'Nada con este filtro' : 'Todo al día' }),
       el('p', { texto: cola.length ? 'Cambia el filtro de la cola.' : 'No hay ningún viaje esperando revisión.' }),
     ]));
     return;
   }
-  const { id: viajeId, viaje } = lista[indice];
+  const { id: viajeId, viaje, deIA } = lista[indice];
   const historial = el('div', {}, [el('p', { clase: 'meta', texto: 'Cargando historial del piloto…' })]);
   const analisis = el('div', { clase: 'adm-datos' }, [el('p', { clase: 'meta', texto: 'Cargando el análisis…' })]);
   const etiquetas = el('div', { clase: 'adm-etiquetas' });
@@ -345,10 +374,11 @@ function pintarCaso() {
         el('span', { clase: 'adm-rotulo', texto: 'Motivo si rechazas (llega tal cual al correo del piloto)' }),
         selectorActual,
       ]),
+      deIA ? el('p', { clase: 'meta', estilo: { fontWeight: '700' }, texto: 'Aprobado por el lector con IA: ya cuenta. Si está bien, dalo por bueno; si no, anúlalo (se le quitan los puntos).' }) : null,
       el('div', { clase: 'adm-decidir' }, [
-        el('button', { clase: 'btn aprobar', attrs: { type: 'button' }, on: { click: () => decidir('aprobar') } }, [icono('check', 'icono peq'), el('span', { texto: 'Aprobar' }), el('kbd', { texto: 'A' })]),
-        el('button', { clase: 'btn secundario', attrs: { type: 'button' }, on: { click: () => corregirYAprobar() } }, [el('span', { texto: 'Corregir y aprobar' }), el('kbd', { texto: 'C' })]),
-        el('button', { clase: 'btn peligro', attrs: { type: 'button' }, on: { click: () => decidir('rechazar') } }, [el('span', { texto: 'Rechazar' }), el('kbd', { texto: 'R' })]),
+        el('button', { clase: 'btn aprobar', attrs: { type: 'button' }, on: { click: () => decidir('aprobar') } }, [icono('check', 'icono peq'), el('span', { texto: deIA ? 'Está bien' : 'Aprobar' }), el('kbd', { texto: 'A' })]),
+        deIA ? null : el('button', { clase: 'btn secundario', attrs: { type: 'button' }, on: { click: () => corregirYAprobar() } }, [el('span', { texto: 'Corregir y aprobar' }), el('kbd', { texto: 'C' })]),
+        el('button', { clase: 'btn peligro', attrs: { type: 'button' }, on: { click: () => decidir('rechazar') } }, [el('span', { texto: deIA ? 'Anular' : 'Rechazar' }), el('kbd', { texto: 'R' })]),
         el('span', { clase: 'hueco' }),
         el('span', { clase: 'pista', texto: `J / K para moverse · ${indice + 1} de ${lista.length}` }),
       ]),
@@ -402,7 +432,19 @@ async function pintarHistorial(uid, destino) {
 async function decidir(accion) {
   const lista = visibles();
   if (!lista.length) return;
-  const { id: viajeId } = lista[indice];
+  const { id: viajeId, deIA } = lista[indice];
+
+  // Lo que aprobo la IA: darlo por bueno no toca el viaje.
+  if (deIA && accion === 'aprobar') {
+    try {
+      await confirmarAprobadoIA(viajeId);
+      cola = cola.filter((c) => c.id !== viajeId);
+      pintarCola();
+    } catch (error) {
+      avisar(`No se ha podido guardar: ${error.message}`);
+    }
+    return;
+  }
 
   let motivo = null;
   if (accion === 'rechazar') {
@@ -419,7 +461,7 @@ async function decidir(accion) {
   }
 
   try {
-    await resolverViaje(viajeId, accion, motivo, aprendizaje?.viajeId === viajeId ? aprendizaje : null);
+    await resolverViaje(viajeId, accion, motivo, aprendizaje?.viajeId === viajeId ? aprendizaje : null, null, { deIA: Boolean(deIA) });
     cola = cola.filter((c) => c.id !== viajeId);
     pintarCola();
   } catch (error) {
@@ -435,7 +477,9 @@ async function decidir(accion) {
 function corregirYAprobar() {
   const lista = visibles();
   if (!lista.length) return;
-  const { id: viajeId, viaje } = lista[indice];
+  const { id: viajeId, viaje, deIA } = lista[indice];
+  // Uno ya aprobado y premiado no se corrige aqui: se anula.
+  if (deIA) return;
   const lectura = aprendizaje?.viajeId === viajeId ? aprendizaje?.auditoria?.lectura : null;
   const [o, d] = String(viaje.ruta || '').split('-');
   const campo = (etiqueta, valor, attrs = {}) => {

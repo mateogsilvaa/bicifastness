@@ -122,13 +122,20 @@ async function leerConIA({ buffer }) {
     if (r.status === 429 || r.status === 401 || r.status === 403) {
       // Sin cupo o sin permiso: no se insiste en esta ejecucion.
       apagado = true;
-      return { disponible: false, error: `http ${r.status}` };
+      const detalle = (await r.text().catch(() => '')).slice(0, 200).replace(/\s+/g, ' ');
+      return { disponible: false, error: `http ${r.status} ${detalle}` };
     }
-    if (!r.ok) return { disponible: false, error: `http ${r.status}` };
+    if (!r.ok) {
+      const detalle = (await r.text().catch(() => '')).slice(0, 200).replace(/\s+/g, ' ');
+      return { disponible: false, error: `http ${r.status} ${detalle}` };
+    }
     const cuerpo = await r.json();
     return aLectura(cuerpo?.choices?.[0]?.message?.content);
   } catch (error) {
-    return { disponible: false, error: error.name === 'AbortError' ? 'tiempo agotado' : 'fallo de red' };
+    // La causa concreta (sin datos de nadie): "fallo de red" a secas no deja
+    // arreglar nada.
+    const causa = [error.name, error.message, error.cause?.code, error.cause?.message].filter(Boolean).join(' / ').slice(0, 200);
+    return { disponible: false, error: error.name === 'AbortError' ? 'tiempo agotado' : `fallo: ${causa}` };
   } finally {
     clearTimeout(temporizador);
   }

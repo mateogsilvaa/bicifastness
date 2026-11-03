@@ -131,13 +131,14 @@ async function cargarRevision() {
     // Y lo que aprobo el lector con IA sin que nadie lo haya repasado aun.
     // Solo igualdades: no necesita indice compuesto.
     try {
-      const ia = await getDocs(query(
-        collection(db, 'tiempos_viaje'),
-        where('aprobadoPorIA', '==', true),
-        where('iaRevisada', '==', false),
-        limit(100),
-      ));
-      cola.push(...ia.docs.map((d) => ({ id: d.id, viaje: d.data(), deIA: true }))
+      // Y lo que el verificador aprobo corrigiendo la ruta con la captura.
+      const [ia, corregidos] = await Promise.all([
+        getDocs(query(collection(db, 'tiempos_viaje'), where('aprobadoPorIA', '==', true), where('iaRevisada', '==', false), limit(100))),
+        getDocs(query(collection(db, 'tiempos_viaje'), where('corregidoAuto', '==', true), where('iaRevisada', '==', false), limit(100))),
+      ]);
+      const vistos = new Set();
+      cola.push(...[...ia.docs, ...corregidos.docs].filter((d) => !vistos.has(d.id) && vistos.add(d.id))
+        .map((d) => ({ id: d.id, viaje: d.data(), deIA: true }))
         .sort((a, b) => (b.viaje.creado?.toMillis?.() || 0) - (a.viaje.creado?.toMillis?.() || 0)));
     } catch (error) {
       console.debug('Sin la lista de aprobados por IA', error);
@@ -167,7 +168,7 @@ function pintarFiltros() {
     ['todos', 'Todos'],
     ['records', `Récords${records ? ` · ${records}` : ''}`],
     ['impugnados', `Impugnados${impugnados ? ` · ${impugnados}` : ''}`],
-    ['ia', `Aprobados por IA${deIA ? ` · ${deIA}` : ''}`],
+    ['ia', `Para repasar${deIA ? ` · ${deIA}` : ''}`],
   ].map(([clave, texto]) => el('button', {
     attrs: { type: 'button', 'aria-pressed': String(filtro === clave) }, texto,
     on: { click: () => { filtro = clave; indice = 0; pintarCola(); } },
@@ -330,7 +331,7 @@ function pintarCaso() {
     if (filtro === 'ia') {
       reemplazar(destino, el('div', { clase: 'vacio' }, [
         el('h3', { texto: 'Nada que repasar' }),
-        el('p', { texto: 'Aquí salen los viajes que aprobó el lector con IA, hasta que los des por buenos o los anules.' }),
+        el('p', { texto: 'Aquí salen los viajes que se aprobaron solos con ayuda (lector con IA o ruta corregida con la captura), hasta que los des por buenos o los anules.' }),
       ]));
       return;
     }
@@ -374,7 +375,9 @@ function pintarCaso() {
         el('span', { clase: 'adm-rotulo', texto: 'Motivo si rechazas (llega tal cual al correo del piloto)' }),
         selectorActual,
       ]),
-      deIA ? el('p', { clase: 'meta', estilo: { fontWeight: '700' }, texto: 'Aprobado por el lector con IA: ya cuenta. Si está bien, dalo por bueno; si no, anúlalo (se le quitan los puntos).' }) : null,
+      deIA ? el('p', { clase: 'meta', estilo: { fontWeight: '700' }, texto: viaje.corregidoAuto
+        ? `Ruta corregida con la captura: declaró ${tramoCorto(viaje.correccionAutomatica?.antes?.ruta)} y la captura dice ${tramoCorto(viaje.ruta)}. Ya cuenta con la ruta buena. Si está bien, dalo por bueno; si no, anúlalo (se le quitan los puntos).`
+        : 'Aprobado por el lector con IA: ya cuenta. Si está bien, dalo por bueno; si no, anúlalo (se le quitan los puntos).' }) : null,
       el('div', { clase: 'adm-decidir' }, [
         el('button', { clase: 'btn aprobar', attrs: { type: 'button' }, on: { click: () => decidir('aprobar') } }, [icono('check', 'icono peq'), el('span', { texto: deIA ? 'Está bien' : 'Aprobar' }), el('kbd', { texto: 'A' })]),
         deIA ? null : el('button', { clase: 'btn secundario', attrs: { type: 'button' }, on: { click: () => corregirYAprobar() } }, [el('span', { texto: 'Corregir y aprobar' }), el('kbd', { texto: 'C' })]),

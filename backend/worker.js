@@ -48,7 +48,7 @@ const {
   leerCaptura, releerCaptura, releerCon, PREPARACIONES_EXTRA, elegirTrayecto, cerrar: cerrarOcr,
 } = require('./src/ocr');
 const {
-  evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura, DE_LECTURA, RUIDO,
+  evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura, DE_LECTURA, RUIDO, rutaDeLaCaptura,
 } = require('./src/verificacion');
 const lectorIA = require('./src/lector-ia');
 const lectorPaddle = require('./src/lector-paddle');
@@ -776,6 +776,34 @@ async function procesar(doc) {
     }
   }
 
+  // 5c. Estaciones mal declaradas. Si lo UNICO que falla es que la ruta no es
+  // la declarada (ninguna señal de trampa) y la captura dice con claridad otra
+  // ruta con la MISMA duracion —al menos dos lecturas de acuerdo, horas que
+  // cuadran—, se corrige la ruta y se evalua entero otra vez con ella. Si pasa,
+  // se aprueba con la ruta de la captura y la administracion lo repasa
+  // ("Para repasar"). Casi siempre es la ruta al reves que rellenaba la web o
+  // un numero mal tecleado.
+  const soloRuta = veredicto.decision === 'revision'
+    && veredicto.señales.some((s) => s.codigo === 'ruta_no_coincide' && s.gravedad)
+    && veredicto.señales.every((s) => !s.gravedad || DE_LECTURA.has(s.codigo) || RUIDO.has(s.codigo));
+  let contextoDeRuta = contexto;
+  if (soloRuta) {
+    const dicha = rutaDeLaCaptura(lecturas, viaje.tiempoSegundos);
+    if (dicha && dicha.ruta !== viaje.ruta) {
+      const corregido = { ...viaje, ruta: dicha.ruta };
+      const contextoNuevo = await reunirContexto(corregido, uid, hashSha, hashPerceptual, capturaId);
+      const otra = evaluar({ ...contextoVeredicto, ...contextoNuevo, ruta: dicha.ruta, lectura: dicha.lectura });
+      console.log(`  [${doc.id}] ruta corregida por la captura: ${viaje.ruta} -> ${dicha.ruta} (${otra.decision})`);
+      if (otra.decision === 'aprobado') {
+        const antes = viaje.ruta;
+        viaje.ruta = dicha.ruta;
+        lectura = dicha.lectura;
+        contextoDeRuta = contextoNuevo;
+        veredicto = { ...otra, rutaCorregida: { antes, ahora: dicha.ruta } };
+      }
+    }
+  }
+
   // Conjunto de entrenamiento de cifras (scripts/entrenar-cifras.py): los
   // recortes de la lupa cuyo texto confirma un viaje aprobado con captura
   // impecable. Sin uid ni nombre: un numero de estacion o una hora sueltos.
@@ -832,8 +860,8 @@ async function procesar(doc) {
     });
 
   await resolver(doc, veredicto, {
-    mejorTiempoRuta: contexto.mejorTiempoRuta,
-    marcaUltimoPuntuable: contexto.marcaUltimoPuntuable,
+    mejorTiempoRuta: contextoDeRuta.mejorTiempoRuta,
+    marcaUltimoPuntuable: contextoDeRuta.marcaUltimoPuntuable,
   });
   return veredicto.decision;
 }
@@ -892,7 +920,9 @@ async function escribirAuditoria(viajeId, veredicto) {
 
 /** Escribe el veredicto y, si procede, recalcula la clasificacion. */
 async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPuntuable = null } = {}) {
-  const viaje = doc.data();
+  // Con la ruta corregida por la captura (5c), todo lo de abajo —puntos,
+  // podio, aviso— va con la ruta buena.
+  const viaje = { ...doc.data(), ...(veredicto.rutaCorregida ? { ruta: veredicto.rutaCorregida.ahora } : {}) };
   const aprobado = veredicto.decision === 'aprobado';
 
   // El de aprobado sale despues de `premiar`, con los puntos de verdad (07 ·
@@ -934,6 +964,14 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
     // Aprobado gracias al lector con IA: la administracion lo repasa en su
     // pestaña del panel ("Aprobados por IA") y puede anularlo.
     ...(veredicto.lectorIA && aprobado ? { aprobadoPorIA: true, iaRevisada: false } : {}),
+    // La ruta corregida con lo que dice la captura (5c): queda el antes y se
+    // repasa en el panel junto a lo de la IA.
+    ...(veredicto.rutaCorregida && aprobado ? {
+      ruta: viaje.ruta,
+      correccionAutomatica: { antes: { ruta: veredicto.rutaCorregida.antes }, en: AHORA() },
+      corregidoAuto: true,
+      iaRevisada: false,
+    } : {}),
     // Marca para el aviso de revision lenta. En `false` y no ausente: un campo
     // que falta no lo devuelve ninguna consulta de Firestore, y sin poder
     // filtrar habria que traer la cola entera y descartar en memoria — que es
@@ -1876,7 +1914,7 @@ async function aplicarDecisionesManuales() {
     // historial. Sale una vez: `recalculoPendiente` se apaga justo debajo.
     // Tambien si lo aprobo el lector con IA y la administracion lo anula: ahi
     // ya habia sumado, y quitarle los puntos sin decirle nada no se entiende.
-    if (viaje.estado === 'rechazado' && (viaje.premiado !== true || viaje.aprobadoPorIA === true)
+    if (viaje.estado === 'rechazado' && (viaje.premiado !== true || viaje.aprobadoPorIA === true || viaje.corregidoAuto === true)
       && viaje.revisadoPor && viaje.revisadoPor !== 'automatico') {
       // Y al movil, como cuando decide la maquina.
       await avisarPorPush(doc.id, viaje, 'rechazado');

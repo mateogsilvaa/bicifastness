@@ -755,3 +755,28 @@ test('una relectura con las estaciones al reves no gana aunque diga la ruta decl
   const alReves = { ...real, origen: '2', destino: '110', horaSalida: '16:36', horaLlegada: '16:23' };
   assert.strictEqual(mejorLectura([real, alReves], RUTA, 820), real);
 });
+
+test('la ruta se corrige con la captura solo si es clara: dos lecturas de acuerdo, misma duracion, horas que cuadran', () => {
+  const { rutaDeLaCaptura } = require('../src/verificacion');
+  // La captura: 177 -> 277, 17:59:28 -> 18:10:16 (648 s). Declarado al reves.
+  const buena = { disponible: true, esBicimad: true, origen: '177', destino: '277', horaSalida: '17:59:28', horaLlegada: '18:10:16', segundosDuracion: 648 };
+  const r = rutaDeLaCaptura([buena, { ...buena }], 648);
+  assert.strictEqual(r.ruta, '177-277');
+  assert.strictEqual(r.lectura.origen, '177');
+
+  // Una sola lectura: no basta.
+  assert.strictEqual(rutaDeLaCaptura([buena, { disponible: false }], 648), null);
+  // Otra duracion: no es este viaje.
+  assert.strictEqual(rutaDeLaCaptura([buena, { ...buena }], 700), null);
+  // Horas que no cuadran con la duracion (o al reves): no.
+  const alReves = { ...buena, horaSalida: '18:10:16', horaLlegada: '17:59:28' };
+  assert.strictEqual(rutaDeLaCaptura([alReves, { ...alReves }], 648), null);
+  // Una estacion que no existe: no.
+  assert.strictEqual(rutaDeLaCaptura([{ ...buena, destino: '999' }, { ...buena, destino: '999' }], 648), null);
+  // Dos rutas firmes distintas con la misma duracion: ambiguo, no.
+  const otra = { ...buena, origen: '236', destino: '165' };
+  assert.strictEqual(rutaDeLaCaptura([buena, { ...buena }, otra, { ...otra }], 648), null);
+  // De los trayectos de una captura del historial: el que tiene esa duracion.
+  const historial = { disponible: true, trayectos: [buena, { ...otra, segundosDuracion: 419, horaSalida: '08:20:09', horaLlegada: '08:27:08' }] };
+  assert.strictEqual(rutaDeLaCaptura([historial, historial], 648).ruta, '177-277');
+});

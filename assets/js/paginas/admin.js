@@ -9,13 +9,13 @@ import {
   collection, doc, getDoc, getDocs, query, where, orderBy, limit,
 } from '/assets/js/firebase.js';
 import { iniciarPagina, nombreRuta, nombreEstacion, formatearFecha, formatearTiempo, normalizarEstacion } from '/assets/js/ui.js';
-import { id, el, icono, estado, reemplazar, imagen, confirmar, avisar, esqueleto, pedirTexto } from '/assets/js/dom.js';
+import { id, el, icono, estado, reemplazar, imagen, confirmar, avisar, esqueleto, pedirTexto, abrirHoja } from '/assets/js/dom.js';
 import { MOTIVOS_MANUALES, textoDeMotivo } from '/assets/js/motivos.js';
 import { montarCabeceraAdmin, contadorAdmin, marcarSeccionAdmin, puertaDosPasos } from '/assets/js/admin-cabecera.js';
 import { INSIGNIAS } from '/assets/data/insignias.js';
 import { BANNERS, LEMAS, esLibre } from '/assets/data/recompensas.js';
 import {
-  resolverViaje, resolverReporte, verCaptura,
+  resolverViaje, resolverReporte, verCaptura, confirmarAprobadoIA,
   gestionarInsignia, gestionarRecompensa, destacarRuta, suspenderUsuario, escribirAPiloto,
 } from '/assets/js/acciones.js';
 
@@ -109,10 +109,15 @@ function hace(fecha) {
 const tramoCorto = (ruta) => String(ruta || '').split('-').map((c) => nombreEstacion(c) || c).join(' → ');
 
 function visibles() {
-  if (filtro === 'records') return cola.filter(({ viaje }) => ES_RECORD(viaje));
-  if (filtro === 'impugnados') return cola.filter(({ viaje }) => viaje.impugnado);
-  return cola;
+  // Lo aprobado por el lector con IA va aparte: ya cuenta, solo se repasa.
+  if (filtro === 'ia') return cola.filter(({ deIA }) => deIA);
+  const pendientes = cola.filter(({ deIA }) => !deIA);
+  if (filtro === 'records') return pendientes.filter(({ viaje }) => ES_RECORD(viaje));
+  if (filtro === 'impugnados') return pendientes.filter(({ viaje }) => viaje.impugnado);
+  return pendientes;
 }
+
+const enRevision = () => cola.filter(({ deIA }) => !deIA);
 
 async function cargarRevision() {
   reemplazar(id('caso'), esqueleto(1, 320));
@@ -123,6 +128,20 @@ async function cargarRevision() {
       orderBy('creado', 'desc')
     ));
     cola = snapshot.docs.map((d) => ({ id: d.id, viaje: d.data() }));
+    // Y lo que aprobo el lector con IA sin que nadie lo haya repasado aun.
+    // Solo igualdades: no necesita indice compuesto.
+    try {
+      const ia = await getDocs(query(
+        collection(db, 'tiempos_viaje'),
+        where('aprobadoPorIA', '==', true),
+        where('iaRevisada', '==', false),
+        limit(100),
+      ));
+      cola.push(...ia.docs.map((d) => ({ id: d.id, viaje: d.data(), deIA: true }))
+        .sort((a, b) => (b.viaje.creado?.toMillis?.() || 0) - (a.viaje.creado?.toMillis?.() || 0)));
+    } catch (error) {
+      console.debug('Sin la lista de aprobados por IA', error);
+    }
     indice = 0;
     pintarCola();
   } catch (error) {
@@ -131,21 +150,24 @@ async function cargarRevision() {
 }
 
 function actualizarContador() {
-  id('cuenta-revision').textContent = String(cola.length);
-  contadorAdmin('adm-cuenta-revision', cola.length);
+  const n = enRevision().length;
+  id('cuenta-revision').textContent = String(n);
+  contadorAdmin('adm-cuenta-revision', n);
   const aviso = id('aviso-cola');
-  aviso.classList.toggle('oculto', cola.length <= COLA_PREOCUPANTE);
-  aviso.textContent = `Hay ${cola.length} viajes esperando. Cada día que uno pasa en la cola `
+  aviso.classList.toggle('oculto', n <= COLA_PREOCUPANTE);
+  aviso.textContent = `Hay ${n} viajes esperando. Cada día que uno pasa en la cola `
     + 'es un día que alguien no sabe si su trayecto cuenta.';
 }
 
 function pintarFiltros() {
-  const impugnados = cola.filter(({ viaje }) => viaje.impugnado).length;
-  const records = cola.filter(({ viaje }) => ES_RECORD(viaje)).length;
+  const impugnados = enRevision().filter(({ viaje }) => viaje.impugnado).length;
+  const records = enRevision().filter(({ viaje }) => ES_RECORD(viaje)).length;
+  const deIA = cola.filter((c) => c.deIA).length;
   reemplazar(id('filtros-cola'), [
     ['todos', 'Todos'],
     ['records', `Récords${records ? ` · ${records}` : ''}`],
     ['impugnados', `Impugnados${impugnados ? ` · ${impugnados}` : ''}`],
+    ['ia', `Aprobados por IA${deIA ? ` · ${deIA}` : ''}`],
   ].map(([clave, texto]) => el('button', {
     attrs: { type: 'button', 'aria-pressed': String(filtro === clave) }, texto,
     on: { click: () => { filtro = clave; indice = 0; pintarCola(); } },
@@ -305,13 +327,20 @@ function pintarCaso() {
   const destino = id('caso');
   const lista = visibles();
   if (!lista.length) {
+    if (filtro === 'ia') {
+      reemplazar(destino, el('div', { clase: 'vacio' }, [
+        el('h3', { texto: 'Nada que repasar' }),
+        el('p', { texto: 'Aquí salen los viajes que aprobó el lector con IA, hasta que los des por buenos o los anules.' }),
+      ]));
+      return;
+    }
     reemplazar(destino, el('div', { clase: 'vacio' }, [
       el('h3', { texto: cola.length ? 'Nada con este filtro' : 'Todo al día' }),
       el('p', { texto: cola.length ? 'Cambia el filtro de la cola.' : 'No hay ningún viaje esperando revisión.' }),
     ]));
     return;
   }
-  const { id: viajeId, viaje } = lista[indice];
+  const { id: viajeId, viaje, deIA } = lista[indice];
   const historial = el('div', {}, [el('p', { clase: 'meta', texto: 'Cargando historial del piloto…' })]);
   const analisis = el('div', { clase: 'adm-datos' }, [el('p', { clase: 'meta', texto: 'Cargando el análisis…' })]);
   const etiquetas = el('div', { clase: 'adm-etiquetas' });
@@ -345,9 +374,11 @@ function pintarCaso() {
         el('span', { clase: 'adm-rotulo', texto: 'Motivo si rechazas (llega tal cual al correo del piloto)' }),
         selectorActual,
       ]),
+      deIA ? el('p', { clase: 'meta', estilo: { fontWeight: '700' }, texto: 'Aprobado por el lector con IA: ya cuenta. Si está bien, dalo por bueno; si no, anúlalo (se le quitan los puntos).' }) : null,
       el('div', { clase: 'adm-decidir' }, [
-        el('button', { clase: 'btn aprobar', attrs: { type: 'button' }, on: { click: () => decidir('aprobar') } }, [icono('check', 'icono peq'), el('span', { texto: 'Aprobar' }), el('kbd', { texto: 'A' })]),
-        el('button', { clase: 'btn peligro', attrs: { type: 'button' }, on: { click: () => decidir('rechazar') } }, [el('span', { texto: 'Rechazar' }), el('kbd', { texto: 'R' })]),
+        el('button', { clase: 'btn aprobar', attrs: { type: 'button' }, on: { click: () => decidir('aprobar') } }, [icono('check', 'icono peq'), el('span', { texto: deIA ? 'Está bien' : 'Aprobar' }), el('kbd', { texto: 'A' })]),
+        deIA ? null : el('button', { clase: 'btn secundario', attrs: { type: 'button' }, on: { click: () => corregirYAprobar() } }, [el('span', { texto: 'Corregir y aprobar' }), el('kbd', { texto: 'C' })]),
+        el('button', { clase: 'btn peligro', attrs: { type: 'button' }, on: { click: () => decidir('rechazar') } }, [el('span', { texto: deIA ? 'Anular' : 'Rechazar' }), el('kbd', { texto: 'R' })]),
         el('span', { clase: 'hueco' }),
         el('span', { clase: 'pista', texto: `J / K para moverse · ${indice + 1} de ${lista.length}` }),
       ]),
@@ -401,7 +432,19 @@ async function pintarHistorial(uid, destino) {
 async function decidir(accion) {
   const lista = visibles();
   if (!lista.length) return;
-  const { id: viajeId } = lista[indice];
+  const { id: viajeId, deIA } = lista[indice];
+
+  // Lo que aprobo la IA: darlo por bueno no toca el viaje.
+  if (deIA && accion === 'aprobar') {
+    try {
+      await confirmarAprobadoIA(viajeId);
+      cola = cola.filter((c) => c.id !== viajeId);
+      pintarCola();
+    } catch (error) {
+      avisar(`No se ha podido guardar: ${error.message}`);
+    }
+    return;
+  }
 
   let motivo = null;
   if (accion === 'rechazar') {
@@ -418,7 +461,7 @@ async function decidir(accion) {
   }
 
   try {
-    await resolverViaje(viajeId, accion, motivo, aprendizaje?.viajeId === viajeId ? aprendizaje : null);
+    await resolverViaje(viajeId, accion, motivo, aprendizaje?.viajeId === viajeId ? aprendizaje : null, null, { deIA: Boolean(deIA) });
     cola = cola.filter((c) => c.id !== viajeId);
     pintarCola();
   } catch (error) {
@@ -426,12 +469,99 @@ async function decidir(accion) {
   }
 }
 
-/** Atajos: A aprobar, R rechazar, 1-9 motivo, J/K moverse. */
+/**
+ * Corregir y aprobar: cuando la captura es buena pero lo declarado no (la ruta
+ * al reves, un segundo mal tecleado, el dia). Se aprueba con lo que dice la
+ * captura; el antes queda en el viaje y en `auditoria_admin`.
+ */
+function corregirYAprobar() {
+  const lista = visibles();
+  if (!lista.length) return;
+  const { id: viajeId, viaje, deIA } = lista[indice];
+  // Uno ya aprobado y premiado no se corrige aqui: se anula.
+  if (deIA) return;
+  const lectura = aprendizaje?.viajeId === viajeId ? aprendizaje?.auditoria?.lectura : null;
+  const [o, d] = String(viaje.ruta || '').split('-');
+  const campo = (etiqueta, valor, attrs = {}) => {
+    const entrada = el('input', { attrs: { value: valor ?? '', autocomplete: 'off', ...attrs } });
+    return { entrada, nodo: el('label', { clase: 'pila', estilo: { gap: '4px' } }, [el('span', { clase: 'adm-rotulo', texto: etiqueta }), entrada]) };
+  };
+  const origen = campo('Salida (nº de estación)', o, { inputmode: 'numeric' });
+  const destino = campo('Meta (nº de estación)', d, { inputmode: 'numeric' });
+  const duracion = campo('Duración (mm:ss)', formatearTiempo(viaje.tiempoSegundos));
+  const fecha = campo('Fecha', viaje.fechaViaje, { type: 'date', min: '2026-11-01' });
+  const nombres = el('p', { clase: 'meta' });
+  const error = el('p', { clase: 'meta', estilo: { color: 'var(--rojo, #c0392b)' } });
+  const pintarNombres = () => {
+    const a = normalizarEstacion(origen.entrada.value);
+    const b = normalizarEstacion(destino.entrada.value);
+    nombres.textContent = `${nombreEstacion(a) || '¿estación?'} → ${nombreEstacion(b) || '¿estación?'}`;
+  };
+  [origen, destino].forEach((c) => c.entrada.addEventListener('input', pintarNombres));
+  pintarNombres();
+
+  const invertir = el('button', {
+    clase: 'btn plano', texto: 'Invertir salida y meta', attrs: { type: 'button' },
+    on: { click: () => { const t = origen.entrada.value; origen.entrada.value = destino.entrada.value; destino.entrada.value = t; pintarNombres(); } },
+  });
+  const usarLeido = lectura?.origen ? el('button', {
+    clase: 'btn plano', texto: 'Rellenar con lo leído', attrs: { type: 'button' },
+    on: {
+      click: () => {
+        // Si la lectura tiene las horas al reves, las estaciones tambien.
+        const alReves = lectura.horaSalida && lectura.horaLlegada && lectura.horaLlegada < lectura.horaSalida;
+        origen.entrada.value = alReves ? lectura.destino : lectura.origen;
+        destino.entrada.value = alReves ? lectura.origen : lectura.destino;
+        if (Number.isFinite(lectura.segundosDuracion)) duracion.entrada.value = formatearTiempo(lectura.segundosDuracion);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(String(lectura.fecha || ''))) fecha.entrada.value = lectura.fecha;
+        pintarNombres();
+      },
+    },
+  }) : null;
+
+  const guardar = el('button', { clase: 'btn aprobar', texto: 'Aprobar corregido', attrs: { type: 'button' } });
+  const { cerrar } = abrirHoja([
+    el('h2', { texto: 'Corregir y aprobar' }),
+    el('p', { clase: 'meta', texto: 'Se aprueba con estos datos. El piloto ve el trayecto corregido y queda registrado qué había antes.' }),
+    origen.nodo, destino.nodo, nombres,
+    el('div', { clase: 'fila', estilo: { gap: '8px', flexWrap: 'wrap' } }, [invertir, usarLeido]),
+    duracion.nodo, fecha.nodo, error, guardar,
+  ], { etiqueta: 'Corregir y aprobar' });
+
+  guardar.addEventListener('click', async () => {
+    const a = normalizarEstacion(origen.entrada.value);
+    const b = normalizarEstacion(destino.entrada.value);
+    const m = /^(\d{1,3}):([0-5]\d)$/.exec(duracion.entrada.value.trim());
+    const segundos = m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
+    const dia = fecha.entrada.value;
+    if (!nombreEstacion(a) || !nombreEstacion(b) || a === b) { error.textContent = 'Revisa las estaciones.'; return; }
+    if (!Number.isInteger(segundos) || segundos < 30 || segundos > 7200) { error.textContent = 'La duración va en mm:ss (entre 0:30 y 120:00).'; return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || dia < '2026-11-01') { error.textContent = 'La fecha no vale.'; return; }
+    guardar.disabled = true;
+    try {
+      await resolverViaje(viajeId, 'aprobar', null, aprendizaje?.viajeId === viajeId ? aprendizaje : null, {
+        ruta: `${a}-${b}`, tiempoSegundos: segundos, fechaViaje: dia,
+        antes: { ruta: viaje.ruta || null, tiempoSegundos: viaje.tiempoSegundos ?? null, fechaViaje: viaje.fechaViaje || null },
+      });
+      cerrar();
+      cola = cola.filter((c) => c.id !== viajeId);
+      pintarCola();
+      avisar('Aprobado con la corrección.');
+    } catch (e) {
+      guardar.disabled = false;
+      error.textContent = `No se ha podido guardar: ${e.message}`;
+    }
+  });
+}
+
+/** Atajos: A aprobar, R rechazar, C corregir, 1-9 motivo, J/K moverse. */
 document.addEventListener('keydown', (evento) => {
   if (evento.ctrlKey || evento.metaKey || evento.altKey) return;
   const foco = document.activeElement?.tagName;
   if (foco === 'INPUT' || foco === 'TEXTAREA' || foco === 'SELECT') return;
   if (id('visor').style.display === 'flex') return;
+  // Con una hoja abierta (corregir, motivo) las teclas son suyas.
+  if (document.querySelector('.hoja')) return;
   if (id('seccion-revision').classList.contains('oculto')) return;
   const lista = visibles();
   if (!lista.length) return;
@@ -439,6 +569,7 @@ document.addEventListener('keydown', (evento) => {
   const tecla = evento.key.toLowerCase();
   if (tecla === 'a') { evento.preventDefault(); decidir('aprobar'); }
   else if (tecla === 'r') { evento.preventDefault(); decidir('rechazar'); }
+  else if (tecla === 'c') { evento.preventDefault(); corregirYAprobar(); }
   else if (/^[1-9]$/.test(tecla)) { evento.preventDefault(); selectorActual?.elegir(Number(tecla)); }
   else if (tecla === 'j' || evento.key === 'ArrowDown') { evento.preventDefault(); indice = Math.min(indice + 1, lista.length - 1); pintarCola(); }
   else if (tecla === 'k' || evento.key === 'ArrowUp') { evento.preventDefault(); indice = Math.max(indice - 1, 0); pintarCola(); }

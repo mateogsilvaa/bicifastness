@@ -264,7 +264,13 @@ export async function solicitarBorradoCuenta(confirmacion) {
  * `recalculoPendiente` avisa al worker de que rehaga la clasificacion: hacerlo
  * desde el navegador costaria cientos de lecturas de la cuota diaria gratuita.
  */
-export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje = null) {
+/**
+ * @param {{ruta: string, tiempoSegundos: number, fechaViaje: string, antes: object}|null} correccion
+ *   La administracion aprueba el viaje con lo que de verdad dice la captura
+ *   (la ruta al reves, un segundo mal tecleado). Queda el antes en el propio
+ *   viaje y en `auditoria_admin`.
+ */
+export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje = null, correccion = null, { deIA = false } = {}) {
   const aprobar = accion === 'aprobar';
   const lote = writeBatch(db);
 
@@ -294,6 +300,14 @@ export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje 
     revisadoEn: serverTimestamp(),
     motivoRevision: motivo,
     recalculoPendiente: true,
+    ...(deIA ? { iaRevisada: true } : {}),
+    ...(aprobar && correccion ? {
+      ruta: correccion.ruta,
+      tiempoSegundos: correccion.tiempoSegundos,
+      tiempoFormateado: `${String(Math.floor(correccion.tiempoSegundos / 60)).padStart(2, '0')}:${String(correccion.tiempoSegundos % 60).padStart(2, '0')}`,
+      fechaViaje: correccion.fechaViaje,
+      correccionAdmin: { antes: correccion.antes, por: uidActual(), en: serverTimestamp() },
+    } : {}),
   });
 
   // Cada decision manual deja rastro, y en el mismo lote que la decision: un
@@ -302,11 +316,24 @@ export async function resolverViaje(viajeId, accion, motivo = null, aprendizaje 
   // luego (ni por quien lo escribio).
   lote.set(doc(collection(db, 'auditoria_admin')), {
     adminUid: uidActual(),
-    accion: `viaje:${aprobar ? 'aprobado' : 'rechazado'}`,
-    detalle: { viajeId, motivo: motivo || null },
+    accion: `viaje:${deIA ? 'ia-' : ''}${aprobar ? (correccion ? 'corregido' : 'aprobado') : 'rechazado'}`,
+    detalle: {
+      viajeId, motivo: motivo || null,
+      ...(aprobar && correccion ? { antes: correccion.antes, ahora: { ruta: correccion.ruta, tiempoSegundos: correccion.tiempoSegundos, fechaViaje: correccion.fechaViaje } } : {}),
+    },
     creado: serverTimestamp(),
   });
 
+  await lote.commit();
+}
+
+/** Lo que aprobo el lector con IA, repasado y dado por bueno. */
+export async function confirmarAprobadoIA(viajeId) {
+  const lote = writeBatch(db);
+  lote.update(doc(db, 'tiempos_viaje', viajeId), { iaRevisada: true });
+  lote.set(doc(collection(db, 'auditoria_admin')), {
+    adminUid: uidActual(), accion: 'viaje:ia-confirmado', detalle: { viajeId }, creado: serverTimestamp(),
+  });
   await lote.commit();
 }
 

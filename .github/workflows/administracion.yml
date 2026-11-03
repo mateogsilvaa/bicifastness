@@ -14,7 +14,7 @@ on:
       operacion:
         description: 'Que hacer'
         type: choice
-        options: [hacer-admin, quitar-admin, comprobar-datos, reencolar-errores, borrar-viajes-y-clanes, analizar-revisiones, diagnosticar-banco]
+        options: [hacer-admin, quitar-admin, comprobar-datos, reencolar-errores, reverificar-revision, borrar-viajes-y-clanes, analizar-revisiones, diagnosticar-banco]
         required: true
       correo:
         description: 'Correo de la cuenta (solo para hacer-admin / quitar-admin)'
@@ -120,5 +120,10 @@ jobs:
               # Los viajes que fueron a revision porque el worker fallo (no
               # por el viaje) vuelven a la cola. Solo imprime recuentos.
               node scripts/reencolar-errores.js
+              ;;
+            reverificar-revision)
+              # Lo que esta en la cola de revision por el verificador vuelve
+              # a pasar por el lector de ahora. Solo imprime recuentos.
+              node scripts/reencolar-errores.js --toda-la-revision
               ;;
           esac

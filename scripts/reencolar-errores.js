@@ -13,13 +13,19 @@ const admin = require('./lib/firebase-admin');
 
 async function main() {
   const simular = process.argv.includes('--simular');
+  // --toda-la-revision: TODOS los que el worker mando a revision (no los
+  // impugnados ni los que ya decidio una persona), para que vuelvan a pasar
+  // por el lector de ahora (varias lecturas y el lector con IA).
+  const todos = process.argv.includes('--toda-la-revision');
   admin.initializeApp({ credential: admin.credential.applicationDefault() });
   const db = admin.firestore();
 
   // Solo por estado (sin indice compuesto): la cola de revision es corta y
   // el motivo se filtra aqui.
   const enRevision = await db.collection('tiempos_viaje').where('estado', '==', 'revision').get();
-  const atascados = { docs: enRevision.docs.filter((d) => (d.data().motivos || []).includes('error_worker')) };
+  const atascados = {
+    docs: enRevision.docs.filter((d) => (todos ? d.data().impugnado !== true : (d.data().motivos || []).includes('error_worker'))),
+  };
   atascados.size = atascados.docs.length;
 
   // Los que ya ha resuelto una persona se respetan. `revisadoPor: 'automatico'`
@@ -30,7 +36,7 @@ async function main() {
   const porMotivo = {};
   for (const d of enRevision.docs) for (const m of (d.data().motivos || ['(sin motivos)'])) porMotivo[m] = (porMotivo[m] || 0) + 1;
   console.log(`En revision: ${enRevision.size}. Por motivo: ${JSON.stringify(porMotivo)}`);
-  console.log(`En revision por un fallo del worker: ${atascados.size}. Vuelven a la cola: ${vuelven.length}.`);
+  console.log(`${todos ? 'En revision automatica' : 'En revision por un fallo del worker'}: ${atascados.size}. Vuelven a la cola: ${vuelven.length}.`);
   if (simular) return;
 
   for (let i = 0; i < vuelven.length; i += 400) {

@@ -48,8 +48,9 @@ const {
   leerCaptura, releerCaptura, releerCon, PREPARACIONES_EXTRA, elegirTrayecto, cerrar: cerrarOcr,
 } = require('./src/ocr');
 const {
-  evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura,
+  evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura, DE_LECTURA,
 } = require('./src/verificacion');
+const lectorIA = require('./src/lector-ia');
 const puntuacion = require('./src/puntuacion');
 const distancias = require('./src/distancias');
 const rachas = require('./src/rachas');
@@ -697,7 +698,7 @@ async function procesar(doc) {
       if (cuadra(otra)) break;
     }
   }
-  const lectura = mejorLectura(lecturas, viaje.ruta, viaje.tiempoSegundos) || primera;
+  let lectura = mejorLectura(lecturas, viaje.ruta, viaje.tiempoSegundos) || primera;
 
   // Quien mas ha llevado esa bici ese dia, para ver si coincide en la hora.
   const usosBici = await usosDeLaBici(lectura, viaje);
@@ -708,7 +709,7 @@ async function procesar(doc) {
   const editorDeclarado = imagen.editorEn(viaje.metadatos?.software);
 
   // 5. Veredicto.
-  const veredicto = evaluar({
+  const contextoVeredicto = {
     ruta: viaje.ruta,
     tiempoSegundos: viaje.tiempoSegundos,
     lectura,
@@ -737,7 +738,32 @@ async function procesar(doc) {
     ancho: inspeccion.ancho,
     alto: inspeccion.alto,
     ...contexto,
-  });
+  };
+  let veredicto = evaluar(contextoVeredicto);
+
+  // 5b. Ultimo recurso antes de la cola de revision: un modelo de vision lee
+  // la captura (src/lector-ia.js). Solo si lo unico que la manda a revision es
+  // la LECTURA —ninguna señal de trampa pesa— y solo para APROBAR: con su
+  // lectura la captura tiene que quedar impecable y pasar las mismas
+  // comprobaciones. Si no, todo sigue como estaba.
+  const soloLectura = veredicto.decision === 'revision'
+    && veredicto.señales.every((s) => !s.gravedad || DE_LECTURA.has(s.codigo));
+  if (soloLectura && primera.disponible && lectorIA.disponible()) {
+    const cruda = elegirTrayecto(await lectorIA.leerConIA({ buffer }), viaje.ruta, cual);
+    // Que es de BiciMAD ya lo vio el OCR; el modelo solo transcribe numeros.
+    const leidaIA = cruda.disponible ? { ...cruda, esBicimad: cruda.esBicimad || primera.esBicimad } : cruda;
+    if (leidaIA.disponible) {
+      const conIA = mejorLectura([...lecturas, leidaIA], viaje.ruta, viaje.tiempoSegundos);
+      const veredictoIA = conIA && cuadra(conIA) ? evaluar({ ...contextoVeredicto, lectura: conIA }) : null;
+      console.log(`  [${doc.id}] lector IA: ${veredictoIA ? veredictoIA.decision : 'no cuadra'}`);
+      if (veredictoIA?.decision === 'aprobado') {
+        lectura = conIA;
+        veredicto = { ...veredictoIA, lectorIA: true };
+      }
+    } else {
+      console.log(`  [${doc.id}] lector IA no disponible (${leidaIA.error})`);
+    }
+  }
 
   // Lo que se LEYO en la captura, para que la cola de revision pueda enseñar
   // lado a lado lo declarado y lo leido (#15). Sin esto, quien revisa ve las
@@ -886,6 +912,9 @@ async function resolver(doc, veredicto, { mejorTiempoRuta = null, marcaUltimoPun
       : {}),
     revisadoPor: 'automatico',
     revisadoEn: AHORA(),
+    // Aprobado gracias al lector con IA: la administracion lo repasa en su
+    // pestaña del panel ("Aprobados por IA") y puede anularlo.
+    ...(veredicto.lectorIA && aprobado ? { aprobadoPorIA: true, iaRevisada: false } : {}),
     // Marca para el aviso de revision lenta. En `false` y no ausente: un campo
     // que falta no lo devuelve ninguna consulta de Firestore, y sin poder
     // filtrar habria que traer la cola entera y descartar en memoria — que es
@@ -1826,7 +1855,9 @@ async function aplicarDecisionesManuales() {
     // llegaba por correo era el automatico, y el que decide una persona —que
     // es el que mas explicacion merece— se quedaba en un cambio de color en el
     // historial. Sale una vez: `recalculoPendiente` se apaga justo debajo.
-    if (viaje.estado === 'rechazado' && viaje.premiado !== true
+    // Tambien si lo aprobo el lector con IA y la administracion lo anula: ahi
+    // ya habia sumado, y quitarle los puntos sin decirle nada no se entiende.
+    if (viaje.estado === 'rechazado' && (viaje.premiado !== true || viaje.aprobadoPorIA === true)
       && viaje.revisadoPor && viaje.revisadoPor !== 'automatico') {
       // Y al movil, como cuando decide la maquina.
       await avisarPorPush(doc.id, viaje, 'rechazado');

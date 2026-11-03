@@ -996,3 +996,36 @@ test('el premio de pegatina se pide una vez y lo decide el worker', async () => 
   await assertFails(setDoc(doc(como(OTRO), 'premios_qr', OTRO), { estado: 'resuelto', creado: serverTimestamp() }));
   await assertFails(setDoc(doc(como(UID), 'premios_qr', OTRO), { estado: 'pendiente', creado: serverTimestamp() }));
 });
+
+test('la administracion puede aprobar un viaje corregido, con el antes apuntado y datos validos', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'tiempos_viaje', 'v-corr'), {
+      uid: UID, ruta: '053-393', tiempoSegundos: 820, tiempoFormateado: '13:40', fechaViaje: '2026-11-03',
+      estado: 'revision', verificado: false,
+    });
+  });
+  const admin = doc(como('jefa', { admin: true }), 'tiempos_viaje', 'v-corr');
+  const base = { estado: 'aprobado', verificado: true, revisadoPor: 'jefa', revisadoEn: serverTimestamp(), motivoRevision: null, recalculoPendiente: true };
+  const corr = { ruta: '393-053', tiempoSegundos: 820, tiempoFormateado: '13:40', fechaViaje: '2026-11-03', correccionAdmin: { antes: { ruta: '053-393' }, por: 'jefa' } };
+  // Sin el antes, con una ruta mal formada, o rechazando: no.
+  await assertFails(updateDoc(admin, { ...base, ...corr, correccionAdmin: null }));
+  await assertFails(updateDoc(admin, { ...base, ...corr, ruta: '393' }));
+  await assertFails(updateDoc(admin, { ...base, ...corr, estado: 'rechazado', verificado: false }));
+  await assertFails(updateDoc(admin, { ...base, ...corr, fechaViaje: '2026-10-31' }));
+  // Nadie que no sea administracion.
+  await assertFails(updateDoc(doc(como(UID), 'tiempos_viaje', 'v-corr'), { ...base, ...corr }));
+  await assertSucceeds(updateDoc(admin, { ...base, ...corr }));
+});
+
+test('lo aprobado por la IA: la administracion lo da por bueno (solo encender la marca)', async () => {
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'tiempos_viaje', 'v-ia'), {
+      uid: UID, ruta: '053-393', tiempoSegundos: 820, fechaViaje: '2026-11-03',
+      estado: 'aprobado', verificado: true, aprobadoPorIA: true, iaRevisada: false,
+    });
+  });
+  const admin = doc(como('jefa', { admin: true }), 'tiempos_viaje', 'v-ia');
+  await assertFails(updateDoc(admin, { iaRevisada: 'si' }));
+  await assertFails(updateDoc(doc(como(UID), 'tiempos_viaje', 'v-ia'), { iaRevisada: true }));
+  await assertSucceeds(updateDoc(admin, { iaRevisada: true }));
+});

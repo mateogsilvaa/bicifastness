@@ -766,6 +766,73 @@ async function cerrar() {
  * Devuelve la misma forma que devolvia la auditoria con IA, para que el motor
  * de decision no tenga que distinguir de donde viene la lectura.
  */
+/**
+ * Relee con lupa las cifras que deciden el viaje: el numero de cada estacion
+ * ("393" de "393 - Manuel Noya") y cada hora ("16:23:14"). Cada una se recorta
+ * de la captura por la caja que ya dio la primera lectura, se amplia y se lee
+ * como UNA palabra con solo `0-9` (o `0-9:`). Es la tarea facil en vez de la
+ * dificil: diez glifos en un recorte, no una pagina entera.
+ *
+ * Cambia el texto de esa palabra en `data` solo si la relectura tiene la forma
+ * esperada. Nunca lanza.
+ */
+async function afinarCifras(worker, imagen, data, recortes = []) {
+  let sharp;
+  try { sharp = require('sharp'); } catch { return 0; }
+  const palabras = [];
+  for (const b of data.blocks || []) for (const pa of b.paragraphs || []) for (const l of pa.lines || []) {
+    const ws = (l.words || []).filter((w) => w?.bbox);
+    const iEst = ws.findIndex((w) => /\d/.test(w.text));
+    // La estacion: la primera palabra con cifras de una linea "NNN - Nombre".
+    if (iEst >= 0 && /^\W{0,3}\d{1,3}[A-Z]?\W{0,2}$/.test(ws[iEst].text) && /[-–]/.test(l.text)) {
+      palabras.push({ w: ws[iEst], tipo: 'estacion' });
+    }
+    for (const w of ws) if (/\d{1,2}[:.]\d{2}[:.]\d{2}/.test(w.text)) palabras.push({ w, tipo: 'hora' });
+  }
+  if (!palabras.length) return 0;
+  const meta = await sharp(imagen).metadata();
+  let cambiadas = 0;
+  try {
+    await worker.setParameters({ tessedit_pageseg_mode: '8', tessedit_char_whitelist: '0123456789:' });
+    for (const { w, tipo } of palabras.slice(0, 12)) {
+      const { x0, y0, x1, y1 } = w.bbox;
+      const m = Math.round((y1 - y0) * 0.35);
+      const left = Math.max(0, x0 - m);
+      const top = Math.max(0, y0 - m);
+      const width = Math.min((meta.width || x1) - left, x1 - x0 + 2 * m);
+      const height = Math.min((meta.height || y1) - top, y1 - y0 + 2 * m);
+      if (width < 4 || height < 4) continue;
+      const recorte = await sharp(imagen).extract({ left, top, width, height })
+        .resize({ height: Math.max(64, height * 3) }).greyscale().normalise().png().toBuffer();
+      const { data: d } = await worker.recognize(recorte);
+      let leido = String(d.text || '').replace(/\s+/g, '');
+      // Con el clasificador propio entrenado (src/lector-cifras.js), manda el.
+      const propio = await require('./lector-cifras').leerRecorte(recorte).catch(() => null);
+      if (propio && (tipo === 'estacion' ? /^\d{1,3}$/.test(propio) : /^\d{2}:\d{2}:\d{2}$/.test(propio))) leido = propio;
+      // El recorte, pequeño y en gris, para el conjunto de entrenamiento de
+      // cifras (lo guarda el worker solo si el viaje se aprueba y lo confirma).
+      const muestra = await sharp(recorte).resize({ height: 32 }).png().toBuffer().catch(() => null);
+      if (muestra && muestra.length < 6000) recortes.push({ tipo, texto: leido, png: muestra.toString('base64') });
+      if (tipo === 'estacion' && /^\d{1,3}$/.test(leido)) {
+        const actual = (String(w.text).match(/\d{1,3}/) || [''])[0];
+        if (actual !== leido) { w.text = String(w.text).replace(/\d{1,3}/, leido); cambiadas++; }
+      } else if (tipo === 'hora' && /^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(leido)) {
+        const actual = (String(w.text).match(/\d{1,2}[:.]\d{2}[:.]\d{2}/) || [''])[0];
+        if (actual !== leido) { w.text = String(w.text).replace(/\d{1,2}[:.]\d{2}[:.]\d{2}/, leido); cambiadas++; }
+      }
+    }
+  } catch {
+    // Si la lupa falla, se queda la primera lectura tal cual.
+  }
+  // El texto de cada linea, rehecho con sus palabras (afinadas o no).
+  if (cambiadas) {
+    for (const b of data.blocks || []) for (const pa of b.paragraphs || []) for (const l of pa.lines || []) {
+      if ((l.words || []).length) l.text = l.words.map((w) => w.text).join(' ');
+    }
+  }
+  return cambiadas;
+}
+
 async function leerCaptura({ buffer }) {
   if (!Tesseract) {
     return { disponible: false, error: 'OCR no disponible en este entorno.' };
@@ -798,6 +865,14 @@ async function leerCaptura({ buffer }) {
     // mandarlo a revision que dar por buena una lectura a medias.
     if (fallo) {
       return { disponible: false, error: `El OCR ha fallado: ${fallo}` };
+    }
+
+    // La lupa sobre estaciones y horas (devuelve los parametros como estaban).
+    const recortesCifras = [];
+    try {
+      await afinarCifras(worker, preparada.buffer, data, recortesCifras);
+    } finally {
+      await worker.setParameters({ tessedit_pageseg_mode: SEGMENTACION, tessedit_char_whitelist: '' });
     }
 
     const texto = textoPorAltura(data);
@@ -859,6 +934,7 @@ async function leerCaptura({ buffer }) {
       fecha: extraerFechas(texto)[0]?.fecha || '',
       relojBarra: extraerRelojBarra(texto),
       texto,
+      recortesCifras,
     });
   } catch (err) {
     // Tesseract rechaza con una cadena suelta, no con un Error, asi que

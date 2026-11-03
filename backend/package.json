@@ -10,6 +10,7 @@
     "worker:simular": "node worker.js --simular"
   },
   "dependencies": {
+    "@gutenye/ocr-node": "^1.4.9",
     "firebase-admin": "^12.7.0",
     "nodemailer": "^10.0.12",
     "sharp": "^0.33.5",

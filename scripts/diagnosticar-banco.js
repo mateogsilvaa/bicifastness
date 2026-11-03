@@ -20,6 +20,7 @@ const {
 } = require(path.join(B, 'ocr'));
 const { evaluar, capturaImpecable, mejorLectura } = require(path.join(B, 'verificacion'));
 const imagen = require(path.join(B, 'imagen'));
+const { leerConPaddle } = require(path.join(B, 'lector-paddle'));
 
 const sinCeros = (v) => String(v || '').replace(/^0+/, '');
 
@@ -48,6 +49,12 @@ async function main() {
     const lecturas = [primera, segunda].filter(Boolean);
     const cuadra = (l) => capturaImpecable({ lectura: l, ruta, tiempoSegundos: tiempo });
     const extra = [];
+    // PaddleOCR, como en el worker (aqui siempre, para medirlo).
+    let paddle = 'no';
+    if (primera.disponible && primera.esBicimad) {
+      const p = heredar(elegirTrayecto(await leerConPaddle({ buffer }), ruta, cual));
+      if (p.disponible) { lecturas.push(p); paddle = cuadra(p) ? 'si' : 'NO'; }
+    }
     if (primera.disponible && primera.esBicimad) {
       // En el diagnostico se prueban TODAS, para saber cual sirve.
       for (const prep of PREPARACIONES_EXTRA) {
@@ -73,7 +80,7 @@ async function main() {
       + ` duracion ${si(Number.isFinite(lectura.segundosDuracion) && Math.abs(lectura.segundosDuracion - tiempo) <= 5)},`
       + ` horas ${si(lectura.horaSalida && lectura.horaLlegada)}, confianza ${lectura.confianza ?? '-'}`
       + ` | 2.a lectura: ${segunda ? `origen ${si(sinCeros(segunda.origen) === o)}, duracion ${si(Math.abs((segunda.segundosDuracion ?? -999) - tiempo) <= 5)}` : 'no'}`);
-    console.log(`   cuadra: 1.a ${cuadra(primera) ? 'si' : 'NO'}, 2.a ${segunda && cuadra(segunda) ? 'si' : 'NO'}, extra [${extra.join(' ')}]`
+    console.log(`   cuadra: 1.a ${cuadra(primera) ? 'si' : 'NO'}, 2.a ${segunda && cuadra(segunda) ? 'si' : 'NO'}, paddle ${paddle}, extra [${extra.join(' ')}]`
       + ` -> elegida la ${lecturas.indexOf(lectura) + 1}.a`);
     console.log(`   señales: ${v.señales.map((s) => `${s.codigo}(${s.gravedad})`).join(' ') || 'ninguna'}`);
     const k = `${variante}:${v.decision}`;

@@ -1063,6 +1063,9 @@ test('el borrado de cuenta no se deja ninguna coleccion con uid dentro', () => {
   const SIN_UID = new Set([
     // Datos agregados o de configuracion: no llevan a nadie.
     'agregados', 'config', 'estaciones_stats', 'metricas', 'cuota', 'secrets',
+    // Recortes de un numero de estacion o una hora para entrenar el lector de
+    // cifras: sin uid ni nombre, y se borran solos a los 12 meses.
+    'dataset_cifras',
     // La lista blanca de la web en obras: correos que pone y quita la
     // administracion desde /admin/acceso/, sin uid. Se gestiona alli.
     'acceso_lista',

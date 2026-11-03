@@ -51,6 +51,7 @@ const {
   evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura, DE_LECTURA, RUIDO,
 } = require('./src/verificacion');
 const lectorIA = require('./src/lector-ia');
+const lectorPaddle = require('./src/lector-paddle');
 const puntuacion = require('./src/puntuacion');
 const distancias = require('./src/distancias');
 const rachas = require('./src/rachas');
@@ -691,6 +692,14 @@ async function procesar(doc) {
   // las preparaciones. Solo cuesta tiempo en las que no cuadran a la primera.
   const lecturas = [primera, segundaLectura].filter(Boolean);
   const cuadra = (l) => capturaImpecable({ lectura: l, ruta: viaje.ruta, tiempoSegundos: viaje.tiempoSegundos });
+  // PaddleOCR (src/lector-paddle.js): lee linea a linea y en orden, que es lo
+  // que Tesseract hace mal en las tarjetas del historial. Va antes que las
+  // preparaciones extra porque casi siempre basta con el.
+  if (primera.disponible && primera.esBicimad && !lecturas.some(cuadra)) {
+    const conPaddle = heredar(elegirTrayecto(await lectorPaddle.leerConPaddle({ buffer }), viaje.ruta, cual));
+    if (conPaddle.disponible) lecturas.push(conPaddle);
+    else console.log(`  [${doc.id}] PaddleOCR no disponible (${conPaddle.error})`);
+  }
   if (primera.disponible && primera.esBicimad && !lecturas.some(cuadra)) {
     for (const prep of PREPARACIONES_EXTRA) {
       const otra = heredar(elegirTrayecto(await releerCon({ buffer, ...prep }), viaje.ruta, cual));
@@ -765,6 +774,14 @@ async function procesar(doc) {
     } else {
       console.log(`  [${doc.id}] lector IA no disponible (${leidaIA.error})`);
     }
+  }
+
+  // Conjunto de entrenamiento de cifras (scripts/entrenar-cifras.py): los
+  // recortes de la lupa cuyo texto confirma un viaje aprobado con captura
+  // impecable. Sin uid ni nombre: un numero de estacion o una hora sueltos.
+  if (veredicto.decision === 'aprobado' && veredicto.impecable && !SIMULAR) {
+    await guardarMuestrasCifras(doc.id, primera, lectura, viaje.ruta)
+      .catch((error) => console.warn(`  [${doc.id}] muestras de cifras no guardadas:`, error.message));
   }
 
   // Lo que se LEYO en la captura, para que la cola de revision pueda enseñar
@@ -2558,7 +2575,11 @@ async function caducarBancoRevision() {
     await d.ref.delete();
   }
   if (caducados.size) console.log(`Banco de revisiones: ${caducados.size} caso(s) de hace mas de 24 meses borrados.`);
-  return caducados.size;
+  // Y las muestras de cifras, a los 12 meses.
+  const viejas = await db.collection('dataset_cifras')
+    .where('creado', '<', admin.firestore.Timestamp.fromMillis(Date.now() - 365 * 864e5)).limit(200).get();
+  for (const d of viejas.docs) await d.ref.delete();
+  return caducados.size + viejas.size;
 }
 
 async function trabajoDiario() {
@@ -3265,6 +3286,26 @@ async function procesarCola(cuenta) {
  *
  * Nunca lanza: los agregados no pueden tumbar la verificacion.
  */
+/**
+ * Guarda las muestras confirmadas de cifras de un viaje aprobado. Una
+ * escritura por viaje como mucho; se borran a los 12 meses (trabajo diario).
+ */
+async function guardarMuestrasCifras(viajeId, primera, lectura, ruta) {
+  const sinCeros = (v) => String(v || '').replace(/^0+/, '');
+  const [o, d] = String(ruta || '').split('-').map(sinCeros);
+  const horas = [lectura.horaSalida, lectura.horaLlegada].filter(Boolean);
+  const buenas = (primera.recortesCifras || []).filter((r) => (r.tipo === 'estacion'
+    ? [o, d].includes(sinCeros(r.texto))
+    : horas.some((h) => String(r.texto).startsWith(h))));
+  if (!buenas.length) return 0;
+  await db.collection('dataset_cifras').doc(viajeId).set({
+    muestras: buenas.slice(0, 12).map((r) => ({ tipo: r.tipo, etiqueta: r.texto, png: r.png })),
+    variante: primera.variante || null,
+    creado: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return buenas.length;
+}
+
 /** Horas sin reconstruir tras las que se reconstruye aunque no pase nada. */
 const MINUTOS_GUARDIA = 180;
 

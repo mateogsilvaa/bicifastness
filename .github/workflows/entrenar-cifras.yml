@@ -1,0 +1,73 @@
+name: Entrenar lector de cifras
+
+# Entrena el clasificador de cifras (backend/src/lector-cifras.js) con los
+# recortes confirmados de los viajes aprobados (`dataset_cifras`) y, si acierta
+# al menos el 99 % en la parte de prueba, sube el modelo a main. Cada lunes y a
+# mano. Solo imprime recuentos y el acierto: el log es publico.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '40 4 * * 1'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: entrenar-cifras
+  cancel-in-progress: false
+
+jobs:
+  entrenar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias del worker (firebase-admin)
+        working-directory: backend
+        run: npm ci
+
+      - name: Exportar muestras
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/exportar-cifras.js "$RUNNER_TEMP/cifras.json"
+
+      - name: Entrenar
+        id: entrenar
+        run: |
+          pip install --quiet numpy pillow
+          set +e
+          python3 scripts/entrenar-cifras.py "$RUNNER_TEMP/cifras.json" backend/lib/cifras.json
+          codigo=$?
+          set -e
+          echo "codigo=$codigo" >> "$GITHUB_OUTPUT"
+          if [ "$codigo" != "0" ]; then
+            echo "::notice::Modelo no subido (todavia pocas muestras o acierto por debajo del 99 %)."
+            git checkout -- backend/lib/cifras.json 2>/dev/null || rm -f backend/lib/cifras.json
+          fi
+
+      - name: Subir el modelo
+        if: steps.entrenar.outputs.codigo == '0'
+        run: |
+          git add backend/lib/cifras.json
+          if git diff --cached --quiet; then
+            echo "Modelo igual que el anterior."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Lector de cifras: modelo reentrenado ($(node -e "const m=require('./backend/lib/cifras.json');console.log(m.glifos+' glifos, acierto '+m.acierto)"))"
+          for intento in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((intento * 5))
+          done
+          exit 1

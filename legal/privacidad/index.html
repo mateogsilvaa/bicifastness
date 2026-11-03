@@ -349,7 +349,10 @@
   </div>
   <p>
     El analisis de las capturas se hace con reconocimiento de texto que se
-    ejecuta en nuestro propio proceso. <strong>Solo si ese lector no consigue
+    ejecuta en nuestro propio proceso (Tesseract y PaddleOCR, sin enviar la
+    imagen a nadie). De los trayectos aprobados guardamos, hasta 12 meses,
+    recortes sueltos de los numeros de estacion y las horas, sin tu nombre ni
+    ningun identificador, para mejorar ese lector. <strong>Solo si ese lector no consigue
     leer una captura</strong> y el trayecto iba a quedarse esperando revision,
     la imagen de esa captura (sin tu nombre ni tu correo) se envia a un modelo
     de vision de Google (Gemini) para transcribir estaciones, horas y duracion.

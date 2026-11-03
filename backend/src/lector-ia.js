@@ -18,12 +18,9 @@
  * politica de privacidad.
  */
 
-// Dos puertas al mismo servicio: la actual y la antigua de Azure, que acepta
-// el mismo token. Si la primera no devuelve JSON (en produccion devolvio un
-// "OK" de texto), se prueba la segunda.
+// El servicio de GitHub Models. (La puerta antigua de Azure ya no existe.)
 const PUERTAS = [
   { url: 'https://models.github.ai/inference/chat/completions', modelo: process.env.MODELO_IA || 'openai/gpt-4o-mini' },
-  { url: 'https://models.inference.ai.azure.com/chat/completions', modelo: (process.env.MODELO_IA || 'openai/gpt-4o-mini').replace(/^[a-z-]+\//, '') },
 ];
 const TIMEOUT_MS = 40000;
 // Por ejecucion: el nivel gratuito es corto y no puede comerse el de mañana.
@@ -111,7 +108,12 @@ async function leerConIA({ buffer }) {
       const r = await fetch(url, {
         method: 'POST',
         signal: control.signal,
-        headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+          Authorization: `Bearer ${token()}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
         body: JSON.stringify({
           model: modelo,
           temperature: 0,

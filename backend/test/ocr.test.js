@@ -463,3 +463,20 @@ test('si ningun viaje es exactamente la ruta, se elige el que mas se parece, no 
   assert.strictEqual(e.destino, '164');
   assert.strictEqual(e.segundosDuracion, 159);
 });
+
+test('el texto se ordena por la altura de cada linea, no por como lo trocea tesseract', () => {
+  const { textoPorAltura, extraerTrayectos } = require('../src/ocr');
+  const linea = (text, y0, x0 = 200) => ({ text, bbox: { y0, y1: y0 + 30, x0 } });
+  // Como lo devolvio tesseract en una captura real: la llegada antes que la salida.
+  const data = {
+    text: '',
+    blocks: [
+      { paragraphs: [{ lines: [linea('03-11-2026 17:59:28', 740), linea('277 - Virgen del Puerto', 820), linea('03-11-2026 18:10:16', 875)] }] },
+      { paragraphs: [{ lines: [linea('177 - Metro Legazpi', 690, 120), linea('|!', 820, 80), linea('[)', 875, 80), linea('(5) 00:10:48 0,50 €', 975, 60)] }] },
+    ],
+  };
+  const texto = textoPorAltura(data);
+  const [t] = extraerTrayectos(texto);
+  assert.deepStrictEqual([t.origen, t.destino, t.horaSalida, t.horaLlegada], ['177', '277', '17:59', '18:10']);
+  assert.ok(!texto.includes('|!'), 'los trocitos de la linea punteada se quitan');
+});

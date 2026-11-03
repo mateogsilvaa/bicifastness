@@ -373,6 +373,37 @@ export function extraerFechas(texto) {
  * seria mas exacto, pero ata el parseo a lo que devuelva la version de turno
  * del OCR, y esto tiene que funcionar igual en el navegador y en el worker.
  */
+
+/**
+ * El texto de la captura, linea a linea DE ARRIBA ABAJO segun su posicion.
+ *
+ * `data.text` de tesseract va en el orden en que trocea los bloques, y a veces
+ * pone una linea de mas abajo antes que otra de mas arriba: en una tarjeta del
+ * historial salia "277 - Virgen del Puerto" antes que "177 - Metro Legazpi" y
+ * el trayecto se leia AL REVES (y la web rellenaba la ruta invertida). Aqui se
+ * ordenan las lineas por su altura y se juntan las que estan a la misma.
+ * Gemela de `textoPorAltura` en backend/src/ocr.js.
+ */
+export function textoPorAltura(data) {
+  const lineas = (data?.blocks || []).flatMap((b) => (b.paragraphs || []).flatMap((pa) => pa.lines || []))
+    .filter((l) => l?.bbox && String(l.text || '').trim())
+    // Fuera los trocitos de la linea punteada de la tarjeta ("|!", "I", "[)"):
+    // pegados a la estacion de su altura, la estropeaban.
+    .filter((l) => (String(l.text).match(/[A-Za-z0-9]/g) || []).length >= 2);
+  if (!lineas.length) return String(data?.text || '');
+  const ordenadas = lineas
+    .map((l) => ({ texto: String(l.text).trim(), y0: l.bbox.y0, y1: l.bbox.y1, x0: l.bbox.x0 }))
+    .sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+  const filas = [];
+  for (const l of ordenadas) {
+    const fila = filas[filas.length - 1];
+    const alto = Math.max(1, l.y1 - l.y0);
+    if (fila && Math.abs(l.y0 - fila.y0) < alto * 0.5) fila.partes.push(l);
+    else filas.push({ y0: l.y0, partes: [l] });
+  }
+  return filas.map((f) => f.partes.sort((a, b) => a.x0 - b.x0).map((p) => p.texto).join(' ')).join('\n');
+}
+
 export function extraerTrayectos(texto) {
   const trayectos = [];
   let actual = null;
@@ -760,7 +791,7 @@ export async function extraer(imagen, alProgresar) {
     // Lo leido entonces no es de fiar: mejor el formulario a mano.
     if (fallo) throw new Error(String(fallo).slice(0, 200));
 
-    const texto = String(data.text || '');
+    const texto = textoPorAltura(data);
 
     const lineas = (data.blocks || []).flatMap((b) => (b.paragraphs || []).flatMap((pa) => pa.lines || []));
     const cajas = lineas
@@ -811,9 +842,9 @@ export async function extraer(imagen, alProgresar) {
     const falta = (l) => !l.origen || !l.destino || !l.segundosDuracion;
     if (falta(leido)) {
       fallo = null;
-      const { data: otra } = await conReloj(motor.recognize(prepararParaOcr(imagen, { niveles: false }).lienzo));
+      const { data: otra } = await conReloj(motor.recognize(prepararParaOcr(imagen, { niveles: false }).lienzo, {}, { text: true, blocks: true }));
       if (!fallo) {
-        const segunda = interpretar(String(otra.text || ''));
+        const segunda = interpretar(textoPorAltura(otra));
         const rellenado = { ...leido };
         for (const [clave, valor] of Object.entries(segunda)) {
           const vacio = rellenado[clave] === '' || rellenado[clave] === null || rellenado[clave] === undefined

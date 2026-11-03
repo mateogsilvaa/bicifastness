@@ -5124,3 +5124,10 @@ body.con-tutorial { overflow: hidden; }
 .premio-qr-item { display: flex; flex-direction: column; gap: 6px; }
 .premio-qr-item .banner-piloto { aspect-ratio: 3 / 1; border-radius: 12px; }
 .encuestas-bicis { display: flex; flex-direction: column; gap: 12px; }
+/* Llegada desde el atajo de iPhone (/subir/?pegar=1): el viaje leido, antes de pegar. */
+.atajo-pegar { gap: 14px; }
+.atajo-trayectos { display: flex; flex-direction: column; gap: 10px; }
+.atajo-trayecto { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; border-radius: 20px; background: var(--papel-2); }
+.atajo-trayecto-ruta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 18px; letter-spacing: -.01em; }
+.atajo-trayecto-datos { display: flex; align-items: baseline; gap: 12px; font-size: 15px; }
+.atajo-trayecto-datos .cifra { font-size: 22px; font-weight: 800; }

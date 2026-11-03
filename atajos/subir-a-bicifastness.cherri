@@ -2,9 +2,10 @@
  * Subir a BiciFastness (atajo de iOS, en Cherri: https://cherrilang.org).
  *
  * Lo lanza una automatizacion "Al cerrar BiciMAD". Coge la ultima captura de
- * pantalla; si es de hace menos de 5 minutos y el texto (Live Text, en el
- * propio movil) dice que es de BiciMAD, la copia, abre BiciFastness con lo
- * leido para rellenar el viaje y la borra de Fotos. Si no, no hace nada.
+ * pantalla; si es de hace menos de 5 minutos, no se ha ofrecido ya y el texto
+ * (Live Text, en el propio movil) dice que es de BiciMAD, PREGUNTA si subirla.
+ * Con "Subir" la copia, abre BiciFastness con lo leido para rellenar el viaje
+ * y la borra de Fotos. Con "Ahora no", nada (y no vuelve a preguntar por ella).
  *
  * Se compila y firma en GitHub Actions (.github/workflows/atajo-ios.yml) y se
  * publica en /atajos/subir-a-bicifastness.shortcut.
@@ -18,6 +19,7 @@
 #include 'actions/calendar'
 #include 'actions/sharing'
 #include 'actions/web'
+#include 'actions/documents'
 
 @capturas = getLatestScreenshots(1)
 @detalle = getImageDetail(@capturas, "Creation Date")
@@ -26,12 +28,26 @@
 @ahora = currentDate()
 @hace5 = adjustDate(@ahora, "Subtract", qty(5, "min"))
 
+// Solo una captura reciente, y solo UNA vez cada captura: se apunta la que
+// ya se ha ofrecido, se suba o no. Asi "Ahora no" no vuelve a saltar al salir
+// otra vez de BiciMAD.
 if @cuando > @hace5 {
-    @texto = extractImageText(@capturas)
-    if @texto contains "viajes realizados" {
-        setClipboard(@capturas)
-        @codificado = urlEncode(@texto)
-        openURL("https://bicifastness.es/subir/?pegar=1#texto={@codificado}")
-        deletePhotos(@capturas)
+    @marca = "{@detalle}"
+    @previa = getFile("bicifastness-ultima.txt", nil, false)
+    @previaTexto = "{@previa}"
+    if @previaTexto != @marca {
+        @texto = extractImageText(@capturas)
+        if @texto contains "viajes realizados" {
+            saveFile("bicifastness-ultima.txt", @marca, true)
+            menu "¿Subir este viaje a BiciFastness?" {
+                item "Subir":
+                    setClipboard(@capturas)
+                    @codificado = urlEncode(@texto)
+                    openURL("https://bicifastness.es/subir/?pegar=1#texto={@codificado}")
+                    deletePhotos(@capturas)
+                item "Ahora no":
+                    nothing()
+            }
+        }
     }
 }

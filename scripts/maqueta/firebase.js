@@ -89,7 +89,7 @@ const perfilBase = {
   logros: ['primer-viaje', 'veterano', 'fondo-50', 'racha-7', 'sprint-cinco-tramos', 'explorador-10', 'temporada-2026-08-constancia', 'temporada-2026-07-bronce'],
   // Banners y lemas ganados (assets/data/recompensas.js): uno de cada.
   recompensas: ['metro', 'mas-rapido-que-el-bus', 'biciloverrr', 'im-a-winner'],
-  consentimiento: { terminos: { version: '1.4.0' } },
+  consentimiento: { terminos: { version: '1.5.0' } },
   creado: hace(60 * 24 * 40),
 };
 const perfiles = {

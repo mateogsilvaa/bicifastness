@@ -202,15 +202,34 @@ onAuthStateChanged(auth, async (usuario) => {
 });
 
 function pintarPegarDelAtajo() {
+  // Lo que leyo el iPhone, para enseñar YA que viaje es: la pantalla no se
+  // queda en un boton suelto.
+  const leidos = textoAtajo ? (interpretar(textoAtajo).trayectos || []).map(aViaje).filter(Boolean) : [];
+  const tarjeta = (v) => el('div', { clase: 'atajo-trayecto' }, [
+    el('span', { clase: 'atajo-trayecto-ruta' }, [
+      el('strong', { texto: nombreEstacion(v.origen).split(' - ')[0] }),
+      el('span', { clase: 'apagado', texto: '→' }),
+      el('strong', { texto: nombreEstacion(v.destino).split(' - ')[0] }),
+    ]),
+    el('span', { clase: 'atajo-trayecto-datos' }, [
+      el('span', { clase: 'cifra', texto: formatearTiempo(v.tiempoSegundos) }),
+      v.horaSalida ? el('span', { clase: 'apagado', texto: `${v.horaSalida}${v.horaLlegada ? ` → ${v.horaLlegada}` : ''}` }) : null,
+    ]),
+  ]);
   const boton = el('button', {
     clase: 'btn grande', attrs: { type: 'button' },
     on: { click: pegarDelPortapapeles },
-  }, [icono('pegar', 'icono'), el('span', { texto: 'Pegar la captura' })]);
-  reemplazar(id('s-inicio'), el('div', { clase: 'subir-inicio' }, [
-    el('div', { clase: 'subir-inicio-cabeza' }, [el('h2', { texto: 'Tu captura de BiciMAD' })]),
-    el('p', { clase: 'apagado', texto: 'La ha copiado el atajo. Pégala y súbela.' }),
+  }, [icono('pegar', 'icono'), el('span', { texto: leidos.length > 1 ? `Subir estos ${leidos.length} viajes` : 'Subir este viaje' })]);
+  reemplazar(id('s-inicio'), el('div', { clase: 'subir-inicio atajo-pegar' }, [
+    el('div', { clase: 'subir-inicio-cabeza' }, [
+      el('h2', { texto: leidos.length ? (leidos.length > 1 ? 'Tus viajes de BiciMAD' : 'Tu viaje de BiciMAD') : 'Tu captura de BiciMAD' }),
+    ]),
+    leidos.length
+      ? el('div', { clase: 'atajo-trayectos' }, leidos.map(tarjeta))
+      : el('p', { clase: 'apagado', texto: 'El atajo ha copiado la captura. Súbela y comprobamos el viaje.' }),
     boton,
-    el('button', { clase: 'btn plano', texto: 'Elegirla de la galería', attrs: { type: 'button' }, on: { click: () => entradaFoto.click() } }),
+    el('p', { clase: 'menor apagado', texto: 'Al pulsar, el iPhone te pide permiso para pegar la captura: toca «Pegar». Luego podrás valorar la bici.' }),
+    el('button', { clase: 'btn plano', texto: 'Elegir otra captura', attrs: { type: 'button' }, on: { click: () => entradaFoto.click() } }),
   ]));
   mostrar('inicio');
   boton.focus();

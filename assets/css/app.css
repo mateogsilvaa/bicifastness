@@ -5123,3 +5123,4 @@ body.con-tutorial { overflow: hidden; }
 
 .premio-qr-item { display: flex; flex-direction: column; gap: 6px; }
 .premio-qr-item .banner-piloto { aspect-ratio: 3 / 1; border-radius: 12px; }
+.encuestas-bicis { display: flex; flex-direction: column; gap: 12px; }

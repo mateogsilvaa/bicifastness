@@ -1,0 +1,28 @@
+/*
+ * Subir a BiciFastness (atajo de iOS, en Cherri: https://cherrilang.org).
+ *
+ * Lo lanza una automatizacion "Al cerrar BiciMAD". Coge la ultima captura de
+ * pantalla; si es de hace menos de 5 minutos y el texto (Live Text, en el
+ * propio movil) dice que es de BiciMAD, la copia, abre BiciFastness con lo
+ * leido para rellenar el viaje y la borra de Fotos. Si no, no hace nada.
+ *
+ * Se compila y firma en GitHub Actions (.github/workflows/atajo-ios.yml) y se
+ * publica en /atajos/subir-a-bicifastness.shortcut.
+ */
+#define name Subir a BiciFastness
+#define color blue
+#define glyph bike
+
+@capturas = getLatestScreenshots(1)
+@cuando = getImageDetail(@capturas, "Creation Date")
+@hace5 = adjustDate(currentDate(), "Subtract", qty(5, "min"))
+
+if @cuando > @hace5 {
+    @texto = extractImageText(@capturas)
+    if @texto contains "viajes realizados" {
+        setClipboard(@capturas)
+        @codificado = urlEncode(@texto)
+        openURL("https://bicifastness.es/subir/?pegar=1#texto={@codificado}")
+        deletePhotos(@capturas)
+    }
+}

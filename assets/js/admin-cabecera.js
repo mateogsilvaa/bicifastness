@@ -25,6 +25,7 @@ const SECCIONES = [
   { clave: 'redes', texto: 'Redes', href: '/admin/redes/' },
   { clave: 'recompensas', texto: 'Recompensas', href: '/admin/recompensas/' },
   { clave: 'nfc', texto: 'NFC', href: '/admin/nfc/' },
+  { clave: 'atajo', texto: 'Atajo iPhone', href: '/admin/atajo/' },
   { clave: 'tienda', texto: 'Tienda', href: '/admin/tienda/' },
 ];
 

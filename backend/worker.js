@@ -48,7 +48,7 @@ const {
   leerCaptura, releerCaptura, releerCon, PREPARACIONES_EXTRA, elegirTrayecto, cerrar: cerrarOcr,
 } = require('./src/ocr');
 const {
-  evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura, DE_LECTURA,
+  evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura, DE_LECTURA, RUIDO,
 } = require('./src/verificacion');
 const lectorIA = require('./src/lector-ia');
 const puntuacion = require('./src/puntuacion');
@@ -747,7 +747,9 @@ async function procesar(doc) {
   // lectura la captura tiene que quedar impecable y pasar las mismas
   // comprobaciones. Si no, todo sigue como estaba.
   const soloLectura = veredicto.decision === 'revision'
-    && veredicto.señales.every((s) => !s.gravedad || DE_LECTURA.has(s.codigo));
+    // Lo de lectura y el "ruido" (velocidad algo alta, formato...): con una
+    // lectura impecable el ruido ya no pesa. Nada que huela a trampa.
+    && veredicto.señales.every((s) => !s.gravedad || DE_LECTURA.has(s.codigo) || RUIDO.has(s.codigo));
   if (soloLectura && primera.disponible && lectorIA.disponible()) {
     const cruda = elegirTrayecto(await lectorIA.leerConIA({ buffer }), viaje.ruta, cual);
     // Que es de BiciMAD ya lo vio el OCR; el modelo solo transcribe numeros.

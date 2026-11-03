@@ -18,8 +18,13 @@
  * politica de privacidad.
  */
 
-const ENDPOINT = 'https://models.github.ai/inference/chat/completions';
-const MODELO = process.env.MODELO_IA || 'openai/gpt-4o-mini';
+// Dos puertas al mismo servicio: la actual y la antigua de Azure, que acepta
+// el mismo token. Si la primera no devuelve JSON (en produccion devolvio un
+// "OK" de texto), se prueba la segunda.
+const PUERTAS = [
+  { url: 'https://models.github.ai/inference/chat/completions', modelo: process.env.MODELO_IA || 'openai/gpt-4o-mini' },
+  { url: 'https://models.inference.ai.azure.com/chat/completions', modelo: (process.env.MODELO_IA || 'openai/gpt-4o-mini').replace(/^[a-z-]+\//, '') },
+];
 const TIMEOUT_MS = 40000;
 // Por ejecucion: el nivel gratuito es corto y no puede comerse el de mañana.
 const MAX_POR_EJECUCION = Number(process.env.MAX_LECTURAS_IA || 15);
@@ -97,40 +102,48 @@ async function leerConIA({ buffer }) {
     // Mas pequeña: menos tokens, y los numeros siguen siendo legibles.
     const sharp = require('sharp');
     const jpeg = await sharp(buffer).resize({ width: 900, withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
-    const control = new AbortController();
-    temporizador = setTimeout(() => control.abort(), TIMEOUT_MS);
-    const r = await fetch(ENDPOINT, {
-      method: 'POST',
-      signal: control.signal,
-      headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({
-        model: MODELO,
-        temperature: 0,
-        max_tokens: 600,
-        messages: [
-          { role: 'system', content: INSTRUCCIONES },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: 'Transcribe los trayectos de esta captura.' },
-              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${jpeg.toString('base64')}`, detail: 'high' } },
-            ],
-          },
-        ],
-      }),
-    });
-    if (r.status === 429 || r.status === 401 || r.status === 403) {
-      // Sin cupo o sin permiso: no se insiste en esta ejecucion.
-      apagado = true;
-      const detalle = (await r.text().catch(() => '')).slice(0, 200).replace(/\s+/g, ' ');
-      return { disponible: false, error: `http ${r.status} ${detalle}` };
+    const imagenDatos = `data:image/jpeg;base64,${jpeg.toString('base64')}`;
+    const fallos = [];
+    for (const { url, modelo } of PUERTAS) {
+      const control = new AbortController();
+      clearTimeout(temporizador);
+      temporizador = setTimeout(() => control.abort(), TIMEOUT_MS);
+      const r = await fetch(url, {
+        method: 'POST',
+        signal: control.signal,
+        headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          model: modelo,
+          temperature: 0,
+          max_tokens: 600,
+          messages: [
+            { role: 'system', content: INSTRUCCIONES },
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Transcribe los trayectos de esta captura.' },
+                { type: 'image_url', image_url: { url: imagenDatos, detail: 'high' } },
+              ],
+            },
+          ],
+        }),
+      });
+      const texto = await r.text().catch(() => '');
+      const resumen = `${new URL(url).host} http ${r.status} ${r.headers.get('content-type') || '?'}: ${texto.slice(0, 160).replace(/\s+/g, ' ')}`;
+      if (r.status === 429) {
+        // Sin cupo: no se insiste en esta ejecucion.
+        apagado = true;
+        return { disponible: false, error: resumen };
+      }
+      let cuerpo = null;
+      try { cuerpo = JSON.parse(texto); } catch { cuerpo = null; }
+      const contenido = r.ok ? cuerpo?.choices?.[0]?.message?.content : null;
+      if (contenido) return aLectura(contenido);
+      fallos.push(resumen);
     }
-    if (!r.ok) {
-      const detalle = (await r.text().catch(() => '')).slice(0, 200).replace(/\s+/g, ' ');
-      return { disponible: false, error: `http ${r.status} ${detalle}` };
-    }
-    const cuerpo = await r.json();
-    return aLectura(cuerpo?.choices?.[0]?.message?.content);
+    // Ninguna puerta sirve: no se vuelve a intentar en esta ejecucion.
+    apagado = true;
+    return { disponible: false, error: fallos.join(' | ').slice(0, 400) };
   } catch (error) {
     // La causa concreta (sin datos de nadie): "fallo de red" a secas no deja
     // arreglar nada.

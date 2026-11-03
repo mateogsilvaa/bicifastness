@@ -13,6 +13,12 @@
 #define color blue
 #define glyph bike
 
+#include 'actions/photos'
+#include 'actions/images'
+#include 'actions/calendar'
+#include 'actions/sharing'
+#include 'actions/web'
+
 @capturas = getLatestScreenshots(1)
 @cuando = getImageDetail(@capturas, "Creation Date")
 @hace5 = adjustDate(currentDate(), "Subtract", qty(5, "min"))

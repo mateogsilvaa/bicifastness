@@ -23,7 +23,8 @@
 @detalle = getImageDetail(@capturas, "Creation Date")
 @cuando: date
 @cuando = @detalle.date
-@hace5 = adjustDate(currentDate(), "Subtract", qty(5, "min"))
+@ahora = currentDate()
+@hace5 = adjustDate(@ahora, "Subtract", qty(5, "min"))
 
 if @cuando > @hace5 {
     @texto = extractImageText(@capturas)

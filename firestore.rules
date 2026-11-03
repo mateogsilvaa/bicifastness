@@ -498,9 +498,26 @@ service cloud.firestore {
       allow update: if esAdmin()
         && cambia().hasOnly([
           'estado', 'verificado', 'revisadoPor', 'revisadoEn',
-          'motivoRevision', 'recalculoPendiente'
+          'motivoRevision', 'recalculoPendiente',
+          // Corregir y aprobar: lo que dice de verdad la captura.
+          'ruta', 'tiempoSegundos', 'tiempoFormateado', 'fechaViaje', 'correccionAdmin'
         ])
-        && datos().estado in ['aprobado', 'rechazado', 'revision'];
+        && datos().estado in ['aprobado', 'rechazado', 'revision']
+        && (!cambia().hasAny(['ruta', 'tiempoSegundos', 'tiempoFormateado', 'fechaViaje', 'correccionAdmin'])
+          || (datos().estado == 'aprobado'
+            && datos().correccionAdmin is map
+            && datos().correccionAdmin.keys().hasOnly(['antes', 'por', 'en'])
+            && datos().correccionAdmin.antes is map
+            && datos().correccionAdmin.antes.keys().hasOnly(['ruta', 'tiempoSegundos', 'fechaViaje'])
+            && datos().ruta is string
+            && datos().ruta.matches('^[0-9]{3}[A-Z]?-[0-9]{3}[A-Z]?$')
+            && datos().tiempoSegundos is int
+            && datos().tiempoSegundos >= 30
+            && datos().tiempoSegundos <= 7200
+            && datos().tiempoFormateado is string && datos().tiempoFormateado.size() <= 16
+            && datos().fechaViaje is string
+            && datos().fechaViaje.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && datos().fechaViaje >= '2026-11-01'));
 
       allow delete: if false;
     }

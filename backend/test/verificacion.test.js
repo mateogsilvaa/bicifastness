@@ -747,3 +747,11 @@ test('la misma persona puede subir otro trayecto de una captura que ya subio', (
   const repetida = evaluar(contextoBase({ uid: 'yo', capturaId: 'c2', hashSha: sha, shaPrevios: [mismo], lectura: otro }));
   assert.ok(repetida.señales.some((s) => s.codigo === 'captura_reutilizada'));
 });
+
+test('una relectura con las estaciones al reves no gana aunque diga la ruta declarada', () => {
+  const { mejorLectura } = require('../src/verificacion');
+  // Lo real: 110 -> 2 de 16:23 a 16:36. Declarado al reves: 002-110.
+  const real = { disponible: true, esBicimad: true, origen: '110', destino: '2', horaSalida: '16:23', horaLlegada: '16:36', segundosDuracion: 820 };
+  const alReves = { ...real, origen: '2', destino: '110', horaSalida: '16:36', horaLlegada: '16:23' };
+  assert.strictEqual(mejorLectura([real, alReves], RUTA, 820), real);
+});

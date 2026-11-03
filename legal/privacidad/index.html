@@ -335,18 +335,21 @@
           <td data-etiqueta="Ubicacion">EE. UU. y Union Europea.</td>
         </tr>
         <tr>
-          <td data-etiqueta="Proveedor">GitHub, Inc.</td>
-          <td data-etiqueta="Servicio">Ejecucion del proceso que verifica las capturas.</td>
+          <td data-etiqueta="Proveedor">GitHub, Inc. (y GitHub Models)</td>
+          <td data-etiqueta="Servicio">Ejecucion del proceso que verifica las capturas y, solo cuando nuestro lector no consigue leer una, lectura de esa captura con un modelo de vision.</td>
           <td data-etiqueta="Ubicacion">EE. UU.</td>
         </tr>
       </tbody>
     </table>
   </div>
   <p>
-    El analisis de las capturas <strong>ya no usa ningun servicio de
-    inteligencia artificial</strong>: se hace con reconocimiento de texto que se
-    ejecuta en nuestro propio proceso, y la imagen no sale de nuestra
-    infraestructura.
+    El analisis de las capturas se hace con reconocimiento de texto que se
+    ejecuta en nuestro propio proceso. <strong>Solo si ese lector no consigue
+    leer una captura</strong> y el trayecto iba a quedarse esperando revision,
+    la imagen de esa captura (sin tu nombre ni tu correo) se envia a un modelo
+    de vision de GitHub Models para transcribir estaciones, horas y duracion.
+    No decide nada: lo que lee pasa por las mismas comprobaciones, y solo puede
+    servir para aprobar un trayecto que cuadra, nunca para rechazarlo.
   </p>
   <p>
     Ademas, tu <strong>nombre de piloto, avatar, tiempos verificados, puntuacion,

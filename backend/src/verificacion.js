@@ -859,7 +859,19 @@ function mejorLectura(lecturas, ruta, tiempoSegundos) {
   if (!validas.length) return lecturas?.[0] || null;
   const sinCeros = (v) => String(v || '').replace(/^0+/, '');
   const [o, d] = String(ruta || '').split('-').map(sinCeros);
-  const nota = (l) => (sinCeros(l.origen) === o ? 1 : 0)
+  // Una lectura cuyas horas no cuadran con su duracion (la llegada antes que
+  // la salida: ha leido las estaciones en otro orden) no puede ganar por
+  // coincidir con lo declarado. Pasó: una preparacion troceo la captura al
+  // reves, dijo justo la ruta declarada (que era la inversa) y se eligio.
+  const coherente = (l) => {
+    const sa = horaASegundos(l.horaSalida);
+    const ll = horaASegundos(l.horaLlegada);
+    if (sa === null || ll === null || !Number.isFinite(l.segundosDuracion)) return true;
+    const margen = /:\d{2}:\d{2}/.test(`${l.horaSalida}${l.horaLlegada}`) ? 5 : 65;
+    return ll >= sa && Math.abs(ll - sa - l.segundosDuracion) <= margen;
+  };
+  const nota = (l) => (coherente(l) ? 0 : -10)
+    + (sinCeros(l.origen) === o ? 1 : 0)
     + (sinCeros(l.destino) === d ? 1 : 0)
     + (Number.isFinite(l.segundosDuracion) && Math.abs(l.segundosDuracion - tiempoSegundos) <= 5 ? 1 : 0)
     + (l.horaSalida && l.horaLlegada ? 0.5 : 0)

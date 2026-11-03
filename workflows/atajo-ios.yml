@@ -1,0 +1,59 @@
+name: Atajo de iOS
+
+# Compila y firma el atajo "Subir a BiciFastness" (atajos/*.cherri) con Cherri
+# y lo publica en assets/atajos/subir-a-bicifastness.shortcut. Apple solo deja
+# importar atajos firmados; sin Mac, firma el servicio de RoutineHub (HubSign).
+# Solo sale hacia fuera el atajo, ningun dato de nadie.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atajo-ios
+  cancel-in-progress: false
+
+jobs:
+  compilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      # Version fija de Cherri (la revisada), no la ultima.
+      - name: Instalar Cherri
+        run: go install github.com/electrikmilk/cherri@87c9811c36983d01291eb00eca2d014f1c4d793b
+
+      - name: Compilar y firmar
+        run: |
+          cd atajos
+          "$(go env GOPATH)/bin/cherri" subir-a-bicifastness.cherri --hubsign
+          firmado="$(find . -maxdepth 1 -name '*.shortcut' ! -name '*_unsigned.shortcut' | head -1)"
+          if [ -z "$firmado" ]; then
+            echo "::error::No ha salido el atajo firmado (HubSign puede estar caido)."
+            ls -la
+            exit 1
+          fi
+          mkdir -p ../assets/atajos
+          cp "$firmado" ../assets/atajos/subir-a-bicifastness.shortcut
+
+      - name: Subir el atajo
+        run: |
+          git add assets/atajos/subir-a-bicifastness.shortcut
+          if git diff --cached --quiet; then echo "Sin cambios."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Atajo de iOS: compilado y firmado"
+          for intento in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((intento * 5))
+          done
+          exit 1

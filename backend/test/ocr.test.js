@@ -480,3 +480,42 @@ test('el texto se ordena por la altura de cada linea, no por como lo trocea tess
   assert.deepStrictEqual([t.origen, t.destino, t.horaSalida, t.horaLlegada], ['177', '277', '17:59', '18:10']);
   assert.ok(!texto.includes('|!'), 'los trocitos de la linea punteada se quitan');
 });
+
+test('PaddleOCR: las lineas detectadas se ordenan por altura y se leen como el OCR', () => {
+  const { textoDeLineas, lecturaDeTexto } = require('../src/lector-paddle');
+  const caja = (x, y) => [[x, y], [x + 300, y], [x + 300, y + 30], [x, y + 30]];
+  const texto = textoDeLineas([
+    { text: '277 - Virgen del Puerto', box: caja(133, 814) },
+    { text: '177 - Metro Legazpi', box: caja(130, 682) },
+    { text: '03-11-2026 18:10:16', box: caja(134, 873) },
+    { text: '03-11-2026 17:59:28', box: caja(134, 741) },
+    { text: '00:10:48 0,50', box: caja(135, 967) },
+  ]);
+  const l = lecturaDeTexto(texto);
+  assert.deepStrictEqual([l.origen, l.destino, l.horaSalida, l.horaLlegada, l.segundosDuracion, l.fecha],
+    ['177', '277', '17:59', '18:10', 648, '2026-11-03']);
+});
+
+test('el troceo de cifras es el mismo en el worker (JS) y en el entrenamiento (Python)', async (t) => {
+  const { execFileSync } = require('child_process');
+  try { execFileSync('python3', ['-c', 'import numpy, PIL'], { stdio: 'ignore' }); } catch { t.skip('sin python3 con numpy y Pillow'); return; }
+  const sharp = require('sharp');
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const { segmentar } = require('../src/lector-cifras');
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="140" height="32"><rect width="140" height="32" fill="#f4f4f4"/><text x="4" y="25" font-size="24" font-family="sans-serif" fill="#555">16:23:14</text></svg>';
+  const png = await sharp(Buffer.from(svg)).greyscale().png().toBuffer();
+  const { data, info } = await sharp(png).resize({ height: 32 }).greyscale().raw().toBuffer({ resolveWithObject: true });
+  const js = segmentar(Array.from(data), info.width, info.height);
+  const fichero = path.join(os.tmpdir(), `bf-gemelos-${process.pid}.txt`);
+  fs.writeFileSync(fichero, png.toString('base64'));
+  const guion = 'import importlib.util,json,sys\n'
+    + 'spec=importlib.util.spec_from_file_location("e",sys.argv[1]);e=importlib.util.module_from_spec(spec);spec.loader.exec_module(e)\n'
+    + 'print(json.dumps(e.glifos_de(open(sys.argv[2]).read())))';
+  const py = JSON.parse(execFileSync('python3', ['-c', guion, path.join(__dirname, '..', '..', 'scripts', 'entrenar-cifras.py'), fichero]).toString());
+  fs.unlinkSync(fichero);
+  assert.strictEqual(js.length, 8);
+  assert.strictEqual(py.length, js.length);
+  py.forEach((g, i) => g.forEach((v, j) => assert.ok(Math.abs(v - js[i][j]) < 1e-9)));
+});

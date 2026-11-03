@@ -535,6 +535,12 @@ service cloud.firestore {
     match /banco_revision/{viajeId} {
       allow read, create, update, delete: if esAdmin();
     }
+    // Recortes de cifras confirmadas (numero de estacion, hora) para entrenar
+    // el lector de cifras. Sin uid. Los escribe solo el worker.
+    match /dataset_cifras/{viajeId} {
+      allow read, delete: if esAdmin();
+      allow create, update: if false;
+    }
     match /banco_capturas/{viajeId} {
       allow read, delete: if esAdmin();
       allow create, update: if esAdmin()

@@ -11,7 +11,7 @@
  */
 #define name Subir a BiciFastness
 #define color blue
-#define glyph bicycle
+#define glyph bike
 
 @capturas = getLatestScreenshots(1)
 @cuando = getImageDetail(@capturas, "Creation Date")

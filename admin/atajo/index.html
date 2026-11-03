@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://www.google.com https://apis.google.com 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://api.citybik.es; frame-src https://www.google.com https://bicifastness.firebaseapp.com https://recaptcha.google.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BiciFastness">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="Atajo de iPhone para subir capturas de BiciMAD sin pasos.">
+<meta name="robots" content="noindex">
+<title>Atajo de iPhone · admin | BiciFastness</title>
+<link rel="icon" href="/images/icono/icono.svg?v=2" type="image/svg+xml">
+<link rel="icon" href="/images/icono/icono-48.png?v=2" sizes="48x48" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F10" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/images/icono/icono-180.png?v=2">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<a href="#principal" class="saltar-contenido">Saltar al contenido</a>
+<!--
+  Atajo de iPhone "Subir a BiciFastness" (assets/js/paginas/admin-atajo.js).
+  De momento solo para administracion, para probarlo antes de abrirlo a todos.
+  El atajo se compila y firma en Actions (atajos/*.cherri).
+-->
+<main class="adm-pagina" id="principal">
+  <h1 class="d2" style="margin: 0;">Atajo de iPhone</h1>
+  <p class="menor apagado">
+    Haces la captura en BiciMAD como siempre y, al salir de BiciMAD, el atajo comprueba que es de BiciMAD,
+    abre BiciFastness con la captura lista para pegar y la borra de Fotos. Solo administración, para probarlo.
+  </p>
+  <p class="mensaje" id="mensaje" aria-live="polite"></p>
+
+  <div class="adm-dos">
+    <section class="adm-tarjeta" aria-labelledby="t-instalar">
+      <h2 id="t-instalar">1 · Añadir el atajo</h2>
+      <p class="menor">Ábrelo en el iPhone, en Safari, y pulsa el botón. Se abre la app Atajos: toca «Añadir atajo».</p>
+      <a class="btn" id="btn-atajo" href="#">Añadir el atajo</a>
+      <p class="menor apagado" id="estado-atajo"></p>
+    </section>
+
+    <section class="adm-tarjeta" aria-labelledby="t-automatizar">
+      <h2 id="t-automatizar">2 · Que salte solo al salir de BiciMAD</h2>
+      <p class="menor">Apple no deja que una app lo active por ti. Una vez, en la app Atajos:</p>
+      <ol class="menor">
+        <li>Pestaña <strong>Automatización</strong> → <strong>+</strong>.</li>
+        <li><strong>App</strong> → elige <strong>BiciMAD</strong>.</li>
+        <li>Marca <strong>Se cierra</strong> (y desmarca «Se abre»).</li>
+        <li>Elige <strong>Ejecutar inmediatamente</strong>.</li>
+        <li>Siguiente → <strong>Subir a BiciFastness</strong>.</li>
+      </ol>
+    </section>
+
+    <section class="adm-tarjeta" aria-labelledby="t-usar">
+      <h2 id="t-usar">3 · Usarlo</h2>
+      <ol class="menor">
+        <li>En BiciMAD, abre tus viajes y haz una captura normal.</li>
+        <li>Sal de BiciMAD.</li>
+        <li>Se abre BiciFastness: pulsa <strong>Pegar la captura</strong> y súbela (y valora la bici).</li>
+        <li>iOS te pide confirmar que se borra la captura de Fotos.</li>
+      </ol>
+      <p class="menor apagado">Se abre en Safari (iOS no deja abrir la app instalada desde un atajo): la primera vez entra con tu cuenta allí.</p>
+    </section>
+  </div>
+</main>
+<script type="module" src="/assets/js/paginas/admin-atajo.js"></script>
+</body>
+</html>

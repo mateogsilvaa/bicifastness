@@ -30,7 +30,7 @@ import { id, el, icono, reemplazar, abrirHoja, avisar } from '/assets/js/dom.js'
 import { diaMadrid, diaMadridHace, diaProbableDelViaje } from '/assets/js/dia.js';
 import { revisar, LIMITES_CLIENTE } from '/assets/js/precheck.js';
 import { leerExif } from '/assets/js/exif.js';
-import { extraer, cerrar as cerrarLector } from '/assets/js/extraccion.js';
+import { extraer, interpretar, cerrar as cerrarLector } from '/assets/js/extraccion.js';
 import { seguirViaje, recordarViaje, olvidarViaje } from '/assets/js/estado-viaje.js';
 import { marcarPrimerViaje } from '/assets/js/instalar.js';
 import { tomarPendiente, imagenesDe } from '/assets/js/captura-pendiente.js';
@@ -64,6 +64,8 @@ let preparada = null;
 let borrador = null;
 // Lo que se leyo de la ultima captura: para subir despues otro trayecto de ella.
 let ultimaLectura = null;
+// El texto que leyo el iPhone (Live Text) cuando se llega desde el atajo.
+let textoAtajo = '';
 let subidosDeLaCaptura = [];
 
 const coma = (n, dec = 1) => Number(n).toFixed(dec).replace('.', ',');
@@ -188,7 +190,31 @@ onAuthStateChanged(auth, async (usuario) => {
     const pendientes = await tomarPendiente();
     if (pendientes.length) elegirFicheros(pendientes);
   }
+
+  // Desde el atajo de iOS (/subir/?pegar=1#texto=...): la captura esta en el
+  // portapapeles y el texto que leyo el iPhone viene en el fragmento (que no
+  // sale del navegador). iOS exige un toque para pegar: se pide con un boton.
+  if (!bloqueo() && new URLSearchParams(location.search).has('pegar')) {
+    try { textoAtajo = decodeURIComponent((location.hash.match(/texto=([^&]*)/) || [])[1] || '').slice(0, 4000); } catch { textoAtajo = ''; }
+    history.replaceState(null, '', '/subir/');
+    pintarPegarDelAtajo();
+  }
 });
+
+function pintarPegarDelAtajo() {
+  const boton = el('button', {
+    clase: 'btn grande', attrs: { type: 'button' },
+    on: { click: pegarDelPortapapeles },
+  }, [icono('pegar', 'icono'), el('span', { texto: 'Pegar la captura' })]);
+  reemplazar(id('s-inicio'), el('div', { clase: 'subir-inicio' }, [
+    el('div', { clase: 'subir-inicio-cabeza' }, [el('h2', { texto: 'Tu captura de BiciMAD' })]),
+    el('p', { clase: 'apagado', texto: 'La ha copiado el atajo. Pégala y súbela.' }),
+    boton,
+    el('button', { clase: 'btn plano', texto: 'Elegirla de la galería', attrs: { type: 'button' }, on: { click: () => entradaFoto.click() } }),
+  ]));
+  mostrar('inicio');
+  boton.focus();
+}
 
 // --- 3a · Inicio ------------------------------------------------------------------
 
@@ -214,9 +240,11 @@ async function pegarDelPortapapeles() {
       if (tipo) ficheros.push(new File([await item.getType(tipo)], 'captura.png', { type: tipo }));
     }
     if (ficheros.length) elegirFicheros(ficheros);
+    else avisar('No hay ninguna imagen copiada. Elige la captura de la galería.', 'info');
   } catch {
-    // Sin permiso o sin imagen: el boton solo sale si la habia, asi que esto es
-    // que la han borrado entre medias. Se queda en el inicio.
+    // Sin permiso o sin imagen (o el navegador no deja leer imagenes del
+    // portapapeles): se dice, y queda la galeria.
+    avisar('No se ha podido pegar. Elige la captura de la galería.', 'info');
   }
 }
 
@@ -556,7 +584,7 @@ async function leer() {
 
   vista.src = preparada.url;
   await vista.decode().catch(() => { /* si no decodifica, extraer() lo dira */ });
-  const lectura = await extraer(vista, (estadoOcr, avance) => {
+  let lectura = await extraer(vista, (estadoOcr, avance) => {
     if (preparada?.fichero !== fichero) return;
     pintarLeyendo(avance, estadoOcr === 'recognizing text' ? 'leyendo' : 'preparando');
   });
@@ -566,6 +594,15 @@ async function leer() {
   // pestaña (pantalla en blanco) si se queda cargado. Si no quedan mas
   // capturas por leer, se suelta ya; la siguiente vez sale de la cache.
   if (!cola.length && window.matchMedia('(pointer: coarse)').matches) cerrarLector();
+
+  // Lo que leyo el iPhone (el atajo) suele ser mejor que el lector de la web:
+  // si dice trayectos, se rellena con eso. La imagen es la misma y el servidor
+  // la verifica igual.
+  if (textoAtajo) {
+    const deApple = interpretar(textoAtajo);
+    textoAtajo = '';
+    if (deApple.trayectos?.length) lectura = { ...lectura, ...deApple, disponible: true, esBicimad: true };
+  }
 
   preparada.lectura = lectura.disponible ? lectura : null;
 
@@ -1312,6 +1349,39 @@ async function tarjetaAvisos() {
   ]);
 }
 
+/**
+ * La encuesta de la bici de CADA trayecto subido (11a), una tras otra: al
+ * contestar o saltar una, sale la del siguiente. Con uno solo, como siempre.
+ */
+function encuestasDeBicis(ids, viajes) {
+  const caja = el('div', { clase: 'encuestas-bicis' });
+  const pares = ids.map((viajeId, i) => ({ viajeId, viaje: viajes[i] })).filter((p) => p.viajeId && p.viaje);
+  let i = -1;
+  const siguiente = () => {
+    i += 1;
+    if (i >= pares.length) return;
+    const { viajeId, viaje } = pares[i];
+    const tarjeta = encuestaBici({ bici: viaje.bici, viajeId, ruta: viaje.ruta });
+    const rotulo = pares.length > 1
+      ? el('span', { clase: 'rotulo', texto: `Trayecto ${i + 1} de ${pares.length} · ${nombreEstacion(viaje.origen).split(' - ')[0]} → ${nombreEstacion(viaje.destino).split(' - ')[0]}` })
+      : null;
+    if (rotulo) caja.append(rotulo);
+    caja.append(tarjeta);
+    if (pares.length < 2) return;
+    // Hecha (sale el "Gracias") o saltada (la tarjeta se va): la siguiente.
+    const vigia = new MutationObserver(() => {
+      const hecha = !tarjeta.isConnected || /Gracias\./.test(tarjeta.textContent || '');
+      if (!hecha) return;
+      vigia.disconnect();
+      if (!tarjeta.isConnected) rotulo?.remove();
+      setTimeout(siguiente, 400);
+    });
+    vigia.observe(caja, { childList: true, subtree: true, characterData: true });
+  };
+  siguiente();
+  return caja;
+}
+
 function pintarSubido(ids, viajes = []) {
   const ahora = new Date();
   const lineaTiempo = el('div', { clase: 'linea-tiempo' });
@@ -1335,7 +1405,7 @@ function pintarSubido(ids, viajes = []) {
   // derecha, a la misma altura. En el movil, una columna como en 11a.
   const primero = viajes[0];
   const km = primero ? kmEstimados(primero.origen, primero.destino) : null;
-  const encuesta = ids[0] && primero ? encuestaBici({ bici: primero.bici, viajeId: ids[0], ruta: primero.ruta }) : null;
+  const encuesta = ids[0] && primero ? encuestasDeBicis(ids, viajes) : null;
   reemplazar(id('s-subido'), el('div', { clase: `subir-cuerpo subido${encuesta ? ' con-encuesta' : ''}` }, [
     el('div', { clase: 'subido-izq' }, [
       el('span', { clase: 'subido-marca', attrs: { 'aria-hidden': 'true' } }, [icono('comprobado')]),

@@ -52,3 +52,31 @@ test('las claves de Gemini se turnan: si una se queda sin cupo, la siguiente', a
     delete require.cache[require.resolve('../src/lector-ia')];
   }
 });
+
+test('si un modelo de Gemini ya no existe (404), se prueba el siguiente con la misma clave', async () => {
+  const antes = { ...process.env };
+  const fetchAntes = global.fetch;
+  process.env.GEMINI_API_1 = 'k1';
+  process.env.GEMINI_API_2 = '';
+  process.env.GEMINI_API_3 = '';
+  delete process.env.MODELO_IA;
+  const pedidos = [];
+  global.fetch = async (url) => {
+    pedidos.push(String(url).match(/models\/([^:]+)/)[1]);
+    if (String(url).includes('gemini-2.5-flash')) return new Response('{"error":{"message":"not found"}}', { status: 404 });
+    const texto = JSON.stringify({ esBicimad: true, trayectos: [{ origen: '1', destino: '2', duracion: '00:10:00' }] });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: texto }] } }] }), { status: 200 });
+  };
+  try {
+    delete require.cache[require.resolve('../src/lector-ia')];
+    const { leerConIA } = require('../src/lector-ia');
+    const png = await require('sharp')({ create: { width: 20, height: 40, channels: 3, background: '#fff' } }).png().toBuffer();
+    const l = await leerConIA({ buffer: png });
+    assert.strictEqual(l.disponible, true);
+    assert.deepStrictEqual(pedidos, ['gemini-2.5-flash', 'gemini-flash-latest']);
+  } finally {
+    global.fetch = fetchAntes;
+    process.env = antes;
+    delete require.cache[require.resolve('../src/lector-ia')];
+  }
+});

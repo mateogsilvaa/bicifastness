@@ -18,8 +18,12 @@
  * politica de privacidad.
  */
 
-const MODELO = process.env.MODELO_IA || 'gemini-2.5-flash';
-const url = () => `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`;
+// Por orden. Google retira y renombra modelos: si uno da 404, el siguiente.
+// `gemini-flash-latest` apunta siempre al Flash vigente.
+const MODELOS = [...new Set([process.env.MODELO_IA, 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'].filter(Boolean))];
+const url = (modelo) => `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
+// Los modelos que ya han dado 404 en esta ejecucion.
+const sinModelo = new Set();
 const TIMEOUT_MS = 45000;
 // Por ejecucion: el nivel gratuito es corto y no puede comerse el de mañana.
 const MAX_POR_EJECUCION = Number(process.env.MAX_LECTURAS_IA || 15);
@@ -104,7 +108,7 @@ async function leerConIA({ buffer }) {
     // Mas pequeña: menos tokens, y los numeros siguen siendo legibles.
     const sharp = require('sharp');
     const jpeg = await sharp(buffer).resize({ width: 1000, withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
-    const cuerpo = JSON.stringify({
+    const cuerpo = (modelo) => JSON.stringify({
       systemInstruction: { parts: [{ text: INSTRUCCIONES }] },
       contents: [{
         role: 'user',
@@ -118,38 +122,55 @@ async function leerConIA({ buffer }) {
         responseMimeType: 'application/json',
         maxOutputTokens: 800,
         // Sin "pensar": es transcribir, y el pensamiento gasta cupo y tiempo.
-        thinkingConfig: { thinkingBudget: 0 },
+        // Solo los 2.5 lo admiten; a los demas se les manda sin el.
+        ...(/2\.5/.test(modelo) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
       },
     });
 
     const fallos = [];
     const todas = claves();
+    const mensaje = (texto) => {
+      try { return String(JSON.parse(texto)?.error?.message || '').slice(0, 120); } catch { return String(texto).slice(0, 120); }
+    };
     for (const [i, clave] of todas.entries()) {
       if (gastadas.has(clave)) continue;
-      const control = new AbortController();
-      clearTimeout(temporizador);
-      temporizador = setTimeout(() => control.abort(), TIMEOUT_MS);
-      const r = await fetch(url(), {
-        method: 'POST',
-        signal: control.signal,
-        // La clave en cabecera y no en la URL: asi no acaba en ningun log.
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': clave },
-        body: cuerpo,
-      });
-      const texto = await r.text().catch(() => '');
-      if ([400, 401, 403, 429].includes(r.status)) {
-        // Sin cupo o clave que no vale: la siguiente. (Un 400 aqui casi siempre
-        // es una clave mal pegada.)
-        gastadas.add(clave);
-        fallos.push(`clave ${i + 1}: http ${r.status}`);
-        continue;
+      for (const modelo of MODELOS) {
+        if (sinModelo.has(modelo)) continue;
+        const control = new AbortController();
+        clearTimeout(temporizador);
+        temporizador = setTimeout(() => control.abort(), TIMEOUT_MS);
+        const r = await fetch(url(modelo), {
+          method: 'POST',
+          signal: control.signal,
+          // La clave en cabecera y no en la URL: asi no acaba en ningun log.
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': clave },
+          body: cuerpo(modelo),
+        });
+        const texto = await r.text().catch(() => '');
+        if (r.status === 404) {
+          // Ese modelo no existe (o ya no): el siguiente, con la misma clave.
+          sinModelo.add(modelo);
+          fallos.push(`${modelo}: 404 ${mensaje(texto)}`);
+          continue;
+        }
+        if ([400, 401, 403, 429].includes(r.status)) {
+          // Un 400 por la peticion (no por la clave) se dice y se prueba otro modelo.
+          if (r.status === 400 && !/api key|API_KEY/i.test(texto)) {
+            fallos.push(`${modelo}: 400 ${mensaje(texto)}`);
+            continue;
+          }
+          // Sin cupo o clave que no vale: la siguiente clave.
+          gastadas.add(clave);
+          fallos.push(`clave ${i + 1}: http ${r.status} ${mensaje(texto)}`);
+          break;
+        }
+        if (!r.ok) { fallos.push(`clave ${i + 1} ${modelo}: http ${r.status} ${mensaje(texto)}`); continue; }
+        let datos = null;
+        try { datos = JSON.parse(texto); } catch { datos = null; }
+        const contenido = (datos?.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
+        if (contenido) return { ...aLectura(contenido), modelo };
+        fallos.push(`${modelo}: sin contenido (${String(datos?.candidates?.[0]?.finishReason || datos?.promptFeedback?.blockReason || '?')})`);
       }
-      if (!r.ok) { fallos.push(`clave ${i + 1}: http ${r.status}`); continue; }
-      let datos = null;
-      try { datos = JSON.parse(texto); } catch { datos = null; }
-      const contenido = (datos?.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
-      if (contenido) return aLectura(contenido);
-      fallos.push(`clave ${i + 1}: sin contenido (${String(datos?.candidates?.[0]?.finishReason || datos?.promptFeedback?.blockReason || '?')})`);
     }
     return { disponible: false, error: fallos.join(' | ').slice(0, 300) || 'sin claves' };
   } catch (error) {

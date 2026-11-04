@@ -16,6 +16,7 @@ import { db, collection, query, where, orderBy, limit, getDocs } from './firebas
 import { el, icono, abrirHoja } from './dom.js';
 import { formatearTiempo } from './ui.js';
 import { abrirVerificado, tramoDe } from './veredicto.js';
+import { puntosPendientes } from './motivos.js';
 
 const CLAVE = 'bf_verificados_vistos';
 const CLAVE_SESION = 'bf_verificados_mirado';
@@ -76,7 +77,9 @@ export async function avisarVerificados(uid, { racha = 0, puede = () => true } =
     guardarVistos(new Set(viajes.map((v) => v.id)));
     return;
   }
-  const nuevos = viajes.filter((v) => !vistos.has(v.id));
+  // Uno a medio premiar se queda sin marcar: se avisa en la siguiente sesion,
+  // ya con sus puntos.
+  const nuevos = viajes.filter((v) => !vistos.has(v.id) && !puntosPendientes(v));
   if (!nuevos.length || !puede()) return;
 
   const marcar = () => { for (const v of nuevos) vistos.add(v.id); guardarVistos(vistos); };

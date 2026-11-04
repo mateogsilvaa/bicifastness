@@ -15,7 +15,7 @@
 
 import { el, icono, abrirHoja, reemplazar } from '/assets/js/dom.js';
 import { nombreEstacion, formatearTiempo } from '/assets/js/ui.js';
-import { estadoDeViaje, motivoDeViaje, impugnable } from '/assets/js/motivos.js';
+import { estadoDeViaje, motivoDeViaje, impugnable, puntosPendientes } from '/assets/js/motivos.js';
 import { sinMovimiento, aparecerPorPartes, sonar } from '/assets/js/celebrar.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import { impugnarViaje } from '/assets/js/acciones.js';
@@ -139,9 +139,10 @@ function abrirPantalla(clase, hijos, etiqueta, destino = null, { atras = false }
 export function abrirVerificado(viaje, contexto = {}) {
   const total = Number(viaje.puntos) || 0;
   const sinPuntos = viaje.fueraDeCupo === true;
-  const cifra = el('span', { clase: 'veredicto-cifra', texto: sinPuntos ? '0' : '+0' });
+  const calculando = !sinPuntos && puntosPendientes(viaje);
+  const cifra = el('span', { clase: 'veredicto-cifra', texto: calculando ? '…' : sinPuntos ? '0' : '+0' });
 
-  const filas = sinPuntos ? [] : filasDesglose(viaje, { racha: contexto.racha });
+  const filas = sinPuntos || calculando ? [] : filasDesglose(viaje, { racha: contexto.racha });
   const nodosFilas = filas.map(([t, v]) => el('div', { clase: 'veredicto-fila' }, [
     el('span', { texto: t }), el('strong', { texto: v }),
   ]));
@@ -170,8 +171,9 @@ export function abrirVerificado(viaje, contexto = {}) {
           : `puntos · ${tramoDe(viaje.ruta, { corto: true })} · ${formatearTiempo(viaje.tiempoSegundos)}`,
       }),
     ]),
-    sinPuntos
-      ? el('p', { clase: 'veredicto-nota', texto: 'Era uno más de los tres que puntúan hoy. Suma a tus kilómetros, a tus estadísticas y a tu racha.' })
+    calculando ? el('p', { clase: 'veredicto-nota', texto: 'Estamos sumando tus puntos. En un momento los verás aquí y en tu historial.' }) : null,
+    sinPuntos ? el('p', { clase: 'veredicto-nota', texto: 'Era uno más de los tres que puntúan hoy. Suma a tus kilómetros, a tus estadísticas y a tu racha.' }) : null,
+    sinPuntos || calculando ? null
       : el('div', { clase: 'veredicto-desglose' }, [
         ...nodosFilas,
         el('div', { clase: 'veredicto-fila total' }, [el('strong', { texto: 'Total' }), el('strong', { texto: String(total) })]),
@@ -190,8 +192,9 @@ export function abrirVerificado(viaje, contexto = {}) {
   ], 'Trayecto verificado', contexto.destino);
 
   aparecerPorPartes(nodosFilas);
-  if (contexto.destino) { contar(cifra, total); return cerrar; }
-  if (!sinPuntos) { contar(cifra, total); sonar(); }
+  const hayCuenta = !sinPuntos && !calculando;
+  if (contexto.destino) { if (hayCuenta) contar(cifra, total); return cerrar; }
+  if (hayCuenta) { contar(cifra, total); sonar(); }
   seguir.focus();
   return cerrar;
 }

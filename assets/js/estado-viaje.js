@@ -25,7 +25,7 @@
 
 import { db, doc, onSnapshot } from './firebase.js';
 import { el, reemplazar } from './dom.js';
-import { estadoDeViaje, motivoDeViaje, impugnable } from './motivos.js';
+import { estadoDeViaje, motivoDeViaje, impugnable, puntosPendientes } from './motivos.js';
 import { celebrarVerificado } from '/assets/js/celebrar.js';
 
 const CLAVE = 'viaje-en-curso';
@@ -50,8 +50,14 @@ export function olvidarViaje() {
 
 // --- Suscripcion --------------------------------------------------------------
 
+/** Si el worker se queda a medias, cuanto se espera antes de enseñar el viaje. */
+const ESPERA_PUNTOS_MS = 20000;
+
 /**
  * Escucha un viaje hasta que se resuelva.
+ *
+ * Un viaje aprobado no esta resuelto hasta que llegan sus puntos: si se cortara
+ * al ver `aprobado`, quien mira se quedaria para siempre con un viaje de +0.
  *
  * @param {string} viajeId
  * @param {(viaje: object|null) => void} alCambiar
@@ -60,10 +66,12 @@ export function olvidarViaje() {
 export function seguirViaje(viajeId, alCambiar) {
   let parar = null;
   let cortado = false;
+  let plazo = null;
 
   const cancelar = () => {
     if (cortado) return;
     cortado = true;
+    clearTimeout(plazo);
     window.removeEventListener('pagehide', cancelar);
     // `parar` puede no estar todavia si esto se llama antes de que
     // `onSnapshot` devuelva. La bandera lo cubre: al asignarse se cancela.
@@ -77,6 +85,11 @@ export function seguirViaje(viajeId, alCambiar) {
       if (!snap.exists()) { alCambiar(null); cancelar(); return; }
 
       const viaje = { id: snap.id, ...snap.data() };
+      clearTimeout(plazo);
+      if (puntosPendientes(viaje)) {
+        plazo = setTimeout(() => { alCambiar(viaje); cancelar(); }, ESPERA_PUNTOS_MS);
+        return;
+      }
       alCambiar(viaje);
       if (RESUELTOS.includes(viaje.estado)) cancelar();
     },

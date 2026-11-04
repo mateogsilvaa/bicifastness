@@ -34,6 +34,7 @@
 const fs = require('fs');
 const path = require('path');
 const normalizar = require('./normalizar');
+const lectorCifras = require('./lector-cifras');
 
 // tesseract.js trae binarios y datos de idioma. Si el entorno no lo tiene, el
 // pipeline sigue en pie: sin lectura, todo va a revision manual.
@@ -392,6 +393,11 @@ function tiempoDeBarra(texto) {
   const m = t.match(/(\d{1,3})\s*m\.?\s*(\d{1,2})\s*s/);
   if (!m || Number(m[2]) > 59) return null;
   return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** El texto de una barra sin espacios y con sus letras dudosas como cifras. */
+function cifrasDeBarra(texto) {
+  return String(texto || '').replace(/\s+/g, '').replace(/[lI|]/g, '1').replace(/[oO]/g, '0');
 }
 
 /**
@@ -805,9 +811,10 @@ async function afinarCifras(worker, imagen, data, recortes = []) {
       const recorte = await sharp(imagen).extract({ left, top, width, height })
         .resize({ height: Math.max(64, height * 3) }).greyscale().normalise().png().toBuffer();
       const { data: d } = await worker.recognize(recorte);
-      let leido = String(d.text || '').replace(/\s+/g, '');
+      // El 0 y el 1 los decide la forma del glifo, no lo que diga tesseract.
+      let leido = await lectorCifras.afinarCeroUno(recorte, String(d.text || '').replace(/\s+/g, ''));
       // Con el clasificador propio entrenado (src/lector-cifras.js), manda el.
-      const propio = await require('./lector-cifras').leerRecorte(recorte).catch(() => null);
+      const propio = await lectorCifras.leerRecorte(recorte).catch(() => null);
       if (propio && (tipo === 'estacion' ? /^\d{1,3}$/.test(propio) : /^\d{2}:\d{2}:\d{2}$/.test(propio))) leido = propio;
       // El recorte, pequeño y en gris, para el conjunto de entrenamiento de
       // cifras (lo guarda el worker solo si el viaje se aprueba y lo confirma).
@@ -831,6 +838,17 @@ async function afinarCifras(worker, imagen, data, recortes = []) {
     }
   }
   return cambiadas;
+}
+
+/** El texto de una palabra, con sus 0 y 1 repasados en su recorte. Nunca lanza. */
+async function cifrasDeCaja(imagen, { x0, y0, x1, y1 }, texto) {
+  try {
+    const recorte = await require('sharp')(imagen)
+      .extract({ left: x0, top: y0, width: x1 - x0, height: y1 - y0 }).png().toBuffer();
+    return await lectorCifras.afinarCeroUno(recorte, texto);
+  } catch {
+    return texto;
+  }
 }
 
 async function leerCaptura({ buffer }) {
@@ -889,13 +907,14 @@ async function leerCaptura({ buffer }) {
       await worker.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '0123456789msIl|oO.: ' });
       for (const recorte of await normalizar.recortesDeFranjas(preparada.buffer, preparada.franjas, preparada.ancho)) {
         const { data: d } = await worker.recognize(recorte.buffer);
-        const segundos = tiempoDeBarra(d.text);
+        const segundos = tiempoDeBarra(await lectorCifras.afinarCeroUno(recorte.buffer, cifrasDeBarra(d.text)));
         if (segundos) tiempos.push({ segundos, y: recorte.y });
       }
       await worker.setParameters({ tessedit_pageseg_mode: '11', tessedit_char_whitelist: '0123456789' });
       const { data: n } = await worker.recognize(preparada.buffer, {}, { text: true, blocks: true });
       for (const palabra of (n.blocks || []).flatMap((b) => b.paragraphs.flatMap((pa) => pa.lines.flatMap((l) => l.words)))) {
-        const bici = biciDeNumero(palabra.text);
+        if (!biciDeNumero(palabra.text)) continue;
+        const bici = biciDeNumero(await cifrasDeCaja(preparada.buffer, palabra.bbox, palabra.text));
         if (bici) bicisLeidas.push({ bici, y: palabra.bbox.y0 });
       }
     } finally {
@@ -1044,6 +1063,7 @@ async function releerCon({ buffer, escala = 1.5, umbral = 150, invertir = false 
 }
 
 module.exports = {
+  cifrasDeBarra,
   leerCaptura,
   textoPorAltura,
   releerCon,

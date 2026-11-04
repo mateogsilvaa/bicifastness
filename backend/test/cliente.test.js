@@ -859,3 +859,32 @@ test('el registro de errores ignora lo que no es nuestro', async () => {
   assert.ok(!esRuido('No se ha podido cargar https://bicifastness.es/assets/js/hoy.js'));
   assert.ok(!esRuido('TypeError: x is undefined'));
 });
+
+// --- Los puntos de un viaje recien aprobado ---------------------------------------
+
+test('un viaje aprobado sin puntos esta a medio escribir, no vale cero', async () => {
+  const { puntosPendientes } = await cargarModuloCliente('assets/js/motivos.js');
+  const ahora = 1_800_000_000_000;
+  const revisado = (hace) => ({ toMillis: () => ahora - hace });
+  const aprobado = { estado: 'aprobado', verificado: true, revisadoEn: revisado(3000) };
+
+  assert.strictEqual(puntosPendientes(aprobado, ahora), true);
+  assert.strictEqual(puntosPendientes({ ...aprobado, puntos: 69, premiado: true }, ahora), false);
+  // Cero puntos de verdad: ya esta premiado.
+  assert.strictEqual(puntosPendientes({ ...aprobado, puntos: 0, premiado: true }, ahora), false);
+  // Primera tanda: verificado pero sin sumar, y no va a sumar.
+  assert.strictEqual(puntosPendientes({ ...aprobado, verificado: false, fase: 'beta' }, ahora), false);
+  assert.strictEqual(puntosPendientes({ estado: 'pendiente' }, ahora), false);
+  // Los migrados de la v1 no tienen puntos ni van a tenerlos.
+  assert.strictEqual(puntosPendientes({ ...aprobado, revisadoEn: revisado(90 * 86400000) }, ahora), false);
+  assert.strictEqual(puntosPendientes({ estado: 'aprobado', verificado: true }, ahora), false);
+});
+
+test('nadie se queda con un viaje aprobado antes de que lleguen sus puntos', () => {
+  const seguir = leer('assets/js/estado-viaje.js');
+  assert.ok(seguir.indexOf('puntosPendientes(viaje)') < seguir.indexOf('alCambiar(viaje);\n      if (RESUELTOS'),
+    'seguirViaje entrega el viaje antes de mirar si faltan los puntos');
+  assert.match(leer('assets/js/avisar-verificados.js'), /!puntosPendientes\(v\)/);
+  assert.match(leer('assets/js/veredicto.js'), /const hayCuenta = !sinPuntos && !calculando/);
+});
+

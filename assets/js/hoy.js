@@ -26,6 +26,7 @@ import { destacar } from '/assets/js/celebrar.js';
 import { anilloSemana, estadosSemana, activoHoy } from '/assets/js/anillo.js';
 import { seguirViaje, viajeRecordado, olvidarViaje } from '/assets/js/estado-viaje.js';
 import { abrirVerificado, abrirResuelto, tramoDe } from '/assets/js/veredicto.js';
+import { puntosPendientes } from '/assets/js/motivos.js';
 import { avisarVerificados, marcarVerificadoVisto } from '/assets/js/avisar-verificados.js';
 import { diaRelativo } from '/assets/js/yo-vistas.js';
 import {
@@ -478,7 +479,7 @@ function tarjetaResuelta(viaje, perfil) {
   const aprobado = viaje.estado === 'aprobado';
   const rechazado = viaje.estado === 'rechazado';
   const titulo = aprobado
-    ? (viaje.fueraDeCupo ? 'Verificado · sin puntos' : `Verificado · +${viaje.puntos || 0} pts`)
+    ? (viaje.fueraDeCupo ? 'Verificado · sin puntos' : puntosPendientes(viaje) ? 'Verificado' : `Verificado · +${viaje.puntos || 0} pts`)
     : rechazado ? 'No cuenta' : 'Lo mira una persona';
   const hora = viaje.creado?.toDate?.()
     ? new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' }).format(viaje.creado.toDate())

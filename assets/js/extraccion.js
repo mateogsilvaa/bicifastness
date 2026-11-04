@@ -115,6 +115,128 @@ const HORA = '\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b';
 const HORA_ETIQUETADA = '\\b([01]?\\d|2[0-3])[:.;]([0-5]\\d)\\b';
 
 /**
+ * Corrige los 0 y 1 cambiados mirando la forma de cada glifo: un 0 encierra un
+ * hueco y un 1 no. Solo si hay un glifo por caracter; si no, el texto se queda.
+ * Gemela de `corregirCeroUno` en backend/src/lector-cifras.js.
+ */
+export function corregirCeroUno(gris, ancho, alto, texto) {
+  const leido = String(texto || '');
+  let min = 255;
+  let max = 0;
+  let suma = 0;
+  for (const v of gris) { min = Math.min(min, v); max = Math.max(max, v); suma += v; }
+  if (max - min < 40) return leido;
+  const umbral = (min + max) / 2;
+  const fondoClaro = suma / gris.length > umbral;
+  const tinta = Array.from(gris, (v) => ((fondoClaro ? v < umbral : v > umbral) ? 1 : 0));
+
+  const trozos = [];
+  let desde = -1;
+  for (let x = 0; x <= ancho; x++) {
+    let hay = false;
+    for (let y = 0; x < ancho && y < alto && !hay; y++) hay = tinta[y * ancho + x] === 1;
+    if (hay && desde < 0) desde = x;
+    if (!hay && desde >= 0) { trozos.push([desde, x]); desde = -1; }
+  }
+  if (trozos.length !== leido.length) return leido;
+
+  return [...leido].map((caracter, i) => {
+    if (caracter !== '0' && caracter !== '1') return caracter;
+    const [a, b] = trozos[i];
+    let y0 = alto;
+    let y1 = 0;
+    for (let y = 0; y < alto; y++) {
+      for (let x = a; x < b; x++) if (tinta[y * ancho + x]) { y0 = Math.min(y0, y); y1 = Math.max(y1, y + 1); }
+    }
+    const minimo = Math.max(3, Math.round((b - a) * (y1 - y0) * 0.02));
+    if (huecosCerrados(tinta, ancho, a, b, y0, y1, minimo) > 0) return '0';
+    return pareceUno(tinta, ancho, a, b, y0, y1) ? '1' : caracter;
+  }).join('');
+}
+
+/**
+ * Sin hueco, ¿es un 1? Si es estrecho, si. Si es ancho (un 1 con pie), solo si
+ * el centro tiene tinta, que es su palo, y no es una mancha: un 0 con el aro
+ * roto tiene el centro vacio, y uno tapado por el suavizado es casi todo tinta.
+ */
+function pareceUno(tinta, ancho, a, b, y0, y1) {
+  const w = b - a;
+  const h = Math.max(1, y1 - y0);
+  if (w / h < 0.55) return true;
+  let llena = 0;
+  for (let y = y0; y < y1; y++) for (let x = a; x < b; x++) llena += tinta[y * ancho + x];
+  let centro = 0;
+  const fila = Math.floor((y0 + y1) / 2);
+  for (let x = a + Math.floor(w / 3); x < b - Math.floor(w / 3); x++) centro += tinta[fila * ancho + x];
+  return centro > 0 && llena / (w * h) < 0.6;
+}
+
+function huecosCerrados(tinta, ancho, a, b, y0, y1, minimo) {
+  const w = b - a + 2;
+  const h = y1 - y0 + 2;
+  const hayTinta = (x, y) => x > 0 && y > 0 && x < w - 1 && y < h - 1
+    && tinta[(y0 + y - 1) * ancho + a + x - 1] === 1;
+  const visto = new Uint8Array(w * h);
+  const rellenar = (xInicio, yInicio) => {
+    const pila = [[xInicio, yInicio]];
+    let area = 0;
+    visto[yInicio * w + xInicio] = 1;
+    while (pila.length) {
+      const [x, y] = pila.pop();
+      area++;
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h || visto[ny * w + nx] || hayTinta(nx, ny)) continue;
+        visto[ny * w + nx] = 1;
+        pila.push([nx, ny]);
+      }
+    }
+    return area;
+  };
+  rellenar(0, 0);
+  let huecos = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!visto[y * w + x] && !hayTinta(x, y) && rellenar(x, y) >= minimo) huecos++;
+    }
+  }
+  return huecos;
+}
+
+/** El texto de una barra sin espacios y con sus letras dudosas como cifras. */
+export function cifrasDeBarra(texto) {
+  return String(texto || '').replace(/\s+/g, '').replace(/[lI|]/g, '1').replace(/[oO]/g, '0');
+}
+
+/** Repasa los 0 y 1 de `texto` en una zona de un lienzo. Nunca lanza. */
+function cifrasDeLienzo(lienzo, { x0, y0, x1, y1 }, texto) {
+  try {
+    const ancho = x1 - x0;
+    const alto = y1 - y0;
+    const { data } = lienzo.getContext('2d').getImageData(x0, y0, ancho, alto);
+    const gris = new Uint8Array(ancho * alto);
+    for (let i = 0; i < gris.length; i++) {
+      gris[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+    }
+    return corregirCeroUno(gris, ancho, alto, texto);
+  } catch {
+    return texto;
+  }
+}
+
+/** Repasa las palabras que son cifras de la lectura principal, y rehace sus lineas. */
+function repasarCifras(data, lienzo) {
+  for (const b of data.blocks || []) for (const pa of b.paragraphs || []) for (const l of pa.lines || []) {
+    let cambiada = false;
+    for (const w of l.words || []) {
+      if (!w?.bbox || !/^[\d:.,/()-]*[01][\d:.,/()-]*$/.test(w.text)) continue;
+      const repasado = cifrasDeLienzo(lienzo, w.bbox, w.text);
+      if (repasado !== w.text) { w.text = repasado; cambiada = true; }
+    }
+    if (cambiada) l.text = l.words.map((w) => w.text).join(' ');
+  }
+}
+
+/**
  * Arregla lo que el OCR confunde DENTRO de un numero: l, I, | por 1 y o, O por
  * 0. Solo en trozos que ya son casi todo cifras ("(l24)", "l7m. l8s.").
  */
@@ -791,6 +913,7 @@ export async function extraer(imagen, alProgresar) {
     // Lo leido entonces no es de fiar: mejor el formulario a mano.
     if (fallo) throw new Error(String(fallo).slice(0, 200));
 
+    repasarCifras(data, lienzo);
     const texto = textoPorAltura(data);
 
     const lineas = (data.blocks || []).flatMap((b) => (b.paragraphs || []).flatMap((pa) => pa.lines || []));
@@ -818,13 +941,15 @@ export async function extraer(imagen, alProgresar) {
         corte.height = (hasta - desde) * 2;
         corte.getContext('2d').drawImage(lienzo, x, desde, ancho, hasta - desde, 0, 0, corte.width, corte.height);
         const { data: d } = await conReloj(motor.recognize(corte));
-        const segundos = tiempoDeBarra(d.text);
+        const caja = { x0: 0, y0: 0, x1: corte.width, y1: corte.height };
+        const segundos = tiempoDeBarra(cifrasDeLienzo(corte, caja, cifrasDeBarra(d.text)));
         if (segundos) tiempos.push({ segundos, y: desde });
       }
       await motor.setParameters({ tessedit_pageseg_mode: '11', tessedit_char_whitelist: '0123456789' });
       const { data: n } = await conReloj(motor.recognize(lienzo, {}, { text: true, blocks: true }));
       for (const palabra of (n.blocks || []).flatMap((b) => (b.paragraphs || []).flatMap((pa) => (pa.lines || []).flatMap((l) => l.words || [])))) {
-        const bici = biciDeNumero(palabra.text);
+        if (!biciDeNumero(palabra.text)) continue;
+        const bici = biciDeNumero(cifrasDeLienzo(lienzo, palabra.bbox, palabra.text));
         if (bici) bicis.push({ bici, y: palabra.bbox.y0 });
       }
       leido = conPrimerTrayecto({

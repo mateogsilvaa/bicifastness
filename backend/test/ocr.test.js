@@ -519,3 +519,51 @@ test('el troceo de cifras es el mismo en el worker (JS) y en el entrenamiento (P
   assert.strictEqual(py.length, js.length);
   py.forEach((g, i) => g.forEach((v, j) => assert.ok(Math.abs(v - js[i][j]) < 1e-9)));
 });
+
+// --- 0 y 1 por la forma del glifo ------------------------------------------------
+
+async function recorteDeCifras(texto) {
+  const sharp = require('sharp');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${texto.length * 40 + 20}" height="64"><rect width="100%" height="100%" fill="#fff"/><text x="10" y="50" font-family="DejaVu Sans" font-size="48" fill="#222">${texto}</text></svg>`;
+  return sharp(Buffer.from(svg)).greyscale().png().toBuffer();
+}
+
+test('un 0 leido como 1 y un 1 leido como 0 se corrigen por la forma', async () => {
+  const { afinarCeroUno } = require('../src/lector-cifras');
+  const png = await recorteDeCifras('10:01');
+  assert.strictEqual(await afinarCeroUno(png, '01:10'), '10:01');
+  assert.strictEqual(await afinarCeroUno(png, '10:01'), '10:01');
+});
+
+test('el canal alfa de un PNG no desalinea el analisis', async () => {
+  // Con alfa, `raw` daba dos valores por pixel y "10:01" salia "00:00".
+  const sharp = require('sharp');
+  const { afinarCeroUno } = require('../src/lector-cifras');
+  const conAlfa = await sharp(await recorteDeCifras('10:01')).ensureAlpha().png().toBuffer();
+  assert.strictEqual((await sharp(conAlfa).metadata()).hasAlpha, true);
+  assert.strictEqual(await afinarCeroUno(conAlfa, '01:10'), '10:01');
+});
+
+test('solo se tocan los 0 y los 1, y solo con un glifo por caracter', async () => {
+  const { afinarCeroUno } = require('../src/lector-cifras');
+  assert.strictEqual(await afinarCeroUno(await recorteDeCifras('2468'), '2468'), '2468');
+  // Un caracter de mas: no se sabe que glifo es cada uno, asi que no se toca.
+  assert.strictEqual(await afinarCeroUno(await recorteDeCifras('101'), '0110'), '0110');
+  assert.strictEqual(await afinarCeroUno(Buffer.from('no es una imagen'), '0110'), '0110');
+});
+
+test('el navegador corrige los 0 y 1 igual que el worker', async () => {
+  const sharp = require('sharp');
+  const { corregirCeroUno } = require('../src/lector-cifras');
+  const cliente = await import(`data:text/javascript;base64,${fs.readFileSync(path.join(__dirname, '..', '..', 'assets/js/extraccion.js')).toString('base64')}`);
+  const png = await recorteDeCifras('10:01');
+  const { data, info } = await sharp(png).flatten({ background: '#ffffff' }).greyscale().raw().toBuffer({ resolveWithObject: true });
+  assert.strictEqual(info.channels, 1);
+  for (const texto of ['01:10', '10:01', '11:11', '0110']) {
+    assert.strictEqual(cliente.corregirCeroUno(data, info.width, info.height, texto),
+      corregirCeroUno(data, info.width, info.height, texto), texto);
+  }
+  for (const texto of ['llm. 44s.', '1O m. o5s.', '']) {
+    assert.strictEqual(cliente.cifrasDeBarra(texto), ocr.cifrasDeBarra(texto), texto);
+  }
+});

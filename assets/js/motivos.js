@@ -372,3 +372,26 @@ export function impugnable(viaje, ahora = Date.now()) {
 
 /** Los codigos con texto propio. Lo usa el test que los ata al motor. */
 export const CODIGOS_CON_TEXTO = Object.keys(MOTIVOS);
+
+/** Lo que tarda como mucho el worker en sumar los puntos tras aprobar. */
+const PLAZO_PUNTOS_MS = 15 * 60 * 1000;
+
+/**
+ * ¿Esta aprobado pero aun sin sus puntos?
+ *
+ * El worker aprueba en una escritura y suma los puntos en otra (`premiar`),
+ * unos segundos despues. Quien lee entre las dos ve `aprobado` sin `puntos`, y
+ * eso no es un viaje de cero puntos: es un viaje a medio escribir.
+ *
+ * Solo cuenta si se acaba de revisar: los viajes migrados de la v1 no llevan
+ * puntos y no van a llevarlos nunca.
+ *
+ * @param {object} viaje  documento de `tiempos_viaje`
+ * @param {number} [ahora]
+ */
+export function puntosPendientes(viaje, ahora = Date.now()) {
+  if (viaje?.estado !== 'aprobado' || viaje.verificado !== true) return false;
+  if (viaje.premiado === true || typeof viaje.puntos === 'number') return false;
+  const revisado = viaje.revisadoEn?.toMillis?.();
+  return typeof revisado === 'number' && ahora - revisado < PLAZO_PUNTOS_MS;
+}

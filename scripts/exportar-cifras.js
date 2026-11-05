@@ -10,7 +10,9 @@ const fs = require('fs');
 const admin = require('./lib/firebase-admin');
 
 async function main() {
-  admin.initializeApp({ credential: admin.credential.applicationDefault() });
+  const credenciales = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!credenciales) throw new Error('Falta FIREBASE_SERVICE_ACCOUNT.');
+  admin.initializeApp({ credential: admin.credential.cert(JSON.parse(credenciales)) });
   const snap = await admin.firestore().collection('dataset_cifras').get();
   const muestras = snap.docs.flatMap((d) => d.data().muestras || [])
     .filter((m) => m && typeof m.png === 'string' && typeof m.etiqueta === 'string');

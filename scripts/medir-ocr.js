@@ -97,6 +97,17 @@ async function principal() {
   // ni una bici: nada de lo leido, solo como de bien se ha leido.
   const diasDeDesfase = { 'mismo dia': 0, '1 a 7 dias antes': 0, '8 a 30 dias antes': 0, 'mas de 30 dias antes': 0, 'captura de despues': 0, 'sin fecha leida': 0 };
   const causasRuta = { 'no se leyo ninguna estacion': 0, 'se leyo solo una': 0, 'otras estaciones (captura con varios trayectos)': 0, 'otras estaciones (un solo trayecto)': 0 };
+  // Que cifra se lee por cual, en las estaciones mal leidas ("0 por 1": hay un 0
+  // y se leyo un 1). Solo el par de cifras y cuantas veces: ninguna estacion.
+  const cifrasCambiadas = {};
+  const cambiosDeLongitud = { n: 0 };
+  const apuntarCifras = (declarada, leida) => {
+    if (!leida || declarada === leida) return;
+    if (declarada.length !== leida.length) { cambiosDeLongitud.n++; return; }
+    [...declarada].forEach((c, i) => {
+      if (c !== leida[i]) cifrasCambiadas[`${c} por ${leida[i]}`] = (cifrasCambiadas[`${c} por ${leida[i]}`] || 0) + 1;
+    });
+  };
   const rechazosHoy = [];
   // Una captura sostiene varios viajes: se lee una vez.
   const lecturasDe = new Map();
@@ -124,6 +135,9 @@ async function principal() {
     conteo.total++;
     const cual = { tiempoSegundos: viaje.tiempoSegundos, fecha: String(viaje.fechaViaje || '').slice(0, 10) };
     const lectura = ocr.elegirTrayecto(leidas.primera, viaje.ruta, cual);
+    const [origenDeclarado, destinoDeclarado] = String(viaje.ruta || '').split('-');
+    apuntarCifras(normalizar(origenDeclarado), normalizar(lectura.origen));
+    apuntarCifras(normalizar(destinoDeclarado), normalizar(lectura.destino));
 
     // El veredicto de HOY sobre el contenido de la captura: la misma
     // evaluacion que hace el worker, sin el historial (duplicados, records,
@@ -277,6 +291,11 @@ async function principal() {
   for (const [k, n] of Object.entries(señalesHoy).sort((a, b) => b[1] - a[1])) console.log(`  ${k.padEnd(28)} ${n}`);
   console.log('-------------------------------------------------------------');
   console.log('');
+  console.log('Cifras de estacion cambiadas (hay la primera, se leyo la segunda)');
+  for (const [k, n] of Object.entries(cifrasCambiadas).sort((a, b) => b[1] - a[1])) console.log(`  ${k.padEnd(28)} ${n}`);
+  console.log(`  ${'con otra longitud'.padEnd(28)} ${cambiosDeLongitud.n}`);
+  console.log('');
+
   console.log('Como leer esto: si "Ruta completa" no pasa del 90%, el OCR todavia');
   console.log('no puede ser la unica fuente de la subida (issue #8). Si "No parece');
   console.log('BiciMAD" no es 0, hay que revisar los marcadores de src/ocr.js,');
@@ -288,7 +307,10 @@ async function principal() {
   }
 }
 
-principal().catch((err) => {
+// `process.exit` y no dejar que acabe solo: el motor de OCR deja el proceso
+// vivo, y el workflow se quedaba colgado hasta su limite de horas con el informe
+// ya escrito.
+principal().then(() => process.exit(0)).catch((err) => {
   console.error(err);
   process.exit(1);
 });

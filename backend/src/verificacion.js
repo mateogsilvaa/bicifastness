@@ -56,7 +56,7 @@ function velocidadKmh(metros, segundos) {
  * asistido con corte legal a 25 km/h, asi que hay un suelo duro de tiempo para
  * cada par de estaciones.
  */
-function comprobarFisica({ ruta, tiempoSegundos }) {
+function comprobarFisica({ ruta, tiempoSegundos }, { impecable = false } = {}) {
   const [origen, destino] = ruta.split('-');
   const metros = distanciaCalleMetros(origen, destino);
   const señales = [];
@@ -70,26 +70,45 @@ function comprobarFisica({ ruta, tiempoSegundos }) {
       `Las dos estaciones estan a solo ${Math.round(metros)} m: el trayecto es demasiado corto para competir.`));
   }
 
+  // La velocidad que se ENSEÑA (y la que usa el perfil del piloto) es la de la
+  // distancia estimada por calle.
   const kmh = velocidadKmh(metros, tiempoSegundos);
 
-  // El rechazo por IMPOSIBLE se decide con la distancia MINIMA que puede haber:
-  // la linea recta, menos lo que baila la posicion de las estaciones. La
-  // estimacion por calle (recta x 1,35) es una suposicion, y un rechazo
-  // automatico no puede apoyarse en una suposicion. Para "sospechosa" (que va
-  // a una persona) si vale la estimacion.
+  // Con la captura IMPECABLE el tiempo lo ha medido BiciMAD y las estaciones y
+  // las horas cuadran: si sale rapido, lo que esta mal es NUESTRA distancia
+  // (atajos por parques, carriles bici, Madrid Rio...), no el viaje. Ahi la
+  // velocidad no opina. (Noviembre de 2026: uno de 68 km/h "por calle" era
+  // legal y acabo en revision.)
+  // Lo unico que se mira entonces es lo que ni con atajos cabe: mas de 32 km/h
+  // de media en LINEA RECTA (una BiciMAD corta la asistencia a 25). Eso ya no
+  // es la distancia, es una captura retocada con cuidado: a revision, nunca
+  // rechazo.
   const recta = distanciaMetros(buscarEstacion(origen), buscarEstacion(destino));
   const kmhMinimo = velocidadKmh(Math.max(0, recta - FISICA.MARGEN_POSICION_METROS), tiempoSegundos);
+  if (impecable) {
+    if (kmhMinimo !== null && kmhMinimo > FISICA.VELOCIDAD_IMPOSIBLE_IMPECABLE_KMH) {
+      señales.push(señal('velocidad_imposible', 60,
+        `Al menos ${kmhMinimo.toFixed(1)} km/h en linea recta, con una captura que cuadra: ni con atajos. Requiere revision humana.`,
+        { kmh: Number(kmhMinimo.toFixed(1)), metros: Math.round(recta) }));
+    }
+    return { señales, metros: Math.round(metros), kmh: kmh ? Number(kmh.toFixed(1)) : null };
+  }
+
+  // Sin captura impecable, la velocidad se mide con la distancia MAS CORTA que
+  // puede haber —la linea recta, menos lo que baila la posicion de las
+  // estaciones— y no con la estimacion por calle, que no conoce los atajos. Y
+  // nunca rechaza: como mucho, a revision (las dos van en DE_LECTURA).
+  const kmhCorto = velocidadKmh(recta * 1.1, tiempoSegundos);
 
   if (kmhMinimo !== null && kmhMinimo > FISICA.VELOCIDAD_IMPOSIBLE_KMH) {
-    señales.push(fatal('velocidad_imposible',
-      `Velocidad media de ${kmh.toFixed(1)} km/h sobre ${Math.round(metros)} m estimados ` +
-      `(al menos ${kmhMinimo.toFixed(1)} km/h en linea recta). ` +
-      `Una BiciMAD corta la asistencia a ${FISICA.VELOCIDAD_IMPOSIBLE_KMH} km/h: el tiempo declarado es fisicamente imposible.`,
-      { kmh: Number(kmh.toFixed(1)), metros: Math.round(metros) }));
-  } else if (kmh !== null && kmh > FISICA.VELOCIDAD_SOSPECHOSA_KMH) {
+    señales.push(señal('velocidad_imposible', 60,
+      `Al menos ${kmhMinimo.toFixed(1)} km/h en linea recta: con el tiempo declarado no da. ` +
+      'Puede ser un tiempo mal escrito o una estacion mal leida. Requiere revision humana.',
+      { kmh: Number(kmhMinimo.toFixed(1)), metros: Math.round(recta) }));
+  } else if (kmhCorto !== null && kmhCorto > FISICA.VELOCIDAD_SOSPECHOSA_KMH) {
     señales.push(señal('velocidad_sospechosa', 40,
-      `Velocidad media de ${kmh.toFixed(1)} km/h: posible, pero muy alta para trafico urbano.`,
-      { kmh: Number(kmh.toFixed(1)) }));
+      `${kmhCorto.toFixed(1)} km/h contando casi en linea recta: posible, pero muy alta para trafico urbano.`,
+      { kmh: Number(kmhCorto.toFixed(1)) }));
   } else if (kmh !== null && kmh < FISICA.VELOCIDAD_MINIMA_KMH) {
     señales.push(señal('velocidad_muy_baja', 10,
       `Velocidad media de ${kmh.toFixed(1)} km/h, mas lento que andar.`,
@@ -791,6 +810,9 @@ const DE_LECTURA = new Set([
   'tiempo_no_coincide', 'tiempo_desviado', 'fecha_captura_distinta', 'llegada_posterior_a_subida',
   'reloj_anterior_a_llegada', 'reloj_posterior_a_subida', 'lectura_sin_consenso', 'horario_inusual',
   'formato_no_movil',
+  // La velocidad tampoco rechaza nunca sola: depende de una distancia
+  // estimada que no conoce los atajos (comprobarFisica).
+  'velocidad_imposible', 'velocidad_sospechosa',
 ]);
 
 /**
@@ -929,8 +951,9 @@ function rutaDeLaCaptura(lecturas, tiempoSegundos) {
  * admin ve exactamente por que se ha tomado la decision.
  */
 function evaluar(contexto) {
-  const fisica = comprobarFisica(contexto);
   const impecable = capturaImpecable(contexto);
+  // `impecable` lo calcula el propio motor, no viene del worker.
+  const fisica = comprobarFisica(contexto, { impecable });
   const todas = [
     ...fisica.señales,
     ...comprobarCaptura(contexto),

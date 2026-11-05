@@ -56,17 +56,28 @@ test('un viaje limpio y plausible se aprueba solo', () => {
   assert.strictEqual(r.señales.length, 0);
 });
 
-test('un tiempo fisicamente imposible se rechaza solo', () => {
-  // Recorrer ~3,5 km en 120 s son mas de 100 km/h.
+test('la velocidad nunca rechaza: un tiempo imposible va a revision', () => {
+  // Recorrer ~3,5 km en 120 s son mas de 100 km/h, incluso en linea recta.
   const r = evaluar(contextoBase({ tiempoSegundos: 120 }));
-  assert.strictEqual(r.decision, 'rechazado');
+  assert.strictEqual(r.decision, 'revision');
   assert.ok(r.señales.some((s) => s.codigo === 'velocidad_imposible'));
-  assert.match(r.resumen, /imposible/);
+  // Sin captura impecable, igual: revision.
+  const sinHoras = { ...lecturaLimpia(120), horaSalida: null, horaLlegada: null };
+  assert.strictEqual(evaluar(contextoBase({ tiempoSegundos: 120, lectura: sinHoras })).decision, 'revision');
+});
+
+test('con captura impecable, una velocidad alta "por calle" pasa: la distancia no conoce los atajos', () => {
+  // 68 km/h por la distancia estimada por calle, pero menos de 32 en linea recta.
+  const recta = METROS / 1.35;
+  const t = Math.round(((recta / 1000) / 28) * 3600);
+  const r = evaluar(contextoBase({ tiempoSegundos: t }));
+  assert.strictEqual(r.decision, 'aprobado');
+  assert.ok(!r.señales.some((s) => /velocidad/.test(s.codigo) && s.gravedad > 0));
 });
 
 test('una velocidad alta pero posible va a revision, no a la basura', () => {
-  // Ajustamos el tiempo para caer entre 21 y 25 km/h.
-  const segundos = Math.round((METROS / 1000) / 23 * 3600);
+  // Entre 21 y 25 km/h contando casi en linea recta (recta x 1,1).
+  const segundos = Math.round(((METROS / 1.35) * 1.1 / 1000) / 23 * 3600);
   // Sin captura que lo respalde del todo (no se leen las horas): a revision.
   const sinHoras = { ...lecturaLimpia(segundos), horaSalida: null, horaLlegada: null };
   const r = evaluar(contextoBase({ tiempoSegundos: segundos, lectura: sinHoras }));
@@ -655,13 +666,14 @@ test('el primer trayecto no se rechaza solo por señales sumadas: va a revision'
   const lectura = { ...lecturaLimpia(segundos), segundosDuracion: segundos + 20, horaSalida: '03:00:00', horaLlegada: new Date((salida + segundos + 20) * 1000).toISOString().slice(11, 19) };
   const ctx = contextoBase({ tiempoSegundos: segundos, lectura, mejorTiempoPropio: Math.round(segundos * 1.6), velocidadesPrevias: [10, 10, 10, 10, 10] });
 
-  assert.strictEqual(evaluar(ctx).decision, 'rechazado', 'con historial, se rechaza como siempre');
+  // La velocidad ya no suma para rechazar (depende de una distancia estimada):
+  // con historial tambien va a revision.
+  assert.strictEqual(evaluar(ctx).decision, 'revision', 'la velocidad no rechaza');
   const primero = evaluar({ ...ctx, primerViaje: true });
   assert.strictEqual(primero.decision, 'revision');
-  assert.match(primero.resumen, /Primer trayecto/);
 
-  // Lo decisivo se sigue rechazando aunque sea el primero.
-  assert.strictEqual(evaluar(contextoBase({ tiempoSegundos: 120, primerViaje: true })).decision, 'rechazado');
+  // La velocidad, por imposible que sea, ya no rechaza: revision.
+  assert.strictEqual(evaluar(contextoBase({ tiempoSegundos: 120, primerViaje: true })).decision, 'revision');
 });
 
 
@@ -696,7 +708,8 @@ test('una captura impecable rapida pero posible no va a revision; una imposible 
   const metros = distanciaCalleMetros(a, b);
   const t = Math.round((metros / 22) * 3.6);
   const r = evaluar(contextoBase({ tiempoSegundos: t, lectura: lecturaLimpia(t) }));
-  assert.ok(r.señales.some((s) => s.codigo === 'velocidad_sospechosa' && s.gravedad === 0));
+  // Con captura impecable la velocidad ni se anota.
+  assert.ok(!r.señales.some((s) => s.codigo === 'velocidad_sospechosa'));
   assert.strictEqual(r.decision, 'aprobado');
   assert.ok(velocidadKmh(metros, t) > 21 && o && d);
 });

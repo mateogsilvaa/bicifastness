@@ -38,6 +38,8 @@ const FISICA = {
   // 168/2013). Por encima de esto en media, sobre distancia de calle estimada,
   // el trayecto es imposible: se rechaza solo.
   VELOCIDAD_IMPOSIBLE_KMH: 25,
+  // Con captura impecable, solo lo que ni en linea recta cabe (y solo revision).
+  VELOCIDAD_IMPOSIBLE_IMPECABLE_KMH: 32,
   // Franja de sospecha: posible pero muy improbable sostenido en ciudad.
   VELOCIDAD_SOSPECHOSA_KMH: 21,
   // Por debajo de esto es mas lento que andar: no es trampa, pero se revisa.

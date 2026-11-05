@@ -108,6 +108,32 @@ async function principal() {
       if (c !== leida[i]) cifrasCambiadas[`${c} por ${leida[i]}`] = (cifrasCambiadas[`${c} por ${leida[i]}`] || 0) + 1;
     });
   };
+  // De que va cada estacion mal leida. Solo recuentos.
+  const estacionesMal = {
+    'difiere 1 cifra': 0, 'difieren 2 cifras': 0, 'difieren 3 cifras': 0,
+    'es la otra estacion de la ruta': 0,
+    'la buena esta en el texto': 0, 'el nombre de la buena esta en el texto': 0,
+    'la buena no aparece': 0,
+  };
+  const catalogo = require('../backend/lib/estaciones.json');
+  const plano = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const nombreEnTexto = (id, texto) => {
+    const nombre = (catalogo[id] || catalogo[String(id).replace(/^0+/, '')] || {}).nombre;
+    const palabras = plano(nombre).split(/[^a-z0-9ñ]+/).filter((p) => p.length >= 5);
+    return palabras.length > 0 && palabras.every((p) => plano(texto).includes(p));
+  };
+  const apuntarEstacion = (declarada, leida, otra, texto) => {
+    if (!leida || declarada === leida) return;
+    const distintas = [...declarada].filter((c, i) => c !== leida[i]).length;
+    if (distintas >= 1 && distintas <= 3) estacionesMal[distintas === 1 ? 'difiere 1 cifra' : `difieren ${distintas} cifras`]++;
+    if (leida === otra) estacionesMal['es la otra estacion de la ruta']++;
+    const numero = declarada.replace(/^0+/, '');
+    const enTexto = new RegExp(`(^|[^0-9])0*${numero}([^0-9]|$)`).test(texto);
+    const conNombre = nombreEnTexto(declarada, texto);
+    if (enTexto) estacionesMal['la buena esta en el texto']++;
+    if (conNombre) estacionesMal['el nombre de la buena esta en el texto']++;
+    if (!enTexto && !conNombre) estacionesMal['la buena no aparece']++;
+  };
   const rechazosHoy = [];
   // Una captura sostiene varios viajes: se lee una vez.
   const lecturasDe = new Map();
@@ -138,6 +164,8 @@ async function principal() {
     const [origenDeclarado, destinoDeclarado] = String(viaje.ruta || '').split('-');
     apuntarCifras(normalizar(origenDeclarado), normalizar(lectura.origen));
     apuntarCifras(normalizar(destinoDeclarado), normalizar(lectura.destino));
+    apuntarEstacion(normalizar(origenDeclarado), normalizar(lectura.origen), normalizar(destinoDeclarado), lectura.texto || '');
+    apuntarEstacion(normalizar(destinoDeclarado), normalizar(lectura.destino), normalizar(origenDeclarado), lectura.texto || '');
 
     // El veredicto de HOY sobre el contenido de la captura: la misma
     // evaluacion que hace el worker, sin el historial (duplicados, records,
@@ -291,6 +319,10 @@ async function principal() {
   for (const [k, n] of Object.entries(señalesHoy).sort((a, b) => b[1] - a[1])) console.log(`  ${k.padEnd(28)} ${n}`);
   console.log('-------------------------------------------------------------');
   console.log('');
+  console.log('Estaciones mal leidas');
+  for (const [k, n] of Object.entries(estacionesMal)) console.log(`  ${k.padEnd(40)} ${n}`);
+  console.log('');
+
   console.log('Cifras de estacion cambiadas (hay la primera, se leyo la segunda)');
   for (const [k, n] of Object.entries(cifrasCambiadas).sort((a, b) => b[1] - a[1])) console.log(`  ${k.padEnd(28)} ${n}`);
   console.log(`  ${'con otra longitud'.padEnd(28)} ${cambiosDeLongitud.n}`);

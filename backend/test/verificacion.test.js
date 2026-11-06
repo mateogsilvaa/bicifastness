@@ -793,3 +793,23 @@ test('la ruta se corrige con la captura solo si es clara: dos lecturas de acuerd
   const historial = { disponible: true, trayectos: [buena, { ...otra, segundosDuracion: 419, horaSalida: '08:20:09', horaLlegada: '08:27:08' }] };
   assert.strictEqual(rutaDeLaCaptura([historial, historial], 648).ruta, '177-277');
 });
+
+test('un tiempo declarado mucho mas rapido que el de la captura (y confirmado por sus horas) se rechaza solo', () => {
+  const { tiempoInventado } = require('../src/verificacion');
+  // La captura: este trayecto en 12:00, de 10:00:00 a 10:12:00. Declarado 8:00.
+  const lectura = lecturaLimpia(720);
+  const r = evaluar(contextoBase({ tiempoSegundos: 480, lectura }));
+  assert.strictEqual(r.decision, 'rechazado');
+  assert.ok(r.señales.some((s) => s.codigo === 'tiempo_inventado'));
+
+  // Una sola cifra distinta (12:00 frente a 11:00 o 13:00): puede ser el OCR. A revision.
+  assert.strictEqual(tiempoInventado({ lectura, ruta: RUTA, tiempoSegundos: 660 }), false);
+  // Declarado MAS LENTO que la captura: no gana nada, es un error. No se rechaza.
+  assert.strictEqual(tiempoInventado({ lectura, ruta: RUTA, tiempoSegundos: 900 }), false);
+  // Las horas no confirman la duracion leida: a revision.
+  assert.strictEqual(tiempoInventado({ lectura: { ...lectura, horaLlegada: '10:30:00' }, ruta: RUTA, tiempoSegundos: 480 }), false);
+  // Otra ruta en la captura: no es este trayecto, no se juzga su tiempo.
+  assert.strictEqual(tiempoInventado({ lectura: { ...lectura, destino: '9' }, ruta: RUTA, tiempoSegundos: 480 }), false);
+  // Poca diferencia (menos de un minuto): no.
+  assert.strictEqual(tiempoInventado({ lectura, ruta: RUTA, tiempoSegundos: 680 }), false);
+});

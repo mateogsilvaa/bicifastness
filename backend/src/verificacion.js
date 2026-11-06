@@ -245,7 +245,15 @@ function comprobarCaptura({ ruta, tiempoSegundos, lectura, segundaLectura }) {
 
   if (lectura.segundosDuracion !== null) {
     const desfase = Math.abs(lectura.segundosDuracion - tiempoSegundos);
-    if (desfase > 60) {
+    if (desfase > 60 && tiempoInventado({ lectura, ruta, tiempoSegundos })) {
+      // La captura muestra ESTE trayecto, con su tiempo confirmado por sus
+      // propias horas, y lo declarado es bastante mas rapido y no por una
+      // cifra mal leida: el tiempo se lo ha puesto el piloto, no BiciMAD.
+      señales.push(fatal('tiempo_inventado',
+        `La captura de este trayecto marca ${lectura.segundosDuracion}s (y sus horas lo confirman), `
+        + `pero se han declarado ${tiempoSegundos}s.`,
+        { leido: lectura.segundosDuracion, declarado: tiempoSegundos }));
+    } else if (desfase > 60) {
       señales.push(señal('tiempo_no_coincide', 60,
         `La captura marca ${lectura.segundosDuracion}s pero se han declarado ${tiempoSegundos}s.`));
     } else if (desfase > 5) {
@@ -255,6 +263,37 @@ function comprobarCaptura({ ruta, tiempoSegundos, lectura, segundaLectura }) {
   }
 
   return señales;
+}
+
+/**
+ * ¿El tiempo declarado esta inventado? Solo si no hay duda de lectura:
+ *   - la captura muestra la MISMA ruta declarada (es este trayecto);
+ *   - su duracion cuadra con sus propias horas de salida y llegada (se ha
+ *     leido bien: las tres cifras dicen lo mismo);
+ *   - lo declarado es MAS RAPIDO, por mas de 60 s y mas de un 10 %;
+ *   - y no es una sola cifra cambiada (un 3 leido como 8 no es trampa).
+ * Pura.
+ */
+function tiempoInventado({ lectura, ruta, tiempoSegundos }) {
+  const leido = lectura?.segundosDuracion;
+  if (!Number.isFinite(leido) || !Number.isFinite(tiempoSegundos)) return false;
+  const sinCeros = (v) => String(v || '').replace(/^0+/, '');
+  const [o, d] = String(ruta || '').split('-').map(sinCeros);
+  if (sinCeros(lectura.origen) !== o || sinCeros(lectura.destino) !== d) return false;
+  const salida = horaASegundos(lectura.horaSalida);
+  const llegada = horaASegundos(lectura.horaLlegada);
+  if (salida === null || llegada === null) return false;
+  let entre = llegada - salida;
+  if (entre < 0) entre += 24 * 3600;
+  const margen = /:\d{2}:\d{2}/.test(`${lectura.horaSalida}${lectura.horaLlegada}`) ? 5 : 65;
+  if (Math.abs(entre - leido) > margen) return false;
+  if (leido - tiempoSegundos <= Math.max(60, leido * 0.1)) return false;
+  // Una sola cifra distinta en mm:ss (con los mismos digitos de largo).
+  const mmss = (t) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+  const a = mmss(leido);
+  const b = mmss(tiempoSegundos);
+  const unaCifra = a.length === b.length && [...a].filter((c, i) => c !== b[i]).length <= 1;
+  return !unaCifra;
 }
 
 // --- Comprobacion 3: reutilizacion de la captura -----------------------------
@@ -1031,6 +1070,6 @@ function evaluar(contexto) {
 }
 
 module.exports = {
-  capturaImpecable, RUIDO, mejorLectura, fechaDentroDePlazo, rutaDeLaCaptura,
+  capturaImpecable, RUIDO, mejorLectura, fechaDentroDePlazo, rutaDeLaCaptura, tiempoInventado,
   evaluar, distribucion, distanciaCalleMetros, velocidadKmh, DE_LECTURA, firmaDeLectura, compararFirmas,
 };

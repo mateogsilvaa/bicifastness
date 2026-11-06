@@ -148,6 +148,10 @@ const MOTIVOS = {
     texto: 'El tiempo que has escrito no es el que aparece en la captura.',
     queHacer: 'Copia el tiempo tal cual lo da la app.',
   },
+  tiempo_inventado: {
+    texto: 'El tiempo que has escrito es bastante mas rapido que el que marca la captura de este trayecto.',
+    queHacer: 'Sube el trayecto con el tiempo tal cual lo da la app de BiciMAD.',
+  },
   tiempo_desviado: {
     texto: 'El tiempo que has escrito y el de la captura no coinciden.',
     queHacer: 'Copia el tiempo tal cual lo da la app.',

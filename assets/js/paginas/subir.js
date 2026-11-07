@@ -878,15 +878,26 @@ function habituales() {
 
 const sinTildes = (t) => String(t).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
 
+/** Un numero de estacion como se escribe: "111", "111a", "11" (sin los ceros). */
+const ES_NUMERO = /^\d{1,3}[a-z]?$/i;
+const sinCerosDelante = (c) => String(c).replace(/^0+(?=\d)/, '');
+
 function buscarEstaciones(texto) {
   const q = sinTildes(texto.trim());
   if (!q) return [];
-  const numero = /^\d+$/.test(q);
+  // Con letra tambien es un numero: 111A y 111B son dos estaciones distintas
+  // (antes "111a" se buscaba como nombre y no salia nada).
+  const numero = ES_NUMERO.test(q);
+  const buscado = q.toUpperCase();
   return Object.entries(ESTACIONES)
     // Las retiradas y las previstas no pueden ser el origen de un trayecto de hoy.
     .filter(([, e]) => e.estado !== 'retirada' && e.estado !== 'prevista')
-    .filter(([codigo, e]) => (numero ? codigo.startsWith(q) : sinTildes(e.nombre).includes(q)))
-    .sort((a, b) => (numero ? Number(a[0]) - Number(b[0]) : a[1].nombre.localeCompare(b[1].nombre)))
+    .filter(([codigo, e]) => (numero
+      ? codigo.startsWith(buscado) || sinCerosDelante(codigo).startsWith(sinCerosDelante(buscado))
+      : sinTildes(e.nombre).includes(q)))
+    .sort((a, b) => (numero
+      ? (parseInt(a[0], 10) - parseInt(b[0], 10)) || a[0].localeCompare(b[0])
+      : a[1].nombre.localeCompare(b[1].nombre)))
     .slice(0, 6);
 }
 
@@ -913,7 +924,7 @@ function abrirBuscador(cual) {
     const q = campo.value.trim();
     const encontradas = buscarEstaciones(q);
     if (q && !encontradas.length) {
-      reemplazar(lista, el('p', { clase: 'acceso-error', texto: /^\d+$/.test(q) ? 'Esa estación no existe' : 'No hay ninguna estación con ese nombre' }));
+      reemplazar(lista, el('p', { clase: 'acceso-error', texto: ES_NUMERO.test(q) ? 'Esa estación no existe' : 'No hay ninguna estación con ese nombre' }));
       return;
     }
     const iniciales = !q && leida && ESTACIONES[leida] ? [[leida]] : [];
@@ -1050,7 +1061,9 @@ function pintarManual(lectura) {
   const b = borrador;
   const entrada = (cual, etiqueta) => {
     const campo = el('input', {
-      attrs: { id: `m-${cual}`, type: 'text', inputmode: 'numeric', autocomplete: 'off', value: b[cual] || '', 'aria-describedby': `m-${cual}-nombre` },
+      // Teclado de texto y no numerico: hay estaciones con letra (111A, 111B)
+      // y con el numerico no se podian escribir.
+      attrs: { id: `m-${cual}`, type: 'text', inputmode: 'text', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false', autocomplete: 'off', maxlength: '5', value: b[cual] || '', 'aria-describedby': `m-${cual}-nombre` },
     });
     const nombre = el('span', { clase: 'estacion-leida', attrs: { id: `m-${cual}-nombre`, 'aria-live': 'polite' } });
     const comprobar = () => {

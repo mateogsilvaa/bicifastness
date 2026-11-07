@@ -489,8 +489,8 @@ function corregirYAprobar() {
     const entrada = el('input', { attrs: { value: valor ?? '', autocomplete: 'off', ...attrs } });
     return { entrada, nodo: el('label', { clase: 'pila', estilo: { gap: '4px' } }, [el('span', { clase: 'adm-rotulo', texto: etiqueta }), entrada]) };
   };
-  const origen = campo('Salida (nº de estación)', o, { inputmode: 'numeric' });
-  const destino = campo('Meta (nº de estación)', d, { inputmode: 'numeric' });
+  const origen = campo('Salida (nº de estación)', o, { inputmode: 'text', autocapitalize: 'characters', maxlength: '5' });
+  const destino = campo('Meta (nº de estación)', d, { inputmode: 'text', autocapitalize: 'characters', maxlength: '5' });
   const duracion = campo('Duración (mm:ss)', formatearTiempo(viaje.tiempoSegundos));
   const fecha = campo('Fecha', viaje.fechaViaje, { type: 'date', min: '2026-11-01' });
   const nombres = el('p', { clase: 'meta' });

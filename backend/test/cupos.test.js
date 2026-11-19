@@ -161,15 +161,20 @@ test('un cupo de ayer no se arrastra a hoy', () => {
 
 // --- El cupo del juego, que lo sigue poniendo el worker -------------------------
 
-test('el cupo del dia se cuenta, no se trae', () => {
-  // De esto solo hace falta el numero. Traerse los viajes del dia costaba una
-  // lectura por viaje —sesenta con una cuenta que inunde— por cada viaje
-  // procesado; el conteo cobra una por cada mil.
+test('el cupo del dia: por el dia de subida y sin los rechazados', () => {
+  // Un rechazado no gasta hueco del dia (19 nov 2026: "ya llevas 2" contando
+  // uno que no contaba). Hace falta el estado, asi que se traen los del dia;
+  // son como mucho los diez que dejan escribir las reglas (`topeDiario()`), no
+  // los sesenta de una cuenta que inundaba antes de ese freno.
   const worker = leer('backend/worker.js');
   const cupo = worker.slice(worker.indexOf('// Cupo diario, contado en el servidor'));
+  const tramo = cupo.slice(0, cupo.indexOf('const hoy = '));
 
-  assert.match(cupo.slice(0, 700), /\.count\(\)\s*\n?\s*\.get\(\)/,
-    'el cupo diario se sigue trayendo los documentos');
+  assert.match(tramo, /where\('creado', '>=', admin\.firestore\.Timestamp\.fromMillis\(inicioHoy\)\)/,
+    'el cupo ya no cuenta por el dia de subida');
+  assert.match(tramo, /estado !== 'rechazado'/, 'un rechazado vuelve a gastar hueco');
+  assert.match(leer('firestore.rules'), /function topeDiario\(\) \{ return 10; \}/,
+    'si sube el tope de escrituras, el cupo se trae mas documentos de la cuenta');
 });
 
 // --- El modulo que se va --------------------------------------------------------

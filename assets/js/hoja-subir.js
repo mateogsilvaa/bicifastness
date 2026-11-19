@@ -8,7 +8,8 @@
  */
 
 import { el, icono, abrirHoja } from '/assets/js/dom.js';
-import { auth, db, doc, getDoc } from '/assets/js/firebase.js';
+import { auth, db, collection, query, where, orderBy, limit, getDocs } from '/assets/js/firebase.js';
+import { diaMadrid } from '/assets/js/dia.js';
 import { LIMITES_CLIENTE } from '/assets/js/precheck.js';
 import { guardarPendiente } from '/assets/js/captura-pendiente.js';
 import { atajoCompartir } from '/assets/js/ui.js';
@@ -35,14 +36,20 @@ async function imagenCopiada() {
   }
 }
 
-/** Los que lleva hoy, del contador de `cupos/{uid}` (el mismo que usa /subir/). */
+/**
+ * Los subidos hoy que cuentan, sin los rechazados: como /subir/ y el worker.
+ * Los diez ultimos bastan, son los que dejan escribir las reglas en un dia.
+ */
 async function usadosHoy() {
   const uid = auth.currentUser?.uid;
   if (!uid) return null;
   try {
-    const snap = await getDoc(doc(db, 'cupos', uid));
-    const previo = snap.exists() ? snap.data() : null;
-    return previo && previo.dia === Math.floor(Date.now() / 86400000) ? previo.viajes || 0 : 0;
+    const snap = await getDocs(query(collection(db, 'tiempos_viaje'), where('uid', '==', uid), orderBy('creado', 'desc'), limit(10)));
+    return snap.docs.filter((d) => {
+      const v = d.data();
+      const subido = v.creado?.toDate?.();
+      return subido && diaMadrid(subido) === diaMadrid() && v.estado !== 'rechazado';
+    }).length;
   } catch {
     return null;
   }

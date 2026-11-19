@@ -267,7 +267,7 @@ const MOTIVOS = {
     queHacer: 'Sube los que hagas a partir del estreno.',
   },
   cupo_diario: {
-    texto: 'Ya has subido seis trayectos hoy: los tres que puntúan y tres más sin puntos. Es el máximo de un día.',
+    texto: 'Ya has subido seis trayectos hoy que cuentan: los tres que puntúan y tres más sin puntos. Es el máximo de un día.',
     queHacer: 'Mañana vuelves a tener tres que puntúan.',
   },
 

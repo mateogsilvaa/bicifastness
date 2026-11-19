@@ -307,16 +307,23 @@ async function validarBasico(viaje, uid) {
   // Cupo diario, contado en el servidor. En el navegador se puede saltar
   // cualquier limite abriendo la consola.
   //
-  // Con la consulta de agregacion, no trayendose los documentos: de esto solo
-  // hace falta el numero, y traerlos costaba una lectura por viaje del dia —
-  // sesenta con una cuenta que inunde — por cada viaje procesado. El conteo
-  // cobra una lectura por cada MIL documentos contados.
+  // Por el dia de SUBIDA (en Madrid), y los RECHAZADOS NO GASTAN HUECO: un
+  // trayecto que no cuenta no le quita sitio al siguiente. Por eso se traen
+  // los documentos y no basta con contarlos: hace falta su estado. Son pocos,
+  // como mucho los diez que dejan escribir las reglas al dia (`topeDiario()`).
+  // Y solo los subidos ANTES que este: el orden decide cual es el 4.º.
   const inicioHoy = inicioDelDiaMadrid(new Date());
-  const hoy = (await db.collection('tiempos_viaje')
+  const yo = viaje.creado?.toMillis?.() ?? ahora;
+  const deHoy = await db.collection('tiempos_viaje')
     .where('uid', '==', uid)
     .where('creado', '>=', admin.firestore.Timestamp.fromMillis(inicioHoy))
-    .count()
-    .get()).data().count;
+    .get();
+  const antes = deHoy.docs.filter((d) => {
+    if (d.id === viaje._ref?.id) return false;
+    const v = d.data();
+    return v.estado !== 'rechazado' && (v.creado?.toMillis?.() ?? 0) < yo;
+  }).length;
+  const hoy = antes + 1;
 
   // El propio viaje que estamos procesando cuenta dentro del resultado.
   //

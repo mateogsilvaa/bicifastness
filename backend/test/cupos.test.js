@@ -192,3 +192,15 @@ test('no queda un modulo de limitacion que no llame nadie', () => {
       `${muerto} se queda en config sin que lo aplique nadie`);
   }
 });
+
+test('una captura con varios deja marcar los que no puntuan, hasta el maximo del dia', () => {
+  // 19 nov 2026: con el cupo gastado, la lista no dejaba marcar ninguno ("de
+  // uno en uno"), aunque del 4.º al 6.º se suben sin puntos para los km.
+  const subir = leer('assets/js/paginas/subir.js');
+  const elegir = subir.slice(subir.indexOf('async function irAElegir'), subir.indexOf('// --- Correcciones'));
+
+  assert.match(elegir, /const caben = Math\.max\(0, TOPE - llevaHoy\(\)\)/);
+  assert.match(elegir, /const bloqueado = repetido \|\| \(!marcado && elegidos\.size >= caben\)/,
+    'la lista vuelve a cortar en los que puntuan');
+  assert.ok(!/elegidos\.size >= quedan/.test(elegir), 'queda un corte en los que puntuan');
+});

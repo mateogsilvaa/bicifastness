@@ -1172,18 +1172,22 @@ async function misViajesRecientes() {
 async function irAElegir(candidatos) {
   const yaSubidos = await misViajesRecientes();
   let dia = diaInicial();
+  // Puntuan `quedan`; caben `caben`: del 4.º al 6.º se suben igual, sin puntos
+  // (lo marca el worker), para los km y las estadisticas.
   const quedan = Math.max(0, CUPO - llevaHoy());
+  const caben = Math.max(0, TOPE - llevaHoy());
   const elegidos = new Set();
 
   // Cada trayecto con SU dia si la captura lo trae; si no, el que se elija abajo.
   const diaDe = (c) => c.fecha || dia;
   const pintar = () => {
     const nuevos = candidatos.map((c, i) => ({ c, i, repetido: c.antiguo || yaSubidos.has(huellaLogica(c.ruta, c.tiempoSegundos, diaDe(c))) }));
-    // Se preseleccionan los que caben en el cupo; los que no, se ven pero no
-    // se pueden marcar (3g).
+    // Se preseleccionan los que puntuan; los demas se pueden marcar hasta el
+    // maximo del dia, y van sin puntos. Pasado el maximo, se ven pero no (3g).
     if (!elegidos.size) nuevos.filter((n) => !n.repetido).slice(0, quedan).forEach((n) => elegidos.add(n.i));
     const libres = nuevos.filter((n) => !n.repetido);
-    const noCaben = libres.filter((n) => !elegidos.has(n.i) && elegidos.size >= quedan);
+    const noCaben = libres.filter((n) => !elegidos.has(n.i) && elegidos.size >= caben);
+    const sinPuntos = (i) => [...elegidos].indexOf(i) >= quedan;
     const boton = el('button', {
       clase: 'btn grande', attrs: { type: 'button', disabled: elegidos.size ? null : '' },
       texto: elegidos.size === 1 ? 'Subir 1 trayecto' : `Subir ${elegidos.size} trayectos`,
@@ -1196,12 +1200,14 @@ async function irAElegir(candidatos) {
         el('div', { clase: 'confirmar-imagen solo-escritorio' }, [el('img', { attrs: { src: preparada.url, alt: 'Tu captura' } })]),
         el('div', { clase: 'varios-lista' }, [
           avisosEncima(),
-          el('p', { clase: 'apagado' }, quedan
-            ? ['Hoy te quedan ', el('strong', { texto: quedan === 1 ? '1 que puntúa' : `${quedan} que puntúan` }), '. Elige cuáles.']
-            : ['Hoy ya no te quedan trayectos que puntúen. Puedes subirlos igual, sin puntos, de uno en uno.']),
+          el('p', { clase: 'apagado' }, !caben
+            ? [`Hoy ya has subido ${TOPE} trayectos, el máximo de un día.`]
+            : quedan
+              ? ['Hoy te quedan ', el('strong', { texto: quedan === 1 ? '1 que puntúa' : `${quedan} que puntúan` }), caben > quedan ? '. Elige cuáles; los demás se suben sin puntos.' : '. Elige cuáles.']
+              : ['Hoy ya no te quedan trayectos que puntúen. Los que marques se suben ', el('strong', { texto: 'sin puntos' }), ': suman a tus kilómetros y estadísticas.']),
           ...nuevos.map(({ c, i, repetido }) => {
             const marcado = elegidos.has(i);
-            const bloqueado = repetido || (!marcado && elegidos.size >= quedan);
+            const bloqueado = repetido || (!marcado && elegidos.size >= caben);
             return el('button', {
               clase: `trayecto-opcion ${marcado ? 'marcado' : ''} ${bloqueado ? 'apagado' : ''}`.trim(),
               attrs: { type: 'button', 'aria-pressed': String(marcado), disabled: bloqueado ? '' : null },
@@ -1217,6 +1223,7 @@ async function irAElegir(candidatos) {
                   el('span', { clase: c.fecha ? '' : 'solo-escritorio-i', texto: `${diaDe(c) === diaMadrid() ? 'hoy' : diaDe(c) === diaMadridHace(1) ? 'ayer' : new Date(`${diaDe(c)}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} ` }),
                   [c.horaSalida, c.horaLlegada].filter(Boolean).join(' → '),
                   kmEstimados(c.origen, c.destino) ? el('span', { clase: 'solo-escritorio-i', texto: ` · ${String(kmEstimados(c.origen, c.destino).toFixed(1)).replace('.', ',')} km` }) : null,
+                  marcado && sinPuntos(i) ? ' · sin puntos' : null,
                 ]),
               ]),
               el('span', { clase: 'trayecto-tiempo', texto: formatearTiempo(c.tiempoSegundos) }),
@@ -1224,7 +1231,7 @@ async function irAElegir(candidatos) {
           }),
           noCaben.length ? el('p', {
             clase: 'menor apagado',
-            texto: `${noCaben.length === 1 ? `El de las ${noCaben[0].c.horaSalida || 'otra hora'} no cabe` : 'Los demás no caben'} hoy: ya llevas ${llevaHoy()} y puntúan ${CUPO} al día.`,
+            texto: `${noCaben.length === 1 ? `El de las ${noCaben[0].c.horaSalida || 'otra hora'} no cabe` : 'Los demás no caben'} hoy: ya llevas ${llevaHoy()} y el máximo son ${TOPE} al día (${CUPO} puntúan).`,
           }) : null,
           el('div', { clase: 'varios-pie' }, [
             // Solo si alguno no trae su fecha: los que la traen ya van con la suya.

@@ -53,8 +53,16 @@ const entradaFoto = id('foto');
 const vista = id('vista-lectura');
 
 let perfil = null;
-/** Cuantos lleva hoy segun el contador de `cupos/{uid}` (#62). */
+/**
+ * El contador de escrituras de `cupos/{uid}` (#62): solo para el id de lo que
+ * se escribe y el freno de las reglas (10 al dia). NO es lo que puntua.
+ */
 let cupo = null;
+/**
+ * Los subidos HOY que cuentan: los rechazados no gastan hueco del dia. Lo
+ * cuenta igual el worker (validarBasico). Null mientras no se sabe.
+ */
+let subidosHoy = null;
 let rutaDelDia = null;
 /** Las capturas que quedan por leer, si se eligieron o soltaron varias. */
 let cola = [];
@@ -70,7 +78,9 @@ let subidosDeLaCaptura = [];
 
 const coma = (n, dec = 1) => Number(n).toFixed(dec).replace('.', ',');
 const ordinal = (n) => `${n}.º`;
-const llevaHoy = () => cupo?.viajes || 0;
+const llevaHoy = () => subidosHoy ?? cupo?.viajes ?? 0;
+// El freno de escrituras de las reglas (`topeDiario()` en firestore.rules).
+const ESCRITURAS_DIA = 10;
 
 // --- Pasos ----------------------------------------------------------------------
 
@@ -175,6 +185,7 @@ onAuthStateChanged(auth, async (usuario) => {
       pintarInicio();
     });
     try { cupo = await leerCupo(); } catch { cupo = null; /* sin contador se sube igual; lo cuenta el worker */ }
+    await misViajesRecientes();
     configGeneral().then((c) => { rutaDelDia = c?.rutaDestacada || null; }).catch(() => { /* sin ruta del dia, no se anuncia */ });
   }
 
@@ -1129,22 +1140,33 @@ function pintarManual(lectura) {
 
 const huellaLogica = (ruta, tiempoSegundos, fechaViaje) => `${ruta}|${tiempoSegundos}|${fechaViaje}`;
 
+let recientes = null;
+/**
+ * UNA consulta acotada, al entrar: lo ya subido, para no ofrecerlo otra vez
+ * (3g), y cuantos de los subidos hoy cuentan, sin los rechazados.
+ */
 async function misViajesRecientes() {
-  // UNA consulta acotada, solo cuando la captura trae mas de un trayecto: para
-  // no ofrecer lo que ya esta subido.
+  if (recientes) return recientes;
   const ya = new Set();
   try {
     const snap = await getDocs(query(
       collection(db, 'tiempos_viaje'), where('uid', '==', perfil.uid), orderBy('creado', 'desc'), limit(60),
     ));
+    let hoy = 0;
     for (const d of snap.docs) {
       const v = d.data();
       ya.add(huellaLogica(v.ruta, v.tiempoSegundos, v.fechaViaje));
+      const subido = v.creado?.toDate?.();
+      if (subido && diaMadrid(subido) === diaMadrid() && v.estado !== 'rechazado') hoy += 1;
     }
+    subidosHoy = hoy;
+    recientes = ya;
   } catch {
-    // Sin esta consulta se ofrecen todos y ya dira el worker si alguno repite.
+    // Sin esta consulta se ofrecen todos y ya dira el worker si alguno repite;
+    // y el cupo sale del contador de escrituras.
+    return ya;
   }
-  return ya;
+  return recientes;
 }
 
 async function irAElegir(candidatos) {
@@ -1309,6 +1331,17 @@ async function subir(viajes, fechaViaje) {
     }
     return;
   }
+  // El freno de las reglas: diez escrituras al dia, cuenten o no. Mejor
+  // decirlo que dejar que el lote falle con un "sin permiso".
+  const escritasHoy = cupo && cupo.dia === Math.floor(Date.now() / 86400000) ? cupo.viajes : 0;
+  if (escritasHoy + viajes.length > ESCRITURAS_DIA) {
+    const aviso = document.querySelector('.subir-paso:not(.oculto) .subir-enviar .hoy-pista');
+    if (aviso) {
+      aviso.textContent = `Hoy ya has subido ${escritasHoy} trayectos, el máximo que se puede subir en un día. Sube el resto mañana.`;
+      aviso.classList.add('error');
+    }
+    return;
+  }
   // Mientras se escribe: el boton dice "Subiendo…" y se avisa de no cerrar.
   const botones = document.querySelectorAll('.subir-paso:not(.oculto) .subir-enviar .btn');
   const pista = document.querySelector('.subir-paso:not(.oculto) .subir-enviar .hoy-pista');
@@ -1317,6 +1350,8 @@ async function subir(viajes, fechaViaje) {
 
   try {
     const ids = await escribirViajes(viajes, fechaViaje);
+    if (subidosHoy !== null) subidosHoy += viajes.length;
+    for (const v of viajes) recientes?.add(huellaLogica(v.ruta, v.tiempoSegundos, String(v.fecha || fechaViaje).slice(0, 10)));
     subidosDeLaCaptura.push(...viajes);
     anotar('subida_enviada');
     marcarPrimerViaje();

@@ -684,7 +684,7 @@ test('lo que mandan hacer los documentos se puede hacer', () => {
   // y `--proyecto` se lee con un parser generico. Lo que se quiere cazar es una
   // bandera que el script no conoce DE NINGUNA forma.
   const guias = ['docs/MANTENIMIENTO.md', 'docs/LANZAMIENTO.md', 'docs/MIGRACION.md',
-    'docs/ENSAYO.md', 'docs/DISTANCIAS.md', 'docs/COSTE.md', 'docs/ROADMAP.md', 'README.md'];
+    'docs/ENSAYO.md', 'docs/DISTANCIAS.md', 'docs/COSTE.md', 'docs/ROADMAP.md', 'docs/OPERACION.md', 'README.md'];
 
   const rotos = [];
 

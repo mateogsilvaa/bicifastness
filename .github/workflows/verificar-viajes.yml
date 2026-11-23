@@ -168,7 +168,7 @@ jobs:
           # en worker.js): decidir que el proyecto todavia no esta configurado
           # es cosa del workflow, no suya.
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "::warning::Sin FIREBASE_SERVICE_ACCOUNT: no hay cola que procesar. Crea los secretos (README, apartado 3)."
+            echo "::warning::Sin FIREBASE_SERVICE_ACCOUNT: no hay cola que procesar. Crea los secretos (docs/OPERACION.md, apartado 3)."
             exit 0
           fi
           node worker.js ${{ inputs.simular && '--simular' || '' }}

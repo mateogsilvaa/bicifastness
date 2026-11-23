@@ -1,441 +1,116 @@
-# BiciFastness
+<p align="center">
+  <img src="images/icono/icono.svg" alt="" width="88">
+</p>
+<h1 align="center">BiciFastness</h1>
+<p align="center">
+  <b>Madrid is the circuit.</b> A competitive league built on everyday bike-share trips,<br>
+  with verified results, divisions, clans and a territory map.
+</p>
+<p align="center">
+  <a href="https://bicifastness.es"><b>bicifastness.es</b></a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#verification">Verification</a> ·
+  <a href="#development">Development</a> ·
+  <a href="#documentation">Docs</a>
+</p>
+<p align="center">
+  <a href="https://github.com/mateogsilvaa/bicifastness/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/mateogsilvaa/bicifastness/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Node 20" src="https://img.shields.io/badge/node-20-339933?style=flat-square">
+  <img alt="Firebase Auth and Firestore" src="https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-f5820d?style=flat-square">
+  <img alt="Vanilla JavaScript" src="https://img.shields.io/badge/frontend-vanilla%20JS-f7df1e?style=flat-square">
+</p>
 
-Plataforma web para competir con tiempos de trayectos de bicicleta publica en Madrid:
-subida de tiempos con verificacion automatica, rankings por ruta, rating global de
-pilotos y clanes, y mapa de dominio territorial por estacion.
+> Independent project. Not affiliated with, sponsored or endorsed by BiciMAD, EMT Madrid or Madrid City Council.
+> The app and the detailed documentation are in Spanish.
 
-> **Proyecto independiente.** Sin relacion, patrocinio ni respaldo de BiciMAD, de la
-> EMT de Madrid ni del Ayuntamiento de Madrid.
+## What it is
 
----
+Riders upload a screenshot of a finished BiciMAD trip. A worker reads it, checks that it is genuine and turns it into
+points. Speed is only one way to score:
 
-## LEE ESTO PRIMERO: credenciales comprometidas
-
-Esta version corrige un compromiso de seguridad. **Las siguientes credenciales
-estuvieron expuestas y hay que rotarlas TODAS antes de desplegar**, aunque el codigo
-ya no las use:
-
-| Credencial | Donde estaba | Quien podia verla | Accion |
-|---|---|---|---|
-| Contrasena de aplicacion de Gmail | `functions/index.js`, en claro y commiteada | Cualquiera con acceso al repositorio, y sigue en el historial de git | Revocar en la cuenta de Google y generar otra |
-| API key de Gemini | Coleccion `secrets` de Firestore | **Cualquier usuario registrado**: `subir/index.html` la leia en el navegador de cada usuario | Borrar la clave en Google AI Studio. El proyecto ya no usa Gemini. |
-| Token del bot de Telegram | Coleccion `secrets` de Firestore | **Cualquier usuario registrado** | `/revoke` en @BotFather y generar otro |
-| Contrasenas de la instancia de PocketBase | Enviadas al tunel de ngrok desde el login | Quien controlase ese tunel | Apagar la instancia; forzar cambio de contrasena |
-
-Rotarlas no es opcional: han sido legibles para cualquiera que se registrase.
-
-**Recomendado ademas:** avisar a las personas usuarias de que restablezcan su
-contrasena, porque el login antiguo enviaba la contrasena en claro a un servidor de
-terceros accesible por un tunel de ngrok gratuito.
-
----
-
-## Arquitectura
-
-```
-Navegador ──lectura──▶ Firestore
-    │                     ▲
-    └──escritura──────────┘   (SOLO propuestas: viaje "pendiente", nunca "verificado")
-                          │
-   GitHub Actions ────────┘   worker cada 5 min: analiza, decide y recalcula
-   (Node + sharp + OCR)        — es el unico con credenciales de administrador
-```
-
-**Regla invariable: el navegador puede PROPONER, nunca DECIDIR.** Puede crear un
-viaje en estado `pendiente`, pero las reglas de Firestore le impiden marcarlo como
-verificado, darse puntos o concederse el rol de administrador. Quien decide es el
-worker, que corre en GitHub Actions con credenciales de servicio.
-
-**Por que asi:** desplegar Cloud Functions y usar Cloud Storage exigen el plan
-Blaze (tarjeta). GitHub Actions es gratis e ilimitado en repositorios publicos, asi
-que el "servidor de confianza" vive ahi. Lo unico que se pierde es la inmediatez:
-un viaje tarda unos minutos en resolverse en vez de segundos.
-
-### Stack
-
-- Frontend: HTML + CSS + JavaScript con modulos ES. Sin framework ni build. Mobile-first.
-- Alojamiento: GitHub Pages con dominio propio, publicado por `ci.yml` desde `main`. El sitio es estatico y habla con Firestore desde el navegador.
-- Datos: Firebase Auth + Firestore, en el plan Spark (gratis, sin tarjeta).
-- Worker: Node 20 en GitHub Actions, con `sharp` y OCR local (`tesseract.js`). **Sin IA ni servicios externos.**
-- Mapa: Leaflet + GeoJSON de estaciones.
-
-### Lo que cuesta el plan gratuito
-
-| Limite de Spark | Consecuencia |
+| Mode | Rewards |
 |---|---|
-| Sin Cloud Functions | El worker vive en GitHub Actions y la verificacion tarda minutos, no segundos. |
-| Sin Cloud Storage | Las capturas van en Firestore, en una coleccion que solo lee la administracion. Por eso tambien se ha quitado la subida de avatar: el ranking trae todos los perfiles y arrastrar imagenes lo encarecia. |
-| 50.000 lecturas/dia | El recalculo de clasificaciones lo hace el worker por lotes, no el navegador. |
+| **Sprint** | The best time on each route between two stations |
+| **Endurance** | Kilometres accumulated over the season |
+| **Consistency** | Active days and streaks |
 
----
+Seasons, divisions, missions, clans and station control sit on top of those modes. The reasoning behind the rules is
+in the [game design document](docs/JUEGO.md).
 
-## Puesta en marcha
+## How it works
 
-### 1. Requisitos
-
-```bash
-npm install -g firebase-tools
+```mermaid
+flowchart LR
+  A["Browser<br/>static site"] -- "proposes a pending trip" --> B[("Firestore")]
+  B -- "pending trips" --> C["Worker<br/>GitHub Actions"]
+  C -- "verdict, points, rankings" --> B
+  B -- "public data" --> A
 ```
 
-```bash
-firebase login
-```
+**The browser can propose, never decide.** Firestore rules let a client create a trip only as `pending`. They do not
+let it verify a trip, award points or grant a role. Those decisions belong to the worker, which runs with service
+credentials.
 
-### 2. Dependencias y datos generados
+## Verification
 
-```bash
-node scripts/build-estaciones.js && cd backend && npm install
-```
-
-`build-estaciones.js` genera, a partir de `data/emt.geojson` y
-`shared/palabras-prohibidas.json`, las copias que usan el frontend
-(`assets/data/`) y el worker (`backend/lib/`). Vuelve a lanzarlo si tocas
-cualquiera de esos dos ficheros fuente.
-
-### 3. Secretos en GitHub
-
-En el repositorio: **Settings → Secrets and variables → Actions → New repository secret**
-
-| Secreto | De donde sale |
+| Check | What it catches |
 |---|---|
-| `FIREBASE_SERVICE_ACCOUNT` | Firebase → Configuracion del proyecto → **SDK de Firebase Admin** → *Generar nueva clave privada*. Pega el JSON entero. |
+| Physical plausibility | A time that is impossible for the distance between the two stations |
+| Internal consistency | Arrival minus departure does not match the displayed duration |
+| Match with the claim | Stations or time that differ from what the rider declared |
+| EXIF metadata | Traces of image editors |
+| Exact and perceptual hashes | The same image resent, recompressed, cropped or resized |
+| Competitive context | Records beaten by an implausible margin |
 
-Es el **unico** secreto que hace falta. No lo confundas con **Secretos de la base
-de datos**, que esta en esa misma pantalla: son los tokens heredados de Realtime
-Database, estan obsoletos y no sirven para esto.
+The signals add up to a risk score: low is approved, high is rejected, and the rest goes to human review. Text is read
+with Tesseract and PaddleOCR. An optional vision model gives one more reading when reading is the only doubt. It never
+rejects a trip, and its reading goes through the same checks.
 
-Nunca en el codigo ni en Firestore: ahi es donde estaban cuando robaron las claves.
+## Tech stack
 
-### 4. App Check
-
-1. Consola de Firebase: **Compilacion → App Check → reCAPTCHA v3**.
-2. Copia la clave de sitio en `RECAPTCHA_SITE_KEY`, dentro de `assets/js/firebase.js`.
-
-Aqui importa mas que en un montaje con servidor: como el cliente escribe
-directamente en Firestore, App Check es lo que impide usar la apiKey desde un
-script suelto en vez de desde la web.
-
-### 5. Desplegar
-
-Todo lo despliega `ci.yml`, solo, en cada push a `main` y **solo si pasan las
-pruebas y las reglas en el emulador**:
-
-| Trabajo | Que despliega |
+| Layer | Technology |
 |---|---|
-| `web` | El sitio, en GitHub Pages (`scripts/construir-sitio.js` monta `_site/`) |
-| `reglas` | Las reglas y los indices de Firestore |
+| Frontend | HTML, CSS and ES modules. No framework. Installable as a PWA |
+| Data and auth | Firebase Auth and Firestore, with security rules as the access control |
+| Worker | Node.js 20 on GitHub Actions, `sharp`, `tesseract.js`, PaddleOCR |
+| Map | Leaflet and station GeoJSON |
+| Hosting | GitHub Pages, deployed by CI |
 
-Las reglas van aparte a proposito: **no son estaticas**. Son el control de acceso
-del proyecto, porque no hay servidor delante.
-
-A mano, solo las reglas:
-
-```bash
-firebase deploy --only firestore:rules,firestore:indexes --project bicifastness
-```
-
-Para ver en local exactamente lo que se publica:
+## Development
 
 ```bash
-node scripts/construir-sitio.js --abierta
+git clone https://github.com/mateogsilvaa/bicifastness.git
+cd bicifastness
+npm install
+npm install --prefix backend
+npm run dev
 ```
 
-### 5.1. GitHub Pages y las cabeceras
+`npm test` regenerates the shared data, then runs ESLint, page validation and the backend test suite.
 
-Pages **no permite cabeceras HTTP**. La politica de seguridad (CSP y referrer)
-va por eso en cada pagina como `<meta>`, generada desde
-**`shared/cabeceras.json`**, que es la fuente unica:
+Deploying your own instance needs a Firebase project. See the [setup guide](docs/PUESTA-EN-MARCHA.md).
 
-```bash
-npm run cabeceras
-```
+## Project structure
 
-`npm run validar` falla si alguna pagina se queda atras.
-
-Lo que solo existe como cabecera y se pierde (`frame-ancestors`, HSTS,
-`X-Content-Type-Options`, `Permissions-Policy`) esta explicado en
-`_sin_cabeceras` de ese mismo fichero, con como se suple: el antiframing va en
-`assets/js/ui.js`, y si algun dia hacen falta las demas, se pone Cloudflare
-gratis delante del dominio.
-
-Tampoco deja cambiar la cache (diez minutos para todo). Por eso el service
-worker pide el codigo y el HTML con `cache: 'no-cache'` y se registra con
-`updateViaCache: 'none'`: tras un despliegue nadie mezcla modulos nuevos y
-viejos.
-
-**Consecuencia practica de la CSP:** declara `script-src 'self'` sin
-`'unsafe-inline'`, asi que **el JavaScript de las paginas no puede ir incrustado
-en el HTML**. Vive en `assets/js/paginas/`, un modulo por pagina. Hay un test
-que falla si alguien lo vuelve a meter en linea.
-
-### 6. Crear el primer administrador
-
-El rol es un custom claim de Firebase Auth y solo lo puede escribir el Admin SDK,
-que nunca debe llegar al navegador. Se concede desde tu ordenador:
-
-```bash
-GOOGLE_APPLICATION_CREDENTIALS=./serviceAccountKey.json node scripts/set-admin.js tu@correo.com
-```
-
-Esa persona debe cerrar sesion y volver a entrar para que su token recoja el rol.
-
-### 7. Migrar los datos antiguos
-
-```bash
-GOOGLE_APPLICATION_CREDENTIALS=./serviceAccountKey.json node scripts/migrar-datos.js --simular
-```
-
-Revisa la salida y, si cuadra, repite con `--aplicar`.
-
----
-
-## Modo mantenimiento
-
-La web esta **en obras mientras la variable del repositorio `WEB_ABIERTA` no
-valga `si`** (Settings → Secrets and variables → Actions → **Variables**).
-
-- **Abrir:** `WEB_ABIERTA` = `si` y Actions → «Tests y despliegue» → **Run
-  workflow** en `main`.
-- **Cerrar:** cambia la variable a `no` (o bórrala) y otra vez Run workflow.
-
-Con la web cerrada, `scripts/construir-sitio.js` publica SOLO la pagina de
-obras, como portada y como 404: cualquier URL, exista o no, la enseña, asi que
-tampoco se entra a `/admin/` escribiendo la direccion. Sin la variable, cerrada:
-es el lado seguro.
-
-Las rutas viejas del redisenio — `/home/`, `/ranking/`, `/bicirating/`,
-`/mapa/`, `/clanes/` y `/profile/` — estan enlazadas desde fuera: con la web
-abierta, el mismo script publica una pagina minima en cada una que salta a la
-nueva.
-
-La pagina de obras es autocontenida a proposito: sin scripts, sin depender de
-`app.css` ni de ningun modulo. Si algo del sitio se rompe, tiene que seguir en pie.
-
----
-
-## Rutas
-
-| Ruta | Que es |
+| Path | Contents |
 |---|---|
-| `/` | Landing publica: que es esto, como funciona y por que no se puede hacer trampa |
-| `/entrar/` | Iniciar sesion |
-| `/register/` | Crear cuenta |
-| `/home/` | Panel del piloto (accesible tambien sin cuenta) |
-| `/ranking/`, `/bicirating/`, `/mapa/`, `/clanes/` | Competicion |
-| `/subir/`, `/profile/` | Requieren sesion |
-| `/admin/` | Requiere el custom claim de administrador |
-| `/legal/*` | Aviso legal, privacidad, terminos y cookies |
-| `/mantenimiento/` | Pagina de obras |
+| `assets/` | Styles, browser modules and generated data |
+| `backend/` | The worker, the verification engine and its tests |
+| `firestore.rules` | Access control |
+| `scripts/` | Data generation, site build and maintenance tools |
+| `shared/`, `data/` | Source data shared by the frontend and the worker |
+| `docs/` | Design, operation and maintenance guides |
 
----
+## Documentation
 
-## Desarrollo local
-
-```bash
-firebase emulators:start --only auth,firestore,hosting
-```
-
-Comprobacion completa (datos generados, analisis estatico, enlaces y 55 tests):
-
-```bash
-npm test
-```
-
-Por partes:
-
-```bash
-npm run lint
-```
-
-```bash
-npm run validar
-```
-
-`npm run lint` extrae el JavaScript incrustado en las paginas y lo pasa por
-ESLint: ese codigo vive dentro del HTML, asi que sin esto no lo miraba nada.
-`npm run validar` comprueba imports y recursos rotos, que es el fallo mas facil
-de colar al mover ficheros (el HTML sigue siendo valido y los tests pasan).
-
-`test/regresiones.test.js` verifica sobre las REGLAS de Firestore que ninguna de
-las puertas del hackeo siga abierta: que nadie pueda autoverificarse un viaje,
-concederse el rol de admin, tocar su propia puntuacion ni leer las capturas de
-otros. Como las reglas son aqui el control de acceso, probarlas es probar la
-seguridad.
-
-### Al cambiar los textos legales
-
-Sube **a la vez** `LEGAL.VERSION_TERMINOS` en `backend/src/config.js` y
-`VERSION_LEGAL` en `assets/js/ui.js`. Hay un test que falla si divergen.
-
----
-
-## Verificacion automatica de viajes
-
-Sustituye a la aprobacion manual de cada tiempo. Cada captura pasa por este pipeline
-en el worker (`backend/src/verificacion.js`):
-
-| Comprobacion | Que detecta |
+| Document | Covers |
 |---|---|
-| Plausibilidad fisica | Distancia real entre estaciones frente al tiempo declarado. Por encima de 25 km/h de media (el corte de asistencia de una bicicleta electrica) el trayecto es imposible. |
-| Coherencia interna de la captura | `hora_llegada − hora_salida` debe coincidir con la duracion mostrada. Delata retocar solo el numero grande. |
-| Coincidencia con lo declarado | Estaciones y tiempo leidos en la imagen frente a lo escrito en el formulario. |
-| Metadatos EXIF | Rastros de Photoshop, Snapseed, Picsart y similares. Una captura autentica no pasa por un editor. |
-| Huella exacta (SHA-256) | Reenvio literal del mismo fichero. |
-| Huella perceptual (dHash) | La misma imagen recomprimida, recortada o reescalada. Sobrevive a los intentos de "disimularla". |
-| Duplicado logico | Mismo piloto, ruta, tiempo y fecha. |
-| Contexto competitivo | Records batidos por mucho margen y saltos bruscos sobre la marca propia. |
+| [Game design](docs/JUEGO.md) | Rules, scoring and why they are that way |
+| [Operation](docs/OPERACION.md) | Architecture, deployment and data model |
+| [Setup](docs/PUESTA-EN-MARCHA.md) | Step-by-step launch |
+| [Maintenance](docs/MANTENIMIENTO.md) | Routine checks and troubleshooting |
+| [Roadmap](docs/ROADMAP.md) | What comes next |
 
-Las señales suman riesgo. Menos de 20 → aprobado solo. 70 o mas → rechazado solo. En
-medio → cola de revision manual. Algunas señales son concluyentes por si mismas y
-deciden sin pasar por la suma.
+## Author
 
-### Por que no hay IA
-
-La verificacion no depende de ningun modelo externo. Eso quita una clave que
-rotar, una cuota que agotar, un servicio que puede caerse y una llamada de red
-de hasta 45 s por viaje.
-
-Lo que se pierde con ello, dicho claro: **la deteccion de retoque visual**
-(tipografia que no encaja, restos de clonado) no tiene sustituto directo sin IA.
-
-Lo que la cubre, y son comprobaciones deterministas, o sea que no opinan ni
-fallan distinto cada vez:
-
-- **Coherencia interna.** `llegada - salida` tiene que dar la duracion del
-  recuadro. Quien retoca una captura cambia el numero grande y se deja las
-  horas: esa resta lo delata, y es mas fiable que un juicio visual.
-- **Plausibilidad fisica.** La geografia no negocia.
-- **Huellas exacta y perceptual.** Reenvios, recortes y recompresiones.
-- **EXIF.** Rastros de Photoshop, Snapseed y compania.
-
-Y la regla que lo sostiene: **lo que no se lee con claridad no se aprueba solo**,
-va a la cola de revision humana.
-
-**Ajustar la sensibilidad:** todos los umbrales estan en `backend/src/config.js`.
-Si entra demasiado a la cola manual, sube `RIESGO.UMBRAL_APROBACION`; si se cuela
-algo, bajalo.
-
----
-
-## Que cambio en esta version
-
-### Vulnerabilidades corregidas
-
-| # | Problema | Como se explotaba | Solucion |
-|---|---|---|---|
-| 1 | Escalada a administrador | `usuarios` admitia escritura de cualquier autenticado y el id del documento era el email: `setDoc(doc(db,'usuarios','tu@email'),{isAdmin:true},{merge:true})` | El rol es un custom claim firmado dentro del token de Auth, que solo escribe el Admin SDK. Las reglas prohiben cualquier campo de rol en el alta. |
-| 2 | API keys publicas | `secrets` era legible por cualquier autenticado, y `subir/` la leia en el navegador de cada usuario | GitHub Secrets, que solo ve el worker. La coleccion `secrets` queda cerrada y se borra. |
-| 3 | Auto-verificacion de tiempos | `tiempos_viaje` admitia escritura: `verificado:true`, `tiempoSegundos:1`, o borrar records ajenos | Las reglas obligan a que un viaje nazca `pendiente` y `verificado: false`, y no dejan al dueno tocar esos campos. Quien decide es el worker. |
-| 4 | XSS almacenado en el panel de admin | `email_real` y `foto_url` interpolados con `innerHTML` y dentro de atributos `onclick`. Se ejecutaba JS en la sesion del admin y se robaba la key de Gemini | Construccion del DOM con `textContent` y `addEventListener`. Cero concatenacion de HTML. |
-| 5 | Toma de control de cuenta en el login | Si el usuario no existia en PocketBase, se le CREABA con la contrasena introducida | PocketBase eliminado. Firebase Auth como unica identidad. |
-| 6 | Credenciales en el repositorio | Contrasena de Gmail en claro en `functions/index.js` | GitHub Secrets. |
-| 7 | Limites solo en el cliente | "3 viajes al dia" se comprobaba en JS: se saltaba desde la consola | El cupo diario lo cuenta el worker sobre Firestore, no el navegador. |
-| 8 | Inyeccion en filtros de PocketBase | `filter: email_real = "${email}"` sin escapar | No aplica: PocketBase eliminado. |
-| 9 | Escrituras libres en clanes y mapa | `clanes` y `estaciones_stats` admitian escritura de cualquier autenticado | Reglas que comprueban liderazgo y pertenencia, y que no dejan tocar puntuacion ni insignias. |
-| 10 | Sin CSP ni cabeceras de seguridad | — | CSP, HSTS, `X-Frame-Options`, `Permissions-Policy` y demas en `firebase.json`. |
-| 11 | Service worker cacheando datos | Cache-first sobre TODAS las peticiones, incluidas las autenticadas | Solo se cachean estaticos del propio origen. |
-| 12 | Filtro de palabras roto | Se normalizaba la entrada pero no la lista: **169 de 555 entradas (30%) no coincidian nunca** | Normalizacion en ambos lados, mas excepciones para no bloquear "Cassandra" o "Titan". |
-
-### Otras mejoras
-
-- **Documentos legales completos**: aviso legal, privacidad (RGPD/LOPDGDD), terminos
-  y cookies, con registro de consentimiento versionado y export/borrado de datos
-  desde el propio perfil.
-- **Sin PocketBase**: se elimina la escritura duplicada a dos bases de datos y el
-  tunel de ngrok.
-- **Fuente unica de datos**: la lista de estaciones estaba pegada como un string de
-  ~15 KB en tres paginas y sin coordenadas. Ahora se genera desde el GeoJSON, con
-  lat/lon, y la comparten frontend y backend.
-- **CSS y navegacion compartidos**: eran ~40 lineas duplicadas en cada una de las 11 paginas.
-- **Accesibilidad**: contraste corregido a AA en modo claro, foco visible, enlaces de
-  salto al contenido, objetivos tactiles de 44 px, `aria-live` en los mensajes de
-  estado y respeto a `prefers-reduced-motion`.
-- **Errores en castellano** en lugar de codigos de Firebase.
-
----
-
-## Estructura
-
-```
-assets/
-  css/app.css               estilos comunes, mobile-first
-  js/firebase.js            arranque unico de Firebase
-  js/acciones.js            todas las escrituras, una por regla de Firestore
-  js/dom.js                 construccion segura de interfaz (sin innerHTML)
-  js/ui.js                  tema, navegacion, estaciones, aviso de cookies
-  js/precheck.js            avisos sobre la captura antes de subirla, y compresion
-  js/extraccion.js          lee la captura EN EL NAVEGADOR, para confirmar al momento
-  ocr/                      GENERADO: motor y modelo del OCR del navegador (~6 MB)
-  js/estado-viaje.js        el viaje recien subido, en vivo (un solo documento)
-  js/motivos.js             del veredicto del worker al castellano
-  data/                     GENERADO: estaciones y palabras prohibidas
-backend/
-  worker.js                 el que decide: corre en GitHub Actions
-  src/config.js             todos los umbrales de negocio y antifraude
-  src/verificacion.js       motor de decision
-  src/imagen.js             huellas y limpieza de EXIF
-  src/ocr.js                lectura de la captura, sin IA
-  src/normalizar.js         deja toda captura en la misma forma antes de leerla
-  test/banco/               GENERADO: capturas sinteticas y su verdad (#16)
-  src/puntuacion.js         BiciRating y dominio de estaciones
-  test/                     pruebas de regresion y del motor de decision
-.github/workflows/
-  verificar-viajes.yml      worker: cada ejecucion vigila 9 min y lanza la siguiente (el cron de GitHub no se cumple); cron cada 5 min como red
-  periodicas.yml            cierre de temporada y divisiones (cron apagado)
-  ci.yml                    tests, reglas de Firestore y la web en GitHub Pages
-CNAME                       el dominio de la web (lo leen Pages y los correos)
-docs/
-  ROADMAP.md                hitos, issues y en que orden
-  JUEGO.md                  las reglas del juego y por que son esas
-firestore.rules             EL control de acceso: no hay servidor delante
-legal/                      aviso-legal, privacidad, terminos, cookies
-shared/cabeceras.json       fuente unica de las cabeceras de seguridad
-scripts/                    build-estaciones, build-capturas, build-ocr, aplicar-cabeceras, build-distancias, set-admin
-```
-
-En `assets/js/paginas/` hay un modulo por pagina. No estan incrustados en el HTML
-porque la CSP los bloquearia: ver el apartado 5.1.
-
----
-
-## Modelo de datos
-
-| Coleccion | Clave | Lectura publica | Escritura del cliente |
-|---|---|---|---|
-| `usuarios` | uid | si | no |
-| `tiempos_viaje` | auto | solo los verificados | no |
-| `clanes` | slug del nombre | si | no |
-| `estaciones_stats` | numero de estacion | si | no |
-| `config/general` | fijo | si | no |
-| `reportes` | auto | solo admin | no |
-| `huellas_captura` | sha256 | no | no |
-| `auditoria_admin` | auto | solo admin | no |
-| `rate_limits` | uid_accion | no | no |
-| `nombres_usuario` | nombre en minusculas | no | no |
-
----
-
-## Que viene ahora
-
-El plan completo esta en [`docs/ROADMAP.md`](docs/ROADMAP.md), repartido en
-hitos e issues. Las reglas del juego que se esta construyendo, en
-[`docs/JUEGO.md`](docs/JUEGO.md).
-
-### Antes de publicar
-
-El checklist completo, con el orden y el porque de cada paso, esta en
-[`docs/LANZAMIENTO.md`](docs/LANZAMIENTO.md). Vive ahi y no aqui para que no
-haya dos copias que se separen.
-
-**El orden importa.** El historial de git todavia contiene la contrasena de
-Gmail en claro, y el worker solo es gratis e ilimitado si el repositorio es
-publico: hacerlo publico antes de purgar el historial es publicar esa
-contrasena.
-
-Y para cuando ya este abierto: [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md)
-dice que mirar cada semana, que mirar cada mes y que hacer cuando algo falla.
-
-El cron del worker esta apagado a proposito: sin credenciales no puede hacer
-nada, y cada despertar mandaba un correo de fallo y gastaba un minuto de Actions
-(se factura por minuto empezado, asi que eran ~288 minutos al dia contra el
-limite de 2.000 al mes).
+Built by [Mateo González Silva](https://mateogsilvaa.es).

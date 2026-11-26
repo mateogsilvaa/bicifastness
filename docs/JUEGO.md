@@ -188,9 +188,20 @@ Las cuatro primeras son piezas de bici en metal y las tres ultimas, gemas. El
 identificador en los datos es el nombre sin tilde (`rubi`). Las insignias estan
 en `assets/img/divisiones/`.
 
-### Grupos de 20, en piramide
+### Grupos de hasta 20, en piramide
 
-Se compite **contra tu grupo de 20**, no contra toda la web. Cuantos grupos
+Se compite **contra tu grupo de hasta 20**, no contra toda la web.
+
+Con poca gente los grupos son mas pequeños, nunca menos divisiones: hasta
+llenar las siete hay un grupo por cada 6 pilotos (`divisiones.gruposTotales`,
+`MINIMO_POR_GRUPO`), y el tamaño sale de repartirlos parejos
+(`divisiones.tamanoGrupo`). 20 pilotos son tres grupos de 7 (Cobre, Plata y
+Oro); 45, siete grupos de 7; desde 141, grupos de 20 como antes. Con grupos de
+20 fijos, en noviembre de 2026 los 20 de la web eran UN grupo de Cobre.
+
+Al cerrar, Cobre no se desborda si arriba hay sitio: lo que no cabe sube a la
+division siguiente, en cascada y por puntos, **como mucho hasta Oro**. Platino y
+las gemas se ganan subiendo. Cuantos grupos
 tiene cada division sale de cuanta gente hay en la escalera
 (`divisiones.gruposPorNivel`):
 
@@ -242,8 +253,10 @@ una tabla mientras dura la liga, y al cerrarla **entran en la escalera**
   (como mucho Oro), y una mas si vuelve fuerte (por encima del 90%).
 - Platino solo para quien estuvo en Esmeralda o mas y vuelve por encima del
   99,5%, o un nuevo por encima del 99,9%.
-- Y siempre con cupo: **al menos el 80% entra en Cobre**, y en Platino como
-  mucho el 0,05% de los que entran.
+- Y siempre con cupo: por merito, **al menos el 80% apunta a Cobre**, y en
+  Platino como mucho el 0,05% de los que entran. Pero si Cobre no cabe en su
+  cupo y arriba hay sitio, los de mas puntos suben hasta Oro (ver arriba): con
+  poca gente, que entren todos en Cobre dejaba la escalera vacia.
 
 Por que dos semanas y no una: con una, quien se pierde dos dias por trabajo o
 lluvia ya no tiene margen de remontar. Con dos, da tiempo, y el cambio sigue

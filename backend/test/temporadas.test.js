@@ -114,9 +114,10 @@ test('la escala va de cobre a diamante, y sin clasificar va aparte', () => {
 test('los grupos son de 20 como mucho y parejos', () => {
   const pilotos = Array.from({ length: 55 }, (_, i) => piloto(`u${i}`, 100 - i));
   const grupos = divisiones.repartirEnGrupos(pilotos);
-  assert.strictEqual(grupos.size, 3);
+  // 55 pilotos: siete grupos de 8 como mucho (con poca gente, mas pequeños).
+  assert.strictEqual(grupos.size, 7);
   const tamanos = [...grupos.values()].map((g) => g.length);
-  for (const t of tamanos) assert.ok(t <= divisiones.POR_GRUPO);
+  for (const t of tamanos) assert.ok(t <= divisiones.tamanoGrupo(55) && t <= divisiones.POR_GRUPO);
   assert.ok(Math.max(...tamanos) - Math.min(...tamanos) <= 1, `grupos descompensados: ${tamanos}`);
   // En serpiente: los tres mejores no caen en el mismo grupo.
   const deLosTres = new Set(['u0', 'u1', 'u2'].map((u) => [...grupos].find(([, m]) => m.some((p) => p.uid === u))[0]));
@@ -139,8 +140,12 @@ test('los sin clasificar con puntos van en una sola tabla; sin puntos, en ningun
 });
 
 test('con pocos grupos hay uno por division, empezando por abajo', () => {
-  assert.deepStrictEqual(divisiones.gruposPorNivel(45),
+  // 20 pilotos ya no son un solo grupo de cobre: tres grupos de 7 (nov 2026).
+  assert.deepStrictEqual(divisiones.gruposPorNivel(20),
     { cobre: 1, plata: 1, oro: 1, platino: 0, esmeralda: 0, rubi: 0, diamante: 0 });
+  assert.strictEqual(divisiones.tamanoGrupo(20), 7);
+  assert.strictEqual(divisiones.gruposTotales(5), 1, 'menos de seis, un grupo');
+  assert.strictEqual(divisiones.gruposTotales(45), 7);
   assert.deepStrictEqual(Object.values(divisiones.gruposPorNivel(140)), [1, 1, 1, 1, 1, 1, 1]);
   // El octavo grupo nace abajo.
   assert.strictEqual(divisiones.gruposPorNivel(141).cobre, 2);
@@ -150,7 +155,9 @@ test('la piramide: diamante 1, rubi hasta 3, esmeralda hasta 7 y el resto 40/30/
   for (let n = 1; n <= 8000; n += 7) {
     const g = divisiones.gruposPorNivel(n);
     const total = Object.values(g).reduce((a, b) => a + b, 0);
-    assert.strictEqual(total, Math.ceil(n / 20), `con ${n} pilotos los grupos no cuadran`);
+    assert.strictEqual(total, divisiones.gruposTotales(n), `con ${n} pilotos los grupos no cuadran`);
+    assert.ok(total * divisiones.tamanoGrupo(n) >= n, `con ${n} pilotos no caben todos`);
+    if (n >= divisiones.MINIMO_POR_GRUPO) assert.ok(divisiones.tamanoGrupo(n) >= divisiones.MINIMO_POR_GRUPO);
     assert.ok(g.diamante <= 1 && g.rubi <= 3 && g.esmeralda <= 7, `tope de gemas roto con ${n}: ${JSON.stringify(g)}`);
     if (total > 7) {
       assert.ok(g.esmeralda <= g.platino, `con ${n}, mas esmeralda que platino: ${JSON.stringify(g)}`);
@@ -215,12 +222,14 @@ function escalera(n, ligas, { semilla = 7, inactivos = 0.1 } = {}) {
   return estado;
 }
 
-test('el primer cierre: los nuevos entran, al menos el 80% en cobre', () => {
+test('el primer cierre: los nuevos entran de abajo arriba, por puntos y hasta oro', () => {
   const nuevos = Array.from({ length: 300 }, (_, i) => ({ uid: `u${i}`, puntos: 10 + i }));
   const salida = divisiones.cerrarLiga(nuevos);
   const en = (d) => salida.filter((x) => x.division === d).length;
   assert.strictEqual(en('sin-clasificar'), 0, 'todos han pedaleado: todos entran');
-  assert.ok(en('cobre') >= 240, `solo ${en('cobre')} de 300 en cobre`);
+  // Cobre no se desborda con sitio arriba, pero por desborde no se pasa de oro.
+  const cupos = divisiones.gruposPorNivel(300);
+  assert.ok(en('cobre') <= cupos.cobre * divisiones.tamanoGrupo(300), `${en('cobre')} de 300 en cobre`);
   assert.strictEqual(en('platino') + en('esmeralda') + en('rubi') + en('diamante'), 0);
   // Los que entran por encima de cobre son los que mas han destacado.
   const minimoArriba = Math.min(...salida.filter((x) => x.division !== 'cobre').map((x) => x.puntos));
@@ -321,4 +330,18 @@ test('solo cambia lo que tiene que cambiar', () => {
   const salida = divisiones.cerrarLiga(estado);
   const cambian = salida.filter((x) => x.cambia).length;
   assert.ok(cambian > 0 && cambian < salida.length / 2, `cambian ${cambian} de ${salida.length}`);
+});
+
+test('veinte pilotos en un cobre se reparten en cobre, plata y oro por puntos', () => {
+  // Noviembre de 2026: los 20 de la web en un solo grupo de cobre, sin nadie
+  // a quien adelantar para subir.
+  const veinte = Array.from({ length: 20 }, (_, i) => ({ uid: `u${i}`, division: 'cobre', grupo: 'cobre-1', puntos: 10 + i * 7 }));
+  const salida = new Map(divisiones.cerrarLiga(veinte).map((x) => [x.uid, x]));
+  const en = (d) => [...salida.values()].filter((x) => x.division === d).length;
+  assert.deepStrictEqual([en('cobre'), en('plata'), en('oro')], [7, 7, 6]);
+  // Los de mas puntos arriba.
+  assert.strictEqual(salida.get('u19').division, 'oro');
+  assert.strictEqual(salida.get('u0').division, 'cobre');
+  // Un grupo por division.
+  assert.deepStrictEqual(new Set([...salida.values()].map((x) => x.grupo)), new Set(['cobre-1', 'plata-1', 'oro-1']));
 });

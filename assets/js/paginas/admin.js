@@ -376,11 +376,11 @@ function pintarCaso() {
         selectorActual,
       ]),
       deIA ? el('p', { clase: 'meta', estilo: { fontWeight: '700' }, texto: viaje.corregidoAuto
-        ? `Ruta corregida con la captura: declaró ${tramoCorto(viaje.correccionAutomatica?.antes?.ruta)} y la captura dice ${tramoCorto(viaje.ruta)}. Ya cuenta con la ruta buena. Si está bien, dalo por bueno; si no, anúlalo (se le quitan los puntos).`
+        ? `Ruta corregida con la captura: declaró ${tramoCorto(viaje.correccionAutomatica?.antes?.ruta)} y la captura dice ${tramoCorto(viaje.ruta)}. Ya cuenta con esa ruta. Si está bien, dalo por bueno; si la buena es otra, corrígela (se le rehacen los puntos); si no vale, anúlalo.`
         : 'Aprobado por el lector con IA: ya cuenta. Si está bien, dalo por bueno; si no, anúlalo (se le quitan los puntos).' }) : null,
       el('div', { clase: 'adm-decidir' }, [
         el('button', { clase: 'btn aprobar', attrs: { type: 'button' }, on: { click: () => decidir('aprobar') } }, [icono('check', 'icono peq'), el('span', { texto: deIA ? 'Está bien' : 'Aprobar' }), el('kbd', { texto: 'A' })]),
-        deIA ? null : el('button', { clase: 'btn secundario', attrs: { type: 'button' }, on: { click: () => corregirYAprobar() } }, [el('span', { texto: 'Corregir y aprobar' }), el('kbd', { texto: 'C' })]),
+        el('button', { clase: 'btn secundario', attrs: { type: 'button' }, on: { click: () => corregirYAprobar() } }, [el('span', { texto: deIA ? 'Corregir ruta' : 'Corregir y aprobar' }), el('kbd', { texto: 'C' })]),
         el('button', { clase: 'btn peligro', attrs: { type: 'button' }, on: { click: () => decidir('rechazar') } }, [el('span', { texto: deIA ? 'Anular' : 'Rechazar' }), el('kbd', { texto: 'R' })]),
         el('span', { clase: 'hueco' }),
         el('span', { clase: 'pista', texto: `J / K para moverse · ${indice + 1} de ${lista.length}` }),
@@ -481,8 +481,8 @@ function corregirYAprobar() {
   const lista = visibles();
   if (!lista.length) return;
   const { id: viajeId, viaje, deIA } = lista[indice];
-  // Uno ya aprobado y premiado no se corrige aqui: se anula.
-  if (deIA) return;
+  // Uno de "Para repasar" ya cuenta: solo se le cambia la ruta, y el worker le
+  // rehace los puntos con la buena (sin anularlo ni avisarle de nada).
   const lectura = aprendizaje?.viajeId === viajeId ? aprendizaje?.auditoria?.lectura : null;
   const [o, d] = String(viaje.ruta || '').split('-');
   const campo = (etiqueta, valor, attrs = {}) => {
@@ -507,6 +507,19 @@ function corregirYAprobar() {
     clase: 'btn plano', texto: 'Invertir salida y meta', attrs: { type: 'button' },
     on: { click: () => { const t = origen.entrada.value; origen.entrada.value = destino.entrada.value; destino.entrada.value = t; pintarNombres(); } },
   });
+  // Lo que declaro el piloto, antes de que el verificador lo corrigiera.
+  const declarada = viaje.correccionAutomatica?.antes?.ruta;
+  const usarDeclarada = declarada && declarada !== viaje.ruta ? el('button', {
+    clase: 'btn plano', texto: `Volver a la declarada (${tramoCorto(declarada)})`, attrs: { type: 'button' },
+    on: {
+      click: () => {
+        const [a, b] = declarada.split('-');
+        origen.entrada.value = a;
+        destino.entrada.value = b;
+        pintarNombres();
+      },
+    },
+  }) : null;
   const usarLeido = lectura?.origen ? el('button', {
     clase: 'btn plano', texto: 'Rellenar con lo leído', attrs: { type: 'button' },
     on: {
@@ -522,22 +535,27 @@ function corregirYAprobar() {
     },
   }) : null;
 
-  const guardar = el('button', { clase: 'btn aprobar', texto: 'Aprobar corregido', attrs: { type: 'button' } });
+  const guardar = el('button', { clase: 'btn aprobar', texto: deIA ? 'Guardar la ruta buena' : 'Aprobar corregido', attrs: { type: 'button' } });
   const { cerrar } = abrirHoja([
-    el('h2', { texto: 'Corregir y aprobar' }),
-    el('p', { clase: 'meta', texto: 'Se aprueba con estos datos. El piloto ve el trayecto corregido y queda registrado qué había antes.' }),
+    el('h2', { texto: deIA ? 'Corregir la ruta' : 'Corregir y aprobar' }),
+    el('p', { clase: 'meta', texto: deIA
+      ? 'Ya contaba: se cambia la ruta y se le rehacen los puntos con ella. La duración y el día no se tocan. Queda registrado qué había antes.'
+      : 'Se aprueba con estos datos. El piloto ve el trayecto corregido y queda registrado qué había antes.' }),
     origen.nodo, destino.nodo, nombres,
-    el('div', { clase: 'fila', estilo: { gap: '8px', flexWrap: 'wrap' } }, [invertir, usarLeido]),
-    duracion.nodo, fecha.nodo, error, guardar,
-  ], { etiqueta: 'Corregir y aprobar' });
+    el('div', { clase: 'fila', estilo: { gap: '8px', flexWrap: 'wrap' } }, [usarDeclarada, invertir, usarLeido]),
+    deIA ? null : duracion.nodo, deIA ? null : fecha.nodo, error, guardar,
+  ], { etiqueta: deIA ? 'Corregir la ruta' : 'Corregir y aprobar' });
 
   guardar.addEventListener('click', async () => {
     const a = normalizarEstacion(origen.entrada.value);
     const b = normalizarEstacion(destino.entrada.value);
     const m = /^(\d{1,3}):([0-5]\d)$/.exec(duracion.entrada.value.trim());
-    const segundos = m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
-    const dia = fecha.entrada.value;
+    // En "Para repasar" la duracion y el dia se quedan como estaban: lo que
+    // ya sumo se rehace con la ruta nueva, no con otro tiempo.
+    const segundos = deIA ? viaje.tiempoSegundos : m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
+    const dia = deIA ? viaje.fechaViaje : fecha.entrada.value;
     if (!nombreEstacion(a) || !nombreEstacion(b) || a === b) { error.textContent = 'Revisa las estaciones.'; return; }
+    if (deIA && `${a}-${b}` === viaje.ruta) { error.textContent = 'Es la misma ruta: si está bien, dalo por bueno.'; return; }
     if (!Number.isInteger(segundos) || segundos < 30 || segundos > 7200) { error.textContent = 'La duración va en mm:ss (entre 0:30 y 120:00).'; return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || dia < '2026-11-01') { error.textContent = 'La fecha no vale.'; return; }
     guardar.disabled = true;
@@ -545,11 +563,11 @@ function corregirYAprobar() {
       await resolverViaje(viajeId, 'aprobar', null, aprendizaje?.viajeId === viajeId ? aprendizaje : null, {
         ruta: `${a}-${b}`, tiempoSegundos: segundos, fechaViaje: dia,
         antes: { ruta: viaje.ruta || null, tiempoSegundos: viaje.tiempoSegundos ?? null, fechaViaje: viaje.fechaViaje || null },
-      });
+      }, { deIA: Boolean(deIA) });
       cerrar();
       cola = cola.filter((c) => c.id !== viajeId);
       pintarCola();
-      avisar('Aprobado con la corrección.');
+      avisar(deIA ? 'Ruta corregida: se le rehacen los puntos en la próxima pasada.' : 'Aprobado con la corrección.');
     } catch (e) {
       guardar.disabled = false;
       error.textContent = `No se ha podido guardar: ${e.message}`;

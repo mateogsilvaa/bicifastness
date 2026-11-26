@@ -115,6 +115,7 @@ function construir({ destino = path.join(RAIZ, '_site'), abierta = abiertaSegunE
   }
 
   optimizar(destino, leerVersion());
+  aligerarCss(destino);
 
   for (const [vieja, nueva] of Object.entries(REDIRECCIONES)) {
     const carpeta = path.join(destino, vieja);
@@ -339,6 +340,44 @@ function optimizar(destino, version) {
   }
 }
 
+/**
+ * El CSS publicado sin comentarios, sangrias ni lineas en blanco: app.css baja
+ * de 66 a 48 KB comprimido, y es lo que bloquea el primer pintado de cada
+ * pagina. Sin minificador: solo lo que se puede quitar sin entender el CSS.
+ * Va despues de las huellas, que salen del fuente.
+ */
+function aligerarCss(destino) {
+  for (const css of ficheros(path.join(destino, 'assets'), '.css')) {
+    fs.writeFileSync(css, cssLigero(fs.readFileSync(css, 'utf8')));
+  }
+}
+
+/**
+ * Quita los comentarios recorriendo el CSS: lo que va entre comillas es texto
+ * (un "/*" en un `content` no es un comentario) y se copia tal cual. Despues,
+ * sangrias, espacios al final y lineas en blanco. Pura.
+ */
+function cssLigero(codigo) {
+  let salida = '';
+  let i = 0;
+  while (i < codigo.length) {
+    const c = codigo[i];
+    if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < codigo.length && codigo[j] !== c && codigo[j] !== '\n') j += codigo[j] === '\\' ? 2 : 1;
+      salida += codigo.slice(i, j + 1);
+      i = j + 1;
+    } else if (c === '/' && codigo[i + 1] === '*') {
+      const fin = codigo.indexOf('*/', i + 2);
+      i = fin < 0 ? codigo.length : fin + 2;
+    } else {
+      salida += c;
+      i += 1;
+    }
+  }
+  return salida.replace(/^[ \t]+/gm, '').replace(/[ \t]+$/gm, '').replace(/\n{2,}/g, '\n');
+}
+
 function contar(dir) {
   return fs.readdirSync(dir, { withFileTypes: true })
     .reduce((n, e) => n + (e.isDirectory() ? contar(path.join(dir, e.name)) : 1), 0);
@@ -351,4 +390,4 @@ if (require.main === module) {
     : `Web CERRADA por obras (WEB_ABIERTA no es "si"): ${ficheros} ficheros en _site/.`);
 }
 
-module.exports = { construir, grafoDeModulos, REDIRECCIONES, NO_SE_PUBLICA, publicable };
+module.exports = { construir, grafoDeModulos, aligerarCss, cssLigero, REDIRECCIONES, NO_SE_PUBLICA, publicable };

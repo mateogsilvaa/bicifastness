@@ -48,7 +48,7 @@ const {
   leerCaptura, releerCaptura, releerCon, PREPARACIONES_EXTRA, elegirTrayecto, cerrar: cerrarOcr,
 } = require('./src/ocr');
 const {
-  evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura, DE_LECTURA, RUIDO, rutaDeLaCaptura,
+  evaluar, distanciaCalleMetros, firmaDeLectura, capturaImpecable, mejorLectura, DE_LECTURA, RUIDO, rutaDeLaCaptura, soloVecinas,
 } = require('./src/verificacion');
 const lectorIA = require('./src/lector-ia');
 const lectorPaddle = require('./src/lector-paddle');
@@ -796,7 +796,18 @@ async function procesar(doc) {
   let contextoDeRuta = contexto;
   if (soloRuta) {
     const dicha = rutaDeLaCaptura(lecturas, viaje.tiempoSegundos);
-    if (dicha && dicha.ruta !== viaje.ruta) {
+    // La de al lado con una cifra cambiada (260 leido como 261): eso es el
+    // lector, no el piloto. Se queda la ruta DECLARADA y no se manda a repasar.
+    if (dicha && soloVecinas(viaje.ruta, dicha.ruta)) {
+      const [o, d] = viaje.ruta.split('-');
+      const comoDijo = { ...dicha.lectura, origen: o, destino: d };
+      const otra = evaluar({ ...contextoVeredicto, lectura: comoDijo });
+      console.log(`  [${doc.id}] estacion vecina mal leida: ${dicha.ruta} es ${viaje.ruta} (${otra.decision})`);
+      if (otra.decision === 'aprobado') {
+        lectura = comoDijo;
+        veredicto = { ...otra, estacionVecina: { leida: dicha.ruta } };
+      }
+    } else if (dicha && dicha.ruta !== viaje.ruta) {
       const corregido = { ...viaje, ruta: dicha.ruta };
       const contextoNuevo = await reunirContexto(corregido, uid, hashSha, hashPerceptual, capturaId);
       const otra = evaluar({ ...contextoVeredicto, ...contextoNuevo, ruta: dicha.ruta, lectura: dicha.lectura });
@@ -815,7 +826,9 @@ async function procesar(doc) {
   // recortes de la lupa cuyo texto confirma un viaje aprobado con captura
   // impecable. Sin uid ni nombre: un numero de estacion o una hora sueltos.
   if (veredicto.decision === 'aprobado' && veredicto.impecable && !SIMULAR) {
-    await guardarMuestrasCifras(doc.id, primera, lectura, viaje.ruta)
+    // Con la ruta DECLARADA si se corrigio: si no, un 260 mal leido como 261
+    // entraba al entrenamiento como "261" y el lector lo aprendia.
+    await guardarMuestrasCifras(doc.id, primera, lectura, veredicto.rutaCorregida?.antes || viaje.ruta)
       .catch((error) => console.warn(`  [${doc.id}] muestras de cifras no guardadas:`, error.message));
   }
 
@@ -1648,7 +1661,7 @@ async function premiar(doc, viaje) {
  * aparecido, no la marca conseguida, y quitarsela meses despues a alguien
  * castiga mas de lo que corrige.
  */
-async function revertirPremio(doc, viaje) {
+async function revertirPremio(doc, viaje, { avisar = true } = {}) {
   if (viaje.uid) pilotosTocados.add(String(viaje.uid));
   const refUsuario = db.doc(`usuarios/${viaje.uid}`);
   const menos = admin.firestore.FieldValue.increment;
@@ -1677,6 +1690,8 @@ async function revertirPremio(doc, viaje) {
   await doc.ref.update({ premiado: false });
   console.log(`  [${doc.id}] revertidos ${viaje.puntos || 0} puntos y `
     + `${((viaje.distanciaMetros || 0) / 1000).toFixed(2)} km`);
+  // Una correccion de ruta no anula nada: se rehace y ya.
+  if (!avisar) return;
 
   // Y se le dice. Anular un viaje le quita a alguien puntos que ya tenia: si no
   // se avisa, lo que ve es que su puntuacion ha bajado sola de un dia para otro
@@ -1897,6 +1912,21 @@ async function aplicarDecisionesManuales() {
     //
     // `premiado` es la marca de que ya sumo, asi que no se paga dos veces si la
     // pasada se corta entre esto y quitar `recalculoPendiente`.
+    // Corregido en "Para repasar" un viaje que ya habia sumado: se deshace lo
+    // de la ruta de antes (sin avisarle: no se le anula nada) y se suma con la
+    // buena. `correccionAplicada` evita hacerlo dos veces.
+    const correccion = viaje.correccionAdmin;
+    const enMs = correccion?.en?.toMillis?.() || 0;
+    if (viaje.verificado === true && viaje.premiado === true && correccion && enMs !== (viaje.correccionAplicada || 0)) {
+      if (correccion.antes?.ruta) rutas.add(correccion.antes.ruta);
+      if (!SIMULAR) {
+        await revertirPremio(doc, viaje, { avisar: false });
+        await premiar(doc, { ...viaje, premiado: false });
+        await doc.ref.update({ correccionAplicada: enMs });
+      } else console.log(`  [${doc.id}] se rehacerian los puntos con la ruta corregida`);
+      console.log(`  [${doc.id}] corregido a mano: ${correccion.antes?.ruta} -> ${viaje.ruta}`);
+    }
+
     if (viaje.verificado === true && viaje.premiado !== true) {
       if (!SIMULAR) {
         const sumados = await premiar(doc, viaje);

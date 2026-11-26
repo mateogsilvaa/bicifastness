@@ -245,12 +245,23 @@ const nombreDeEstacion = (n) => {
   const c = catalogo();
   return (c[n] || c[String(n).padStart(3, '0')] || c[String(n).replace(/^0+/, '')] || {}).nombre || '';
 };
-/** ¿Lo leido junto al numero ("Metro Arganzuela -") es el nombre de esa estacion? */
+/**
+ * ¿Lo leido junto al numero ("Metro Arganzuela -") es el nombre de esa estacion?
+ *
+ * La app corta los nombres largos ("Ciudad Universitaria - Fac. de Bi..."), y
+ * lo que distingue la 260 (Fac. de Biologia) de la 261 (Facultad Derecho) es
+ * justo ese trozo final. Por eso la ultima palabra, si es corta, cuenta como el
+ * principio de una palabra del nombre.
+ */
 function nombreEncaja(leido, nombre) {
-  const palabras = plano(leido).split(' ').filter((p) => p.length >= 4);
+  const fichas = plano(leido).split(' ').filter((p) => p && !/\d/.test(p));
+  const palabras = fichas.filter((p) => p.length >= 4);
   if (!palabras.length || !nombre) return null;
   const completo = plano(nombre);
-  return palabras.every((p) => completo.includes(p));
+  if (!palabras.every((p) => completo.includes(p))) return false;
+  const ultima = fichas[fichas.length - 1];
+  if (ultima.length >= 2 && ultima.length < 4 && !completo.split(' ').some((p) => p.startsWith(ultima))) return false;
+  return true;
 }
 
 /**
@@ -273,7 +284,10 @@ function extraerEstaciones(texto) {
   texto = corregirCifras(texto);
   // Solo el "(124)" que cierra "124 - Nombre (124)": un parentesis suelto (el
   // icono del reloj leido como "(5)") no es una estacion.
-  const conParentesis = [...texto.matchAll(/-[^\n()]*?\S\s*\(?(\d{1,3}[a-zA-Z]?)\)/g)].map((m) => m[1]);
+  // Con el nombre que lleva delante: si no es el de ese numero y si el de otro
+  // que cambia en una cifra (260 leido como 261), manda el nombre.
+  const conParentesis = [...texto.matchAll(/-([^\n()]*?\S)\s*\(?(\d{1,3}[a-zA-Z]?)\)/g)]
+    .map((m) => corregirConNombre(m[2], m[1]));
   if (conParentesis.length >= 2) return conParentesis;
 
   // Respaldo: numero al principio de linea seguido de guion.
@@ -287,7 +301,7 @@ function extraerEstaciones(texto) {
   // Nombre cortado por la app ("176 - Plaza de la Beata María Ana de Jesús (17..."):
   // numero, guion y nombre, en una linea sin mas numeros de estacion.
   const cortada = String(texto).match(/(?:^|\s)(\d{1,3})\s*[-–]\s*[A-Za-zÁÉÍÓÚÑáéíóúñ][^\n]*\(\d{0,3}\.{2,}/);
-  return cortada ? [cortada[1]] : [];
+  return cortada ? [corregirConNombre(cortada[1], cortada[0].replace(/^\s*\d{1,3}\s*[-–]/, ''))] : [];
 }
 
 /**

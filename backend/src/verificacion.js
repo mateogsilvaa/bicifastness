@@ -941,6 +941,45 @@ function mejorLectura(lecturas, ruta, tiempoSegundos) {
   return validas.reduce((mejor, l) => (nota(l) > nota(mejor) ? l : mejor), validas[0]);
 }
 
+/** Hasta donde dos estaciones son "la de al lado" (la 260 y la 261: 290 m). */
+const METROS_VECINAS = 500;
+/**
+ * Las cifras que el lector confunde de verdad en la letra de BiciMAD. Solo
+ * esas: con cualquier cifra, casi todas las estaciones de numeros seguidos
+ * serian "vecinas" y lo declarado ganaria siempre a la captura.
+ */
+const CIFRAS_GEMELAS = new Set(['01', '10', '38', '83', '68', '86', '56', '65', '17', '71']);
+
+/**
+ * ¿Lo leido es la declarada con UNA cifra mal leida, y ademas estan al lado?
+ * El lector confunde a veces un 0 con un 1 (260 por 261), y entre estaciones
+ * pegadas lo que dice el piloto vale mas que esa cifra: la duracion sale de la
+ * captura y la distancia apenas cambia. Pura.
+ */
+function vecinaConfusable(declarada, leida) {
+  const a = String(declarada || '').replace(/^0+/, '');
+  const b = String(leida || '').replace(/^0+/, '');
+  if (!a || a === b || a.length !== b.length) return false;
+  const distintas = [...a].map((c, i) => c + b[i]).filter(([x, y]) => x !== y);
+  if (distintas.length !== 1 || !CIFRAS_GEMELAS.has(distintas[0])) return false;
+  const ea = buscarEstacion(declarada);
+  const eb = buscarEstacion(leida);
+  if (!ea || !eb || !Number.isFinite(ea.lat) || !Number.isFinite(eb.lat)) return false;
+  return distanciaMetros(ea, eb) <= METROS_VECINAS;
+}
+
+/**
+ * ¿La ruta leida es la declarada salvo vecinas confusables? Cada punta igual o
+ * su vecina, y al menos una distinta. Pura.
+ */
+function soloVecinas(declarada, leida) {
+  const [o, d] = String(declarada || '').split('-');
+  const [lo, ld] = String(leida || '').split('-');
+  if (!o || !d || !lo || !ld || declarada === leida) return false;
+  const igual = (x, y) => String(x).replace(/^0+/, '') === String(y).replace(/^0+/, '');
+  return (igual(o, lo) || vecinaConfusable(o, lo)) && (igual(d, ld) || vecinaConfusable(d, ld));
+}
+
 /**
  * La ruta que dice la captura, cuando NO es la declarada pero la captura es
  * clara: para corregir las estaciones sin mandar el viaje a revision.
@@ -1071,5 +1110,6 @@ function evaluar(contexto) {
 
 module.exports = {
   capturaImpecable, RUIDO, mejorLectura, fechaDentroDePlazo, rutaDeLaCaptura, tiempoInventado,
+  vecinaConfusable, soloVecinas,
   evaluar, distribucion, distanciaCalleMetros, velocidadKmh, DE_LECTURA, firmaDeLectura, compararFirmas,
 };

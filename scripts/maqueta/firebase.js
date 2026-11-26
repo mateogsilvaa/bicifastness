@@ -248,6 +248,14 @@ nombres.slice(0, 8).forEach((n, i) => {
     ...(i === 2 ? { capturaCaduca: new Timestamp(Date.now() + 12 * 864e5) } : {}),
   };
 });
+// Uno que el verificador aprobo corrigiendo la ruta con la captura: sale en
+// admin > Para repasar (la 260 leida como 261).
+datos[`tiempos_viaje/${UID}_corregido`] = {
+  uid: UID, username: perfil.username, ruta: '261-151', tiempoSegundos: 824, fechaViaje: dia(0),
+  estado: 'aprobado', verificado: true, premiado: true, puntos: 109, distanciaMetros: 4460, revisadoPor: 'automatico',
+  corregidoAuto: true, iaRevisada: false, correccionAutomatica: { antes: { ruta: '260-151' } },
+  creado: hace(45), capturaId: `${UID}_c0`,
+};
 
 // La tienda abierta, con enlaces de prueba (no llevan a ningun pago real).
 datos['config/tienda'] = {

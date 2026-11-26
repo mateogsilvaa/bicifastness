@@ -41,8 +41,37 @@ const NIVELES = ['cobre', 'plata', 'oro', 'platino', 'esmeralda', 'rubi', 'diama
 /** Antes de la primera liga con trayectos, y despues de dos ligas sin pedalear. */
 const SIN_CLASIFICAR = 'sin-clasificar';
 
-/** Cuanta gente por grupo. */
+/** Cuanta gente por grupo, como mucho. */
 const POR_GRUPO = 20;
+
+/**
+ * Con poca gente, grupos mas pequeños y no menos divisiones. Con grupos de 20
+ * fijos, 20 pilotos eran UN grupo de cobre: nadie sube, nadie baja y la
+ * escalera no existe (noviembre de 2026). Asi, hasta llenar las siete
+ * divisiones, los grupos son de `MINIMO_POR_GRUPO` en adelante.
+ */
+const MINIMO_POR_GRUPO = 6;
+
+/** Hasta donde se sube por desborde de la division de abajo (`cerrarLiga`, 4b). */
+const TECHO_DESBORDE = 'oro';
+
+/** Cuantos grupos hay con `pilotos` clasificados. */
+function gruposTotales(pilotos) {
+  const n = Math.max(0, Math.floor(pilotos));
+  if (!n) return 0;
+  if (n > NIVELES.length * POR_GRUPO) return Math.ceil(n / POR_GRUPO);
+  return Math.min(NIVELES.length, Math.max(1, Math.floor(n / MINIMO_POR_GRUPO)));
+}
+
+/**
+ * Cuanta gente cabe en cada grupo con `pilotos` clasificados: 20 con la
+ * escalera llena; con menos, los que salgan de repartirlos en `gruposTotales`
+ * grupos parejos (20 pilotos: tres grupos de 7, en cobre, plata y oro).
+ */
+function tamanoGrupo(pilotos) {
+  const total = gruposTotales(pilotos);
+  return total ? Math.min(POR_GRUPO, Math.ceil(pilotos / total)) : POR_GRUPO;
+}
 
 /** Cuantos suben y cuantos bajan de cada grupo completo. */
 const MUEVEN = 4;
@@ -163,7 +192,7 @@ function repartirMetales(resto) {
  * uno de platino.
  */
 function gruposPorNivel(pilotos) {
-  const total = Math.ceil(Math.max(0, pilotos) / POR_GRUPO);
+  const total = gruposTotales(pilotos);
   const grupos = Object.fromEntries(NIVELES.map((n) => [n, 0]));
   if (!total) return grupos;
 
@@ -232,9 +261,10 @@ function repartirEnGrupos(pilotos) {
     }
   }
 
+  const tamano = tamanoGrupo(pilotos.filter((p) => esClasificado(p.division)).length);
   for (const [division, miembros] of sueltos) {
     const ya = [...grupos.keys()].filter((k) => divisionDeClave(k) === division).length;
-    repartirParejo(miembros, Math.ceil(miembros.length / POR_GRUPO))
+    repartirParejo(miembros, Math.ceil(miembros.length / tamano))
       .forEach((g, i) => g.forEach((p) => meter(`${division}-${ya + i + 1}`, p)));
   }
 
@@ -387,10 +417,11 @@ function cerrarLiga(pilotos) {
   //    vienen de arriba, despues los que ya estaban y por ultimo los que suben;
   //    dentro de cada uno, por puntos.
   const cupos = gruposPorNivel(objetivo.size);
+  const tamano = tamanoGrupo(objetivo.size);
   const pendientes = [...objetivo.values()];
   const colocados = new Map();
   for (let nivel = NIVELES.length - 1; nivel >= 0; nivel--) {
-    const cupo = nivel === 0 ? Infinity : cupos[NIVELES[nivel]] * POR_GRUPO;
+    const cupo = nivel === 0 ? Infinity : cupos[NIVELES[nivel]] * tamano;
     const candidatos = pendientes
       .filter((o) => !colocados.has(o.p.uid) && o.nivel >= nivel)
       .sort((a, b) => (b.nivel - a.nivel)
@@ -400,12 +431,35 @@ function cerrarLiga(pilotos) {
     for (const o of candidatos.slice(0, cupo)) colocados.set(o.p.uid, { ...o, final: nivel });
   }
 
+  // 4b. Que cobre no se desborde con sitio arriba. Lo de arriba solo lo llena
+  //     quien sube o ya estaba, asi que con mucha gente nueva (el primer
+  //     cierre, sobre todo) todo se quedaba en cobre: veinte pilotos en un
+  //     grupo y la escalera vacia. Lo que no cabe en una division sube a la
+  //     siguiente, de abajo arriba: los de mas puntos, y antes quien pedia
+  //     subir que quien bajaba.
+  //     Por desborde se llega como mucho a oro: platino y las gemas se ganan
+  //     subiendo, no por haber llegado muchos a la vez.
+  for (let nivel = 0; nivel < nivelDe(TECHO_DESBORDE); nivel++) {
+    const arriba = cupos[NIVELES[nivel + 1]] * tamano;
+    if (!arriba) break;
+    // En cascada: si arriba tampoco cabe, lo que sobre alli subira en la
+    // siguiente vuelta. Hay sitio para todos (los cupos suman de sobra).
+    const aqui = [...colocados.values()].filter((o) => o.final === nivel);
+    const sobran = aqui.length - cupos[NIVELES[nivel]] * tamano;
+    if (sobran <= 0) continue;
+    aqui.sort((a, b) => (b.nivel - a.nivel)
+      || ((b.p.puntos || 0) - (a.p.puntos || 0))
+      || String(a.p.uid).localeCompare(String(b.p.uid)))
+      .slice(0, sobran)
+      .forEach((o) => colocados.set(o.p.uid, { ...o, final: nivel + 1 }));
+  }
+
   // 5. Grupos nuevos, parejos, dentro de cada division.
   const grupoNuevo = new Map();
   for (const division of NIVELES) {
     const suyos = [...colocados.values()].filter((o) => NIVELES[o.final] === division).map((o) => o.p);
     if (!suyos.length) continue;
-    repartirParejo(suyos, Math.ceil(suyos.length / POR_GRUPO))
+    repartirParejo(suyos, Math.ceil(suyos.length / tamano))
       .forEach((g, i) => g.forEach((p) => grupoNuevo.set(p.uid, `${division}-${i + 1}`)));
   }
 
@@ -463,8 +517,12 @@ function diasJugables(alta, diaDeLaLiga) {
 function grupoParaRecienLlegado(p, tamanos, dia) {
   if (esClasificado(p.division) || (p.divisionMaxima ?? -1) >= 0 || p.grupo) return null;
   if (enPrimeraLiga(dia) || diasEntre(inicioLiga(dia), dia) >= DIAS_PARA_ENTRAR) return null;
+  const clasificados = Object.entries(tamanos || {})
+    .filter(([clave]) => esClasificado(divisionDeClave(clave)))
+    .reduce((t, [, n]) => t + n, 0);
+  const cabe = tamanoGrupo(clasificados + 1);
   const cobres = Object.entries(tamanos || {})
-    .filter(([clave, n]) => divisionDeClave(clave) === 'cobre' && n < POR_GRUPO)
+    .filter(([clave, n]) => divisionDeClave(clave) === 'cobre' && n < cabe)
     .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
   return cobres[0]?.[0] || null;
 }
@@ -476,6 +534,9 @@ module.exports = {
   NIVELES,
   SIN_CLASIFICAR,
   POR_GRUPO,
+  MINIMO_POR_GRUPO,
+  gruposTotales,
+  tamanoGrupo,
   MUEVEN,
   TOPES,
   PESOS,

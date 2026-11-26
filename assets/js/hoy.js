@@ -783,7 +783,7 @@ function avisarCambioDivision(perfil) {
         texto: entra && cambio.aMitad
           ? `Has llegado con la liga empezada, así que no esperas: ya compites en un grupo de ${hasta} con lo que llevas. Al cerrar la liga se decide quién sube.`
           : entra
-          ? `Ya estás en la escalera. Compites en un grupo de 20 de ${hasta}, todos desde 0, y en dos semanas se decide quién sube.`
+          ? `Ya estás en la escalera. Compites en un grupo de ${hasta}, todos desde 0, y en dos semanas se decide quién sube.`
           : sube
             ? `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total} en tu grupo. Estas dos semanas compites con pilotos nuevos, todos desde 0.`
             : `Acabaste ${ordinal(cambio.puesto)} de ${cambio.total}. Tienes dos semanas para recuperar ${desde}.`,

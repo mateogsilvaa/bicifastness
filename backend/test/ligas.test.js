@@ -82,9 +82,10 @@ test('el resumen de ligas va de Leyenda a Hierro y solo publica lo publicable', 
   assert.deepStrictEqual(r.niveles.map((n) => n.nivel), [...[...divisiones.NIVELES].reverse(), 'sin-clasificar']);
   const cobre = r.niveles.find((n) => n.nivel === 'cobre');
   assert.strictEqual(cobre.pilotos, 35);
-  assert.strictEqual(cobre.grupos.length, 2, '35 pilotos son dos grupos de hasta 20');
-  // Parejos: los dos mejores, cada uno en un grupo.
-  assert.deepStrictEqual(cobre.grupos.map((g) => g.podio[0].nombre).sort(), ['cobre0', 'cobre1']);
+  // 36 clasificados: seis grupos de 6 (con poca gente, grupos pequeños).
+  assert.strictEqual(cobre.grupos.length, 6, '35 pilotos de 36 son seis grupos de hasta 6');
+  // Parejos: los seis mejores, cada uno en un grupo.
+  assert.deepStrictEqual(cobre.grupos.map((g) => g.podio[0].nombre).sort(), ['cobre0', 'cobre1', 'cobre2', 'cobre3', 'cobre4', 'cobre5']);
   const sin = r.niveles.find((n) => n.nivel === 'sin-clasificar');
   assert.strictEqual(sin.pilotos, 1);
   assert.strictEqual(sin.grupos[0].mueven, 0, 'sin clasificar no sube ni baja');
@@ -152,7 +153,8 @@ test('dias jugables: desde el alta o desde el inicio de la liga, hasta su fin', 
 test('un nuevo con la liga recien empezada entra ya en el cobre con mas sitio', () => {
   const d = require('../src/divisiones');
   const nuevo = { division: 'sin-clasificar', divisionMaxima: -1, grupo: null };
-  const tamanos = { 'cobre-1': 20, 'cobre-2': 12, 'cobre-3': 15, 'plata-1': 3 };
+  // Con 150 clasificados los grupos son de 19: cobre-1 esta lleno.
+  const tamanos = { 'cobre-1': 20, 'cobre-2': 12, 'cobre-3': 15, 'plata-1': 103 };
   // Martes de la primera semana de la liga del 16.
   assert.strictEqual(d.grupoParaRecienLlegado(nuevo, tamanos, '2026-11-17'), 'cobre-2');
   // Segunda semana: espera al cierre.

@@ -206,8 +206,8 @@ const PIEZAS = {
   },
 
   ligas: {
-    titulo: 'Ganadores de liga', formato: '3 × 3:4',
-    nota: 'Una sola imagen de 3240 × 1440 cortada en tres de 1080 × 1440: al deslizar se sigue la carretera.',
+    titulo: 'Ganadores de liga', formato: '3 × 9:16',
+    nota: 'Tres historias seguidas (una imagen de 3240 × 1920 cortada en tres de 1080 × 1920): al pasar de una a otra se sigue la carretera. El diseño va en la franja central, fuera de las zonas que tapa Instagram.',
     laminas: (d) => {
       const X = [270, 790, 1290, 1630, 1970, 2430, 2850];
       const Y = [1060, 960, 880, 760, 640, 470, 330];
@@ -228,8 +228,11 @@ const PIEZAS = {
             <span style="font-size:64px; font-weight:800; font-stretch:68%; line-height:.9; color:${i === 6 ? '#5AA8F2' : '#F2F1EE'};">${g ? `${esc(g.v)} pts` : ''}</span>
           </div>`;
       }).join('');
+      // El diseño de 3240 x 1440, tal cual, centrado en 3240 x 1920: lo de
+      // arriba y abajo es lo que tapan el nombre y la caja de respuesta.
       const html = `
-        <div style="width:3240px; height:1440px; background:#111110; color:#F2F1EE; position:relative;">
+        <div style="width:3240px; height:1920px; background:#111110; color:#F2F1EE; position:relative; overflow:hidden;">
+        <div style="position:absolute; left:0; top:240px; width:3240px; height:1440px;">
           <svg width="3240" height="1440" viewBox="0 0 3240 1440" style="position:absolute; inset:0;">
             <path d="${road}" fill="none" stroke="#1B80E5" stroke-width="18" stroke-linecap="round"/>
             <path d="${road}" fill="none" stroke="#F2F1EE" stroke-width="3" stroke-dasharray="26 22"/>
@@ -237,15 +240,16 @@ const PIEZAS = {
           <div style="position:absolute; left:84px; top:110px; display:flex; flex-direction:column; gap:20px; width:900px;">
             <span style="font-size:34px; font-weight:700; color:#B3B2AE;">${esc(mayus(d.mes))} ${d.anio} · las 7 ligas</span>
             <span style="font-size:170px; font-weight:800; font-stretch:68%; letter-spacing:-.03em; line-height:.82;">De cobre<br/>a diamante</span>
-            <span style="font-size:36px; color:#B3B2AE; display:flex; align-items:center; gap:14px;">Desliza${FLECHA('#1B80E5', 40)}</span>
+            <span style="font-size:36px; color:#B3B2AE; display:flex; align-items:center; gap:14px;">Sigue${FLECHA('#1B80E5', 40)}</span>
           </div>
           ${ligas}
           <div style="position:absolute; right:84px; bottom:100px; display:flex; flex-direction:column; align-items:flex-end; gap:10px;">
             <span style="font-size:36px; color:#B3B2AE;">Cada dos semanas se sube y se baja.</span>
             <span style="font-size:44px; font-weight:800;">bicifastness.es</span>
           </div>
+        </div>
         </div>`;
-      return [{ w: 3240, h: 1440, html, cortes: 3 }];
+      return [{ w: 3240, h: 1920, html, cortes: 3 }];
     },
   },
 
@@ -286,8 +290,8 @@ const PIEZAS = {
   },
 
   resumen: {
-    titulo: 'Resumen de temporada', formato: '9 × 3:4',
-    nota: 'El carrusel del día 1 de cada mes, 9 láminas de 1080 × 1440.',
+    titulo: 'Resumen de temporada', formato: '9 × 9:16',
+    nota: 'Las historias del día 1 de cada mes: 9 de 1080 × 1920, con márgenes para lo que tapa Instagram arriba y abajo.',
     laminas: (d) => laminasResumen(d),
   },
 
@@ -357,27 +361,32 @@ function vacia(w, h, texto) {
 
 const cab = (izq, num, total, color = '#8B8A87') => `<div style="display:flex; justify-content:space-between; font-size:34px; font-weight:700;"><span>${esc(izq)}</span><span style="color:${color};">${String(num).padStart(2, '0')}/${String(total).padStart(2, '0')}</span></div>`;
 
-/** 13g · Carrusel de 9, 1080 x 1440. */
+/**
+ * 13g · Las 9 del resumen de temporada, en historias de 1080 x 1920. Es el
+ * carrusel 3:4 del diseño estirado: los huecos (`flex:1`) se quedan lo que
+ * sobra, y el margen de arriba y abajo deja libre lo que tapa Instagram.
+ */
 function laminasResumen(d) {
-  const L = (html) => ({ w: 1080, h: 1440, html });
-  const pad = 'padding:90px 84px; box-sizing:border-box;';
+  const ALTO = 1920;
+  const L = (html) => ({ w: 1080, h: ALTO, html });
+  const pad = 'padding:220px 84px 260px; box-sizing:border-box;';
   return [
-    L(`<div style="width:1080px; height:1440px; background:#1B80E5; color:#fff; ${pad} display:flex; flex-direction:column; position:relative; overflow:hidden; isolation:isolate;">
-        <svg width="1080" height="1440" viewBox="0 0 1080 1440" style="position:absolute; inset:0; z-index:-1;"><path d="M760 380 A470 470 0 1 1 352 615" fill="none" stroke="#3F95EA" stroke-width="110" stroke-linecap="round"/><circle cx="352" cy="615" r="92" fill="#3F95EA"/></svg>
+    L(`<div style="width:1080px; height:${ALTO}px; background:#1B80E5; color:#fff; ${pad} display:flex; flex-direction:column; position:relative; overflow:hidden; isolation:isolate;">
+        <svg width="1080" height="${ALTO}" viewBox="0 0 1080 1440" preserveAspectRatio="xMidYMid slice" style="position:absolute; inset:0; z-index:-1;"><path d="M760 380 A470 470 0 1 1 352 615" fill="none" stroke="#3F95EA" stroke-width="110" stroke-linecap="round"/><circle cx="352" cy="615" r="92" fill="#3F95EA"/></svg>
         <div style="display:flex; justify-content:space-between; font-size:34px; font-weight:700;"><span>bicifastness</span><span>01/09</span></div>
         <div style="flex:1;"></div>
         <span style="font-size:40px; font-weight:700;">Resumen de temporada</span>
         <span style="font-size:262px; font-weight:800; font-stretch:62%; letter-spacing:-.045em; line-height:.78; margin-top:16px;">${esc(mayus(d.mes))}</span>
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:40px; font-size:36px; font-weight:700;"><span>${esc(d.periodoTexto)}</span><span style="display:flex; align-items:center; gap:12px;">Desliza${FLECHA('#fff', 44)}</span></div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:40px; font-size:36px; font-weight:700;"><span>${esc(d.periodoTexto)}</span><span style="display:flex; align-items:center; gap:12px;">Sigue${FLECHA('#fff', 44)}</span></div>
       </div>`),
-    L(`<div style="width:1080px; height:1440px; background:#F3F1EC; color:#111110; ${pad} display:flex; flex-direction:column;">
+    L(`<div style="width:1080px; height:${ALTO}px; background:#F3F1EC; color:#111110; ${pad} display:flex; flex-direction:column;">
         ${cab(`Madrid en ${d.mes}`, 2, 9, '#6E6C66')}
         <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1.25fr 1fr 1fr; margin-top:60px; border-top:3px solid #111110;">
           <div style="grid-column:1/-1; display:flex; flex-direction:column; justify-content:center; border-bottom:3px solid #111110;"><span style="font-size:260px; font-weight:800; font-stretch:62%; letter-spacing:-.04em; line-height:.8; color:#1466C2;">${esc(miles(d.km))} km</span><span style="font-size:40px; font-weight:700; margin-top:18px;">pedaleados entre todos.${d.km > 40075 ? ' Más de una vuelta al mundo.' : ''}</span></div>
           ${d.cifras.map((c, i) => `<div style="display:flex; flex-direction:column; justify-content:center; gap:10px; border-bottom:3px solid #111110; border-left:${i % 2 ? '3px solid #111110' : 'none'}; padding-left:${i % 2 ? '40px' : '0'};"><span style="font-size:130px; font-weight:800; font-stretch:68%; line-height:.82;">${esc(c.v)}</span><span style="font-size:34px; color:#55534D; line-height:1.2;">${esc(c.t)}</span></div>`).join('')}
         </div>
       </div>`),
-    L(`<div style="width:1080px; height:1440px; background:#111110; color:#F2F1EE; ${pad} display:flex; flex-direction:column;">
+    L(`<div style="width:1080px; height:${ALTO}px; background:#111110; color:#F2F1EE; ${pad} display:flex; flex-direction:column;">
         ${cab('Campeones por modo', 3, 9)}
         <div style="flex:1;"></div>
         ${d.campeones.map((c) => `<div style="border-top:3px solid #3A3B3E; padding:36px 0 40px; display:grid; grid-template-columns:1fr auto; gap:8px 24px; align-items:end;">
@@ -386,17 +395,17 @@ function laminasResumen(d) {
             <span style="grid-column:1/-1; font-size:30px; color:#B3B2AE;">${esc(c.extra)}</span>
           </div>`).join('')}
       </div>`),
-    L(`<div style="width:1080px; height:1440px; background:#0E0F10; color:#F2F1EE; box-sizing:border-box; display:flex; flex-direction:column; position:relative;">
-        <div style="position:absolute; left:0; right:0; top:0; height:900px;">${mapa(1080, 900, { colores: d.coloresMapa })}</div>
-        <div style="position:relative; padding:90px 84px 0;">${cab('Quién manda en el mapa', 4, 9)}</div>
+    L(`<div style="width:1080px; height:${ALTO}px; background:#0E0F10; color:#F2F1EE; box-sizing:border-box; display:flex; flex-direction:column; position:relative;">
+        <div style="position:absolute; left:0; right:0; top:0; height:1240px;">${mapa(1080, 1240, { colores: d.coloresMapa })}</div>
+        <div style="position:relative; padding:220px 84px 0;">${cab('Quién manda en el mapa', 4, 9)}</div>
         <div style="flex:1;"></div>
-        <div style="position:relative; background:#0E0F10; padding:50px 84px 90px; display:flex; flex-direction:column; gap:26px;">
+        <div style="position:relative; background:#0E0F10; padding:50px 84px 260px; display:flex; flex-direction:column; gap:26px;">
           <div style="display:flex; height:36px; gap:4px;">${d.clanes.map((c) => `<span style="flex:${Math.max(1, c.v)}; background:${c.c};"></span>`).join('')}<span style="flex:${Math.max(1, d.libres)}; background:#3A3B3E;"></span></div>
           <div style="display:flex; align-items:flex-end; justify-content:space-between;"><span style="display:flex; flex-direction:column;"><span style="font-size:34px; color:#B3B2AE;">Clan campeón</span><span style="font-size:96px; font-weight:800; font-stretch:84%; letter-spacing:-.035em; line-height:1;">${esc(d.clanes[0]?.n || '—')}</span></span><span style="font-size:150px; font-weight:800; font-stretch:64%; line-height:.8; color:${d.clanes[0]?.c || '#F2F1EE'};">${esc(d.clanes[0]?.v ?? 0)}</span></div>
           <span style="font-size:34px; color:#B3B2AE;">estaciones de ${esc(d.totalEstaciones)} · ${esc(d.numClanes)} clanes se reparten ${esc(d.dominadas)}</span>
         </div>
       </div>`),
-    L(`<div style="width:1080px; height:1440px; background:#F3F1EC; color:#111110; ${pad} display:flex; flex-direction:column; gap:40px; justify-content:space-between;">
+    L(`<div style="width:1080px; height:${ALTO}px; background:#F3F1EC; color:#111110; ${pad} display:flex; flex-direction:column; gap:40px; justify-content:space-between;">
         <div style="margin-bottom:60px;">${cab('Clanes · cómo van', 5, 9, '#6E6C66')}</div>
         ${d.clanMov.map((c) => `<div style="border-top:3px solid #111110; padding-top:30px; display:grid; grid-template-columns:auto 1fr; gap:6px 30px; align-items:center;">
             <span style="grid-row:span 2; width:120px; height:120px; border-radius:30px; background:${c.c}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:800;">${esc(c.ini)}</span>
@@ -406,7 +415,7 @@ function laminasResumen(d) {
         <div style="flex:1;"></div>
         <span style="font-size:34px; color:#55534D; line-height:1.35;">${d.disputadas ? `Estaciones en disputa ahora mismo: <strong style="color:#111110;">${esc(d.disputadas)}</strong>.` : 'Ninguna estación en disputa ahora mismo.'}</span>
       </div>`),
-    L(`<div style="width:1080px; height:1440px; background:#111110; color:#F2F1EE; ${pad} display:flex; flex-direction:column;">
+    L(`<div style="width:1080px; height:${ALTO}px; background:#111110; color:#F2F1EE; ${pad} display:flex; flex-direction:column;">
         ${cab('Ganadores de cada liga', 6, 9)}
         <div style="flex:1;"></div>
         ${[...NIVELES].reverse().map((k, i) => {
@@ -418,7 +427,7 @@ function laminasResumen(d) {
           </div>`;
   }).join('')}
       </div>`),
-    L(`<div style="width:1080px; height:1440px; background:#1B80E5; color:#fff; ${pad} display:flex; flex-direction:column;">
+    L(`<div style="width:1080px; height:${ALTO}px; background:#1B80E5; color:#fff; ${pad} display:flex; flex-direction:column;">
         ${cab('Las rutas más peleadas', 7, 9, '#fff')}
         <div style="flex:1;"></div>
         ${d.rutasMes.slice(0, 4).map((r) => `<div style="border-top:3px solid #fff; padding:30px 0 34px; display:grid; grid-template-columns:1fr auto; gap:8px 24px; align-items:end;">
@@ -427,14 +436,14 @@ function laminasResumen(d) {
             <span style="font-size:30px;">${esc(r.info)}</span>
           </div>`).join('')}
       </div>`),
-    L(`<div style="width:1080px; height:1440px; background:#F3F1EC; color:#111110; ${pad} display:flex; flex-direction:column;">
+    L(`<div style="width:1080px; height:${ALTO}px; background:#F3F1EC; color:#111110; ${pad} display:flex; flex-direction:column;">
         ${cab(`Los momentos de ${d.mes}`, 8, 9, '#6E6C66')}
         <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:60px;">
           <div style="grid-column:1/-1; background:#111110; color:#F2F1EE; border-radius:36px; padding:44px; display:flex; justify-content:space-between; align-items:flex-end;"><span style="display:flex; flex-direction:column; gap:8px;"><span style="font-size:32px; color:#B3B2AE;">El viaje con más puntos</span><span style="font-size:52px; font-weight:800;">${esc(d.viaje ? piloto(d.viaje.username || 'Piloto') : '—')}</span><span style="font-size:30px; color:#B3B2AE;">${d.viaje ? `${esc(corto(nombreDe(tramoDe(d.viaje.ruta)[0])))} → ${esc(corto(nombreDe(tramoDe(d.viaje.ruta)[1])))} · ${esc(formatearTiempo(d.viaje.tiempoSegundos))}` : ''}</span></span><span style="font-size:180px; font-weight:800; font-stretch:62%; line-height:.8; color:#5AA8F2;">${d.viaje ? `+${esc(miles(d.viaje.puntos))}` : ''}</span></div>
           ${d.hitos.map((h) => `<div style="background:#fff; border-radius:36px; padding:40px; display:flex; flex-direction:column; justify-content:space-between;"><span style="font-size:30px; color:#55534D; line-height:1.25;">${esc(h.t)}</span><span style="display:flex; flex-direction:column; gap:6px;"><span style="font-size:110px; font-weight:800; font-stretch:64%; line-height:.82;">${esc(h.v)}</span><span style="font-size:32px; font-weight:700;">${esc(h.n)}</span></span></div>`).join('')}
         </div>
       </div>`),
-    L(`<div style="width:1080px; height:1440px; background:#111110; color:#F2F1EE; ${pad} display:flex; flex-direction:column;">
+    L(`<div style="width:1080px; height:${ALTO}px; background:#111110; color:#F2F1EE; ${pad} display:flex; flex-direction:column;">
         ${cab('Top 5 BiciRating', 9, 9)}
         <div style="margin-top:50px; display:flex; flex-direction:column;">
           ${d.top.slice(0, 5).map((t) => `<div style="display:grid; grid-template-columns:100px 1fr auto; gap:20px; align-items:center; height:126px; border-bottom:2px solid #2D2E31;"><span style="font-size:76px; font-weight:800; font-stretch:68%; color:#5AA8F2;">${esc(t.p)}</span><span style="font-size:52px; font-weight:700;">${esc(t.n)}</span><span style="font-size:64px; font-weight:800; font-stretch:72%;">${esc(t.v)}</span></div>`).join('')}

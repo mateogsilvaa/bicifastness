@@ -30,3 +30,14 @@ test('el CSS publicado pierde los comentarios, no lo que va entre comillas', () 
   );
   assert.strictEqual(cssLigero("i::before { content: '\\'/*'; }"), "i::before { content: '\\'/*'; }");
 });
+
+test('el JS se minifica al publicar sin empaquetar: cada modulo en su URL', () => {
+  const fuente = require('node:fs').readFileSync(path.join(RAIZ, 'scripts', 'construir-sitio.js'), 'utf8');
+  const cuerpo = fuente.slice(fuente.indexOf('function minificarJs'));
+  assert.match(fuente, /aligerarCss\(destino\);\s*minificarJs\(destino\);/, 'ya no se minifica al construir');
+  assert.ok(!/bundle:\s*true/.test(cuerpo), 'empaquetar cambiaria las URLs de los modulos');
+  assert.ok(!/format:/.test(cuerpo), 'con format, esbuild renombra lo de nivel superior');
+  // Y el despliegue instala esbuild antes de montar la web.
+  const ci = require('node:fs').readFileSync(path.join(RAIZ, '.github', 'workflows', 'ci.yml'), 'utf8');
+  assert.ok(ci.indexOf('npm ci') > -1 && ci.indexOf('npm ci') < ci.indexOf('node scripts/construir-sitio.js'));
+});

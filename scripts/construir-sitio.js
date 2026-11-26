@@ -115,6 +115,8 @@ function construir({ destino = path.join(RAIZ, '_site'), abierta = abiertaSegunE
   }
 
   optimizar(destino, leerVersion());
+  aligerarCss(destino);
+  minificarJs(destino);
 
   for (const [vieja, nueva] of Object.entries(REDIRECCIONES)) {
     const carpeta = path.join(destino, vieja);
@@ -339,6 +341,72 @@ function optimizar(destino, version) {
   }
 }
 
+/**
+ * El CSS publicado sin comentarios, sangrias ni lineas en blanco: app.css baja
+ * de 66 a 48 KB comprimido, y es lo que bloquea el primer pintado de cada
+ * pagina. Sin minificador: solo lo que se puede quitar sin entender el CSS.
+ * Va despues de las huellas, que salen del fuente.
+ */
+function aligerarCss(destino) {
+  for (const css of ficheros(path.join(destino, 'assets'), '.css')) {
+    fs.writeFileSync(css, cssLigero(fs.readFileSync(css, 'utf8')));
+  }
+}
+
+/**
+ * Quita los comentarios recorriendo el CSS: lo que va entre comillas es texto
+ * (un "/*" en un `content` no es un comentario) y se copia tal cual. Despues,
+ * sangrias, espacios al final y lineas en blanco. Pura.
+ */
+function cssLigero(codigo) {
+  let salida = '';
+  let i = 0;
+  while (i < codigo.length) {
+    const c = codigo[i];
+    if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < codigo.length && codigo[j] !== c && codigo[j] !== '\n') j += codigo[j] === '\\' ? 2 : 1;
+      salida += codigo.slice(i, j + 1);
+      i = j + 1;
+    } else if (c === '/' && codigo[i + 1] === '*') {
+      const fin = codigo.indexOf('*/', i + 2);
+      i = fin < 0 ? codigo.length : fin + 2;
+    } else {
+      salida += c;
+      i += 1;
+    }
+  }
+  return salida.replace(/^[ \t]+/gm, '').replace(/[ \t]+$/gm, '').replace(/\n{2,}/g, '\n');
+}
+
+/**
+ * El JS publicado, minificado con esbuild fichero a fichero: sin empaquetar,
+ * asi que cada modulo sigue en su URL con su huella (las precargas, el service
+ * worker y los import() no cambian). Sin `format`, esbuild no renombra lo de
+ * nivel superior ni toca los import/export: solo comentarios, espacios y
+ * nombres locales. Va al final, cuando los imports ya llevan su version.
+ *
+ * Fuera: vendor y ocr (ya vienen minificados) y lo que no sea de assets (el
+ * service worker se queda legible: es pequeño y se comprueba como texto). Sin esbuild instalado (una copia local sin `npm ci`) se
+ * avisa y se publica sin minificar: la web funciona igual.
+ */
+function minificarJs(destino) {
+  let esbuild;
+  try { esbuild = require('esbuild'); } catch {
+    console.warn('Sin esbuild: el JS se publica sin minificar (npm ci para tenerlo).');
+    return 0;
+  }
+  const lista = ficheros(path.join(destino, 'assets'), '.js')
+    .filter((f) => !f.includes(`${path.sep}vendor${path.sep}`) && !f.includes(`${path.sep}ocr${path.sep}`));
+  for (const js of lista) {
+    const { code } = esbuild.transformSync(fs.readFileSync(js, 'utf8'), {
+      loader: 'js', minify: true, legalComments: 'none', charset: 'utf8', target: 'es2020',
+    });
+    fs.writeFileSync(js, code);
+  }
+  return lista.length;
+}
+
 function contar(dir) {
   return fs.readdirSync(dir, { withFileTypes: true })
     .reduce((n, e) => n + (e.isDirectory() ? contar(path.join(dir, e.name)) : 1), 0);
@@ -351,4 +419,4 @@ if (require.main === module) {
     : `Web CERRADA por obras (WEB_ABIERTA no es "si"): ${ficheros} ficheros en _site/.`);
 }
 
-module.exports = { construir, grafoDeModulos, REDIRECCIONES, NO_SE_PUBLICA, publicable };
+module.exports = { construir, grafoDeModulos, aligerarCss, cssLigero, minificarJs, REDIRECCIONES, NO_SE_PUBLICA, publicable };

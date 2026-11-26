@@ -10,7 +10,9 @@
 import {
   entrarConGoogle, entrarConGoogleRedirigiendo, volverDeGoogle, getAdditionalUserInfo, traducirErrorAuth,
 } from './firebase.js';
-import { resolverSegundoPaso } from './dos-pasos.js';
+// La verificacion en dos pasos (y lo que arrastra) solo si la cuenta la pide
+// al entrar: casi nadie la tiene, y era codigo en la carga de cada pagina.
+const resolverSegundoPaso = (error) => import('./dos-pasos.js').then((m) => m.resolverSegundoPaso(error));
 import { estado } from './dom.js';
 import { anotar, volcar } from './metricas.js';
 import { registrar } from './errores.js';

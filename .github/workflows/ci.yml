@@ -205,6 +205,10 @@ jobs:
         with:
           node-version: '20'
 
+      # esbuild, para minificar el JS al montar la web (construir-sitio.js).
+      - name: Instalar las herramientas de construccion
+        run: npm ci --no-audit --no-fund
+
       - name: Montar la web
         env:
           WEB_ABIERTA: ${{ vars.WEB_ABIERTA }}

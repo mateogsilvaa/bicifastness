@@ -28,7 +28,8 @@ import {
   proveedorGoogle, browserPopupRedirectResolver,
 } from './firebase.js';
 import { el, abrirHoja, estado } from './dom.js';
-import qrcode from '../vendor/qrcode/qrcode.js';
+// El generador de QR (56 KB) se pide solo al activar: este modulo lo cargan
+// la portada y el registro por `resolverSegundoPaso`, y ahi no hace falta.
 
 /** Cuanto vale una verificacion para el panel (las reglas dan 2 h de margen). */
 const MINUTOS_VERIFICACION_ADMIN = 60;
@@ -55,7 +56,8 @@ function mensaje(error) {
 }
 
 /** El QR, como SVG. */
-function qrSVG(texto) {
+async function qrSVG(texto) {
+  const { default: qrcode } = await import('../vendor/qrcode/qrcode.js');
   const qr = qrcode(0, 'M');
   qr.addData(texto);
   qr.make();
@@ -154,11 +156,12 @@ export async function activarDosPasos(usuario = auth.currentUser) {
   const sesion = await multiFactor(usuario).getSession();
   const secreto = await TotpMultiFactorGenerator.generateSecret(sesion);
   const url = secreto.generateQrCodeUrl(usuario.email || 'piloto', 'BiciFastness');
+  const qr = await qrSVG(url);
   return pedirCodigo({
     titulo: 'Verificación en dos pasos',
     texto: 'Escanea el código con tu app de autenticación (Google Authenticator, 1Password, Authy…) y escribe el código de 6 cifras que te da.',
     extra: [
-      el('div', { clase: 'qr-caja' }, [qrSVG(url)]),
+      el('div', { clase: 'qr-caja' }, [qr]),
       el('details', { clase: 'clave-manual' }, [
         el('summary', { texto: '¿No puedes escanearlo?' }),
         el('p', { clase: 'menor', texto: 'Añade una cuenta a mano con esta clave:' }),

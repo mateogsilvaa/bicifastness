@@ -8,7 +8,9 @@ import {
   auth, onAuthStateChanged, signInWithEmailAndPassword,
   sendPasswordResetEmail, traducirErrorAuth,
 } from '/assets/js/firebase.js';
-import { resolverSegundoPaso } from '/assets/js/dos-pasos.js';
+// La verificacion en dos pasos (y lo que arrastra) solo si la cuenta la pide
+// al entrar: casi nadie la tiene, y era codigo en la carga de cada pagina.
+const resolverSegundoPaso = (error) => import('/assets/js/dos-pasos.js').then((m) => m.resolverSegundoPaso(error));
 import { aplicarTema, montarAvisoCookies } from '/assets/js/ui.js';
 import { id, el, icono } from '/assets/js/dom.js';
 import { vigilarErrores } from '/assets/js/errores.js';
